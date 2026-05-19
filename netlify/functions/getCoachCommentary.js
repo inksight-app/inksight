@@ -169,7 +169,7 @@ function buildLocalCommentary(body = {}) {
       title: ["Top deck mode.", "Asphyxie totale.", "Page blanche."],
       description: [
         "Tu as passé {toursTopDeck} tours en main vide ou quasi vide. Perdre le Card Advantage comme ça transforme chaque pioche en prière.",
-        "Le moteur de pioche a calé. Même avec {inkFloat} encres flottées, sans main, impossible de convertir proprement le tempo.",
+        "Le moteur de pioche a calé. Même avec {inkFloat} encres flottées, sans main, impossible de Grandmaison le tempo.",
       ],
     },
     inkLeak: {
@@ -239,37 +239,20 @@ Analyse ce match :
 - Matchup : ${v.matchupLabel}
 - Départ : ${v.otp}
 - Score : ${v.monScore} à ${v.scoreAdverse}
-- Résultat : ${v.isWin ? "victoire" : v.isLoss ? "défaite" : "résultat ambigu"}
+- Résultat : ${v.isWin ? "victoire" : "défaite"}
 - Durée : ${v.nbTours} tours
 - Rythme probable : ${v.pace}
 - Cartes mulliganées : ${v.nbMulligan}
 - Encre flottée : ${v.inkFloat}
-- Tours en main vide / quasi vide : ${v.toursTopDeck}
-- Carte MVP / moteur de Lore : ${v.topQuester}
+- Tours en main vide : ${v.toursTopDeck}
+- Carte MVP : ${v.topQuester}
 - Carte la plus encrée : ${v.topInkedCard} (${v.topInkedCount}x)
 - Carte la plus jouée : ${v.topPlayedCard} (${v.topPlayedCount}x)
-- Lore passif généré par les Lieux : ${v.loreFromLocations}
+- Lore passif des Lieux : ${v.loreFromLocations}
 
 Consigne de ton :
-Fais une vanne piquante mais pas insultante sur le pseudo de l’adversaire ou sur mes erreurs.
-Reste utile et orienté coaching compétitif. Utilise le jargon TCG naturellement : board, quest, lore, curve, brick, ramp, scoop, lethal, top deck.
-
-Règles de factualité strictes :
-- Ne dis jamais "20-0" si le score exact n’est pas 20 à 0.
-- Si le score gagnant est inférieur à 20, parle plutôt de scoop, concession ou replay écourté.
-- Ne prétends pas qu’une carte a gagné seule si les chiffres ne le montrent pas.
-- Si l’encre flottée est élevée, parle d’Ink Advantage ou de curve ratée.
-- Si toursTopDeck est élevé, parle de perte de Card Advantage.
-- Si loreFromLocations est élevé, parle de Lore passif.
-- Si le match est serré, parle de course au lethal.
-- Si une carte est très souvent encrée, tu peux la mentionner comme slot flexible, sans dire qu’elle est mauvaise.
-- Si la carte MVP est un Objet, une Action ou un Lieu, parle de moteur de Lore plutôt que de quêteur.
-
-Réponds UNIQUEMENT au format JSON valide, sans markdown, sans backticks, avec exactement deux clés :
-{
-  "title": "5 mots max",
-  "description": "2 à 3 phrases"
-}
+Fais une vanne piquante mais pas insultante sur le pseudo de l'adversaire ou sur mes erreurs. Reste constructif et pro TCG.
+Réponds UNIQUEMENT au format JSON valide, sans markdown, avec exactement deux clés: title et description.
 `.trim();
 }
 
@@ -299,8 +282,8 @@ async function callGemini(model, prompt) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    console.error(`ERREUR GEMINI BRUTE (${model}):`, JSON.stringify(data));
-    throw new Error(`${model}: ${data?.error?.message || \`HTTP ${response.status}\`}`);
+    console.error("ERREUR GEMINI BRUTE:", JSON.stringify(data));
+    throw new Error(`${model}: ${data?.error?.message || "HTTP error"}`);
   }
 
   const rawText =
@@ -309,12 +292,12 @@ async function callGemini(model, prompt) {
       .join("\n")
       .trim() || "";
 
-  if (!rawText) throw new Error(`${model}: Empty Gemini response.`);
+  if (!rawText) throw new Error("Empty Gemini response.");
   const parsed = extractFirstJsonObject(rawText);
 
   return {
     title: clampText(parsed.title, "Lecture du match", 60),
-    description: clampText(parsed.description, "Analyse indisponible pour ce match.", 420),
+    description: clampText(parsed.description, "Analyse indisponible.", 420),
     source: "gemini",
     model,
   };
@@ -329,7 +312,7 @@ exports.handler = async function handler(event) {
     return {
       statusCode: 405,
       headers: corsHeaders,
-      body: JSON.stringify({ error: "Method not allowed. Use POST." }),
+      body: JSON.stringify({ error: "Method not allowed." }),
     };
   }
 
@@ -337,11 +320,7 @@ exports.handler = async function handler(event) {
   try {
     body = JSON.parse(event.body || "{}");
   } catch (_) {
-    return {
-      statusCode: 400,
-      headers: corsHeaders,
-      body: JSON.stringify({ error: "Invalid JSON body." }),
-    };
+    return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: "Invalid JSON." }) };
   }
 
   const localFallback = buildLocalCommentary(body);
@@ -350,11 +329,7 @@ exports.handler = async function handler(event) {
     return {
       statusCode: 200,
       headers: corsHeaders,
-      body: JSON.stringify({
-        ...localFallback,
-        source: "local",
-        reason: "missing_gemini_api_key",
-      }),
+      body: JSON.stringify({ ...localFallback, reason: "missing_key" }),
     };
   }
 
@@ -364,25 +339,16 @@ exports.handler = async function handler(event) {
   for (const model of DEFAULT_GEMINI_MODELS) {
     try {
       const commentary = await callGemini(model, prompt);
-      return {
-        statusCode: 200,
-        headers: corsHeaders,
-        body: JSON.stringify(commentary),
-      };
+      return { statusCode: 200, headers: corsHeaders, body: JSON.stringify(commentary) };
     } catch (error) {
       errors.push(error instanceof Error ? error.message : String(error));
     }
   }
 
-  console.warn("Gemini unavailable; using local fallback:", errors.join(" | "));
+  console.warn("Gemini failure, fallback to local:", errors.join(" | "));
   return {
     statusCode: 200,
     headers: corsHeaders,
-    body: JSON.stringify({
-      ...localFallback,
-      source: "local",
-      reason: "gemini_unavailable",
-      debug: process.env.NODE_ENV === "development" ? errors : undefined,
-    }),
+    body: JSON.stringify({ ...localFallback, reason: "gemini_error", debug: errors }),
   };
 };
