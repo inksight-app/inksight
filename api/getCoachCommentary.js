@@ -1,9 +1,3 @@
-const DEFAULT_GEMINI_MODELS = [
-  process.env.GEMINI_MODEL,
-  "gemini-2.0-flash",
-  "gemini-3-flash-preview",
-].filter(Boolean);
-
 function cleanGeminiJson(rawText = "") {
   return String(rawText || "")
     .trim()
@@ -19,7 +13,7 @@ function extractFirstJsonObject(text = "") {
     return JSON.parse(cleaned);
   } catch (_) {
     const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("No JSON object found in Gemini response.");
+    if (!match) throw new Error("No JSON object found in response.");
     return JSON.parse(match[0]);
   }
 }
@@ -71,24 +65,11 @@ function getBodyContext(body = {}) {
   const topPlayedCard = clampText(body.topPlayedCard, "aucune carte", 80);
 
   return {
-    monScore,
-    scoreAdverse,
-    nbTours,
-    inkFloat,
-    toursTopDeck,
-    loreFromLocations,
-    isWin,
-    isLoss,
-    scoreGap,
-    pace,
-    otp,
-    topQuester,
-    opponentName,
+    monScore, scoreAdverse, nbTours, inkFloat, toursTopDeck, loreFromLocations,
+    isWin, isLoss, scoreGap, pace, otp, topQuester, opponentName,
     nbMulligan: getNumber(body.nbMulligan ?? body.mulliganChanges),
-    topInkedCard,
-    topInkedCount: getNumber(body.topInkedCount),
-    topPlayedCard,
-    topPlayedCount: getNumber(body.topPlayedCount),
+    topInkedCard, topInkedCount: getNumber(body.topInkedCount),
+    topPlayedCard, topPlayedCount: getNumber(body.topPlayedCount),
     deckName: clampText(body.deckName, "deck non renseigné", 120),
     matchupLabel: clampText(body.matchupLabel, "matchup non renseigné", 120),
     format: clampText(body.format, "BO1", 12),
@@ -97,101 +78,56 @@ function getBodyContext(body = {}) {
 
 function buildLocalCommentary(body = {}) {
   const v = getBodyContext(body);
-  const seed = [
-    v.monScore,
-    v.scoreAdverse,
-    v.nbTours,
-    v.inkFloat,
-    v.toursTopDeck,
-    v.loreFromLocations,
-    v.topQuester,
-    v.opponentName,
-  ].join("|");
+  const seed = [v.monScore, v.scoreAdverse, v.nbTours, v.inkFloat, v.toursTopDeck, v.loreFromLocations, v.topQuester, v.opponentName].join("|");
 
   const pools = {
     perfectWin: {
       title: ["Intouchable.", "No match.", "Board verrouillé."],
-      description: [
-        "Un vrai {monScore}-0 des familles. {opponentName} a regardé votre board partir en aventure sans jamais trouver le bouton pause.",
-        "Card, Ink et Lore Advantage verrouillés. Même pas besoin de top deck : la game était pliée tour {nbTours}.",
-      ],
+      description: ["Un vrai {monScore}-0 des familles. {opponentName} a regardé votre board partir en aventure sans jamais trouver le bouton pause.", "Card, Ink et Lore Advantage verrouillés. Même pas besoin de top deck : la game était pliée tour {nbTours}."]
     },
     stompWin: {
       title: ["Promenade de santé.", "Ink et Lore Advantage.", "Scoop mental."],
-      description: [
-        "Victoire {monScore}-{scoreAdverse} en {nbTours} tours. {topQuester} a porté la clock pendant que {opponentName} cherchait encore son plan de jeu.",
-        "Tu lui as roulé dessus sans forcer. La curve a fait le travail et le lethal est arrivé avant que le board adverse respire.",
-      ],
+      description: ["Victoire {monScore}-{scoreAdverse} en {nbTours} tours. {topQuester} a porté la clock pendant que {opponentName} cherchait encore son plan de jeu."]
     },
     cleanWin: {
       title: ["Victoire solide.", "Plan exécuté.", "Travail propre."],
-      description: [
-        "Victoire {monScore}-{scoreAdverse}. Le plan {pace} a tenu : tu as converti tes ressources en lore sans laisser trop de fenêtres à {opponentName}.",
-        "La game est gagnée proprement. {topQuester} ressort comme moteur de lore, avec une ligne de jeu suffisamment stable pour fermer la partie.",
-      ],
+      description: ["Victoire {monScore}-{scoreAdverse}. Le plan {pace} a tenu : tu as converti tes ressources en lore sans laisser trop de fenêtres à {opponentName}."]
     },
     concedeWin: {
       title: ["Scoop détecté.", "Game écourtée.", "Il a lâché."],
-      description: [
-        "Victoire avant les 20 lore : le score finit à {monScore}-{scoreAdverse}, mais le replay indique que la partie est gagnée. Probable scoop ou état de board devenu ingérable.",
-        "{opponentName} n’a pas attendu le lethal officiel. À vérifier dans le journal, mais le tempo semblait déjà suffisamment verrouillé.",
-      ],
+      description: ["Victoire avant les 20 lore : le score finit à {monScore}-{scoreAdverse}, mais le replay indique que la partie est gagnée. Probable scoop ou état de board devenu ingérable."]
     },
     closeWin: {
       title: ["Photo-finish.", "Lethal sur le fil.", "La course au Lore."],
-      description: [
-        "Victoire {monScore}-{scoreAdverse} au tour {nbTours}. Une vraie course au lethal : un mauvais trade et la game pouvait basculer.",
-        "C’était moins une. Tu as trouvé la dernière fenêtre de lore avant que {opponentName} ne ferme la porte.",
-      ],
+      description: ["Victoire {monScore}-{scoreAdverse} au tour {nbTours}. Une vraie course au lethal : un mauvais trade et la game pouvait basculer."]
     },
     closeLoss: {
       title: ["Si proche du but...", "À un lore près.", "Le seum du lethal."],
-      description: [
-        "Défaite {monScore}-{scoreAdverse}. Il manquait presque rien : la VOD doit surtout retrouver le tour où la course au lore bascule.",
-        "Belle résistance, mais le dernier top deck ou le dernier trade a tourné du mauvais côté. La prochaine, c’est la bonne.",
-      ],
+      description: ["Défaite {monScore}-{scoreAdverse}. Il manquait presque rien : la VOD doit surtout retrouver le tour où la course au lore bascule."]
     },
     stompLoss: {
       title: ["Sortie de route.", "Aïe, le rouleau compresseur.", "Brick suspect."],
-      description: [
-        "Défaite {monScore}-{scoreAdverse}. {opponentName} a pris le Lore Advantage instantanément et tu n’as jamais vraiment récupéré le board.",
-        "La curve a déraillé et l’adversaire a ramp dans ta dignité. À revoir : mulligan, early game et première fenêtre de tempo perdue.",
-      ],
+      description: ["Défaite {monScore}-{scoreAdverse}. {opponentName} a pris le Lore Advantage instantanément et tu n’as jamais vraiment récupéré le board."]
     },
     topDeck: {
       title: ["Top deck mode.", "Asphyxie totale.", "Page blanche."],
-      description: [
-        "Tu as passé {toursTopDeck} tours en main vide ou quasi vide. Perdre le Card Advantage comme ça transforme chaque pioche en prière.",
-        "Le moteur de pioche a calé. Même avec {inkFloat} encres flottées, sans main, impossible de Grandmaison le tempo.",
-      ],
+      description: ["Tu as passé {toursTopDeck} tours en main vide ou quasi vide. Perdre le Card Advantage comme ça transforme chaque pioche en prière."]
     },
     inkLeak: {
       title: ["Fuite d’encre.", "Tempo perdu.", "Curve en grève."],
-      description: [
-        "{inkFloat} encres flottées, c’est beaucoup trop de ressources non converties. À Lorcana, l’Ink Advantage ne sert à rien si la curve ne suit pas.",
-        "L’encre était là, mais pas la pression. Tu as laissé du tempo sur la table, et {opponentName} a pu respirer.",
-      ],
+      description: ["{inkFloat} encres flottées, c’est beaucoup trop de ressources non converties. À Lorcana, l’Ink Advantage ne sert à rien si la curve ne suit pas."]
     },
     passiveLore: {
       title: ["L’immobilier paie.", "Lore passif destructeur.", "Start-of-turn rentable."],
-      description: [
-        "Tes lieux ont généré {loreFromLocations} lore passif. Pendant que l’adversaire gérait les personnages, l’immobilier faisait avancer le lethal tout seul.",
-        "{opponentName} a probablement sous-estimé les lieux. {loreFromLocations} points gratuits au start-of-turn, ça finit par coûter une game.",
-      ],
+      description: ["Tes lieux ont généré {loreFromLocations} lore passif. Pendant que l’adversaire gérait les personnages, l’immobilier faisait avancer le lethal tout seul."]
     },
     control: {
       title: ["Bataille de tranchées.", "Guerre d’usure.", "Attrition totale."],
-      description: [
-        "{nbTours} tours, ça sent le match Control. La partie s’est jouée sur l’attrition, le Card Advantage et la capacité à trouver le dernier moteur de lore.",
-        "Longue game, beaucoup de décisions invisibles. Ici, la clé n’est pas seulement le score final : c’est qui a gardé assez de ressources pour le late game.",
-      ],
+      description: ["{nbTours} tours, ça sent le match Control. La partie s’est jouée sur l’attrition, le Card Advantage et la capacité à trouver le dernier moteur de lore."]
     },
     defaultLoss: {
       title: ["Défaite à décortiquer.", "Tempo à revoir.", "VOD obligatoire."],
-      description: [
-        "Défaite {monScore}-{scoreAdverse}. Le journal devrait aider à trouver le tour où {opponentName} prend définitivement l’ascendant.",
-        "La partie n’est pas forcément pornographique au score final, mais sur l’accumulation de petites pertes de tempo. À revoir : curve, trades et fenêtres de quest.",
-      ],
+      description: ["Défaite {monScore}-{scoreAdverse}. Le journal devrait aider à trouver le tour où {opponentName} prend définitivement l’ascendant."]
     },
   };
 
@@ -207,10 +143,7 @@ function buildLocalCommentary(body = {}) {
   else if (v.nbTours >= 13) scenario = pools.control;
   else if (!v.isWin) scenario = pools.defaultLoss;
 
-  const vars = {
-    ...v,
-    pace: v.pace,
-  };
+  const vars = { ...v, pace: v.pace };
 
   return {
     title: clampText(fillTemplate(stablePick(scenario.title, seed), vars), "Lecture du match", 60),
@@ -245,75 +178,51 @@ Analyse ce match :
 
 Consigne de ton :
 Fais une vanne piquante mais pas insultante sur le pseudo de l'adversaire ou sur mes erreurs. Reste constructif et pro TCG.
-Réponds UNIQUEMENT au format JSON valide, sans markdown, avec exactement deux clés: title et description.
+Réponds UNIQUEMENT au format JSON valide, sans markdown, avec exactement deux clés: "title" et "description".
 `.trim();
 }
 
-async function callGemini(model, prompt) {
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "x-goog-api-key": process.env.GEMINI_API_KEY 
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 1.0,
-          maxOutputTokens: 220,
-          responseMimeType: "application/json",
-        },
-        safetySettings: [
-          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-        ]
-      }),
-    }
-  );
+async function callGroq(prompt) {
+  const response = await fetch("[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      response_format: { type: "json_object" }
+    })
+  });
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    console.error("ERREUR GEMINI BRUTE:", JSON.stringify(data));
-    throw new Error(`${model}: ${data?.error?.message || "HTTP error"}`);
+    console.error("ERREUR GROQ BRUTE:", JSON.stringify(data));
+    throw new Error(`Groq API error: ${data?.error?.message || response.status}`);
   }
 
-  const rawText =
-    data?.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text || "")
-      .join("\n")
-      .trim() || "";
-
-  if (!rawText) throw new Error("Empty Gemini response.");
+  const rawText = data?.choices?.[0]?.message?.content || "";
+  if (!rawText) throw new Error("Empty Groq response.");
   const parsed = extractFirstJsonObject(rawText);
 
   return {
     title: clampText(parsed.title, "Lecture du match", 60),
     description: clampText(parsed.description, "Analyse indisponible.", 420),
-    source: "gemini",
-    model,
+    source: "Groq Llama 3",
   };
 }
 
 export default async function handler(req, res) {
-  // Configurations CORS de Vercel
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'OPTIONS,POST');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-goog-api-key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed.' });
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed.' });
-  }
-
-  // Sur Vercel, req.body est déjà parsé en JSON automatiquement !
   let body = req.body || {};
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch(e) {}
@@ -321,22 +230,17 @@ export default async function handler(req, res) {
 
   const localFallback = buildLocalCommentary(body);
 
-  if (!process.env.GEMINI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     return res.status(200).json({ ...localFallback, reason: "missing_key" });
   }
 
   const prompt = buildPrompt(body);
-  const errors = [];
 
-  for (const model of DEFAULT_GEMINI_MODELS) {
-    try {
-      const commentary = await callGemini(model, prompt);
-      return res.status(200).json(commentary);
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
-    }
+  try {
+    const commentary = await callGroq(prompt);
+    return res.status(200).json(commentary);
+  } catch (error) {
+    console.warn("Groq failure, fallback to local:", error.message);
+    return res.status(200).json({ ...localFallback, reason: "groq_error", debug: error.message });
   }
-
-  console.warn("Gemini failure, fallback to local:", errors.join(" | "));
-  return res.status(200).json({ ...localFallback, reason: "gemini_error", debug: errors });
 }
