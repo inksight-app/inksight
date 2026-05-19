@@ -1,7 +1,7 @@
 const DEFAULT_GEMINI_MODELS = [
   process.env.GEMINI_MODEL,
+  "gemini-2.0-flash",
   "gemini-3-flash-preview",
-  "gemini-3.1-flash-lite",
 ].filter(Boolean);
 
 const corsHeaders = {
@@ -257,7 +257,6 @@ Réponds UNIQUEMENT au format JSON valide, sans markdown, avec exactement deux c
 }
 
 async function callGemini(model, prompt) {
-  // Mise à jour de l'URL et de l'en-tête x-goog-api-key conformément à la doc officielle
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
@@ -269,7 +268,7 @@ async function callGemini(model, prompt) {
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 1.0, // Recommandé à 1.0 par la doc officielle Gemini 3
+          temperature: 1.0,
           maxOutputTokens: 220,
           responseMimeType: "application/json",
         },
