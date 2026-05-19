@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>InkSight — Replay Intelligence for Lorcana</title>
+  <meta name="description" content="Analyseur de replays Lorcana : mulligan, économie d’encre, moteurs de victoire et statistiques de deck.">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script type="module" src="/src/main.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
+  <meta name="theme-color" content="#050506">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.webmanifest">
+</head>
+<body class="grain empty-state">
+
+  <div class="ambient" aria-hidden="true"></div>
+
+  <header class="app-shell header-shell">
+    <div class="glass header-bar app-header-v54">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true"><span>IS</span></div>
+        <div>
+          <div class="brand-title">InkSight</div>
+          <div class="brand-subtitle">Replay intelligence · local first</div>
+        </div>
+      </div>
+
+      <nav class="app-main-nav" aria-label="Navigation principale">
+        <button type="button" class="app-nav-button active" data-app-view="analysis" aria-current="page">Analyse</button>
+        <button type="button" class="app-nav-button" data-app-view="performances">Performances</button>
+        <button type="button" class="app-nav-button" data-app-view="account">Compte</button>
+      </nav>
+
+      <div class="app-header-actions">
+        <div id="apiBadge" class="status-badge"><span></span>Base cartes · chargement…</div>
+
+
+      </div>
+    </div>
+  </header>
+
+  <div id="cloudStatusBanner" class="glass cloud-status-banner" hidden>
+    <div class="cloud-status-icon" aria-hidden="true">!</div>
+    <div>
+      <strong>Mode local actif</strong>
+      <span>L’analyse des replays reste disponible. La connexion, la sauvegarde et les performances cloud reprendront quand Supabase sera accessible sur ce réseau.</span>
+    </div>
+    <button type="button" id="cloudStatusDismiss" aria-label="Masquer l’avertissement">×</button>
+  </div>
+
+  <main class="app-shell main-shell">
+    <section id="view-analysis" class="app-view app-view-analysis" data-app-panel="analysis">
+    <section id="hero" class="hero-section">
+      <div class="privacy-pill"><span></span>Analyse locale · cloud optionnel</div>
+      <h1>InkSight</h1>
+      <p class="hero-slogan">Ne supposez plus. Analysez.</p>
+      <p>Décortiquez vos mulligans, traquez votre économie d’encre et préparez vos tournois avec des données chirurgicales.</p>
+      <div class="hero-tags">
+        <span>Économie d’Encre</span>
+        <span>Impact du Mulligan</span>
+        <span>Moteurs de Victoire</span>
+        <span>Préparation tournoi</span>
+      </div>
+    </section>
+
+    <section id="upload" class="upload-grid">
+      <article class="glass upload-card">
+        <div id="dropzone" class="dropzone" role="region" aria-label="Zone d’import de replay Duel.ink" aria-describedby="dropzoneHelp dropzoneStatus">
+          <input id="fileInput" type="file" class="hidden" accept=".replay,.json,.gz,.zip,application/json,application/zip" multiple />
+          <div class="drop-top">
+            <span>Jusqu’à 20 replays</span>
+            <small>.replay · .replay.gz · .match-replay.zip</small>
+          </div>
+          <div class="drop-center">
+            <div class="drop-icon">↑</div>
+            <h2>Déposez votre replay ici</h2>
+            <p id="dropzoneHelp">Importez votre replay. InkSight isole les séquences qui ont vraiment fait basculer la partie.</p>
+            <p id="dropzoneStatus" class="sr-only" aria-live="polite">Aucun replay chargé.</p>
+          </div>
+          <button id="browseButton" type="button" class="primary-button">Choisir un fichier</button>
+        </div>
+      </article>
+
+      <article class="glass loaded-card">
+        <div class="section-head compact">
+          <div>
+            <h2>Replays importés</h2>
+            <p id="statusText">Aucun replay chargé pour le moment.</p>
+          </div>
+          <button id="clearButton" type="button" class="ghost-button import-again-button">Changer de replay</button>
+        </div>
+        <div id="fileList" class="file-list">
+          <div class="empty-line">La liste des replays apparaîtra ici.</div>
+        </div>
+        <div class="recognized-box">
+          <div class="kicker">Ce que l’outil a reconnu</div>
+          <div class="recognized-grid">
+            <div><small>Joueur</small><strong id="detectedPlayer">—</strong></div>
+            <div><small>Adversaire</small><strong id="detectedOpponent">—</strong></div>
+            <div><small>Tours</small><strong id="detectedTurns">—</strong></div>
+            <div><small>Actions</small><strong id="detectedActions">—</strong></div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section id="bulkImportPanel" class="glass bulk-import-panel" hidden aria-live="polite">
+      <div class="section-head compact bulk-import-head">
+        <div>
+          <div class="kicker">Import de masse</div>
+          <h2>File d’import</h2>
+          <p id="bulkImportStatus">Déposez plusieurs replays pour préparer une sauvegarde par lot.</p>
+        </div>
+        <div class="bulk-import-actions">
+          <button id="bulkSaveAllButton" type="button" class="primary-button compact">Sauvegarder les analyses valides</button>
+          <button id="bulkImportMoreButton" type="button" class="ghost-button compact">Importer d’autres replays</button>
+          <button id="bulkClearButton" type="button" class="ghost-button compact danger-soft">Vider la file</button>
+        </div>
+      </div>
+      <div id="bulkDeckTools" class="bulk-deck-tools"></div>
+      <div id="bulkImportList" class="bulk-import-list">
+        <div class="empty-line">Aucun lot en attente.</div>
+      </div>
+    </section>
+
+    <nav id="bo3Selector" class="bo3-nav glass" aria-label="Navigation BO3" hidden></nav>
+
+    <nav id="analysisTabs" class="tabs glass" role="tablist" aria-label="Sections d’analyse">
+      <button id="tabBtn-overview" type="button" data-tab="overview" class="tab-button active" role="tab" aria-selected="true" aria-controls="tab-overview">Résumé</button>
+      <button id="tabBtn-stats" type="button" data-tab="stats" class="tab-button" role="tab" aria-selected="false" aria-controls="tab-stats" tabindex="-1">Statistiques</button>
+      <button id="tabBtn-cards" type="button" data-tab="cards" class="tab-button" role="tab" aria-selected="false" aria-controls="tab-cards" tabindex="-1">Cartes vues</button>
+      <button id="tabBtn-timeline" type="button" data-tab="timeline" class="tab-button" role="tab" aria-selected="false" aria-controls="tab-timeline" tabindex="-1">Journal</button>
+    </nav>
+
+    <section id="tab-overview" class="tab-section active" role="tabpanel" aria-labelledby="tabBtn-overview">
+      <section id="matchRead" class="match-read glass-primary" aria-live="polite">
+        <div class="match-read-top">
+          <div>
+            <div class="kicker">Diagnostic rapide</div>
+            <h2 id="coachTitle">Importez un replay pour lancer l’analyse.</h2>
+          </div>
+          <div id="coachConfidence" class="confidence-chip">—</div>
+        </div>
+        <div id="matchPills" class="match-pills"></div>
+        <div id="resultHero" class="result-hero" aria-label="Résultat du match"></div>
+        <p id="coachText" class="coach-copy">Le résumé stratégique apparaîtra ici.</p>
+        <div id="keyMoments" class="key-moments" hidden></div>
+        <div id="nextAction" class="next-action"></div>
+
+        <div id="saveAnalysisPanel" class="save-analysis-panel" hidden>
+          <div class="save-analysis-copy">
+            <strong>Sauvegarder cette analyse</strong>
+            <small id="saveAnalysisStatus">Connectez-vous pour ajouter ce match à votre historique.</small>
+          </div>
+          <div class="save-deck-fields" aria-label="Associer cette analyse à un deck">
+            <div class="save-deck-picker">
+              <span>Version du deck</span>
+              <select id="saveDeckSelect" class="save-deck-select technical-select" aria-label="Choisir un deck existant">
+                <option value="">Choisir un deck existant</option>
+              </select>
+              <div id="saveDeckPills" class="filter-pill-row save-deck-pills" aria-label="Choisir une version de deck"></div>
+            </div>
+            <label>
+              Nouveau deck
+              <input id="saveDeckNameInput" class="save-deck-input" type="text" placeholder="Ex. Saphir Ambre Control" maxlength="80" />
+            </label>
+            <small id="saveDeckHint">Les versions proposées correspondent à la bicolorité détectée du replay.</small>
+          </div>
+          <button id="saveAnalysisButton" type="button" class="save-analysis-button">Sauvegarder l’analyse</button>
+        </div>
+      </section>
+
+      <section class="summary-grid">
+        <article class="metric-card duplicate-summary" aria-hidden="true"><span>Résultat</span><strong id="sessionRecord">—</strong><small id="sessionOpponent">Importez un replay.</small></article>
+        <article class="metric-card"><span>Durée</span><strong id="sessionTurns">—</strong><small>Nombre de tours.</small></article>
+        <article class="metric-card"><span>Départ</span><strong id="sessionPlayDraw">—</strong><small>OTP / OTD.</small></article>
+        <article class="metric-card duplicate-summary" aria-hidden="true"><span>Match-up</span><strong id="sessionMatchup">—</strong><small>Vos encres / encres adverses.</small></article>
+        <article class="metric-card duplicate-summary" aria-hidden="true"><span>Score final</span><strong id="sessionLore">—</strong><small>Votre lore / lore adverse.</small></article>
+      </section>
+
+      <section id="mulliganPanel" class="mulligan-panel glass" hidden>
+        <div class="section-head mulligan-head">
+          <div>
+            <div class="kicker">Impact du Mulligan</div>
+            <h2>Main de départ</h2>
+            <p id="mulliganSubtitle">Les 7 cartes initiales avant résolution du mulligan.</p>
+          </div>
+          <button id="mulliganButton" type="button" class="ghost-button">Résoudre le Mulligan</button>
+        </div>
+        <div id="mulliganCards" class="mulligan-cards" aria-live="polite"></div>
+      </section>
+
+      <section class="chart-grid two">
+        <article class="glass chart-panel">
+          <div class="section-head"><div><h2>Lore gagné par tour</h2><p>Visualiser la course aux 20 lore.</p></div></div>
+          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="loreChart"><span>Lecture du tour</span><strong>Survolez la courbe</strong><small>Les valeurs du joueur et de l’adversaire s’affichent ici.</small></div><div class="chart-wrap"><canvas id="loreChart" role="img" aria-label="Évolution du lore tour par tour" aria-describedby="loreChartSummary"></canvas></div><p id="loreChartSummary" class="sr-only">Résumé du graphique lore disponible après import.</p>
+        </article>
+        <article class="glass chart-panel">
+          <div class="section-head"><div><h2>Actions par tour</h2><p>Cartes encrées, jouées, quêtes et défis.</p></div></div>
+          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="actionChart"><span>Lecture du tour</span><strong>Survolez une barre</strong><small>Encrées, jouées, quêtes et défis apparaissent ici.</small></div><div class="chart-wrap"><canvas id="actionChart" role="img" aria-label="Actions principales par tour" aria-describedby="actionChartSummary"></canvas></div><p id="actionChartSummary" class="sr-only">Résumé du graphique actions disponible après import.</p>
+        </article>
+      </section>
+    </section>
+
+    <section id="tab-stats" class="tab-section" role="tabpanel" aria-labelledby="tabBtn-stats" hidden>
+      <article class="glass stats-header">
+        <div>
+          <h2>Lecture tactique du match</h2>
+          <p id="statsScopeSubtitle">Comparez votre plan de jeu à celui de l’adversaire, sans mélanger les signaux.</p>
+        </div>
+        <div class="scope-switch">
+          <button type="button" data-scope="mine" class="scope-button active">Mes stats</button>
+          <button type="button" data-scope="opponent" class="scope-button">Stats adverses</button>
+        </div>
+      </article>
+
+      <section class="pro-grid">
+        <article class="pro-card warn"><span>Économie d’Encre</span><strong id="inkFloatTotal">—</strong><small id="inkFloatAverage">Encre non convertie en pression.</small></article>
+        <article class="pro-card good"><span>Pression (Lore vs Trade)</span><strong id="actionRatioKpi">—</strong><small id="actionRatioLabel">Ratio quête / défi.</small></article>
+        <article class="pro-card"><span>Réserve de main</span><strong id="topDeckTurns">—</strong><small id="topDeckBadge">Tours terminés avec 0 ou 1 carte.</small></article>
+      </section>
+
+      <section class="chart-grid stats-charts">
+        <article class="glass chart-panel">
+          <div class="section-head"><div><h2>Économie d’Encre</h2><p id="inkChartSubtitle">Encre investie, conservée ou perdue dans le tempo.</p></div></div>
+          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="inkFloatChart"><span>Lecture du tour</span><strong>Survolez une barre</strong><small>Encre dépensée et inutilisée s’affichent ici.</small></div><div class="chart-wrap"><canvas id="inkFloatChart" role="img" aria-label="Économie d’encre tour par tour" aria-describedby="inkChartSummary"></canvas></div><p id="inkChartSummary" class="sr-only">Résumé du graphique économie d’encre disponible après import.</p>
+        </article>
+        <article class="glass chart-panel wide">
+          <div class="section-head"><div><h2>Efficacité de la main</h2><p>Taille de main à la fin de vos tours.</p></div></div>
+          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="handCurveChart"><span>Lecture du tour</span><strong>Survolez la courbe</strong><small>La taille de main en fin de tour s’affiche ici.</small></div><div class="chart-wrap"><canvas id="handCurveChart" role="img" aria-label="Taille de main en fin de tour" aria-describedby="handChartSummary"></canvas></div><p id="handChartSummary" class="sr-only">Résumé du graphique de main disponible après import.</p>
+        </article>
+      </section>
+
+      <section id="quickInsights" class="quick-insights" aria-label="Signaux rapides"></section>
+
+      <section class="insight-grid">
+        <article class="glass stat-panel"><div class="section-head"><div><h2 id="topQuestersTitle">Moteurs de Victoire</h2><p id="topQuestersHelp">Les cartes qui rapprochent vraiment des 20 lore.</p></div><select id="topQuestersSort" class="sort-select"><option value="lore_desc">Lore élevé</option><option value="count_desc">Plus d’aventures</option><option value="name_asc">Nom A → Z</option></select></div><div id="topQuestersTable" class="table-zone"></div></article>
+        <article class="glass stat-panel"><div class="section-head"><div><h2 id="mostInkedTitle">Cartes les plus encrées</h2><p id="mostInkedHelp">Les cartes sacrifiées pour construire l’encrier.</p></div><select id="mostInkedSort" class="sort-select"><option value="count_desc">Plus souvent encrées</option><option value="type_asc">Type</option><option value="name_asc">Nom A → Z</option></select></div><div id="mostInkedTable" class="table-zone"></div></article>
+        <article class="glass stat-panel play-sequence-panel"><div class="section-head"><div><h2 id="playTimingTitle">Cartes jouées par tour</h2><p id="playTimingHelp">Chronologie exacte des cartes jouées pendant la partie, dans l’ordre.</p></div></div><div id="playTimingTable" class="table-zone"></div></article>
+        <article class="glass stat-panel"><div class="section-head"><div><h2 id="challengeTitle">Défis</h2><p id="challengeHelp">Bilan simple des combats.</p></div><select id="challengeSort" class="sort-select"><option value="wins_desc">Défis gagnés</option><option value="losses_desc">Défis perdus</option><option value="name_asc">Nom A → Z</option></select></div><div id="challengeTable" class="table-zone"></div></article>
+      </section>
+    </section>
+
+    <section id="tab-cards" class="tab-section" role="tabpanel" aria-labelledby="tabBtn-cards" hidden>
+      <article class="glass cards-panel">
+        <div class="section-head cards-head">
+          <div><h2>Cartes vues pendant la partie</h2><p id="cardsSubtitle">Importez un replay pour afficher les cartes détectées.</p></div>
+          <div class="card-tabs"><button type="button" data-card-filter="all" class="card-filter active">Toutes</button><button type="button" data-card-filter="mine" class="card-filter">Moi</button><button type="button" data-card-filter="opponent" class="card-filter">Adversaire</button></div>
+        </div>
+        <div id="cardsGrid" class="cards-grid"><div class="empty-line">Aucune carte détectée pour le moment.</div></div>
+      </article>
+    </section>
+
+    <section id="tab-timeline" class="tab-section" role="tabpanel" aria-labelledby="tabBtn-timeline" hidden>
+      <article class="glass timeline-panel">
+        <div class="section-head cards-head">
+          <div><h2>Journal du match</h2><p>Les actions importantes, sans les logs techniques.</p></div>
+          <select id="timelineFilter" class="sort-select"><option value="all">Toutes les actions</option><option value="mine">Mes actions</option><option value="opponent">Adversaire</option><option value="ink">Encre</option><option value="play">Cartes jouées</option><option value="quest">Quêtes</option><option value="challenge">Défis</option></select>
+        </div>
+        <div id="timelineList" class="timeline-list"><div class="empty-line">Le journal apparaîtra après import.</div></div>
+      </article>
+    </section>
+
+    </section>
+
+    <section id="view-performances" class="app-view app-view-page" data-app-panel="performances" hidden>
+      <article class="glass app-page-hero performance-hero">
+        <div>
+          <div class="kicker">Vos performances</div>
+          <h1>Statistiques & historique</h1>
+          <p>Retrouvez vos analyses sauvegardées, suivez votre progression et préparez les futurs filtres par deck, bicolorité et matchup.</p>
+        </div>
+        <button type="button" class="ghost-button app-page-cta" data-app-view="analysis">Analyser un replay</button>
+      </article>
+
+      <div id="performanceLoginHint" class="glass performance-login-hint" hidden>
+        <strong>Connectez-vous pour voir vos performances.</strong>
+        <span>Vos matchs sauvegardés sont liés à votre compte Discord.</span>
+      </div>
+
+      <nav class="performance-tabs glass" aria-label="Sections performances">
+        <button type="button" class="performance-tab active" data-performance-view="stats">Mes statistiques</button>
+        <button type="button" class="performance-tab" data-performance-view="history">Historique des matchs</button>
+      </nav>
+
+      <section id="performance-stats" class="performance-panel active" data-performance-panel="stats">
+        <article class="glass performance-filter-bar performance-filter-bar-viz" aria-label="Filtres statistiques">
+          <div class="filter-header-copy">
+            <div class="kicker">Filtres</div>
+            <p>Choisissez un deck pour activer les statistiques cartes et mulligan vraiment exploitables.</p>
+          </div>
+          <button type="button" class="filter-toggle" data-filter-toggle="performance" aria-expanded="false">Modifier les filtres</button>
+          <div class="performance-filter-controls performance-filter-controls-viz">
+            <select id="performanceColorFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par bicolorité">
+              <option value="all">Toutes les bicolorités</option>
+            </select>
+            <select id="performanceDeckFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par version de deck">
+              <option value="all">Toutes les versions</option>
+            </select>
+            <select id="performanceFormatFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par format">
+              <option value="all">Tous les formats</option>
+              <option value="BO1">BO1</option>
+              <option value="BO3">BO3</option>
+            </select>
+            <select id="performanceResultFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par résultat">
+              <option value="all">Tous les résultats</option>
+              <option value="win">Victoires</option>
+              <option value="loss">Défaites</option>
+            </select>
+            <div class="filter-pill-block">
+              <span>Bicolorité</span>
+              <div id="performanceColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div>
+            </div>
+            <div id="performanceVersionBlock" class="filter-pill-block">
+              <span>Version du deck</span>
+              <div id="performanceDeckPills" class="filter-pill-row" aria-label="Choisir une version de deck"></div>
+            </div>
+            <div class="filter-pill-block compact">
+              <span>Format</span>
+              <div id="performanceFormatPills" class="filter-pill-row" aria-label="Choisir un format"></div>
+            </div>
+            <div class="filter-pill-block compact">
+              <span>Résultat</span>
+              <div id="performanceResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div>
+            </div>
+          </div>
+        </article>
+        <nav class="performance-detail-tabs glass" aria-label="Détails des statistiques">
+          <button type="button" class="performance-detail-tab active" data-performance-detail="overview">Vue d’ensemble</button>
+          <button type="button" class="performance-detail-tab" data-performance-detail="cards">Cartes</button>
+          <button type="button" class="performance-detail-tab" data-performance-detail="mulligan">Mulligan Lab</button>
+          <button type="button" class="performance-detail-tab" data-performance-detail="matchups">Matchups</button>
+          <button type="button" class="performance-detail-tab" data-performance-detail="curves">Courbes</button>
+          <button type="button" class="performance-detail-tab" data-performance-detail="data">Données</button>
+        </nav>
+
+        <section id="perf-detail-overview" class="performance-detail-panel active" data-performance-detail-panel="overview">
+          <section class="performance-grid performance-kpis">
+            <article class="metric-card"><span>Analyses sauvegardées</span><strong id="performanceSavedCount">—</strong><small>Total dans votre historique.</small></article>
+            <article class="metric-card"><span>Winrate filtré</span><strong id="performanceWinrate">—</strong><small>Victoires sur l’échantillon actuel.</small></article>
+            <article class="metric-card"><span>BO3 enregistrés</span><strong id="performanceBo3Count">—</strong><small>Séries de tournoi sauvegardées.</small></article>
+            <article class="metric-card sample-card"><span>Échantillon actuel</span><strong id="performanceSampleLabel">—</strong><small id="performanceSampleHelp">Analyses BO1/BO3 disponibles.</small></article>
+          </section>
+
+          <section id="performanceDeckCoach" class="performance-deck-coach performance-overview-coach" aria-label="Diagnostic du deck">
+            <article class="glass performance-coach-card primary">
+              <span>À retenir</span>
+              <strong id="performanceCoachTitle">—</strong>
+              <p id="performanceCoachText">Sélectionnez une bicolorité ou une version pour obtenir une lecture claire du deck.</p>
+            </article>
+            <article class="glass performance-coach-card">
+              <span>Point fort</span>
+              <strong id="performanceBestSignal">—</strong>
+              <p id="performanceBestSignalText">Disponible après plusieurs games sauvegardées.</p>
+            </article>
+            <article class="glass performance-coach-card">
+              <span>À surveiller</span>
+              <strong id="performanceWarningSignal">—</strong>
+              <p id="performanceWarningSignalText">Les signaux faibles apparaîtront ici.</p>
+            </article>
+          </section>
+
+          <section id="performanceActionPlan" class="performance-action-plan" aria-label="Plan d’action performances">
+            <article class="glass action-plan-card">
+              <span>Plan d’action</span>
+              <strong>Sélectionnez un deck</strong>
+              <p>Les priorités apparaîtront ici dès que l’échantillon représente une stratégie cohérente.</p>
+            </article>
+          </section>
+
+          <section class="performance-trend-grid overview-mini-grid" aria-label="Résumé du deck">
+            <article class="glass performance-trend-card card-signal-card">
+              <span>Moteur de lore <button class="info-dot" type="button" data-info="La carte de votre deck qui a généré le plus de lore sur l’échantillon filtré. À lire uniquement après avoir choisi une bicolorité ou une version de deck.">?</button></span>
+              <div id="performanceTopLore" class="mini-card-signal">—</div>
+              <small id="performanceTopLoreHelp">Sélectionnez un deck pour éviter de mélanger plusieurs listes.</small>
+            </article>
+            <article class="glass performance-trend-card card-signal-card">
+              <span>Carte souvent encrée <button class="info-dot" type="button" data-info="Carte que vous transformez souvent en ressource. Ce n’est pas toujours une erreur, mais si la même carte revient beaucoup, c’est un signal deckbuilding utile.">?</button></span>
+              <div id="performanceMostInked" class="mini-card-signal">—</div>
+              <small id="performanceMostInkedHelp">Sélectionnez un deck pour lire ce signal correctement.</small>
+            </article>
+            <article class="glass performance-trend-card otp-card">
+              <span>Premier / Second <button class="info-dot" type="button" data-info="Compare votre winrate quand vous commencez la partie (OTP) et quand vous jouez en second (OTD). Une grosse différence indique souvent un deck trop dépendant du tempo initial.">?</button></span>
+              <div id="performanceOtpSplit" class="split-bars">—</div>
+              <small id="performanceOtpSplitHelp">Impact du joueur qui commence.</small>
+            </article>
+            <article class="glass performance-trend-card format-card">
+              <span>Formats</span>
+              <div id="performanceFormatSplit" class="format-bars">—</div>
+              <small id="performanceFormatSplitHelp">Répartition de vos analyses sauvegardées.</small>
+            </article>
+          </section>
+        </section>
+
+        <section id="perf-detail-cards" class="performance-detail-panel" data-performance-detail-panel="cards" hidden>
+          <article class="glass stat-panel performance-analytics-panel">
+            <div class="section-head">
+              <div>
+                <h2>Cartes du deck</h2>
+                <p>Cartes clés du deck : lore, jeu, encrage et impact en un coup d’œil.</p>
+              </div>
+            </div>
+            <div id="performanceCardImpactTable" class="table-zone visual-zone"></div>
+          </article>
+        </section>
+
+        <section id="perf-detail-mulligan" class="performance-detail-panel" data-performance-detail-panel="mulligan" hidden>
+          <article class="glass stat-panel performance-analytics-panel">
+            <div class="section-head">
+              <div>
+                <h2>Mulligan Lab</h2>
+                <p>Lecture actionnable des mains de départ : garder, renvoyer ou limiter les doublons.</p>
+              </div>
+            </div>
+            <div id="performanceMulliganTable" class="table-zone visual-zone"></div>
+          </article>
+        </section>
+
+        <section id="perf-detail-matchups" class="performance-detail-panel" data-performance-detail-panel="matchups" hidden>
+          <article class="glass stat-panel performance-matchup-panel">
+            <div class="section-head">
+              <div>
+                <h2>Matchups rencontrés</h2>
+                <p>Lecture rapide par bicolorité adverse : volume, winrate et nombre de games.</p>
+              </div>
+            </div>
+            <div id="performanceMatchupBreakdown" class="matchup-breakdown-list"></div>
+          </article>
+        </section>
+
+        <section id="perf-detail-curves" class="performance-detail-panel" data-performance-detail-panel="curves" hidden>
+          <article class="glass stat-panel performance-analytics-panel wide">
+            <div class="section-head">
+              <div>
+                <h2>Courbes moyennes</h2>
+                <p>Rythme du deck sur l’échantillon filtré : progression au lore, main et actions par tour.</p>
+              </div>
+            </div>
+            <div id="performanceTurnCurveTable" class="performance-chart-zone"></div>
+          </article>
+        </section>
+
+        <section id="perf-detail-data" class="performance-detail-panel" data-performance-detail-panel="data" hidden>
+          <section class="performance-trend-grid performance-data-grid" aria-label="Qualité des données">
+            <article class="glass performance-trend-card compact-trend">
+              <span>Tours moyens</span>
+              <strong id="performanceAvgTurns">—</strong>
+              <small id="performanceAvgTurnsHelp">Durée moyenne des games filtrées.</small>
+            </article>
+            <article class="glass performance-trend-card compact-trend">
+              <span>Main critique</span>
+              <strong id="performanceTopDeckAvg">—</strong>
+              <small id="performanceTopDeckAvgHelp">Tours moyens à 0 ou 1 carte.</small>
+            </article>
+            <article class="glass performance-trend-card compact-trend">
+              <span>Lore final moyen</span>
+              <strong id="performanceAvgLore">—</strong>
+              <small id="performanceAvgLoreHelp">Pression moyenne atteinte en fin de game.</small>
+            </article>
+            <article class="glass performance-trend-card compact-trend">
+              <span>Qualité des données</span>
+              <strong id="performanceDataQuality">—</strong>
+              <small id="performanceDataQualityHelp">Niveau de détail disponible sur l’échantillon.</small>
+            </article>
+          </section>
+          <article class="glass performance-placeholder performance-next">
+            <div class="placeholder-icon">▥</div>
+            <div>
+              <h2>Données détaillées</h2>
+              <p>Les statistiques avancées utilisent les tables analytiques V62+. Plus vous sauvegardez de matchs avec le même deck, plus les signaux cartes, mulligan et rythme deviennent fiables.</p>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section id="performance-history" class="performance-panel" data-performance-panel="history" hidden>
+        <article class="glass history-toolbar history-toolbar-viz">
+          <div class="filter-header-copy">
+            <div class="kicker">Historique</div>
+            <h2>Matchs sauvegardés</h2>
+            <p id="historyStatus">Chargement de vos analyses…</p>
+          </div>
+          <div class="history-quick-actions">
+            <input id="historySearchInput" class="history-search" type="search" placeholder="Rechercher adversaire, deck, matchup…" aria-label="Rechercher dans l’historique">
+            <button type="button" class="filter-toggle" data-filter-toggle="history" aria-expanded="false">Filtres avancés</button>
+          </div>
+          <div class="history-controls history-controls-viz">
+            <select id="historyColorFilter" class="sort-select technical-select" aria-label="Filtrer l’historique par bicolorité">
+              <option value="all">Toutes les bicolorités</option>
+            </select>
+            <select id="historyDeckFilter" class="sort-select technical-select" aria-label="Filtrer par deck">
+              <option value="all">Toutes les versions</option>
+            </select>
+            <select id="historyOpponentColorFilter" class="sort-select technical-select" aria-label="Filtrer par bicolorité adverse">
+              <option value="all">Tous les adversaires</option>
+            </select>
+            <select id="historyResultFilter" class="sort-select technical-select" aria-label="Filtrer par résultat">
+              <option value="all">Tous les résultats</option>
+              <option value="win">Victoires</option>
+              <option value="loss">Défaites</option>
+            </select>
+            <select id="historyFormatFilter" class="sort-select technical-select" aria-label="Filtrer par format">
+              <option value="all">Tous les formats</option>
+              <option value="BO1">BO1</option>
+              <option value="BO3">BO3</option>
+            </select>
+            <div class="history-filter-pills">
+              <div class="filter-pill-block compact"><span>Bicolorité</span><div id="historyColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
+              <div id="historyVersionBlock" class="filter-pill-block compact"><span>Version du deck</span><div id="historyDeckPills" class="filter-pill-row" aria-label="Choisir une version"></div></div>
+              <div class="filter-pill-block compact"><span>Adversaire</span><div id="historyOpponentColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité adverse"></div></div>
+              <div class="filter-pill-block compact"><span>Résultat</span><div id="historyResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div></div>
+              <div class="filter-pill-block compact"><span>Format</span><div id="historyFormatPills" class="filter-pill-row" aria-label="Choisir un format"></div></div>
+            </div>
+            <div class="history-search-row">
+              <button id="historyRefreshButton" type="button" class="ghost-button">Actualiser l’historique</button>
+            </div>
+          </div>
+        </article>
+
+        <div id="historyList" class="history-list glass">
+          <div class="empty-line">Connectez-vous pour afficher vos matchs sauvegardés.</div>
+        </div>
+
+        <article class="glass post-import-cleanup" aria-label="Nettoyage post-import">
+          <div class="section-head compact">
+            <div>
+              <div class="kicker">Nettoyage post-import</div>
+              <h2>Analyses à ranger</h2>
+              <p>À utiliser seulement quand un import n’a pas encore de deck propre ou semble être un doublon.</p>
+            </div>
+          </div>
+          <div id="postImportCleanupList" class="post-import-cleanup-list">
+            <div class="empty-line">Connectez-vous pour vérifier les analyses à nommer.</div>
+          </div>
+        </article>
+
+        <aside id="historyDetail" class="history-detail glass" hidden></aside>
+      </section>
+    </section>
+
+    <section id="view-account" class="app-view app-view-page" data-app-panel="account" hidden>
+      <article class="glass app-page-hero account-page-hero">
+        <div>
+          <div class="kicker">Compte</div>
+          <h1>Votre espace joueur</h1>
+          <p>Cette page servira à gérer votre profil, vos préférences, votre future connexion Discord et vos données sauvegardées.</p>
+        </div>
+      </article>
+
+      <section class="glass account-auth-wrapper" aria-label="Connexion et compte">
+        <div id="authZone" class="auth-zone account-auth-zone">
+          <div class="auth-inner">
+            <button id="authToggle" class="auth-chip" type="button" aria-expanded="false" aria-controls="authPanel">
+              <span id="authStatusDot" class="auth-status-dot" aria-hidden="true"></span>
+              <span>
+                <strong id="authPillLabel">Connexion</strong>
+                <small id="authPillState">Compte</small>
+              </span>
+            </button>
+
+            <section id="authPanel" class="auth-card account-auth-card" aria-hidden="false">
+              <button id="authClose" class="auth-close" type="button" aria-label="Fermer">×</button>
+
+              <div id="authLoggedOut">
+                <div class="auth-card-head">
+                  <p class="auth-kicker">Compte joueur</p>
+                  <h2>Se connecter</h2>
+                  <p>Connectez-vous pour sauvegarder vos analyses, retrouver vos matchs et préparer vos statistiques globales.</p>
+                </div>
+
+                <div class="auth-form">
+                  <button id="btnDiscordLogin" class="auth-btn auth-btn-discord" type="button">
+                    <span class="discord-mark" aria-hidden="true">◆</span>
+                    Continuer avec Discord
+                  </button>
+
+                  <div class="auth-divider"><span>ou utiliser un email</span></div>
+
+                  <label>
+                    Email
+                    <input type="email" id="authEmail" placeholder="joueur@email.com" autocomplete="email">
+                  </label>
+
+                  <label>
+                    Mot de passe
+                    <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+                  </label>
+
+                  <div class="auth-actions">
+                    <button id="btnLogin" class="auth-btn auth-btn-primary" type="button">Se connecter</button>
+                    <button id="btnSignup" class="auth-btn auth-btn-secondary" type="button">Créer un compte</button>
+                  </div>
+
+                  <p class="auth-note">Discord est recommandé. L’email reste disponible comme solution de secours.</p>
+                  <p id="authMessage" class="auth-message" role="status"></p>
+                </div>
+              </div>
+
+              <div id="authLoggedIn" class="auth-hidden">
+                <div class="auth-card-head">
+                  <p class="auth-kicker">Compte</p>
+                  <h2>Compte connecté</h2>
+                  <p id="userDisplay">—</p>
+                </div>
+
+                <div class="auth-user-box">
+                  <span class="auth-user-dot" aria-hidden="true"></span>
+                  <div>
+                    <strong>Connexion active</strong>
+                    <small>Vos futures sauvegardes et statistiques seront liées à ce compte.</small>
+                  </div>
+                </div>
+
+                <div class="account-menu-list" aria-label="Menu du compte">
+                  <button type="button" data-app-view="account">Mon compte</button>
+                  <button type="button" data-app-view="performances" data-perf-view="stats">Mes statistiques</button>
+                  <button type="button" data-app-view="performances" data-perf-view="history">Historique des matchs</button>
+                </div>
+
+                <button id="btnLogout" class="auth-btn auth-btn-danger" type="button">Se déconnecter</button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="account-grid account-grid-v71">
+        <article class="glass account-card account-profile-card">
+          <span>Profil</span>
+          <h2 id="accountProfileTitle">Non connecté</h2>
+          <p id="accountProfileText">Connectez-vous pour associer vos analyses à un compte.</p>
+        </article>
+        <article class="glass account-card account-data-quality-card">
+          <span>Qualité des données</span>
+          <h2 id="dataQualityTitle">—</h2>
+          <p id="dataQualityText">Les contrôles apparaîtront après connexion.</p>
+          <div id="dataQualitySummary" class="data-quality-grid"></div>
+        </article>
+      </section>
+
+      <section class="glass deck-manager-section" aria-labelledby="deckManagerTitle">
+        <div class="deck-manager-head">
+          <div>
+            <div class="kicker">Mes decks</div>
+            <h2 id="deckManagerTitle">Versions de decks</h2>
+            <p>Renommez, fusionnez ou archivez les versions utilisées pour filtrer vos statistiques.</p>
+          </div>
+          <button id="deckManagerRefresh" type="button" class="ghost-button compact">Actualiser</button>
+        </div>
+        <div id="deckManagerStatus" class="deck-manager-status">Connectez-vous pour gérer vos decks.</div>
+        <div id="deckManagerList" class="deck-manager-list"></div>
+      </section>
+
+      <section class="glass data-maintenance-section" aria-labelledby="dataMaintenanceTitle">
+        <div class="kicker">Maintenance</div>
+        <h2 id="dataMaintenanceTitle">Analyses à vérifier</h2>
+        <p>Repérez les anciennes sauvegardes partielles et les doublons potentiels avant d’ajouter de nouvelles statistiques avancées.</p>
+        <div id="duplicateAuditList" class="duplicate-audit-list"></div>
+      </section>
+    </section>
+  </main>
+
+
+  <nav class="mobile-bottom-nav" aria-label="Navigation mobile principale">
+    <button type="button" class="mobile-bottom-tab active" data-app-view="analysis" aria-current="page">
+      <span aria-hidden="true">◇</span><strong>Analyse</strong>
+    </button>
+    <button type="button" class="mobile-bottom-tab" data-app-view="performances" data-perf-view="stats">
+      <span aria-hidden="true">▥</span><strong>Stats</strong>
+    </button>
+    <button type="button" class="mobile-bottom-tab" data-app-view="performances" data-perf-view="history">
+      <span aria-hidden="true">≡</span><strong>Historique</strong>
+    </button>
+    <button type="button" class="mobile-bottom-tab" data-app-view="account">
+      <span aria-hidden="true">○</span><strong>Compte</strong>
+    </button>
+  </nav>
+
+  <div id="handTooltip" class="hand-tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <div id="cardModal" class="modal-backdrop" aria-hidden="true">
+    <article class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1">
+      <h2 id="modalTitle" class="sr-only">Fiche carte Lorcana</h2>
+      <button id="closeModal" type="button" class="modal-close">Fermer</button>
+      <div id="modalBody" class="modal-body"></div>
+    </article>
+  </div>
+</body>
+</html>
+

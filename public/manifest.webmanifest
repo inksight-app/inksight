@@ -1,0 +1,19 @@
+{
+  "name": "InkSight Replay Analyzer",
+  "short_name": "InkSight",
+  "description": "Analyse de replays Lorcana pour joueurs compétitifs.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#050506",
+  "theme_color": "#050506",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

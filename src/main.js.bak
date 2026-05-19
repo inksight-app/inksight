@@ -1,0 +1,3634 @@
+import './style.css';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatches, deleteSavedMatch } from './supabase.js';
+
+(() => {
+  'use strict';
+
+  const LOCAL_CARD_DATA_URL = '/lorcana-cards-import-ready.json';
+  const MAX_FILES = 20;
+  const SET_NUM_TO_CODE = { '1':'TFC', '2':'ROTF', '3':'ITI', '4':'URR', '5':'SSK', '6':'AZS', '7':'ARI', '8':'ROJ', '9':'FAB', '10':'WHW', '11':'WIN', '12':'WIL', '13':'SET13', '14':'SET14' };
+  const SET_CODE_TO_NUM = Object.fromEntries(Object.entries(SET_NUM_TO_CODE).map(([n,c]) => [c,n]));
+  Object.assign(SET_CODE_TO_NUM, { FC:'1', TFC:'1', SHS:'5', WITW:'10', WIS:'11', WUN:'12' });
+  const SET_LABELS = { TFC:'Premier Chapitre', FC:'Premier Chapitre', ROTF:'L’Ascension des Floodborn', ITI:'Les Terres d’Encres', URR:'Le Retour d’Ursula', SSK:'Ciel Scintillant', AZS:'La Mer Azurite', ARI:'L’Île d’Archazia', ROJ:'Le Règne de Jafar', FAB:'Fabuleux', WHW:'Lueurs dans les Profondeurs', WIN:'Givresort', WIL:'Contrées Inconnues', SET13:'Invasion Épineuse !', SET14:'Hyperia City', P1:'Cartes Promo — Année 1', P2:'Cartes Promo — Année 2', P3:'Cartes Promo — Année 3' };
+  const INK_FR = { amber:'Ambre', amethyst:'Améthyste', emerald:'Émeraude', ruby:'Rubis', sapphire:'Saphir', steel:'Acier', Amber:'Ambre', Amethyst:'Améthyste', Emerald:'Émeraude', Ruby:'Rubis', Sapphire:'Saphir', Steel:'Acier', 'Dual Ink':'Double encre' };
+  const RARITY_FR = { common:'Commune', uncommon:'Inhabituelle', rare:'Rare', 'super rare':'Très rare', super_rare:'Très rare', legendary:'Légendaire', enchanted:'Enchantée', iconic:'Iconique', promo:'Promo', Common:'Commune', Uncommon:'Inhabituelle', Rare:'Rare', Legendary:'Légendaire', Enchanted:'Enchantée', Iconic:'Iconique', Promo:'Promo' };
+  const TYPE_FR = { character:'Personnage', action:'Action', song:'Chanson', item:'Objet', location:'Lieu', Character:'Personnage', Action:'Action', Item:'Objet', Location:'Lieu' };
+  const INK_COLORS = { amber:'#f6c54d', amethyst:'#8b5cc7', emerald:'#34d399', ruby:'#fb7185', sapphire:'#2f8bd9', steel:'#9ca3af', inkless:'#63636d' };
+  const GAME_ACTIONS = new Set(['ADD_TO_INK','PLAY_CARD','QUEST','CHALLENGE','ATTACK','END_TURN','MOVE_TO_LOCATION','ACTIVATE_ABILITY','RESPOND_TO_PROMPT']);
+  const $ = id => document.getElementById(id);
+  const els = {};
+  const charts = { lore:null, action:null, ink:null, matrix:null, hand:null };
+  const state = { cards:[], index:new Map(), replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null };
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  function init(){
+    collectEls();
+    bindUI();
+    initSaveIntegration();
+    loadLocalCards();
+  }
+
+  function collectEls(){
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','quickInsights','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','performanceLoginHint','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','historyList','historyStatus','historyRefreshButton','historyFormatFilter','historyResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary'].forEach(id => els[id] = $(id));
+  }
+
+  function bindUI(){
+    const updatePointerAura = e => {
+      const x = Math.max(0, Math.min(100, (e.clientX / Math.max(1, window.innerWidth)) * 100));
+      const y = Math.max(0, Math.min(100, (e.clientY / Math.max(1, window.innerHeight)) * 100));
+      document.documentElement.style.setProperty('--mx', `${x.toFixed(2)}%`);
+      document.documentElement.style.setProperty('--my', `${y.toFixed(2)}%`);
+    };
+    document.addEventListener('mousemove', updatePointerAura, { passive:true });
+    document.addEventListener('pointermove', updatePointerAura, { passive:true });
+
+    els.browseButton?.addEventListener('click', () => els.fileInput.click());
+    els.dropzone?.addEventListener('click', e => { if(e.target !== els.browseButton) els.fileInput.click(); });
+    els.dropzone?.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); els.fileInput.click(); } });
+    els.fileInput?.addEventListener('change', e => handleFiles([...e.target.files]));
+    ['dragenter','dragover'].forEach(type => els.dropzone?.addEventListener(type, e => { e.preventDefault(); els.dropzone.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(type => els.dropzone?.addEventListener(type, e => { e.preventDefault(); els.dropzone.classList.remove('dragover'); }));
+    els.dropzone?.addEventListener('drop', e => handleFiles([...e.dataTransfer.files]));
+    els.clearButton?.addEventListener('click', clearReplays);
+
+    document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
+    els.analysisTabs?.addEventListener('keydown', handleTabsKeydown);
+    document.querySelectorAll('[data-scope]').forEach(btn => btn.addEventListener('click', () => setScope(btn.dataset.scope)));
+    document.querySelectorAll('[data-card-filter]').forEach(btn => btn.addEventListener('click', () => setCardFilter(btn.dataset.cardFilter)));
+    [els.topQuestersSort, els.mostInkedSort, els.playTimingSort, els.challengeSort, els.timelineFilter].forEach(el => el?.addEventListener('change', renderAll));
+    els.closeModal?.addEventListener('click', closeCardModal);
+    els.mulliganButton?.addEventListener('click', toggleMulliganResolution);
+    els.saveAnalysisButton?.addEventListener('click', saveCurrentAnalysis);
+    els.historyRefreshButton?.addEventListener('click', () => refreshSavedMatches({ force:true }));
+    [els.historyFormatFilter, els.historyResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
+    document.querySelectorAll('[data-app-view="performances"], [data-performance-view]').forEach(btn => btn.addEventListener('click', () => refreshSavedMatches({ silent:true })));
+    els.cardModal?.addEventListener('click', e => { if(e.target === els.cardModal) closeCardModal(); });
+    document.addEventListener('keydown', handleModalKeydown);
+  }
+
+  function setApiStatus(text, mode='loading'){
+    if(!els.apiBadge) return;
+    els.apiBadge.classList.toggle('ready', mode === 'ready');
+    els.apiBadge.classList.toggle('error', mode === 'error');
+    els.apiBadge.innerHTML = `<span></span>${esc(text)}`;
+  }
+
+  async function loadLocalCards(){
+    setApiStatus('Base locale · chargement…');
+    try{
+      const res = await fetch(LOCAL_CARD_DATA_URL, { cache:'no-store' });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+      state.cards = Array.isArray(payload) ? payload : (payload.cards || []);
+      buildCardIndex();
+      setApiStatus(`Base locale prête · ${state.cards.length} cartes`, 'ready');
+    }catch(err){
+      console.warn(err);
+      setApiStatus('Base locale introuvable', 'error');
+    }
+  }
+
+  function buildCardIndex(){
+    state.index.clear();
+    for(const raw of state.cards){
+      const card = normalizeLocalCard(raw);
+      const keys = new Set(cardReferenceKeys(card));
+      keys.add(slug(`${card.name} ${card.version}`));
+
+      // V41: index set/number pairs without creating false cross-products.
+      // Some local rows represent reprints: set="TFC\nFAB" and number="161\n163".
+      // The old code paired every set with every number, causing TFC-161 to match the wrong card.
+      alignedPrintReferenceKeys(card).forEach(k => keys.add(k));
+
+      keys.forEach(k => { if(k && !state.index.has(k)) state.index.set(k, card); });
+    }
+  }
+
+  function alignedPrintReferenceKeys(card){
+    const keys = new Set();
+    const codes = arrayify(card?.setCodes?.length ? card.setCodes : card?.setCode || card?.set || '').map(normalizeSetCode).filter(Boolean);
+    const numbers = arrayify(card?.numbers?.length ? card.numbers : card?.number || card?.cardNumber || '').map(strip0).filter(Boolean);
+    if(!codes.length || !numbers.length) return [];
+
+    const addPair = (code, number) => addSetNumberReferenceKeys(keys, code, number);
+
+    if(codes.length === numbers.length){
+      codes.forEach((code, idx) => addPair(code, numbers[idx]));
+    }else if(codes.length === 1){
+      numbers.forEach(number => addPair(codes[0], number));
+    }else if(numbers.length === 1){
+      codes.forEach(code => addPair(code, numbers[0]));
+    }else{
+      const maxAligned = Math.min(codes.length, numbers.length);
+      for(let i = 0; i < maxAligned; i += 1) addPair(codes[i], numbers[i]);
+    }
+    return [...keys];
+  }
+
+  function addSetNumberReferenceKeys(keys, code, number){
+    const normalizedCode = normalizeSetCode(code);
+    const cardNumber = strip0(number);
+    if(!normalizedCode || !cardNumber) return;
+    const setNum = SET_CODE_TO_NUM[code] || SET_CODE_TO_NUM[normalizedCode] || normalizedCode;
+    keys.add(`${setNum}-${cardNumber}`);
+    keys.add(slug(`${code}-${cardNumber}`));
+    keys.add(slug(`${normalizedCode}-${cardNumber}`));
+    keys.add(slug(`${code} ${cardNumber}`));
+    keys.add(slug(`${normalizedCode} ${cardNumber}`));
+  }
+
+  function normalizeLocalCard(raw){
+    const setCodes = arrayify(raw.setCodes?.length ? raw.setCodes : raw.set || raw.setCode).flatMap(v => String(v).split(/[\n,+/]/)).map(normalizeSetCode).filter(Boolean);
+    const numbers = arrayify(raw.numbers?.length ? raw.numbers : raw.number || raw.cardNumber || raw.collector_number || raw.collectorNumber).flatMap(v => String(v).split(/[\n,+/]/)).map(strip0).filter(Boolean);
+    return {
+      source:'local', id:raw.id || raw.cardId || '', name:raw.name || raw.cardName || '', version:raw.version || raw.title || '', fullName:raw.fullName || raw.cardName || [raw.name, raw.version || raw.title].filter(Boolean).join(' - '),
+      type:raw.cardType || raw.type || '', colors:arrayify(raw.colors?.length ? raw.colors : raw.color || raw.inkColor), cost:n(raw.cost ?? raw.inkCost), inkable:boolValue(raw.inkable ?? raw.inkwell), rarity:raw.rarity || '',
+      strength:nullable(raw.strength), willpower:nullable(raw.willpower), lore:nullable(raw.lore), moveCost:nullable(raw.moveCost), classifications:arrayify(raw.classifications),
+      text:raw.text || raw.ability || raw.rulesText || '', flavorText:raw.flavorText || '', franchise:raw.franchise || raw.story || raw.universe || '', artists:arrayify(raw.illustrators || raw.artists || raw.artist),
+      setCodes, setCode:setCodes[0] || '', numbers, number:numbers[0] || strip0(raw.number || raw.cardNumber || raw.collector_number || raw.collectorNumber), image:getCardImage(raw, 'normal'), imageSmall:getCardImage(raw, 'small'), raw
+    };
+  }
+
+  async function handleFiles(files){
+    if(!files.length) return;
+    const accepted = files.slice(0, MAX_FILES);
+    for(const file of accepted){
+      try{
+        const imported = await readReplayInputFile(file);
+        imported.forEach(item => state.replays.push(item));
+      }catch(err){
+        console.error(err);
+        alert(`Impossible de lire ${file.name}: ${err.message}`);
+      }
+    }
+    state.mulliganResolved = false;
+    state.lastSavedMatchId = null;
+    state.sessions = state.replays.map(r => r.session);
+    state.merged = mergeSessions(state.sessions);
+    state.isBO3 = state.sessions.length > 1;
+    state.viewMode = state.isBO3 ? 'global' : (state.sessions.length ? 0 : null);
+    if(state.isBO3 && state.cardFilter === 'all') state.cardFilter = 'opponent';
+    if(els.dropzoneStatus) els.dropzoneStatus.textContent = state.sessions.length ? `${state.sessions.length} replay(s) chargé(s). Analyse prête.` : 'Aucun replay chargé.';
+    document.body.classList.toggle('empty-state', !state.sessions.length);
+    document.body.classList.toggle('has-results', !!state.sessions.length);
+    setTab('overview');
+    renderAll();
+  }
+
+  async function readReplayInputFile(file){
+    const fileName = String(file.name || 'replay');
+    if(/\.zip$/i.test(fileName)) return readMatchReplayZip(file);
+    const replay = await readReplayFile(file);
+    const session = parseReplay(replay, file);
+    return [{ file, replay, session }];
+  }
+
+  async function readMatchReplayZip(file){
+    if(!window.JSZip) throw new Error('JSZip est nécessaire pour lire une archive BO3.');
+    const zip = await window.JSZip.loadAsync(file);
+    const matchEntry = zip.file(/^match\.json$/i)?.[0] || null;
+    let matchMeta = null;
+    if(matchEntry){
+      try{ matchMeta = JSON.parse(await matchEntry.async('string')); }
+      catch(err){ console.warn('match.json illisible', err); }
+    }
+    if(matchMeta) state.matchMeta = matchMeta;
+
+    const replayEntries = Object.values(zip.files)
+      .filter(entry => !entry.dir && /\.replay(\.gz)?$/i.test(entry.name) && !/match\.json$/i.test(entry.name))
+      .sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric:true, sensitivity:'base' }));
+
+    if(!replayEntries.length) throw new Error('Aucun fichier .replay trouvé dans cette archive.');
+
+    const imported = [];
+    for(let index = 0; index < replayEntries.length; index += 1){
+      const entry = replayEntries[index];
+      const buffer = await entry.async('arraybuffer');
+      const replay = await readReplayBuffer(buffer, entry.name);
+      const pseudoFile = {
+        name: entry.name,
+        size: buffer.byteLength || entry._data?.uncompressedSize || 0,
+        parentName: file.name,
+        isZipEntry:true
+      };
+      const session = parseReplay(replay, pseudoFile);
+      enrichSessionWithMatchMeta(session, matchMeta, index);
+      imported.push({ file:pseudoFile, parentFile:file, replay, session });
+    }
+    return imported;
+  }
+
+  function enrichSessionWithMatchMeta(session, matchMeta, index){
+    session.gameIndex = index;
+    session.gameNumber = index + 1;
+    if(!matchMeta?.games?.length) return;
+    const info = matchMeta.games.find(g => String(g.gameId || '') === String(session.data?.gameId || '')) || matchMeta.games[index];
+    if(!info) return;
+    session.gameNumber = n(info.gameNumber || session.gameNumber);
+    session.matchGameInfo = info;
+    session.matchScoreAfter = info.matchScoreAfter || null;
+    if(info.winner !== undefined){
+      session.winner = Number(info.winner);
+      session.isWin = Number(info.winner) === Number(session.perspective);
+    }
+    if(info.victoryReason) session.victoryReason = info.victoryReason;
+  }
+
+  async function readReplayFile(file){
+    const buf = await file.arrayBuffer();
+    return readReplayBuffer(buf, file.name || 'replay');
+  }
+
+  async function readReplayBuffer(buf, fileName='replay'){
+    let text;
+    if(/\.gz$/i.test(fileName)){
+      if(window.pako) text = window.pako.ungzip(new Uint8Array(buf), { to:'string' });
+      else {
+        const ds = new DecompressionStream('gzip');
+        const stream = new Blob([buf]).stream().pipeThrough(ds);
+        text = await new Response(stream).text();
+      }
+    }else{
+      text = new TextDecoder().decode(buf);
+    }
+    return JSON.parse(text);
+  }
+
+  function clearReplays(){
+    state.replays = []; state.sessions = []; state.merged = null; state.isBO3 = false; state.viewMode = 0; state.matchMeta = null; state.mulliganResolved = false; state.lastSavedMatchId = null;
+    document.body.classList.add('empty-state'); document.body.classList.remove('has-results','bo3-global','bo3-game');
+    els.fileInput.value = '';
+    if(els.dropzoneStatus) els.dropzoneStatus.textContent = 'Aucun replay chargé.';
+    if(els.bo3Selector){ els.bo3Selector.innerHTML = ''; els.bo3Selector.hidden = true; }
+    destroyCharts();
+    renderAll();
+  }
+
+  function parseReplay(data, file){
+    const perspective = Number(data.perspective || data.baseSnapshot?.viewingAs || 1);
+    const playerNames = data.playerNames || {};
+    const myPlayerNumber = perspective;
+    const opponentNumber = String(perspective) === '1' ? 2 : 1;
+    const myName = playerNames[myPlayerNumber] || 'Joueur';
+    const opponentName = playerNames[opponentNumber] || 'Adversaire';
+    const winner = Number(data.winner || 0);
+    const isWin = winner === perspective;
+
+    const working = deepClone(data.baseSnapshot || {});
+    const mulligan = extractMulligan(data, perspective);
+    const rows = { mine:[], opponent:[] };
+    const currentRows = { mine:null, opponent:null };
+    let firstTurnPlayer = null;
+    const seenCards = new Map();
+    const timeline = [];
+    const loreByTurn = new Map();
+    const actionByTurn = new Map();
+
+    const frames = [...(data.frames || [])].sort((a,b) => n(a.seq) - n(b.seq));
+
+    const ownerFromPlayer = player => {
+      const value = Number(player);
+      if(value !== 1 && value !== 2) return null;
+      return value === perspective ? 'mine' : 'opponent';
+    };
+    const ownerFromValue = value => {
+      const numeric = Number(value);
+      if(numeric === 1 || numeric === 2) return ownerFromPlayer(numeric);
+      const raw = String(value || '').toLowerCase().replace(/[\s_-]+/g, '');
+      if(['mine','me','my','myplayer','self'].includes(raw)) return 'mine';
+      if(['opponent','adversaire','opp','opposingplayer'].includes(raw)) return 'opponent';
+      return null;
+    };
+    const zoneFromOwner = owner => owner === 'mine' ? 'myPlayer' : owner === 'opponent' ? 'opponent' : null;
+    const deckOwners = buildDeckOwnerIndex(data, perspective);
+    const replayCardIndex = buildReplayCardIndex(data);
+    const inferFrameOwner = (frame, snapshot) => {
+      const taken = frame.takenAction || {};
+      const candidates = [
+        frame.player, frame.playerNumber, frame.playerId, frame.actor, frame.actorPlayer, frame.actorPlayerNumber,
+        taken.player, taken.playerNumber, taken.playerId, taken.actor, taken.actorPlayer, taken.actorPlayerNumber,
+        taken.owner, taken.controller
+      ];
+      for(const candidate of candidates){
+        const owner = ownerFromValue(candidate);
+        if(owner) return owner;
+      }
+      // Important: a patch path indicates which zone changed, not who performed the action.
+      // Using it as the actor was the source of the Moi/Adversaire card mixing.
+      if(GAME_ACTIONS.has(frame.actionType)) return ownerFromPlayer(snapshot?.currentPlayer);
+      return null;
+    };
+
+    const ensureTurnRow = (player, snapshot) => {
+      if(![1,2].includes(Number(player))) return null;
+      const owner = ownerFromPlayer(player);
+      if(currentRows[owner]) return currentRows[owner];
+      const zoneKey = zoneFromOwner(owner);
+      if(!zoneKey) return null;
+      const z = zoneStats(snapshot, zoneKey);
+      const row = { owner, player:Number(player), turn:rows[owner].length + 1, globalTurn:n(snapshot.turnNumber || 1), startInk:z.ink, capacity:z.ink, spent:z.exerted, float:0, inked:0, played:0, quest:0, challenge:0, handStart:z.hand, handEnd:z.hand, endInk:z.ink };
+      currentRows[owner] = row;
+      return row;
+    };
+
+    const updateTurnRow = (owner, snapshot) => {
+      const row = currentRows[owner]; if(!row) return;
+      const zoneKey = zoneFromOwner(owner);
+      if(!zoneKey) return;
+      const z = zoneStats(snapshot, zoneKey);
+      const beforeCap = row.capacity;
+      row.capacity = Math.max(row.capacity, z.ink);
+      row.spent = Math.max(row.spent, z.exerted);
+      row.handEnd = z.hand;
+      row.endInk = z.ink;
+      if(z.ink > beforeCap) row.inked += z.ink - beforeCap;
+    };
+
+    const closeTurnRow = (owner, snapshot) => {
+      const row = currentRows[owner]; if(!row) return;
+      updateTurnRow(owner, snapshot);
+      row.float = Math.max(0, round1(row.capacity - row.spent));
+      rows[owner].push(row);
+      currentRows[owner] = null;
+    };
+
+    const recordLore = (turn, mineLore, oppLore) => {
+      const key = Number(turn) || 1;
+      loreByTurn.set(key, { turn:key, mine:n(mineLore), opponent:n(oppLore) });
+    };
+    recordLore(1, zoneStats(working,'myPlayer').lore, zoneStats(working,'opponent').lore);
+
+    for(const frame of frames){
+      const actionType = frame.actionType;
+      const actorOwner = inferFrameOwner(frame, working);
+      const beforeCurrent = Number(working.currentPlayer);
+      const beforeOwner = ownerFromPlayer(beforeCurrent);
+      const isGame = GAME_ACTIONS.has(actionType);
+      if(isGame && [1,2].includes(beforeCurrent)){
+        if(firstTurnPlayer === null) firstTurnPlayer = beforeCurrent;
+        ensureTurnRow(beforeCurrent, working);
+        updateTurnRow(beforeOwner, working);
+      }
+
+      updateActionStatsFromFrame(frame, actorOwner, seenCards, timeline, actionByTurn, actorOwner ? currentRows[actorOwner] : null, working, deckOwners, replayCardIndex);
+      creditNonQuestLoreSources(frame, actorOwner, seenCards, working, deckOwners, replayCardIndex);
+
+      for(const patch of frame.patch || []) applyPatch(working, patch);
+
+      if(isGame && [1,2].includes(beforeCurrent)){
+        updateTurnRow(beforeOwner, working);
+      }
+
+      const afterCurrent = Number(working.currentPlayer);
+      if([1,2].includes(beforeCurrent) && afterCurrent !== beforeCurrent){
+        closeTurnRow(beforeOwner, working);
+      }
+
+      const myLore = zoneStats(working,'myPlayer').lore;
+      const oppLore = zoneStats(working,'opponent').lore;
+      recordLore(frame.turnNumber || working.turnNumber || 1, myLore, oppLore);
+    }
+    closeTurnRow('mine', working); closeTurnRow('opponent', working);
+
+    const finalMineLore = zoneStats(working,'myPlayer').lore || n(data.baseSnapshot?.myPlayer?.lore);
+    const finalOppLore = zoneStats(working,'opponent').lore || n(data.baseSnapshot?.opponent?.lore);
+    const actions = timeline.filter(a => a.type !== 'end');
+    const cards = [...seenCards.values()].map(c => finalizeCard(c));
+
+    const proMetrics = computeMetrics(rows.mine, actions.filter(a => a.owner === 'mine'));
+    const opponentProMetrics = computeMetrics(rows.opponent, actions.filter(a => a.owner === 'opponent'));
+    const inkProfiles = buildInkProfiles({ cards });
+    const matchupLabel = formatMatchupLabel(inkProfiles);
+
+    return { fileName:file.name, fileSize:file.size, data, perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel };
+  }
+
+  function updateActionStatsFromFrame(frame, owner, seenCards, timeline, actionByTurn, row, snapshot, deckOwners, replayCardIndex){
+    if(owner !== 'mine' && owner !== 'opponent') return;
+    const taken = frame.takenAction || {};
+    const type = frame.actionType;
+    const turn = n(frame.turnNumber || row?.globalTurn || snapshot?.turnNumber || 1);
+    const sourceCard = sourceCardForAction(frame, owner, snapshot, deckOwners, replayCardIndex);
+    const sourceOwner = sourceCard ? deckOwnerForCard(sourceCard, owner, deckOwners) : owner;
+    const canCountSource = !sourceCard || sourceOwner === owner;
+    const sourceName = sourceCard ? cleanCardName(fullName(sourceCard)) : cleanCardName(actionSourceName(frame, type) || 'Carte inconnue');
+    let entryType = '', title = '', detail = '', icon = '•', timelineCard = null;
+    const agg = actionByTurn.get(turn) || { turn, ink:0, play:0, quest:0, challenge:0, mineChallenge:0, opponentChallenge:0 };
+
+    const countSource = (inc) => {
+      if(sourceCard && canCountSource) updateCardStat(seenCards, sourceCard, owner, inc);
+      else if(!sourceCard && actionSourceName(frame, type)) updateCardStat(seenCards, { fullName:actionSourceName(frame, type), id:taken.cardId || taken.sourceCardId || '' }, owner, inc);
+    };
+    const useCardForTimeline = () => {
+      timelineCard = sourceCard && canCountSource ? hydrateCard(sourceCard) : null;
+    };
+
+    if(type === 'ADD_TO_INK'){
+      entryType='ink'; icon='◆'; title=`Encre ${sourceName}`; detail=`${owner === 'mine' ? 'Vous transformez' : 'L’adversaire transforme'} ${sourceName} en ressource d’encre.`; agg.ink += 1;
+      countSource({ inked:1, seen:1 }); useCardForTimeline();
+    }else if(type === 'PLAY_CARD'){
+      if(!sourceCard && sourceName === 'Carte inconnue') return;
+      entryType='play'; icon='▶'; title=`Joue ${sourceName}`; detail=`${owner === 'mine' ? 'Vous jouez' : 'L’adversaire joue'} ${sourceName}.`; agg.play += 1; if(row) row.played += 1;
+      countSource({ played:1, seen:1, firstTurn:turn }); useCardForTimeline();
+    }else if(type === 'QUEST'){
+      const lore = n(taken.loreGained || taken.lore || sourceCard?.lore || 0);
+      entryType='quest'; icon='★'; title=`Quête avec ${sourceName}`; detail=`${owner === 'mine' ? 'Vous partez' : 'L’adversaire part'} à l’aventure${lore ? ` pour ${lore} lore` : ''}.`; agg.quest += 1; if(row) row.quest += 1;
+      countSource({ quest:1, lore, seen:1 }); useCardForTimeline();
+    }else if(type === 'CHALLENGE' || type === 'ATTACK'){
+      const target = cleanCardName(actionTargetName(frame) || 'une cible adverse');
+      entryType='challenge'; icon='⚔'; title=`Défi avec ${sourceName}`; detail=`${owner === 'mine' ? 'Vous défiez' : 'L’adversaire défie'} ${target}.`; agg.challenge += 1; agg[`${owner}Challenge`] = n(agg[`${owner}Challenge`]) + 1; if(row) row.challenge += 1;
+      countSource({ challenge:1, seen:1 }); useCardForTimeline();
+    }else if(type === 'END_TURN'){
+      entryType='end'; icon='↪'; title='Fin de tour'; detail=`${owner === 'mine' ? 'Vous terminez' : 'L’adversaire termine'} le tour.`;
+      timelineCard = null;
+    }else if(type === 'MOVE_TO_LOCATION'){
+      entryType='move'; icon='↗'; title=sourceCard ? `Déplace ${sourceName}` : 'Déplace une carte'; detail=sourceCard ? `${sourceName} se déplace vers un lieu.` : 'Une carte se déplace vers un lieu.';
+      useCardForTimeline();
+    }else if(type === 'ACTIVATE_ABILITY'){
+      entryType='ability'; icon='✦'; title=sourceCard ? `Active ${sourceName}` : 'Active une capacité'; detail=sourceCard ? `Capacité de ${sourceName}.` : 'Une capacité est activée.';
+      if(sourceCard && canCountSource) updateCardStat(seenCards, sourceCard, owner, { seen:1 });
+      useCardForTimeline();
+    }else if(type === 'RESPOND_TO_PROMPT'){
+      const promptPlayedCard = sourceCard && (frame.patch || []).some(p => p?.op === 'add' && pathHasAnyZone(p.path, ['field','characters','items','locations']));
+      if(promptPlayedCard){
+        entryType='play'; icon='▶'; title=`Joue ${sourceName}`; detail=`${owner === 'mine' ? 'Vous jouez' : 'L’adversaire joue'} ${sourceName}.`; agg.play += 1; if(row) row.played += 1;
+        countSource({ played:1, seen:1, firstTurn:turn }); useCardForTimeline();
+      }else{
+        entryType='ability'; icon='✦'; title='Résout un effet'; detail='Un effet est résolu.';
+        timelineCard = null;
+      }
+    }
+    actionByTurn.set(turn, agg);
+    if(entryType){
+      timeline.push({
+        owner, type:entryType, turn, icon, title, detail, rawType:type, cardName:sourceName,
+        cardKey:timelineCard ? cardKey(timelineCard) : '', card:timelineCard,
+        handCount:zoneStats(snapshot, owner === 'mine' ? 'myPlayer' : 'opponent').hand
+      });
+    }
+  }
+
+  function buildDeckOwnerIndex(data, perspective){
+    const base = data?.baseSnapshot || {};
+    const sets = { mine:new Set(), opponent:new Set() };
+    const mineChunks = [base.mySetup, data?.mySetup, base.myPlayer?.setup, base.players?.[perspective]?.setup, base.playerSetups?.[perspective]];
+    const opponentNumber = String(perspective) === '1' ? 2 : 1;
+    const opponentChunks = [base.opponentSetup, data?.opponentSetup, base.opponent?.setup, base.players?.[opponentNumber]?.setup, base.playerSetups?.[opponentNumber]];
+    mineChunks.forEach(chunk => collectDeckIds(chunk, sets.mine));
+    opponentChunks.forEach(chunk => collectDeckIds(chunk, sets.opponent));
+    return sets;
+  }
+
+  function collectDeckIds(value, out, depth=0){
+    if(!value || depth > 4) return;
+    if(Array.isArray(value)){
+      value.forEach(item => addDeckId(item, out));
+      return;
+    }
+    if(typeof value !== 'object') { addDeckId(value, out); return; }
+    for(const key of ['deckCardIds','deckIds','decklist','deck','cards','mainDeck']){
+      if(value[key] !== undefined) collectDeckIds(value[key], out, depth + 1);
+    }
+  }
+
+  function addDeckId(value, out){
+    if(value === undefined || value === null) return;
+    if(typeof value === 'object'){
+      const id = canonicalCardId(value);
+      if(id) out.add(id);
+      return;
+    }
+    const raw = String(value).trim();
+    if(!raw) return;
+    const parts = raw.split(/[\s,;]+/).filter(Boolean);
+    parts.forEach(part => {
+      const id = canonicalCardId({ id:part });
+      if(id) out.add(id);
+    });
+  }
+
+  function canonicalCardId(cardLike){
+    const raw = String(cardLike?.id || cardLike?.cardId || cardLike?.card_id || '').trim();
+    if(!raw) return '';
+    const compact = raw.replace(/^lorcana[-_:]/i, '').replace(/[^a-z0-9-]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const match = compact.match(/^(\d{1,2})-(\d{1,4})$/) || compact.match(/^(\d{1,2})-(\d{1,4})-/);
+    if(match) return `${Number(match[1])}-${Number(match[2])}`;
+    return slug(compact);
+  }
+
+  function deckOwnerForCard(cardLike, fallbackOwner, deckOwners){
+    const id = canonicalCardId(cardLike);
+    if(!id || !deckOwners) return fallbackOwner;
+    const inMine = deckOwners.mine?.has(id);
+    const inOpponent = deckOwners.opponent?.has(id);
+    if(inMine && !inOpponent) return 'mine';
+    if(inOpponent && !inMine) return 'opponent';
+    return fallbackOwner;
+  }
+
+  function sourceCardForAction(frame, owner, snapshot, deckOwners, replayCardIndex){
+    const type = frame.actionType;
+    const direct = cardFromActionFields(frame, type);
+    const directResolved = resolveCardReference(direct, owner, replayCardIndex);
+    if(directResolved && isKnownActionCard(directResolved)) return hydrateCard(directResolved);
+    if(direct && isKnownActionCard(direct)) return hydrateCard(direct);
+
+    if(type === 'ADD_TO_INK') return findCardInOwnerPatches(frame, owner, snapshot, ['inkwell','hand'], deckOwners, replayCardIndex);
+    if(type === 'PLAY_CARD') return findCardInOwnerPatches(frame, owner, snapshot, ['play','field','characters','items','locations','discard','hand'], deckOwners, replayCardIndex);
+    if(type === 'RESPOND_TO_PROMPT') return findCardInOwnerPatches(frame, owner, snapshot, ['field','characters','items','locations'], deckOwners, replayCardIndex);
+    if(type === 'QUEST' || type === 'CHALLENGE' || type === 'ATTACK' || type === 'MOVE_TO_LOCATION') return findCardInOwnerPatches(frame, owner, snapshot, ['play','field','characters','items','locations'], deckOwners, replayCardIndex);
+    if(type === 'ACTIVATE_ABILITY'){
+      const explicit = cardFromActionFields(frame, type, true);
+      const explicitResolved = resolveCardReference(explicit, owner, replayCardIndex);
+      if(explicitResolved && isKnownActionCard(explicitResolved)) return hydrateCard(explicitResolved);
+      if(explicit && isKnownActionCard(explicit)) return hydrateCard(explicit);
+      return null;
+    }
+    return null;
+  }
+
+  function creditNonQuestLoreSources(frame, actorOwner, seenCards, snapshot, deckOwners, replayCardIndex){
+    if(!frame || frame.actionType === 'QUEST') return;
+    const deltas = positiveLoreDeltasByOwner(frame, snapshot);
+    if(!deltas.length) return;
+
+    const type = frame.actionType;
+    const sourceCard = actorOwner ? sourceCardForAction(frame, actorOwner, snapshot, deckOwners, replayCardIndex) : null;
+    const sourceOwner = sourceCard ? deckOwnerForCard(sourceCard, actorOwner, deckOwners) : actorOwner;
+    const sourceCanReceiveLore = sourceCard && actorOwner && sourceOwner === actorOwner && canCardDirectlyGainLore(sourceCard);
+
+    deltas.forEach(({ owner, delta }) => {
+      if(delta <= 0) return;
+
+      // Certaines Actions/Chansons gagnent réellement du lore. On ne les crédite que si le texte
+      // de la carte parle explicitement de gain de lore, afin d'éviter que des actions utilitaires
+      // comme Winterspell ne volent les points générés par une autre source.
+      if(sourceCanReceiveLore && owner === actorOwner){
+        updateCardStat(seenCards, sourceCard, owner, { lore:delta, seen:1 });
+        return;
+      }
+
+      // Les lieux génèrent leur lore au début du tour. Duel.ink encode souvent ce gain dans le
+      // frame END_TURN précédent, avec un simple replace /myPlayer/lore ou /opponent/lore.
+      // On réattribue donc ce delta aux Locations déjà actives sur le plateau du propriétaire.
+      creditPassiveLocationLore(snapshot, owner, delta, seenCards);
+    });
+  }
+
+  function positiveLoreDeltasByOwner(frame, snapshot){
+    const patches = Array.isArray(frame?.patch) ? frame.patch : [];
+    const currentLore = {
+      mine:n(zoneStats(snapshot, 'myPlayer').lore),
+      opponent:n(zoneStats(snapshot, 'opponent').lore)
+    };
+    const out = [];
+    patches.forEach(patch => {
+      const owner = ownerFromLorePatchPath(patch?.path);
+      if(!owner || patch?.op !== 'replace') return;
+      const nextValue = n(patch.value);
+      const previousValue = n(currentLore[owner]);
+      const delta = nextValue - previousValue;
+      currentLore[owner] = nextValue;
+      if(delta > 0) out.push({ owner, delta });
+    });
+    return out;
+  }
+
+  function ownerFromLorePatchPath(path){
+    const p = String(path || '');
+    if(p === '/myPlayer/lore') return 'mine';
+    if(p === '/opponent/lore') return 'opponent';
+    return null;
+  }
+
+  function creditPassiveLocationLore(snapshot, owner, delta, seenCards){
+    if(owner !== 'mine' && owner !== 'opponent') return 0;
+    const locations = fieldCardsForOwner(snapshot, owner).filter(isLocationWithLore);
+    if(!locations.length) return 0;
+
+    let remaining = n(delta);
+    let credited = 0;
+    locations.forEach(location => {
+      if(remaining <= 0) return;
+      const amount = Math.min(remaining, cardIntrinsicLore(location));
+      if(amount <= 0) return;
+      updateCardStat(seenCards, location, owner, { lore:amount, seen:1 });
+      remaining -= amount;
+      credited += amount;
+    });
+    return credited;
+  }
+
+  function fieldCardsForOwner(snapshot, owner){
+    const zone = owner === 'mine' ? 'myPlayer' : owner === 'opponent' ? 'opponent' : '';
+    const field = zone ? snapshot?.[zone]?.field : null;
+    if(!Array.isArray(field)) return [];
+    return field.map(entry => {
+      if(entry?.card && isCardLike(entry.card)){
+        return {
+          ...entry.card,
+          instanceId:entry.instanceId || entry.cardInstanceId || entry.card.instanceId || entry.card.cardInstanceId || '',
+          cardInstanceId:entry.cardInstanceId || entry.instanceId || entry.card.cardInstanceId || entry.card.instanceId || '',
+          exerted:entry.exerted ?? entry.card.exerted,
+          justPlayed:entry.justPlayed ?? entry.card.justPlayed
+        };
+      }
+      return entry;
+    }).filter(isCardLike);
+  }
+
+  function isLocationWithLore(card){
+    const type = String(card?.type || card?.cardType || '').toLowerCase();
+    return type.includes('location') && cardIntrinsicLore(card) > 0;
+  }
+
+  function cardIntrinsicLore(card){
+    const value = card?.lore;
+    if(value === undefined || value === null || value === '') return 0;
+    return n(value);
+  }
+
+  function canCardDirectlyGainLore(card){
+    const text = cardRulesText(card).toLowerCase();
+    if(!text) return false;
+    return /\bgain(?:s)?\s+(?:\d+|x|that much|this much)?\s*lore\b/.test(text)
+      || /\bgain\s+lore\b/.test(text)
+      || /\bgagnez?\s+(?:\d+|x)?\s*(?:éclats? de )?lore\b/.test(text)
+      || /\bremportez?\s+(?:\d+|x)?\s*(?:éclats? de )?lore\b/.test(text);
+  }
+
+  function cardRulesText(card){
+    const raw = card?.raw || {};
+    const abilitySource = card?.specialAbilities || raw.specialAbilities || raw.abilities || [];
+    const abilityList = Array.isArray(abilitySource) ? abilitySource : Object.values(abilitySource || {});
+    const abilityText = abilityList
+      .map(a => typeof a === 'string' ? a : [a?.name, a?.effect, a?.text].filter(Boolean).join(' '))
+      .join(' ');
+    return [
+      card?.rulesText, card?.text, card?.ability, card?.effect,
+      raw.rulesText, raw.text, raw.ability, raw.effect,
+      raw.translations?.fr?.rulesText,
+      abilityText
+    ].filter(Boolean).join(' ');
+  }
+
+  function cardFromActionFields(frame, type, allowPrompt=false){
+    const taken = frame.takenAction || {};
+    const nameFields = actionNameFields(type);
+    const idFields = actionIdFields(type);
+    const instanceFields = actionInstanceFields(type);
+    const name = firstString(nameFields.map(key => taken[key]));
+    const id = firstString(idFields.map(key => taken[key]));
+    const instanceId = firstString(instanceFields.map(key => taken[key]));
+    if(name || id || instanceId) return { id, cardId:id, fullName:name, name, cardName:name, instanceId, cardInstanceId:instanceId };
+    if(allowPrompt && frame.promptSourceCard && isCardLike(frame.promptSourceCard)) return frame.promptSourceCard;
+    return null;
+  }
+
+  function actionNameFields(type){
+    if(type === 'CHALLENGE' || type === 'ATTACK') return ['attackerName','challengerName','sourceName','sourceCardName','characterName'];
+    if(type === 'QUEST') return ['questerName','characterName','sourceName','sourceCardName','cardName','attackerName'];
+    if(type === 'ACTIVATE_ABILITY') return ['sourceName','sourceCardName','cardName','characterName'];
+    return ['cardName','sourceName','sourceCardName','characterName','name'];
+  }
+
+  function actionIdFields(type){
+    if(type === 'CHALLENGE' || type === 'ATTACK') return ['attackerCardId','attackerId','challengerCardId','sourceCardId','characterCardId'];
+    if(type === 'QUEST') return ['questerCardId','characterCardId','sourceCardId','cardId'];
+    if(type === 'ACTIVATE_ABILITY') return ['sourceCardId','cardId','characterCardId'];
+    return ['cardId','sourceCardId','characterCardId'];
+  }
+
+  function actionInstanceFields(type){
+    if(type === 'CHALLENGE' || type === 'ATTACK') return ['attackerInstanceId','attackerCardInstanceId','challengerInstanceId','sourceInstanceId','sourceCardInstanceId','characterInstanceId','cardInstanceId','instanceId'];
+    if(type === 'QUEST') return ['questerInstanceId','questerCardInstanceId','characterInstanceId','sourceInstanceId','sourceCardInstanceId','cardInstanceId','instanceId'];
+    if(type === 'ACTIVATE_ABILITY') return ['sourceInstanceId','sourceCardInstanceId','characterInstanceId','cardInstanceId','instanceId'];
+    return ['cardInstanceId','instanceId','sourceInstanceId','sourceCardInstanceId','characterInstanceId'];
+  }
+
+  function actionSourceName(frame, type){
+    const taken = frame.takenAction || {};
+    return firstString(actionNameFields(type).map(key => taken[key]));
+  }
+
+  function actionTargetName(frame){
+    const taken = frame.takenAction || {};
+    return firstString([
+      taken.defenderName, taken.defendingName, taken.challengeeName, taken.targetName,
+      taken.targetCardName, taken.opposingCardName, taken.opponentCardName
+    ]);
+  }
+
+  function isKnownActionCard(card){
+    return !!(card && (card.id || card.cardId || cleanCardName(card.fullName || card.name || card.cardName) !== 'Carte inconnue'));
+  }
+
+  function firstString(values){
+    for(const value of values){
+      if(value === undefined || value === null) continue;
+      const text = String(value).trim();
+      if(text) return text;
+    }
+    return '';
+  }
+
+  function findCardInOwnerPatches(frame, owner, snapshot, zoneHints=[], deckOwners, replayCardIndex){
+    const patches = Array.isArray(frame.patch) ? frame.patch : [];
+    const priority = [];
+    const normal = [];
+    const handShiftFallback = [];
+    const candidates = [];
+
+    const pushCards = (bucket, value) => {
+      const cards = extractCards(value, []);
+      if(cards.length) bucket.push(...cards);
+    };
+
+    const direct = cardFromActionFields(frame, frame.actionType, true);
+    const directResolved = resolveCardReference(direct, owner, replayCardIndex);
+    if(directResolved) priority.push(directResolved);
+    else if(direct && isKnownActionCard(direct)) priority.push(direct);
+
+    for(const patch of patches){
+      const path = String(patch.path || '');
+      const patchOwner = ownerFromPatchPath(path);
+      const isGlobalSource = patchOwner === 'global';
+      if(patchOwner && patchOwner !== owner && !isGlobalSource) continue;
+
+      if(path === '/promptSourceCard'){
+        // Source absolue des PLAY_CARD avec prompt : elle doit passer devant les décalages de main.
+        pushCards(priority, patch.value);
+        continue;
+      }
+
+      if(!isGlobalSource && zoneHints.length && !pathHasAnyZone(path, zoneHints)) continue;
+
+      const isHandPath = isOwnerHandPath(path);
+      const isHandReplace = patch.op === 'replace' && isHandPath;
+      const isHandRemove = patch.op === 'remove' && isHandPath;
+      if(isHandReplace){
+        // Les replaces /hand/5/instanceId, /hand/5/imageUrl, etc. sont souvent des shifts après pioche/recherche.
+        // Les utiliser en priorité fait confondre la carte jouée avec la carte qui glisse dans la main.
+        continue;
+      }
+
+      const isResolutionAdd = patch.op === 'add' && pathHasAnyZone(path, ['discard','field','characters','items','locations','inkwell']);
+      const bucket = isResolutionAdd ? priority : (isHandRemove ? handShiftFallback : normal);
+
+      pushCards(bucket, patch.value);
+
+      const directValue = valueAtPointer(snapshot, path);
+      pushCards(isHandPath ? handShiftFallback : bucket, directValue);
+
+      if(!isHandPath){
+        let parentPath = parentPointer(path);
+        for(let i=0; i<2 && parentPath; i++){
+          pushCards(bucket, valueAtPointer(snapshot, parentPath));
+          parentPath = parentPointer(parentPath);
+        }
+      }
+    }
+
+    candidates.push(...priority, ...normal, ...handShiftFallback);
+
+    for(const candidate of candidates){
+      const resolved = resolveCardReference(candidate, owner, replayCardIndex) || candidate;
+      const hydrated = hydrateCard(resolved);
+      const deckOwner = deckOwnerForCard(hydrated, owner, deckOwners);
+      if(deckOwner === owner) return hydrated;
+    }
+    return candidates.length ? hydrateCard(candidates[0]) : null;
+  }
+
+  function ownerFromPatchPath(path){
+    const p = String(path || '');
+    if(p === '/promptSourceCard' || p.startsWith('/promptSourceCard/')) return 'global';
+    if(p === '/waitingForOpponent' || p.startsWith('/waitingForOpponent/')) return 'global';
+    if(p === '/myPlayer' || p.startsWith('/myPlayer/')) return 'mine';
+    if(p === '/opponent' || p.startsWith('/opponent/')) return 'opponent';
+    return null;
+  }
+
+  function isOwnerHandPath(path){
+    return /^\/(?:myPlayer|opponent)\/hand\/\d+(?:\/|$)/.test(String(path || ''));
+  }
+
+  function pathHasAnyZone(path, zones){
+    const parts = pointerParts(path);
+    return zones.some(zone => parts.includes(zone));
+  }
+
+  function valueAtPointer(obj, path){
+    const parts = pointerParts(path);
+    let current = obj;
+    for(const part of parts){
+      if(current == null) return undefined;
+      current = current[part];
+    }
+    return current;
+  }
+
+  function parentPointer(path){
+    const parts = pointerParts(path);
+    if(parts.length <= 1) return '';
+    return '/' + parts.slice(0, -1).map(p => p.replace(/~/g, '~0').replace(/\//g, '~1')).join('/');
+  }
+
+  function buildReplayCardIndex(data){
+    const index = { mine:new Map(), opponent:new Map() };
+    const addOwnerCards = (owner, value) => {
+      if(owner !== 'mine' && owner !== 'opponent') return;
+      extractCards(value, []).forEach(card => indexCardReference(index[owner], card));
+    };
+    addOwnerCards('mine', data?.baseSnapshot?.myPlayer);
+    addOwnerCards('opponent', data?.baseSnapshot?.opponent);
+    for(const frame of data?.frames || []){
+      for(const patch of frame.patch || []){
+        const owner = ownerFromPatchPath(patch.path);
+        if(owner) addOwnerCards(owner, patch.value);
+      }
+    }
+    return index;
+  }
+
+  function indexCardReference(map, cardLike){
+    if(!map || !cardLike) return;
+    const hydrated = hydrateCard(cardLike);
+    if(!isKnownActionCard(hydrated)) return;
+    for(const key of cardReferenceKeys(cardLike)) if(key && !map.has(key)) map.set(key, hydrated);
+    for(const key of cardReferenceKeys(hydrated)) if(key && !map.has(key)) map.set(key, hydrated);
+  }
+
+  function resolveCardReference(cardLike, owner, replayCardIndex){
+    if(!cardLike || (owner !== 'mine' && owner !== 'opponent') || !replayCardIndex?.[owner]) return null;
+    const map = replayCardIndex[owner];
+    const keys = cardReferenceKeys(cardLike);
+    for(const key of keys){
+      const card = map.get(key);
+      if(card) return hydrateCard(card);
+    }
+    return null;
+  }
+
+  function cardReferenceKeys(cardLike){
+    if(!cardLike) return [];
+    const normalized = normalizeCardReference(cardLike);
+    const keys = new Set();
+    [normalized.instanceId, normalized.cardInstanceId, normalized.id, normalized.cardId].forEach(v => {
+      const text = String(v || '').trim();
+      if(text){ keys.add(text); keys.add(slug(text)); keys.add(canonicalCardId({ id:text })); }
+    });
+    if(normalized.fullName) keys.add(slug(normalized.fullName));
+    if(normalized.name) keys.add(slug(normalized.name));
+    if(normalized.name && normalized.version) keys.add(slug(`${normalized.name} ${normalized.version}`));
+    const setCode = normalizeSetCode(normalized.setCode || normalized.set || '');
+    const number = strip0(normalized.number || normalized.cardNumber || normalized.collector_number || normalized.collectorNumber || '');
+    if(setCode && number){
+      const setNum = SET_CODE_TO_NUM[setCode] || setCode;
+      keys.add(`${setNum}-${number}`);
+      keys.add(slug(`${setCode}-${number}`));
+      keys.add(slug(`${setCode} ${number}`));
+    }
+    const id = String(normalized.id || normalized.cardId || '');
+    const match = id.match(/^(\d{1,2})[-_](\d{1,4})/);
+    if(match) keys.add(`${Number(match[1])}-${Number(match[2])}`);
+    return [...keys].filter(Boolean);
+  }
+
+  function normalizeCardReference(rawInput){
+    const raw = rawInput?.card && typeof rawInput.card === 'object' ? { ...rawInput.card, instanceId:rawInput.instanceId || rawInput.cardInstanceId || rawInput.card.instanceId || rawInput.card.cardInstanceId || '', cardInstanceId:rawInput.cardInstanceId || rawInput.instanceId || rawInput.card.cardInstanceId || rawInput.card.instanceId || '' } : (rawInput || {});
+    const id = raw.id || raw.cardId || raw.card_id || '';
+    const name = raw.name || raw.cardName || '';
+    const version = raw.version || raw.title || raw.subtitle || '';
+    return {
+      ...raw, id, cardId:id, name, version, fullName:raw.fullName || raw.cardName || [name, version].filter(Boolean).join(' - ') || name,
+      instanceId:raw.instanceId || raw.cardInstanceId || '', cardInstanceId:raw.cardInstanceId || raw.instanceId || '',
+      setCode:raw.setCode || raw.set || raw.set_code || '', number:raw.number || raw.cardNumber || raw.collector_number || raw.collectorNumber || ''
+    };
+  }
+
+  function extractMulligan(data, perspective){
+    const initialSnapshot = deepClone(data.baseSnapshot || {});
+    const zoneKey = 'myPlayer';
+    const initial = snapshotHandCards(initialSnapshot, 'mine').slice(0, 7);
+    const working = deepClone(data.baseSnapshot || {});
+    const frames = [...(data.frames || [])].sort((a,b) => n(a.seq) - n(b.seq));
+    for(const frame of frames){
+      if(frame.actionType !== 'MULLIGAN' && frame.actionType !== 'CHOOSE_STARTING_PLAYER') break;
+      for(const patch of frame.patch || []) applyPatch(working, patch);
+    }
+    const resolved = snapshotHandCards(working, 'mine').slice(0, 7);
+    const initialIds = new Set(initial.map(cardIdentity));
+    const resolvedIds = new Set(resolved.map(cardIdentity));
+    const kept = resolved.filter(c => initialIds.has(cardIdentity(c))).length;
+    const replaced = resolved.filter(c => !initialIds.has(cardIdentity(c))).map(c => ({ ...c, mulligan:true }));
+    return { initial, resolved, replaced, kept, changed:replaced.length > 0, visible:initial.length > 0 };
+  }
+
+  function snapshotHandCards(snapshot, owner){
+    if(!snapshot) return [];
+    const zone = owner === 'mine' ? 'myPlayer' : 'opponent';
+    const hand = snapshot?.[zone]?.hand;
+    if(!Array.isArray(hand)) return [];
+    return hand.map(c => hydrateCard(c)).filter(Boolean);
+  }
+
+  function cardIdentity(card){
+    return card?.instanceId || card?.cardInstanceId || card?.id || cardKey(card) || fullName(card);
+  }
+
+  function computeMetrics(turnRows, actions){
+    const questCount = actions.filter(a => a.type === 'quest').length;
+    const challengeCount = actions.filter(a => a.type === 'challenge').length;
+    const handByTurn = turnRows.map(r => ({ turn:r.turn, handCount:r.handEnd }));
+    const inkByTurn = turnRows.map(r => ({ turn:r.turn, capacity:r.capacity, spent:r.spent, float:r.float, inked:r.inked, handStart:r.handStart, handEnd:r.handEnd }));
+    return { totalInkFloat:round1(sum(inkByTurn, 'float')), totalInkSpent:round1(sum(inkByTurn, 'spent')), questCount, challengeCount, topDeckTurns:handByTurn.filter(r => r.handCount <= 1).length, handKnown:handByTurn.length > 0, handByTurn, inkByTurn };
+  }
+
+
+
+  function extractCards(value, found=[], depth=0){
+    if(!value || typeof value !== 'object' || depth > 6) return found;
+    if(isCardLike(value)) found.push(value);
+    if(value.card && isCardLike(value.card)){
+      found.push({
+        ...value.card,
+        instanceId:value.instanceId || value.cardInstanceId || value.card.instanceId || value.card.cardInstanceId || '',
+        cardInstanceId:value.cardInstanceId || value.instanceId || value.card.cardInstanceId || value.card.instanceId || '',
+        exerted:value.exerted ?? value.card.exerted
+      });
+    }
+    if(Array.isArray(value)) value.forEach(v => extractCards(v, found, depth + 1));
+    else Object.values(value).forEach(v => { if(v && typeof v === 'object') extractCards(v, found, depth + 1); });
+    return found;
+  }
+
+  function isCardLike(v){
+    return !!(v && typeof v === 'object'
+      && (v.fullName || v.name || v.cardName || v.title)
+      && (v.id || v.cardId || v.cost !== undefined || v.inkCost !== undefined || v.imageUrl || v.imageSmallUrl || v.image || v.image_uris || v.images || v.rulesText || v.text || v.type || v.cardType));
+  }
+
+  function updateCardStat(map, cardLike, owner, inc={}){
+    if(!cardLike || (owner !== 'mine' && owner !== 'opponent')) return;
+    const hydrated = hydrateCard(cardLike);
+    const key = cardKey(hydrated);
+    if(!key) return;
+    const existing = map.get(key) || { ...hydrated, owners:new Set(), seen:0, played:0, inked:0, quest:0, lore:0, challenge:0, firstTurns:[], ownerStats:{ mine:freshOwnerStats(), opponent:freshOwnerStats() } };
+    existing.ownerStats = normalizeOwnerStats(existing.ownerStats);
+    const merged = mergeCard(existing, hydrated);
+    merged.ownerStats = normalizeOwnerStats(existing.ownerStats);
+    merged.owners.add(owner);
+
+    const bucket = merged.ownerStats[owner] || freshOwnerStats();
+    bucket.seen += inc.seen || 0;
+    bucket.played += inc.played || 0;
+    bucket.inked += inc.inked || 0;
+    bucket.quest += inc.quest || 0;
+    bucket.lore += inc.lore || 0;
+    bucket.challenge += inc.challenge || 0;
+    if(inc.firstTurn) bucket.firstTurns.push(inc.firstTurn);
+    merged.ownerStats[owner] = bucket;
+
+    merged.seen += inc.seen || 0;
+    merged.played += inc.played || 0;
+    merged.inked += inc.inked || 0;
+    merged.quest += inc.quest || 0;
+    merged.lore += inc.lore || 0;
+    merged.challenge += inc.challenge || 0;
+    if(inc.firstTurn) merged.firstTurns.push(inc.firstTurn);
+    map.set(key, merged);
+  }
+
+  function freshOwnerStats(){ return { seen:0, played:0, inked:0, quest:0, lore:0, challenge:0, firstTurns:[] }; }
+
+  function normalizeOwnerStats(stats){
+    return {
+      mine:{ ...freshOwnerStats(), ...(stats?.mine || {}) },
+      opponent:{ ...freshOwnerStats(), ...(stats?.opponent || {}) }
+    };
+  }
+
+  function scopedCard(card, owner){
+    if(owner !== 'mine' && owner !== 'opponent') return card;
+    const stats = normalizeOwnerStats(card.ownerStats)[owner];
+    return { ...card, owners:[owner], seen:n(stats.seen), played:n(stats.played), inked:n(stats.inked), quest:n(stats.quest), lore:n(stats.lore), challenge:n(stats.challenge), firstTurns:stats.firstTurns || [], avgTurn:stats.firstTurns?.length ? mean(stats.firstTurns) : null };
+  }
+
+  function cardsForScope(m, scope=state.scope){
+    if(!m?.cards) return [];
+    if(scope !== 'mine' && scope !== 'opponent') return m.cards;
+    return m.cards
+      .filter(c => normalizeOwnerStats(c.ownerStats)[scope].seen || c.owners?.includes(scope))
+      .map(c => scopedCard(c, scope));
+  }
+
+  function loreEngineCards(cards){
+    return (cards || []).filter(c => n(c?.lore) > 0 || n(c?.quest) > 0);
+  }
+
+  function compareLoreEngines(a, b){
+    return (n(b?.lore) - n(a?.lore)) || (n(b?.quest) - n(a?.quest)) || fullName(a).localeCompare(fullName(b));
+  }
+
+  function hydrateCard(cardLike){
+    const replay = normalizeReplayCard(cardLike);
+    const keys = new Set(cardReferenceKeys(replay));
+    keys.add(slug(`${replay.name} ${replay.version}`));
+    if(replay.setCode && replay.number){
+      const code = normalizeSetCode(replay.setCode);
+      const num = SET_CODE_TO_NUM[code] || String(replay.id || '').split('-')[0];
+      const cardNumber = strip0(replay.number);
+      keys.add(`${num}-${cardNumber}`);
+      keys.add(slug(`${code}-${cardNumber}`));
+      keys.add(slug(`${code} ${cardNumber}`));
+    }
+    let local = null;
+    for(const k of keys){ if(state.index.has(k)){ local = state.index.get(k); break; } }
+    if(!local && replay.id?.includes('-')){
+      const [setNum, number] = replay.id.split('-');
+      const code = SET_NUM_TO_CODE[setNum] || setNum;
+      local = state.index.get(slug(`${code}-${strip0(number)}`)) || state.index.get(`${setNum}-${strip0(number)}`) || null;
+    }
+    return mergeCard(local || {}, replay);
+  }
+
+  function normalizeReplayCard(rawInput){
+    const raw = rawInput?.card && isCardLike(rawInput.card) ? {
+      ...rawInput.card,
+      instanceId:rawInput.instanceId || rawInput.cardInstanceId || rawInput.card.instanceId || rawInput.card.cardInstanceId || '',
+      cardInstanceId:rawInput.cardInstanceId || rawInput.instanceId || rawInput.card.cardInstanceId || rawInput.card.instanceId || '',
+      exerted:rawInput.exerted ?? rawInput.card.exerted
+    } : (rawInput || {});
+    const fr = raw.translations?.fr || {};
+    const id = raw.id || raw.cardId || raw.card_id || '';
+    const name = raw.name || raw.cardName || '';
+    const version = raw.title || raw.version || raw.subtitle || '';
+    const fullName = raw.fullName || raw.cardName || [name, version].filter(Boolean).join(' - ') || name;
+    const setNum = String(id).split('-')[0];
+    const setCode = SET_NUM_TO_CODE[setNum] || normalizeSetCode(raw.set || raw.setCode || raw.set_code || raw.expansion || '');
+    return {
+      source:'replay', id, cardId:id, instanceId:raw.instanceId || raw.cardInstanceId || '', cardInstanceId:raw.cardInstanceId || raw.instanceId || '',
+      name, version, fullName, type:raw.type || raw.cardType || '', colors:arrayify(raw.colors || raw.color || raw.inkColor), cost:nullable(raw.cost ?? raw.inkCost), inkable:boolValue(raw.inkable ?? raw.inkwell), rarity:raw.rarity || '',
+      strength:nullable(raw.strength), willpower:nullable(raw.willpower), lore:nullable(raw.lore), moveCost:nullable(raw.moveCost), classifications:arrayify(raw.subtypes || raw.classifications),
+      text:fr.rulesText || raw.rulesText || raw.text || raw.ability || '', flavorText:fr.flavorText || raw.flavorText || '', franchise:raw.franchise || raw.story || '', artists:arrayify(raw.illustrators || raw.artists || raw.artist),
+      setCodes:setCode ? [setCode] : [], setCode, number:strip0(String(id).split('-')[1] || raw.number || raw.cardNumber || raw.collector_number || raw.collectorNumber || ''),
+      image:getCardImage(raw, 'normal'), imageSmall:getCardImage(raw, 'small'), specialAbilities:raw.specialAbilities || [], abilities:raw.abilities || [], raw
+    };
+  }
+
+  function mergeCard(base, incoming){
+    const out = { ...base };
+    for(const [k,v] of Object.entries(incoming || {})){
+      if(k === 'owners' || k === 'ownerStats') continue;
+      if(k === 'image' || k === 'imageSmall') { if(v) out[k] = v; continue; }
+      if(k === 'text') { if(v && String(v).length > String(out[k] || '').length) out[k] = v; continue; }
+      if((out[k] === undefined || out[k] === null || out[k] === '' || (Array.isArray(out[k]) && !out[k].length)) && !(v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length))) out[k] = v;
+    }
+    return out;
+  }
+  function finalizeCard(c){ return { ...c, owners:[...c.owners], ownerStats:normalizeOwnerStats(c.ownerStats), avgTurn:c.firstTurns?.length ? mean(c.firstTurns) : null }; }
+
+  function mergeScopedCardTotals(a, b){
+    const out = mergeCard(a || {}, b || {});
+    const toOwnerList = value => value instanceof Set ? [...value] : arrayify(value);
+    const owners = new Set([...toOwnerList(a?.owners), ...toOwnerList(b?.owners)]);
+    out.owners = [...owners].filter(Boolean);
+    const aStats = normalizeOwnerStats(a?.ownerStats);
+    const bStats = normalizeOwnerStats(b?.ownerStats);
+    out.ownerStats = { mine:freshOwnerStats(), opponent:freshOwnerStats() };
+    ['mine','opponent'].forEach(owner => {
+      const firstTurns = [...(aStats[owner].firstTurns || []), ...(bStats[owner].firstTurns || [])];
+      out.ownerStats[owner] = {
+        seen:n(aStats[owner].seen) + n(bStats[owner].seen),
+        played:n(aStats[owner].played) + n(bStats[owner].played),
+        inked:n(aStats[owner].inked) + n(bStats[owner].inked),
+        quest:n(aStats[owner].quest) + n(bStats[owner].quest),
+        lore:n(aStats[owner].lore) + n(bStats[owner].lore),
+        challenge:n(aStats[owner].challenge) + n(bStats[owner].challenge),
+        firstTurns
+      };
+    });
+    out.seen = n(a?.seen) + n(b?.seen);
+    out.played = n(a?.played) + n(b?.played);
+    out.inked = n(a?.inked) + n(b?.inked);
+    out.quest = n(a?.quest) + n(b?.quest);
+    out.lore = n(a?.lore) + n(b?.lore);
+    out.challenge = n(a?.challenge) + n(b?.challenge);
+    out.firstTurns = [...(a?.firstTurns || []), ...(b?.firstTurns || [])];
+    out.avgTurn = out.firstTurns.length ? mean(out.firstTurns) : null;
+    return out;
+  }
+
+  function mergeSessions(sessions){
+    if(!sessions.length) return null;
+    const first = sessions[0];
+    const allCards = new Map();
+    const allActions = [];
+    const allTimeline = [];
+    sessions.forEach((s, index) => {
+      const gameIndex = index;
+      const gameNumber = n(s.gameNumber || index + 1);
+      s.cards.forEach(c => {
+        const k = cardKey(c);
+        const withGame = { ...c, ownerStats:normalizeOwnerStats(c.ownerStats), gameIndex, gameNumber };
+        const prev = allCards.get(k);
+        allCards.set(k, prev ? mergeScopedCardTotals(prev, withGame) : withGame);
+      });
+      allActions.push(...s.actions.map(a => ({ ...a, gameIndex, gameNumber })));
+      allTimeline.push(...s.timeline.map(t => ({ ...t, gameIndex, gameNumber })));
+    });
+    const cards = [...allCards.values()];
+    const inkProfiles = buildInkProfiles({ cards });
+    const matchupLabel = formatMatchupLabel(inkProfiles);
+    const wins = sessions.filter(s=>s.isWin).length;
+    const losses = sessions.length - wins;
+    const otpStats = computePlayDrawStats(sessions);
+    const last = sessions[sessions.length - 1] || first;
+    return {
+      isBO3:sessions.length > 1,
+      viewMode:'global',
+      sessions,
+      myName:first.myName,
+      opponentName:first.opponentName,
+      wins,
+      losses,
+      avgTurns:mean(sessions.map(s=>n(s.turnCount))),
+      totalTurns:sum(sessions,'turnCount'),
+      wentFirst:sessions.filter(s=>s.firstTurnPlayer === s.myPlayerNumber).length,
+      otpStats,
+      finalMineLore:last.finalMineLore,
+      finalOppLore:last.finalOppLore,
+      cards,
+      actions:allActions,
+      timeline:allTimeline,
+      proMetrics:mergeMetrics(sessions.map(s=>s.proMetrics)),
+      opponentProMetrics:mergeMetrics(sessions.map(s=>s.opponentProMetrics)),
+      loreSeries:first.loreSeries,
+      actionSeries:first.actionSeries,
+      inkProfiles,
+      matchupLabel,
+      first,
+      last,
+      matchMeta:state.matchMeta
+    };
+  }
+
+  function computePlayDrawStats(sessions){
+    const stats = { otp:{ wins:0, losses:0, total:0 }, otd:{ wins:0, losses:0, total:0 } };
+    sessions.forEach(s => {
+      const bucket = s.firstTurnPlayer === s.myPlayerNumber ? stats.otp : stats.otd;
+      bucket.total += 1;
+      if(s.isWin) bucket.wins += 1; else bucket.losses += 1;
+    });
+    return stats;
+  }
+
+  function sessionToWorkingData(session, index=0){
+    if(!session) return null;
+    const cards = session.cards.map(c => ({ ...c, ownerStats:normalizeOwnerStats(c.ownerStats), gameIndex:index, gameNumber:n(session.gameNumber || index + 1) }));
+    const inkProfiles = session.inkProfiles || buildInkProfiles({ cards });
+    return {
+      isBO3:false,
+      isSingleGame:true,
+      viewMode:index,
+      gameIndex:index,
+      gameNumber:n(session.gameNumber || index + 1),
+      sessions:[session],
+      myName:session.myName,
+      opponentName:session.opponentName,
+      wins:session.isWin ? 1 : 0,
+      losses:session.isWin ? 0 : 1,
+      avgTurns:n(session.turnCount),
+      totalTurns:n(session.turnCount),
+      wentFirst:session.firstTurnPlayer === session.myPlayerNumber ? 1 : 0,
+      otpStats:computePlayDrawStats([session]),
+      finalMineLore:session.finalMineLore,
+      finalOppLore:session.finalOppLore,
+      cards,
+      actions:session.actions.map(a => ({ ...a, gameIndex:index, gameNumber:n(session.gameNumber || index + 1) })),
+      timeline:session.timeline.map(t => ({ ...t, gameIndex:index, gameNumber:n(session.gameNumber || index + 1) })),
+      proMetrics:session.proMetrics,
+      opponentProMetrics:session.opponentProMetrics,
+      loreSeries:session.loreSeries,
+      actionSeries:session.actionSeries,
+      inkProfiles,
+      matchupLabel:session.matchupLabel || formatMatchupLabel(inkProfiles),
+      first:session,
+      last:session
+    };
+  }
+
+  function getWorkingData(){
+    if(!state.sessions.length) return null;
+    if(state.viewMode === 'global') return state.merged;
+    const index = Number(state.viewMode || 0);
+    return sessionToWorkingData(state.sessions[index], index);
+  }
+
+  function isGlobalView(){
+    return state.isBO3 && state.viewMode === 'global';
+  }
+
+  function mergeMetrics(list){
+    if(list.length === 1) return list[0];
+    return { totalInkFloat:sum(list,'totalInkFloat'), totalInkSpent:sum(list,'totalInkSpent'), questCount:sum(list,'questCount'), challengeCount:sum(list,'challengeCount'), topDeckTurns:sum(list,'topDeckTurns'), handKnown:list.some(x=>x.handKnown), inkByTurn:list.flatMap(x=>x.inkByTurn || []), handByTurn:list.flatMap(x=>x.handByTurn || []) };
+  }
+
+  function renderAll(){
+    const m = getWorkingData();
+    updateDynamicTheme(m || state.merged, state.scope);
+    syncViewModeVisibility();
+    renderBo3Selector();
+    document.querySelectorAll('[data-card-filter]').forEach(b=>b.classList.toggle('active', b.dataset.cardFilter === state.cardFilter));
+    renderFiles(); renderDetected(); renderOverview(); renderStats(); renderCards(); renderTimeline(); syncSaveButton();
+  }
+
+  function initSaveIntegration(){
+    getCurrentUser()
+      .then(user => { state.currentUser = user; syncSaveButton(); refreshSavedMatches({ silent:true }); })
+      .catch(() => { state.currentUser = null; syncSaveButton(); renderPerformanceData(); });
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      state.currentUser = session?.user || null;
+      syncSaveButton();
+      if(state.currentUser) refreshSavedMatches({ force:true, silent:true });
+      else { state.savedMatches = []; state.savedMatchesLoaded = false; state.selectedSavedMatchId = null; renderPerformanceData(); }
+    });
+  }
+
+  function syncSaveButton(message=''){
+    if(!els.saveAnalysisPanel || !els.saveAnalysisButton || !els.saveAnalysisStatus) return;
+    const hasAnalysis = !!getWorkingData() && state.sessions.length > 0;
+    els.saveAnalysisPanel.hidden = !hasAnalysis;
+    if(!hasAnalysis){
+      els.saveAnalysisButton.disabled = true;
+      els.saveAnalysisStatus.textContent = 'Importez un replay pour pouvoir sauvegarder une analyse.';
+      return;
+    }
+
+    const loggedIn = !!state.currentUser;
+    els.saveAnalysisButton.disabled = state.savePending || !loggedIn;
+    els.saveAnalysisButton.classList.toggle('is-saved', !!state.lastSavedMatchId && !state.savePending);
+
+    if(state.savePending){
+      els.saveAnalysisButton.textContent = 'Sauvegarde…';
+      els.saveAnalysisStatus.textContent = 'Envoi sécurisé vers votre historique.';
+      return;
+    }
+
+    if(!loggedIn){
+      els.saveAnalysisButton.textContent = 'Connectez-vous pour sauvegarder';
+      els.saveAnalysisStatus.textContent = message || 'Connectez-vous avec Discord pour ajouter cette analyse à votre historique.';
+      return;
+    }
+
+    els.saveAnalysisButton.textContent = state.lastSavedMatchId ? 'Analyse sauvegardée' : 'Sauvegarder l’analyse';
+    els.saveAnalysisStatus.textContent = message || (state.lastSavedMatchId ? 'Ce match est dans votre historique.' : 'Cette analyse sera liée à votre compte.');
+  }
+
+  async function saveCurrentAnalysis(){
+    if(state.savePending) return;
+    if(!state.currentUser){
+      syncSaveButton('Connectez-vous avec Discord avant de sauvegarder.');
+      return;
+    }
+
+    const m = getWorkingData();
+    if(!m){
+      syncSaveButton('Importez un replay avant de sauvegarder.');
+      return;
+    }
+
+    try{
+      state.savePending = true;
+      syncSaveButton();
+      const payload = buildSavedMatchPayload(m);
+      const saved = await saveMatchAnalysis(payload);
+      state.lastSavedMatchId = saved?.id || null;
+      await refreshSavedMatches({ force:true, silent:true });
+      state.selectedSavedMatchId = state.lastSavedMatchId;
+      renderPerformanceData();
+      syncSaveButton('Analyse sauvegardée. Elle pourra alimenter l’historique et les statistiques globales.');
+    }catch(err){
+      console.error(err);
+      state.lastSavedMatchId = null;
+      syncSaveButton(`Erreur de sauvegarde : ${err.message}`);
+    }finally{
+      state.savePending = false;
+      syncSaveButton();
+    }
+  }
+
+  function buildSavedMatchPayload(m){
+    const global = !!(m?.isBO3 || isGlobalView());
+    const format = global ? 'BO3' : 'BO1';
+    const profiles = m.inkProfiles || buildInkProfiles(m);
+    const wins = n(m.wins);
+    const losses = n(m.losses);
+    const win = wins > losses;
+    const result = win ? 'win' : 'loss';
+    const scoreLabel = global ? `${wins}-${losses}` : `${n(m.finalMineLore)}-${n(m.finalOppLore)}`;
+    const matchup = m.matchupLabel || formatMatchupLabel(profiles);
+    const title = `${format} · ${win ? 'Victoire' : 'Défaite'} ${scoreLabel} · ${matchup}`;
+
+    return {
+      title,
+      format,
+      result,
+      wins,
+      losses,
+      score_label:scoreLabel,
+      matchup_label:matchup,
+      mine_colors:(profiles.mine?.inks || []).map(inkLabel),
+      opponent_colors:(profiles.opponent?.inks || []).map(inkLabel),
+      opponent_name:m.opponentName || '',
+      deck_name:null,
+      duelink_url:null,
+      total_turns:Math.round(global ? n(m.totalTurns) : n(m.avgTurns || m.first?.turnCount)),
+      avg_turns:round1(m.avgTurns || 0),
+      final_mine_lore:n(m.finalMineLore),
+      final_opp_lore:n(m.finalOppLore),
+      analysis_json:buildSavedAnalysisJson(m, { format, result, scoreLabel, matchup, profiles })
+    };
+  }
+
+  function buildSavedAnalysisJson(m, meta){
+    const narrative = generateMatchNarrative(m);
+    return {
+      schema_version:'v57',
+      saved_at:new Date().toISOString(),
+      source:'lorcana-gto-replay-analyzer',
+      view_mode:state.viewMode,
+      format:meta.format,
+      result:{
+        value:meta.result,
+        wins:n(m.wins),
+        losses:n(m.losses),
+        score_label:meta.scoreLabel,
+        final_mine_lore:n(m.finalMineLore),
+        final_opp_lore:n(m.finalOppLore),
+        avg_turns:round1(m.avgTurns || 0),
+        total_turns:n(m.totalTurns || m.avgTurns || 0)
+      },
+      players:{ mine:m.myName || 'Joueur', opponent:m.opponentName || 'Adversaire' },
+      matchup:{
+        label:meta.matchup,
+        mine:{ label:meta.profiles.mine?.label || '', inks:meta.profiles.mine?.inks || [] },
+        opponent:{ label:meta.profiles.opponent?.label || '', inks:meta.profiles.opponent?.inks || [] }
+      },
+      narrative:{ title:narrative.title, text:narrative.text || narrative.summary || '', badge:narrative.badge || '' },
+      key_moments:collectKeyMoments(m).map(moment => ({ kind:moment.kind, owner:moment.owner, turn:n(moment.turn), delta:n(moment.delta), text:keyMomentText(moment) })),
+      metrics:{ mine:compactMetrics(m.proMetrics), opponent:compactMetrics(m.opponentProMetrics) },
+      charts:{ lore_series:compactLoreSeries(m.loreSeries), action_series:compactActionSeries(m.actionSeries) },
+      cards:{ mine:compactCardStats(cardsForScope(m, 'mine')), opponent:compactCardStats(cardsForScope(m, 'opponent')) },
+      timeline:compactTimeline(m.timeline),
+      games:compactGames(m.sessions || [])
+    };
+  }
+
+  function compactMetrics(metrics={}){
+    return {
+      totalInkFloat:round1(metrics.totalInkFloat),
+      totalInkSpent:round1(metrics.totalInkSpent),
+      questCount:n(metrics.questCount),
+      challengeCount:n(metrics.challengeCount),
+      topDeckTurns:n(metrics.topDeckTurns),
+      handKnown:!!metrics.handKnown,
+      handByTurn:(metrics.handByTurn || []).map(r => ({ turn:n(r.turn), handCount:n(r.handCount) })),
+      inkByTurn:(metrics.inkByTurn || []).map(r => ({ turn:n(r.turn), capacity:n(r.capacity), spent:n(r.spent), float:round1(r.float), inked:n(r.inked), handStart:n(r.handStart), handEnd:n(r.handEnd) }))
+    };
+  }
+
+  function compactLoreSeries(rows=[]){
+    return rows.map(r => ({ turn:n(r.turn), mine:n(r.mine), opponent:n(r.opponent) }));
+  }
+
+  function compactActionSeries(rows=[]){
+    return rows.map(r => ({ turn:n(r.turn), ink:n(r.ink), play:n(r.play), quest:n(r.quest), challenge:n(r.challenge), mineChallenge:n(r.mineChallenge), opponentChallenge:n(r.opponentChallenge) }));
+  }
+
+  function compactCardStats(cards=[]){
+    return (cards || [])
+      .map(card => ({
+        key:cardKey(card),
+        name:fullName(card),
+        type:typeLabel(card.type),
+        colors:arrayify(card.colors).map(inkLabel),
+        seen:n(card.seen),
+        played:n(card.played),
+        inked:n(card.inked),
+        quest:n(card.quest),
+        lore:n(card.lore),
+        challenge:n(card.challenge),
+        avgTurn:card.avgTurn === null || card.avgTurn === undefined ? null : round1(card.avgTurn),
+        image:card.imageSmall || card.image || ''
+      }))
+      .filter(card => card.key || card.name)
+      .slice(0, 240);
+  }
+
+  function compactTimeline(rows=[]){
+    return (rows || []).map(row => ({
+      gameNumber:n(row.gameNumber),
+      turn:n(row.turn),
+      owner:row.owner,
+      type:row.type,
+      title:row.title,
+      detail:row.detail,
+      cardName:row.cardName || '',
+      cardKey:row.cardKey || ''
+    })).slice(0, 800);
+  }
+
+  function compactGames(sessions=[]){
+    return (sessions || []).map((session, index) => ({
+      gameNumber:n(session.gameNumber || index + 1),
+      isWin:!!session.isWin,
+      firstTurnPlayer:session.firstTurnPlayer,
+      otp:session.firstTurnPlayer === session.myPlayerNumber,
+      turnCount:n(session.turnCount),
+      finalMineLore:n(session.finalMineLore),
+      finalOppLore:n(session.finalOppLore),
+      matchupLabel:session.matchupLabel || '',
+      proMetrics:compactMetrics(session.proMetrics),
+      opponentProMetrics:compactMetrics(session.opponentProMetrics),
+      loreSeries:compactLoreSeries(session.loreSeries),
+      actionSeries:compactActionSeries(session.actionSeries)
+    }));
+  }
+
+  async function refreshSavedMatches(options={}){
+    if(!state.currentUser){
+      state.savedMatches = [];
+      state.savedMatchesLoaded = false;
+      state.selectedSavedMatchId = null;
+      renderPerformanceData();
+      return [];
+    }
+    if(state.savedMatchesLoading) return state.savedMatches;
+    if(state.savedMatchesLoaded && !options.force){
+      renderPerformanceData();
+      return state.savedMatches;
+    }
+
+    try{
+      state.savedMatchesLoading = true;
+      if(!options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
+      const rows = await listSavedMatches(100);
+      state.savedMatches = Array.isArray(rows) ? rows : [];
+      state.savedMatchesLoaded = true;
+      if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
+    }catch(err){
+      console.error(err);
+      if(els.historyStatus) els.historyStatus.textContent = `Erreur historique : ${err.message}`;
+    }finally{
+      state.savedMatchesLoading = false;
+      renderPerformanceData();
+    }
+    return state.savedMatches;
+  }
+
+  function renderPerformanceData(){
+    renderSavedStats();
+    renderSavedHistory();
+  }
+
+  function filteredSavedMatches(){
+    let rows = [...(state.savedMatches || [])];
+    const result = els.historyResultFilter?.value || 'all';
+    const format = els.historyFormatFilter?.value || 'all';
+    const query = String(els.historySearchInput?.value || '').trim().toLowerCase();
+    if(result !== 'all') rows = rows.filter(row => row.result === result);
+    if(format !== 'all') rows = rows.filter(row => String(row.format || '').toUpperCase() === format);
+    if(query){
+      rows = rows.filter(row => [row.title, row.matchup_label, row.opponent_name, row.deck_name, row.score_label]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(query));
+    }
+    return rows;
+  }
+
+  function renderSavedStats(){
+    const loggedIn = !!state.currentUser;
+    if(els.performanceLoginHint) els.performanceLoginHint.hidden = loggedIn;
+    const rows = state.savedMatches || [];
+    const total = rows.length;
+    const wins = rows.filter(row => row.result === 'win').length;
+    const bo3 = rows.filter(row => String(row.format || '').toUpperCase() === 'BO3').length;
+    const bo1 = rows.filter(row => String(row.format || '').toUpperCase() !== 'BO3').length;
+    const cardSignals = aggregateSavedCardSignals(rows);
+    const playDraw = aggregateSavedPlayDraw(rows);
+
+    if(els.performanceSavedCount) els.performanceSavedCount.textContent = loggedIn ? String(total) : '—';
+    if(els.performanceWinrate) els.performanceWinrate.textContent = loggedIn && total ? `${Math.round((wins / total) * 100)}%` : '—';
+    if(els.performanceBo3Count) els.performanceBo3Count.textContent = loggedIn ? String(bo3) : '—';
+    if(els.performanceSampleLabel) els.performanceSampleLabel.textContent = loggedIn ? `${total} analyse${total > 1 ? 's' : ''}` : '—';
+    if(els.performanceSampleHelp) els.performanceSampleHelp.textContent = loggedIn ? `${bo3} BO3 · ${bo1} BO1 · ${total ? Math.round((wins / total) * 100) : 0}% WR` : 'Connectez-vous pour activer l’historique.';
+
+    if(els.performanceTopLore) els.performanceTopLore.textContent = loggedIn && cardSignals.topLore ? cardSignals.topLore.name : '—';
+    if(els.performanceTopLoreHelp) els.performanceTopLoreHelp.textContent = cardSignals.topLore ? `${cardSignals.topLore.lore} lore cumulé · ${cardSignals.topLore.played || 0} fois jouée` : 'Disponible après plusieurs analyses sauvegardées.';
+    if(els.performanceMostInked) els.performanceMostInked.textContent = loggedIn && cardSignals.topInked ? cardSignals.topInked.name : '—';
+    if(els.performanceMostInkedHelp) els.performanceMostInkedHelp.textContent = cardSignals.topInked ? `${cardSignals.topInked.inked} fois encrée · ${cardSignals.topInked.seen || 0} vues` : 'Disponible après plusieurs analyses sauvegardées.';
+    if(els.performanceOtpSplit) els.performanceOtpSplit.textContent = loggedIn && playDraw.total ? `${playDraw.otpRate}% / ${playDraw.otdRate}%` : '—';
+    if(els.performanceOtpSplitHelp) els.performanceOtpSplitHelp.textContent = playDraw.total ? `OTP ${playDraw.otpWins}V/${playDraw.otpTotal} · OTD ${playDraw.otdWins}V/${playDraw.otdTotal}` : 'Aucune donnée OTP / OTD disponible.';
+    if(els.performanceFormatSplit) els.performanceFormatSplit.textContent = loggedIn ? `${bo3} BO3 · ${bo1} BO1` : '—';
+    if(els.performanceFormatSplitHelp) els.performanceFormatSplitHelp.textContent = loggedIn ? 'Répartition de vos analyses sauvegardées.' : 'Connectez-vous pour voir vos formats.';
+  }
+
+  function aggregateSavedCardSignals(rows){
+    const cards = new Map();
+    rows.forEach(row => {
+      const analysis = row.analysis_json || {};
+      (analysis.cards?.mine || []).forEach(card => {
+        const key = card.key || card.name;
+        if(!key || !card.name) return;
+        const item = cards.get(key) || { name:card.name, lore:0, inked:0, played:0, seen:0 };
+        item.lore += n(card.lore);
+        item.inked += n(card.inked);
+        item.played += n(card.played);
+        item.seen += n(card.seen);
+        cards.set(key, item);
+      });
+    });
+    const values = [...cards.values()];
+    return {
+      topLore: values.filter(card => card.lore > 0).sort((a,b)=>b.lore-a.lore || b.played-a.played || a.name.localeCompare(b.name))[0] || null,
+      topInked: values.filter(card => card.inked > 0).sort((a,b)=>b.inked-a.inked || b.seen-a.seen || a.name.localeCompare(b.name))[0] || null
+    };
+  }
+
+  function aggregateSavedPlayDraw(rows){
+    let otpTotal = 0, otpWins = 0, otdTotal = 0, otdWins = 0;
+    rows.forEach(row => {
+      const games = Array.isArray(row.analysis_json?.games) ? row.analysis_json.games : [];
+      games.forEach(game => {
+        const otp = Boolean(game.otp);
+        const win = Boolean(game.isWin);
+        if(otp){ otpTotal += 1; if(win) otpWins += 1; }
+        else { otdTotal += 1; if(win) otdWins += 1; }
+      });
+    });
+    const pct = (wins,total) => total ? Math.round((wins / total) * 100) : 0;
+    return { otpTotal, otpWins, otdTotal, otdWins, total:otpTotal + otdTotal, otpRate:pct(otpWins, otpTotal), otdRate:pct(otdWins, otdTotal) };
+  }
+
+  function renderSavedHistory(){
+    if(!els.historyList) return;
+    if(!state.currentUser){
+      els.historyList.innerHTML = '<div class="empty-line">Connectez-vous avec Discord pour afficher vos matchs sauvegardés.</div>';
+      if(els.historyStatus) els.historyStatus.textContent = 'Historique disponible après connexion.';
+      if(els.historyDetail){ els.historyDetail.hidden = true; els.historyDetail.innerHTML = ''; }
+      return;
+    }
+
+    if(state.savedMatchesLoading){
+      els.historyList.innerHTML = '<div class="empty-line">Chargement de l’historique…</div>';
+      if(els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
+      return;
+    }
+
+    const rows = filteredSavedMatches();
+    const total = state.savedMatches.length;
+    if(els.historyStatus){
+      els.historyStatus.textContent = total
+        ? `${rows.length} analyse(s) affichée(s) sur ${total} sauvegardée(s).`
+        : 'Aucune analyse sauvegardée pour le moment.';
+    }
+
+    if(!total){
+      els.historyList.innerHTML = '<div class="history-empty-state"><strong>Aucune analyse sauvegardée.</strong><span>Importez un replay, connectez-vous, puis utilisez “Sauvegarder l’analyse”.</span><button type="button" class="primary-button compact-primary" data-app-view="analysis">Importer un replay</button></div>';
+      if(els.historyDetail){ els.historyDetail.hidden = true; els.historyDetail.innerHTML = ''; }
+      return;
+    }
+
+    if(!rows.length){
+      els.historyList.innerHTML = '<div class="empty-line">Aucun match ne correspond aux filtres actuels.</div>';
+      if(els.historyDetail){ els.historyDetail.hidden = true; }
+      return;
+    }
+
+    if(!rows.some(row => row.id === state.selectedSavedMatchId)) state.selectedSavedMatchId = rows[0].id;
+
+    els.historyList.innerHTML = rows.map(row => savedMatchRowHtml(row)).join('');
+    bindSavedMatchButtons();
+    renderSavedMatchDetail(rows.find(row => row.id === state.selectedSavedMatchId) || rows[0]);
+  }
+
+  function savedMatchRowHtml(row){
+    const isActive = row.id === state.selectedSavedMatchId;
+    const result = row.result === 'win' ? 'Victoire' : 'Défaite';
+    const resultClass = row.result === 'win' ? 'win' : 'loss';
+    const format = String(row.format || 'BO1').toUpperCase();
+    const date = formatSavedDate(row.created_at);
+    const matchup = row.matchup_label || 'Matchup non renseigné';
+    const opponent = row.opponent_name ? `vs ${row.opponent_name}` : 'Adversaire non renseigné';
+    const score = row.score_label || `${n(row.final_mine_lore)}-${n(row.final_opp_lore)}`;
+    const games = Array.isArray(row.analysis_json?.games) ? row.analysis_json.games : [];
+    const hasGames = format === 'BO3' && games.length > 1;
+    const gamesHtml = isActive && hasGames ? savedGamesHtml(games) : '';
+    return `<article class="history-row ${isActive ? 'active' : ''} ${hasGames ? 'has-games' : ''}" data-saved-id="${escAttr(row.id)}">
+      <button type="button" class="history-row-main" data-select-saved="${escAttr(row.id)}" aria-expanded="${isActive && hasGames ? 'true' : 'false'}">
+        <span class="history-result-dot ${resultClass}"></span>
+        <span class="history-row-copy">
+          <strong><em>${esc(format)}</em> ${esc(result)} ${esc(score)}</strong>
+          <small>${esc(matchup)} · ${esc(opponent)}</small>
+        </span>
+        <span class="history-row-meta"><b>${esc(date)}</b><small>${hasGames ? `${games.length} manches` : `${esc(n(row.total_turns) || '—')} tours`}</small></span>
+      </button>
+      <div class="history-row-actions">
+        <button type="button" class="ghost-button history-mini-button" data-select-saved="${escAttr(row.id)}">Détails</button>
+        <button type="button" class="ghost-button history-mini-button danger" data-delete-saved="${escAttr(row.id)}">Supprimer</button>
+      </div>
+      ${gamesHtml}
+    </article>`;
+  }
+
+  function savedGamesHtml(games){
+    return `<div class="history-games" aria-label="Manches du BO3">
+      ${games.map(game => {
+        const win = Boolean(game.isWin);
+        const result = win ? 'Victoire' : 'Défaite';
+        const score = `${n(game.finalMineLore)}-${n(game.finalOppLore)}`;
+        const otp = game.otp ? 'OTP' : 'OTD';
+        return `<div class="history-game-row ${win ? 'win' : 'loss'}">
+          <span class="history-game-index">G${n(game.gameNumber) || '—'}</span>
+          <strong>${esc(result)}</strong>
+          <span>${esc(score)}</span>
+          <span>${esc(n(game.turnCount) || '—')} tours</span>
+          <em>${esc(otp)}</em>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function bindSavedMatchButtons(){
+    document.querySelectorAll('[data-select-saved]').forEach(button => {
+      button.onclick = () => {
+        state.selectedSavedMatchId = button.dataset.selectSaved;
+        renderPerformanceData();
+      };
+    });
+    document.querySelectorAll('[data-delete-saved]').forEach(button => {
+      button.onclick = async () => {
+        const id = button.dataset.deleteSaved;
+        const row = state.savedMatches.find(item => item.id === id);
+        const label = row?.title || 'cette analyse';
+        if(!confirm(`Supprimer ${label} ?`)) return;
+        try{
+          button.disabled = true;
+          await deleteSavedMatch(id);
+          state.savedMatches = state.savedMatches.filter(item => item.id !== id);
+          if(state.selectedSavedMatchId === id) state.selectedSavedMatchId = state.savedMatches[0]?.id || null;
+          renderPerformanceData();
+        }catch(err){
+          console.error(err);
+          if(els.historyStatus) els.historyStatus.textContent = `Erreur suppression : ${err.message}`;
+        }
+      };
+    });
+  }
+
+  function renderSavedMatchDetail(row){
+    if(!els.historyDetail) return;
+    if(!row){
+      els.historyDetail.hidden = true;
+      els.historyDetail.innerHTML = '';
+      return;
+    }
+    const analysis = row.analysis_json || {};
+    const narrative = analysis.narrative || {};
+    const mineCards = analysis.cards?.mine || [];
+    const oppCards = analysis.cards?.opponent || [];
+    const topMineLore = [...mineCards].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest))[0];
+    const topInked = [...mineCards].sort((a,b)=>n(b.inked)-n(a.inked))[0];
+    const topOppLore = [...oppCards].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest))[0];
+    const result = row.result === 'win' ? 'Victoire' : 'Défaite';
+    const format = String(row.format || 'BO1').toUpperCase();
+    const score = row.score_label || `${n(row.final_mine_lore)}-${n(row.final_opp_lore)}`;
+    const duelink = row.duelink_url ? `<a href="${escAttr(row.duelink_url)}" target="_blank" rel="noopener">Ouvrir sur Duel.ink</a>` : '<span>Lien Duel.ink non renseigné</span>';
+    const games = Array.isArray(analysis.games) ? analysis.games : [];
+    const detailGames = format === 'BO3' && games.length > 1 ? `<div class="history-detail-games"><span>Manches du BO3</span>${savedGamesHtml(games)}</div>` : '';
+
+    els.historyDetail.hidden = false;
+    els.historyDetail.innerHTML = `<div class="history-detail-head">
+      <div>
+        <span class="history-detail-kicker">Analyse sauvegardée</span>
+        <h2>${esc(format)} · ${esc(result)} ${esc(score)}</h2>
+        <p>${esc(row.matchup_label || 'Matchup non renseigné')}</p>
+      </div>
+      <small>${esc(formatSavedDate(row.created_at))}</small>
+    </div>
+    ${narrative.title ? `<div class="history-narrative"><strong>${esc(narrative.title)}</strong><p>${esc(narrative.text || '')}</p></div>` : ''}
+    ${detailGames}
+    <div class="history-detail-grid">
+      <div><span>Adversaire</span><strong>${esc(row.opponent_name || '—')}</strong></div>
+      <div><span>Tours</span><strong>${esc(row.total_turns || '—')}</strong></div>
+      <div><span>Moteur lore</span><strong>${esc(topMineLore?.name || '—')}</strong><small>${topMineLore ? `${n(topMineLore.lore)} lore` : ''}</small></div>
+      <div><span>Carte encrée</span><strong>${esc(topInked?.name || '—')}</strong><small>${topInked ? `${n(topInked.inked)}x` : ''}</small></div>
+      <div><span>Menace adverse</span><strong>${esc(topOppLore?.name || '—')}</strong><small>${topOppLore ? `${n(topOppLore.lore)} lore` : ''}</small></div>
+      <div><span>Replay</span><strong>${duelink}</strong></div>
+    </div>`;
+  }
+
+  function formatSavedDate(value){
+    if(!value) return '—';
+    const date = new Date(value);
+    if(Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString('fr-CH', { day:'2-digit', month:'2-digit', year:'numeric' });
+  }
+
+  function syncViewModeVisibility(){
+    const global = isGlobalView();
+    document.body.classList.toggle('bo3-global', global);
+    document.body.classList.toggle('bo3-game', state.isBO3 && !global);
+    if(global && state.activeTab === 'timeline') setTab('overview');
+  }
+
+  function renderBo3Selector(){
+    if(!els.bo3Selector) return;
+    if(!state.isBO3){
+      els.bo3Selector.hidden = true;
+      els.bo3Selector.innerHTML = '';
+      return;
+    }
+    els.bo3Selector.hidden = false;
+    const globalActive = state.viewMode === 'global';
+    const gameButtons = state.sessions.map((session, index) => {
+      const active = Number(state.viewMode) === index;
+      const resultClass = session.isWin ? 'win' : 'loss';
+      const resultLabel = session.isWin ? 'Victoire' : 'Défaite';
+      return `<button type="button" class="bo3-pill ${active ? 'active' : ''}" data-bo3-view="${index}" aria-pressed="${active ? 'true' : 'false'}"><span class="result-dot ${resultClass}" aria-label="${resultLabel}"></span>Game ${n(session.gameNumber || index + 1)}</button>`;
+    }).join('');
+    els.bo3Selector.innerHTML = `<button type="button" class="bo3-pill global ${globalActive ? 'active' : ''}" data-bo3-view="global" aria-pressed="${globalActive ? 'true' : 'false'}">🏆 Résumé BO3</button>${gameButtons}`;
+    els.bo3Selector.querySelectorAll('[data-bo3-view]').forEach(btn => {
+      btn.onclick = () => {
+        const view = btn.dataset.bo3View;
+        state.viewMode = view === 'global' ? 'global' : Number(view);
+        state.mulliganResolved = false;
+        if(isGlobalView() && state.activeTab === 'timeline') setTab('overview');
+        renderAll();
+      };
+    });
+  }
+
+  function renderFiles(){
+    if(!state.replays.length){ els.statusText.textContent='Aucun replay chargé pour le moment.'; els.fileList.innerHTML='<div class="empty-line">La liste des replays apparaîtra ici.</div>'; return; }
+    els.statusText.textContent = state.isBO3 ? `${state.sessions.length} game(s) détectée(s) dans le match BO3.` : `${state.replays.length} replay(s) chargé(s). Analyse prête.`;
+    els.fileList.innerHTML = state.replays.map((r,i)=>{
+      const parent = r.file.parentName ? `<small>Archive : ${esc(r.file.parentName)}</small>` : '';
+      const result = r.session.isWin ? 'Victoire' : 'Défaite';
+      return `<div class="file-row"><span class="${r.session.isWin ? 'file-win' : 'file-loss'}"></span><div><strong>${esc(r.file.name)}</strong><small>${formatBytes(r.file.size)} · ${r.session.actions.length} actions utiles · ${result}</small>${parent}</div><small>#${i+1}</small></div>`;
+    }).join('');
+  }
+
+  function renderDetected(){
+    const m = state.merged;
+    els.detectedPlayer.textContent = m?.myName || '—';
+    els.detectedOpponent.textContent = m?.opponentName || '—';
+    els.detectedTurns.textContent = m ? (state.isBO3 ? `${state.sessions.length} games · ${round1(m.avgTurns)} moy.` : round1(m.avgTurns)) : '—';
+    els.detectedActions.textContent = m ? m.actions.length : '—';
+  }
+
+  function renderOverview(){
+    const m = getWorkingData();
+    if(!m){
+      els.sessionRecord.textContent='—'; els.sessionOpponent.textContent='Importez un replay.'; els.sessionTurns.textContent='—'; els.sessionPlayDraw.textContent='—'; els.sessionLore.textContent='—'; if(els.sessionMatchup) els.sessionMatchup.textContent='—';
+      if(els.coachTitle) els.coachTitle.textContent='Importez un replay pour lancer l’analyse.';
+      if(els.coachText) els.coachText.textContent='Le résumé du match apparaîtra ici une fois le replay chargé.';
+      if(els.coachConfidence) els.coachConfidence.textContent='En attente';
+      if(els.matchPills) els.matchPills.innerHTML=''; if(els.resultHero) els.resultHero.innerHTML=''; renderKeyMoments(null); if(els.nextAction) els.nextAction.innerHTML=''; renderMulligan(null);
+      renderLoreChart([]); renderActionChart([]); updateChartSummary('loreChartSummary','Résumé du graphique lore disponible après import.'); updateChartSummary('actionChartSummary','Résumé du graphique actions disponible après import.'); return;
+    }
+    const total = m.wins + m.losses;
+    const global = isGlobalView();
+    els.sessionRecord.textContent = `${m.wins}V / ${m.losses}D`;
+    els.sessionOpponent.textContent = global ? `${total} manches contre ${m.opponentName}` : `${m.first.isWin ? 'Victoire' : 'Défaite'} vs ${m.opponentName}`;
+    els.sessionTurns.textContent = global ? `${total} games · ${round1(m.avgTurns)} tours moy.` : `${round1(m.avgTurns)} tours`;
+    if(global){
+      const opening = bo3OpeningStatus(m);
+      els.sessionPlayDraw.textContent = opening.code;
+    }else{
+      els.sessionPlayDraw.textContent = m.first.firstTurnPlayer === m.first.myPlayerNumber ? 'OTP' : 'OTD';
+    }
+    els.sessionLore.textContent = global ? `${m.wins} / ${m.losses}` : `${m.finalMineLore} / ${m.finalOppLore}`;
+    if(els.sessionMatchup) els.sessionMatchup.textContent = m.matchupLabel || formatMatchupLabel(m.inkProfiles);
+
+    const narrative = buildMatchNarrative(m);
+    if(els.coachTitle) els.coachTitle.textContent = narrative.title;
+    if(els.coachText) els.coachText.textContent = narrative.text;
+    if(els.coachConfidence) els.coachConfidence.textContent = narrative.badge;
+    if(els.matchPills) els.matchPills.innerHTML = global ? buildBo3Pills(m) : '';
+    renderResultHero(m);
+    renderKeyMoments(m);
+    if(els.nextAction) els.nextAction.innerHTML = '';
+    renderMulligan(global ? null : m.first?.mulligan);
+    if(global){
+      renderLoreChart([]);
+      renderActionChart([]);
+      updateChartSummary('loreChartSummary','Les graphiques tour par tour sont masqués dans le résumé BO3.');
+      updateChartSummary('actionChartSummary','Les graphiques tour par tour sont masqués dans le résumé BO3.');
+    }else{
+      renderLoreChart(m.loreSeries); renderActionChart(m.actionSeries);
+      syncChartsWithTheme(state.scope);
+      updateChartSummary('loreChartSummary', summarizeLore(m.loreSeries));
+      updateChartSummary('actionChartSummary', summarizeActions(m.actionSeries));
+    }
+  }
+
+  function buildBo3Pills(m){
+    // V44: the BO3 macro data is now carried by the large result cards.
+    // Keep this hook empty to avoid repeating score, format, or play/draw status.
+    return '';
+  }
+
+  function bo3OpeningStatus(m){
+    const firstGame = Array.isArray(m?.sessions) && m.sessions.length ? m.sessions[0] : m?.first;
+    const myStarted = firstGame && firstGame.firstTurnPlayer === firstGame.myPlayerNumber;
+    const opponentStarted = firstGame && firstGame.firstTurnPlayer === firstGame.opponentNumber;
+    if(myStarted){
+      return { code:'OTP', helper:'Vous avez commencé la Game 1.', detail:'On The Play' };
+    }
+    if(opponentStarted){
+      return { code:'OTD', helper:'Votre adversaire a commencé la Game 1.', detail:'On The Draw' };
+    }
+    return { code:'—', helper:'Joueur qui commence non détecté.', detail:'Départ inconnu' };
+  }
+
+  function buildMatchNarrative(m){
+    return generateMatchNarrative(m);
+  }
+
+  function generateBo3Narrative(m){
+    const wins = n(m.wins);
+    const losses = n(m.losses);
+    const games = Math.max(1, wins + losses || (m.sessions?.length || 0));
+    const win = wins > losses;
+    const score = `${wins}-${losses}`;
+    const avgTurns = round1(m.avgTurns || 0);
+    const totalTurns = n(m.totalTurns || sum(m.sessions || [], 'turnCount'));
+    const metrics = m.proMetrics || {};
+    const oppMetrics = m.opponentProMetrics || {};
+    const quests = n(metrics.questCount);
+    const challenges = n(metrics.challengeCount);
+    const topDeck = n(metrics.topDeckTurns);
+    const oppTopDeck = n(oppMetrics.topDeckTurns);
+    const questRatio = pct(quests, quests + challenges);
+    const myCards = cardsForScope(m, 'mine');
+    const topQuester = loreEngineCards(myCards).sort(compareLoreEngines)[0];
+    const mostInked = [...myCards].sort((a,b)=>(b.inked||0)-(a.inked||0) || fullName(a).localeCompare(fullName(b)))[0];
+
+    const dictionary = {
+      cleanWin: {
+        badge:'BO3 clean',
+        titles:['Sortez les balais 🧹', 'Deux games, merci bonsoir', 'Net et sans bavure', 'Le plan de match était clair', 'BO3 sous contrôle'],
+        phrases:[
+          'Victoire {score} sans passer par la case Game 3. Vous avez gardé le cap sur {games} manches et l’adversaire n’a jamais vraiment trouvé le bouton pause.',
+          'Un BO3 propre : {score}, {totalTurns} tours cumulés, et une série fermée avant que le doute ne s’installe.',
+          'Pas besoin de drama inutile : deux manches, un plan stable, et une victoire {score} qui sent le travail bien fait.'
+        ]
+      },
+      clutchWin: {
+        badge:'BO3 clutch',
+        titles:['Arraché avec les dents 😤', 'Le BO3 de la sueur', 'Mental de finisher', 'Au bout du suspense', 'Cardio à 200'],
+        phrases:[
+          'Victoire {score} après {games} manches. Il a fallu s’adapter, respirer un grand coup, puis fermer la série au moment où ça comptait.',
+          'Un vrai BO3 de tournoi : {score}, {totalTurns} tours cumulés, et assez de tension pour justifier une pause café après la dernière manche.',
+          'La série va au bout, mais vous gardez le dernier mot. C’est le genre de victoire qui se gagne autant au mulligan qu’au mental.'
+        ]
+      },
+      cleanLoss: {
+        badge:'BO3 difficile',
+        titles:['La douche froide 🚿', 'Retour au lobby 🚪', 'Leçon d’humilité', 'La marche était haute', 'Matchup compliqué'],
+        phrases:[
+          'Défaite {score}. L’adversaire a imposé son plan sur les deux manches et vous n’avez pas trouvé l’ajustement de rythme pour casser sa trajectoire.',
+          'BO3 compliqué : {score}, peu de fenêtres exploitables, et un adversaire qui a déroulé son plan trop proprement.',
+          'Série sèche : deux manches pour comprendre que le matchup demandait probablement un mulligan ou un tempo beaucoup plus tranché.'
+        ]
+      },
+      closeLoss: {
+        badge:'BO3 serré',
+        titles:['Le seum du Game 3 😭', 'Ça passe pas loin', 'Cruelle troisième manche', 'À un détail près', 'Presque le hold-up'],
+        phrases:[
+          'Défaite {score} après {games} manches. Vous avez trouvé des réponses, mais pas assez pour retourner complètement le matchup.',
+          'Le match va au bout, mais l’adversaire ferme la série {score}. C’est typiquement le BO3 où une décision de mulligan peut peser très lourd.',
+          'Vous n’étiez pas loin du braquage, mais la série échappe sur la dernière ligne droite.'
+        ]
+      },
+      speedWin: {
+        badge:'Tempo rapide',
+        titles:['Mode TGV activé 🚄', 'Pas le temps d’niaiser ⏱️', 'Départ canon', 'Curve parfaite'],
+        phrases:[
+          'Victoire {score} à haute vitesse : {avgTurns} tours de moyenne, une pression installée tôt, et très peu de temps laissé au late-game adverse.',
+          'Le BO3 s’est joué en accéléré. Votre deck a mis la clock assez vite pour forcer l’adversaire à courir derrière le score.'
+        ]
+      },
+      boardWin: {
+        badge:'Board control',
+        titles:['Bataille de tranchées ⚔️', 'Nettoyage de board', 'Contrôle total', 'Ça s’est joué sur le plateau'],
+        phrases:[
+          'La victoire s’est construite dans l’arène avec {challenges} défis cumulés. Vous avez transformé les trades en fenêtres de lore.',
+          'BO3 très orienté plateau : beaucoup de décisions de trade, et assez de contrôle pour finir par convertir la série.'
+        ]
+      },
+      boardLoss: {
+        badge:'Board contesté',
+        titles:['Guerre d’usure perdue', 'Board sous tension', 'Ça tape fort, mais ça ne lore pas', 'Trades non-stop'],
+        phrases:[
+          'Vous avez beaucoup combattu avec {challenges} défis, mais ces trades n’ont pas suffi à freiner la clock adverse sur l’ensemble de la série.',
+          'La série a demandé du contrôle de board, mais l’adversaire a mieux converti ses ressources en points de lore.'
+        ]
+      },
+      resourceLoss: {
+        badge:'Ressources faibles',
+        titles:['La panne sèche ⛽', 'Le moteur a calé', 'Top deck simulator', 'À court de gaz'],
+        phrases:[
+          'Vos ressources se sont trop souvent vidées : {topDeck} tours en main quasi vide sur la série, difficile de tenir un plan flexible dans ces conditions.',
+          'Le BO3 a fini par ressembler à une prière à la pioche. Avec {topDeck} tours à 0 ou 1 carte, le tempo devenait très dur à maintenir.'
+        ]
+      },
+      loreRaceWin: {
+        badge:'Race lore',
+        titles:['Course au lore validée', 'Tout droit vers les 20', 'Plan lore assumé', 'La ligne droite'],
+        phrases:[
+          'Vous avez assumé la course au lore avec {quests} quête(s) pour {challenges} défi(s), et le plan a tenu sur l’ensemble du BO3.',
+          'Peu de détours, beaucoup de lore : votre plan a forcé l’adversaire à courir derrière le score.'
+        ]
+      },
+      loreRaceLoss: {
+        badge:'Race lore perdue',
+        titles:['Course perdue au sprint', 'Le sprint n’a pas suffi', 'La clock adverse', 'Trop droit devant ?'],
+        phrases:[
+          'Votre plan était très orienté lore avec {quests} quête(s), mais l’adversaire a gagné la course sur la série.',
+          'Vous avez couru vers les 20, mais l’adversaire avait une meilleure clock au moment de fermer les manches.'
+        ]
+      }
+    };
+
+    const pick = list => list[Math.floor(Math.random() * list.length)] || '';
+    const fill = template => String(template || '').replace(/\{(score|games|avgTurns|totalTurns|quests|challenges|topDeck|oppTopDeck|mostInked|topQuester)\}/g, (_, key) => ({
+      score, games, avgTurns, totalTurns, quests, challenges, topDeck, oppTopDeck,
+      mostInked:mostInked ? fullName(mostInked) : '—',
+      topQuester:topQuester ? fullName(topQuester) : '—'
+    }[key]));
+
+    let scenario;
+    // Priorité : résultat de série, vitesse, ressources uniquement si elles expliquent une défaite, puis style de jeu.
+    if(win && losses === 0 && avgTurns <= 7) scenario = dictionary.speedWin;
+    else if(win && losses === 0) scenario = dictionary.cleanWin;
+    else if(win) scenario = dictionary.clutchWin;
+    else if(!win && topDeck >= 5) scenario = dictionary.resourceLoss;
+    else if(!win && wins === 0) scenario = dictionary.cleanLoss;
+    else scenario = dictionary.closeLoss;
+
+    if(win && challenges > quests && challenges >= 8) scenario = dictionary.boardWin;
+    else if(!win && challenges > quests && challenges >= 8) scenario = dictionary.boardLoss;
+    else if(questRatio >= 85 && quests >= 8) scenario = win ? dictionary.loreRaceWin : dictionary.loreRaceLoss;
+
+    let text = fill(pick(scenario.phrases));
+    if(topQuester?.lore >= 4) text += ` Votre meilleur moteur de lore sur la série : ${fullName(topQuester)}.`;
+    if(mostInked?.inked >= 3) text += ` À surveiller côté deckbuilding : ${fullName(mostInked)} finit souvent en encre (${mostInked.inked}x) dans ce matchup.`;
+
+    return { title:fill(pick(scenario.titles)), text, summary:text, badge:scenario.badge };
+  }
+
+  function generateBo3ScopedNarrative(m, scope='mine'){
+    const mineScope = scope !== 'opponent';
+    const metrics = mineScope ? (m.proMetrics || {}) : (m.opponentProMetrics || {});
+    const cards = cardsForScope(m, mineScope ? 'mine' : 'opponent');
+    const wins = mineScope ? n(m.wins) : n(m.losses);
+    const losses = mineScope ? n(m.losses) : n(m.wins);
+    const win = wins > losses;
+    const score = `${wins}-${losses}`;
+    const quests = n(metrics.questCount);
+    const challenges = n(metrics.challengeCount);
+    const topDeck = n(metrics.topDeckTurns);
+    const questRatio = pct(quests, quests + challenges);
+    const topQuester = loreEngineCards(cards).sort(compareLoreEngines)[0];
+    const mostInked = [...cards].sort((a,b)=>(b.inked||0)-(a.inked||0) || fullName(a).localeCompare(fullName(b)))[0];
+
+    let title = mineScope ? (win ? 'Votre plan tient la route' : 'Votre série à décortiquer') : (win ? 'Plan adverse gagnant' : 'Adversaire sous pression');
+    let summary = mineScope
+      ? (win ? `Votre série se termine sur un ${score}. Le plan global a suffisamment tenu pour fermer le match.` : `Votre série se termine sur un ${score}. Les ajustements de mulligan et de rythme seront les premiers points à revoir.`)
+      : (win ? `Côté adverse, le plan a converti la série ${score} de son point de vue.` : `Côté adverse, la série se termine sur un ${score} de son point de vue : votre pression a fini par l’emporter.`);
+
+    if(topDeck >= 5){
+      title = mineScope ? 'Votre main a souvent tiré la langue' : 'La panne sèche adverse';
+      summary = mineScope
+        ? `${topDeck} tours en main quasi vide sur la série : c’est le signal principal à surveiller côté ressources.`
+        : `${topDeck} tours adverses à 0 ou 1 carte : l’adversaire a souvent vécu au top deck.`;
+    }else if(challenges > quests && challenges >= 8){
+      title = mineScope ? 'Votre série se joue sur le board' : 'Board control adverse';
+      summary = mineScope
+        ? `${challenges} défis cumulés : vous avez beaucoup investi dans le contrôle du plateau.`
+        : `${challenges} défis adverses cumulés : son plan passait beaucoup par les trades.`;
+    }else if(questRatio >= 85 && quests >= 8){
+      title = mineScope ? 'Plan lore très assumé' : 'Course au lore adverse';
+      summary = mineScope
+        ? `${quests} quêtes pour ${challenges} défis : vous avez clairement choisi la race au lore.`
+        : `${quests} quêtes adverses pour ${challenges} défis : l’adversaire a surtout essayé de gagner à la clock.`;
+    }else if(topQuester?.lore >= 4){
+      title = mineScope ? 'Win condition identifiée' : 'Menace adverse identifiée';
+      summary = mineScope
+        ? `${fullName(topQuester)} est votre principal moteur de lore sur la série avec ${n(topQuester.lore)} lore.`
+        : `${fullName(topQuester)} est le moteur de lore adverse le plus important avec ${n(topQuester.lore)} lore.`;
+    }
+
+    if(mostInked?.inked >= 3){
+      summary += mineScope
+        ? ` ${fullName(mostInked)} est aussi une carte souvent transformée en encre (${n(mostInked.inked)}x).`
+        : ` ${fullName(mostInked)} est la carte adverse la plus souvent encrée (${n(mostInked.inked)}x).`;
+    }
+
+    return { title, summary, badge:mineScope ? 'Mes stats' : 'Stats adverses' };
+  }
+
+  function generateMatchNarrative(m){
+    if(m?.isBO3 || (Array.isArray(m?.sessions) && m.sessions.length > 1)){
+      return generateBo3Narrative(m);
+    }
+    const rows = Array.isArray(m?.loreSeries) ? m.loreSeries : [];
+    const win = !!(m?.wins > m?.losses || m?.first?.isWin);
+    const mine = n(m?.finalMineLore ?? m?.first?.finalMineLore);
+    const opp = n(m?.finalOppLore ?? m?.first?.finalOppLore);
+    const loreGap = Math.abs(mine - opp);
+    const turnCount = Math.max(1, Math.round(n(m?.turnCount || m?.first?.turnCount || m?.avgTurns || (rows.at(-1)?.turn ?? 0))));
+    const metrics = m?.proMetrics || {};
+    const oppMetrics = m?.opponentProMetrics || {};
+    const quests = n(metrics.questCount);
+    const challenges = n(metrics.challengeCount);
+    const oppQuests = n(oppMetrics.questCount);
+    const oppChallenges = n(oppMetrics.challengeCount);
+    const topDeck = n(metrics.topDeckTurns);
+    const questRatio = pct(quests, quests + challenges);
+    const leadRows = rows.map(r => ({ turn:r.turn, lead:n(r.mine) - n(r.opponent), mine:n(r.mine), opponent:n(r.opponent) }));
+    const leadChanges = countLeadChanges(leadRows);
+    const firstMyLead = leadRows.find(r => r.lead > 0)?.turn || null;
+    const firstOppLead = leadRows.find(r => r.lead < 0)?.turn || null;
+    const myLateGain = lateLoreGain(rows, 'mine');
+    const oppLateGain = lateLoreGain(rows, 'opponent');
+
+    const dictionary = {
+      stompWin: {
+        badge:'Large victoire',
+        titles:[
+          'Sortez les balais 🧹',
+          'Zéro respect 🥶',
+          'Le rouleau compresseur 🚜',
+          'Circulez, y’a rien à voir',
+          'Un 20-0 des familles',
+          'Il l’a envoyé dans le Royaume des Ombres ☠️'
+        ],
+        phrases:[
+          'Une exécution en règle. L’adversaire a été lavé {mine} à {opp} sans jamais voir la lumière du jour.',
+          'No match absolu. Vous avez imposé un tempo que l’adversaire n’a jamais pu suivre.',
+          'C’est ce qu’on appelle une fessée déculottée. Victoire {mine} à {opp} en {turn} tours.'
+        ]
+      },
+      stompLoss: {
+        badge:'Large défaite',
+        titles:[
+          'La douche froide 🚿',
+          'Retour au lobby 🚪',
+          'Leçon d’humilité',
+          'Il s’est fait rouler dessus',
+          'Alerte Enlèvement'
+        ],
+        phrases:[
+          'L’adversaire a déroulé sa curve à la perfection. Défaite {mine} à {opp}, il n’y avait rien à faire.',
+          'Vous avez subi la foudre. Un match à sens unique où le tempo adverse était tout simplement étouffant.'
+        ]
+      },
+      closeWin: {
+        badge:'Match serré',
+        titles:[
+          'Le Hold-Up de l’année ! 😱',
+          'La sueur sur le front 💦',
+          'Le cardio à 200 🫀',
+          'Clutch absolu !',
+          'Au bout du bout du suspense'
+        ],
+        phrases:[
+          'C’est passé à l’arrache ! Une victoire {mine} à {opp} arrachée avec les dents après {turn} tours de haute tension.',
+          'Un duel d’anthologie ! Tout s’est joué sur un détail pour finalement l’emporter {mine} à {opp}.',
+          'Le top deck de l’espace a frappé ! Une fin de partie irrespirable.'
+        ]
+      },
+      closeLoss: {
+        badge:'Défaite courte',
+        titles:[
+          'Le seum intergalactique... 😭',
+          'À un poil de Bantha',
+          'Cruelle désillusion',
+          'La punition immédiate'
+        ],
+        phrases:[
+          'La victoire vous tendait les bras... Défaite {mine} à {opp} sur le fil du rasoir.',
+          'C’est terrible. La game s’est jouée à un top deck près au tour {turn}.'
+        ]
+      },
+      speedrun: {
+        badge:'Partie rapide',
+        titles:[
+          'Départ Canon 🏎️',
+          'Pas le temps d’niaiser ⏱️',
+          'Tout dans la tête',
+          'Mode TGV activé',
+          'Curve parfaite'
+        ],
+        phrases:[
+          'Une agression totale pliée en {turn} petits tours. L’adversaire n’a même pas eu le temps de s’installer.',
+          'Un départ explosif qui a pris l’adversaire de vitesse. {mine} à {opp} avant le late-game.'
+        ]
+      },
+      boardFight: {
+        badge:'Board control',
+        titles:[
+          'Boucherie sur le board ⚔️',
+          'Nettoyage de printemps 🧹',
+          'Bataille de tranchées',
+          'C’est Verdun',
+          'Alerte Nucléaire ☢️'
+        ],
+        phrases:[
+          'Un véritable champ de ruines. Vous avez dicté votre loi avec {challenges} défis pour épuiser les ressources adverses.',
+          'Un match de contrôle pur et dur. Le board a été rasé en boucle jusqu’à la victoire finale.'
+        ]
+      },
+      boardLoss: {
+        badge:'Board contesté',
+        titles:[
+          'Guerre d’usure perdue',
+          'Board sous tension',
+          'Ça tape fort, mais ça ne lore pas',
+          'Bataille de tranchées'
+        ],
+        phrases:[
+          'Vous avez beaucoup combattu avec {challenges} défis, mais ces trades n’ont pas suffi à ralentir la course adverse.',
+          'Le board a été disputé jusqu’au bout, mais l’adversaire a mieux converti ses ressources en lore.'
+        ]
+      },
+      topDeck: {
+        badge:'Ressources faibles',
+        titles:[
+          'La panne sèche ⛽',
+          'Il prie la RNG 🎲',
+          'Le moteur a calé',
+          'Syndrome de la page blanche',
+          'Il vit d’amour et de top deck'
+        ],
+        phrases:[
+          'Vous avez brûlé toutes vos cartouches. Avec {topDeck} tours passés à jouer le top deck, le tempo était impossible à tenir.',
+          'La main s’est vidée beaucoup trop vite. Impossible d’imposer son rythme quand on est à court de gaz.'
+        ]
+      },
+      loreRaceWin: {
+        badge:'Race lore',
+        titles:[
+          'Course au lore validée',
+          'La ligne droite',
+          'Plan lore assumé',
+          'Tout droit vers les 20'
+        ],
+        phrases:[
+          'Vous avez assumé la course au lore avec {quests} quête(s) pour seulement {challenges} défi(s), et le plan a tenu jusqu’au score final {mine} à {opp}.',
+          'Peu de détours, beaucoup de lore : votre plan a forcé l’adversaire à courir derrière le score.'
+        ]
+      },
+      loreRaceLoss: {
+        badge:'Race lore perdue',
+        titles:[
+          'Course perdue au sprint',
+          'Trop droit devant ?',
+          'La clock adverse',
+          'Le sprint n’a pas suffi'
+        ],
+        phrases:[
+          'Votre plan était très orienté lore avec {quests} quête(s) et {challenges} défi(s), mais l’adversaire a gagné la course {mine} à {opp}.',
+          'Vous avez couru vers les 20, mais l’adversaire avait une meilleure clock sur la fin.'
+        ]
+      },
+      lateWin: {
+        badge:'Partie longue',
+        titles:[
+          'Victoire à l’usure',
+          'Le late-game a parlé',
+          'Patience récompensée',
+          'Le marathon est gagné'
+        ],
+        phrases:[
+          'Une partie longue de {turn} tours : vous avez tenu le rythme assez longtemps pour convertir la fin de match en victoire {mine} à {opp}.',
+          'Le match s’est installé dans la durée, et votre late-game a fini par faire la différence.'
+        ]
+      },
+      lateLoss: {
+        badge:'Partie longue',
+        titles:[
+          'Usé sur la longueur',
+          'Le late-game adverse',
+          'Ça s’est joué à l’usure',
+          'La fin de partie fait mal'
+        ],
+        phrases:[
+          'Le match s’étire sur {turn} tours et l’adversaire finit par mieux convertir ses ressources dans le late-game.',
+          'Vous avez résisté longtemps, mais la fin de partie a clairement tourné en faveur de l’adversaire.'
+        ]
+      },
+      defaultWin: {
+        badge:'Victoire',
+        titles:['Victoire solide', 'Travail propre', 'Plan exécuté', 'C’est validé ✅'],
+        phrases:[
+          'Un match maîtrisé en {turn} tours pour atteindre les 20 lore sans laisser l’adversaire revenir.',
+          'Vous avez installé votre rythme et converti vos ressources avec assez de régularité pour fermer la partie.'
+        ]
+      },
+      defaultLoss: {
+        badge:'Défaite',
+        titles:['C’est un revers', 'La course s’arrête là', 'Défaite à décortiquer', 'Il faudra revoir la VOD'],
+        phrases:[
+          'La course au lore s’arrête à {mine}. Le journal devrait aider à retrouver le tour où le tempo décroche.',
+          'L’adversaire prend progressivement l’ascendant et vous force à courir après le score.'
+        ]
+      }
+    };
+
+    const pickRandom = (items) => {
+      const list = Array.isArray(items) ? items.filter(Boolean) : [];
+      if(!list.length) return '';
+      return list[Math.floor(Math.random() * list.length)];
+    };
+
+    const fillTemplate = (template) => String(template || '').replace(/\{(mine|opp|turn|quests|challenges|topDeck)\}/g, (_, key) => ({
+      mine,
+      opp,
+      turn:turnCount,
+      quests,
+      challenges,
+      topDeck
+    }[key]));
+
+    const chooseScenario = () => {
+      // Priorité dramaturgique TCG : score très marqué, finish serré, vitesse, ressources, combat de board, race lore, late-game.
+      if(win && loreGap >= 10) return dictionary.stompWin;
+      if(!win && loreGap >= 10) return dictionary.stompLoss;
+      if(win && loreGap <= 2) return dictionary.closeWin;
+      if(!win && loreGap <= 2) return dictionary.closeLoss;
+      if(win && turnCount <= 6) return dictionary.speedrun;
+      if(!win && topDeck >= 3) return dictionary.topDeck;
+      if(win && challenges > quests && challenges >= 3) return dictionary.boardFight;
+      if(!win && challenges > quests && challenges >= 3) return dictionary.boardLoss;
+      if(questRatio >= 85 && quests >= 5) return win ? dictionary.loreRaceWin : dictionary.loreRaceLoss;
+      if(turnCount >= 11) return win ? dictionary.lateWin : dictionary.lateLoss;
+      return win ? dictionary.defaultWin : dictionary.defaultLoss;
+    };
+
+    const scenario = chooseScenario();
+    const title = pickRandom(scenario.titles);
+    let text = fillTemplate(pickRandom(scenario.phrases));
+
+    if(leadChanges >= 2 && loreGap <= 5){
+      text += ` Le lead a changé ${leadChanges} fois : vrai match d’échanges, pas simple déroulé automatique.`;
+    }else if(win && myLateGain > oppLateGain + 2){
+      text += ` L’accélération finale fait la différence : +${myLateGain} lore sur les derniers tours.`;
+    }else if(!win && oppLateGain > myLateGain + 2){
+      text += ` L’adversaire creuse surtout en fin de partie avec +${oppLateGain} lore sur les derniers tours.`;
+    }
+
+    if(oppChallenges > oppQuests && !win && challenges <= quests){
+      text += ' Côté adverse, le contrôle du board a clairement ralenti votre plan.';
+    }
+
+    return { title, text, badge:scenario.badge, summary:text };
+  }
+
+  function countLeadChanges(rows){
+    let prev = 0;
+    let changes = 0;
+    rows.forEach(r => {
+      const sign = r.lead > 0 ? 1 : r.lead < 0 ? -1 : 0;
+      if(sign && prev && sign !== prev) changes += 1;
+      if(sign) prev = sign;
+    });
+    return changes;
+  }
+
+  function lateLoreGain(rows, owner){
+    if(!rows.length) return 0;
+    const key = owner === 'opponent' ? 'opponent' : 'mine';
+    const end = rows[rows.length - 1];
+    const start = rows[Math.max(0, rows.length - 4)] || rows[0];
+    return Math.max(0, n(end[key]) - n(start[key]));
+  }
+
+
+  function renderResultHero(m){
+    if(!els.resultHero) return;
+    if(!m){ els.resultHero.innerHTML=''; return; }
+    const global = m.isBO3 || isGlobalView();
+    const win = m.wins > m.losses;
+    const cls = win ? 'win' : 'loss';
+    const profiles = m.inkProfiles || buildInkProfiles(m);
+    const narrative = generateMatchNarrative(m);
+
+    if(global){
+      const resultLabel = win ? 'Victoire' : 'Défaite';
+      const score = `${m.wins} – ${m.losses}`;
+      const games = m.sessions?.length || (m.wins + m.losses);
+      const opening = bo3OpeningStatus(m);
+      els.resultHero.innerHTML = `
+        <div class="result-stamp ${cls}" title="${escAttr(narrative.badge || resultLabel)}"><span>Résultat</span><strong>${esc(resultLabel)}</strong></div>
+        <div class="result-score result-format"><span>Format</span><strong>BO3</strong><small>${esc(games)} manche(s) analysée(s)</small></div>
+        <div class="result-score"><span>Score du match</span><strong>${esc(score)}</strong><small>${esc(resultLabel)} ${esc(score.replace(' – ', '-'))}</small></div>
+        <div class="result-score result-playdraw"><span>Départ G1</span><strong>${esc(opening.code)}</strong><small>${esc(opening.helper)}</small></div>
+        <div class="result-matchup"><span>Match-up</span><div class="matchup-line">${inkPairHtml(profiles.mine)}<em>vs</em>${inkPairHtml(profiles.opponent)}</div></div>`;
+      return;
+    }
+
+    const label = win ? 'Victoire' : 'Défaite';
+    const score = `${m.finalMineLore} – ${m.finalOppLore}`;
+    const winner = win ? m.myName : m.opponentName;
+    els.resultHero.innerHTML = `<div class="result-stamp ${cls}" title="${escAttr(narrative.badge || label)}"><span>Résultat</span><strong>${esc(label)}</strong></div><div class="result-score"><span>Score final</span><strong>${esc(score)}</strong><small>${esc(winner)} gagne la partie</small></div><div class="result-matchup"><span>Match-up</span><div class="matchup-line">${inkPairHtml(profiles.mine)}<em>vs</em>${inkPairHtml(profiles.opponent)}</div></div>`;
+  }
+
+  function renderMulligan(mulligan){
+    if(!els.mulliganPanel || !els.mulliganCards) return;
+    if(!mulligan || !mulligan.visible){
+      els.mulliganPanel.hidden = true;
+      els.mulliganCards.innerHTML = '';
+      return;
+    }
+    els.mulliganPanel.hidden = false;
+    const showResolved = !!state.mulliganResolved;
+    const cards = showResolved ? (mulligan.resolved || []) : (mulligan.initial || []);
+    if(els.mulliganSubtitle) els.mulliganSubtitle.textContent = showResolved ? `${n(mulligan.replaced?.length)} carte(s) remplacée(s) après mulligan.` : 'Les 7 cartes initiales avant résolution du mulligan.';
+    if(els.mulliganButton) els.mulliganButton.textContent = showResolved ? 'Voir la main initiale' : 'Résoudre le Mulligan';
+    els.mulliganCards.classList.remove('mulligan-animate');
+    void els.mulliganCards.offsetWidth;
+    els.mulliganCards.classList.add('mulligan-animate');
+    els.mulliganCards.innerHTML = cards.map(card => {
+      const isNew = showResolved && !new Set((mulligan.initial || []).map(cardIdentity)).has(cardIdentity(card));
+      return `<button type="button" class="mulligan-card ${isNew ? 'is-new' : ''}" data-card-key="${esc(cardKey(card))}">${cardThumbHtml(card, 'mulligan-thumb')}<span>${esc(fullName(card))}</span>${isNew ? '<em>Mulligan</em>' : ''}</button>`;
+    }).join('');
+    bindCardButtons();
+  }
+
+  function toggleMulliganResolution(){
+    state.mulliganResolved = !state.mulliganResolved;
+    renderMulligan(getWorkingData()?.first?.mulligan);
+  }
+
+  function renderStats(){
+    const m = getWorkingData();
+    if(!m){ renderEmptyStats(); return; }
+    const global = isGlobalView();
+    const metrics = state.scope === 'mine' ? m.proMetrics : m.opponentProMetrics;
+    els.statsScopeSubtitle.textContent = global ? 'Résumé macro du BO3 : moteurs de lore, cartes mortes et tendances cumulées.' : (state.scope === 'mine' ? 'Lecture de votre tempo, de votre main et de vos décisions.' : 'Lecture du rythme adverse, de sa pression et de ses fenêtres de tempo.');
+    els.inkChartSubtitle.textContent = global ? 'Masqué dans le résumé BO3 : ouvrez une Game pour lire l’économie tour par tour.' : (state.scope === 'mine' ? 'Encre dépensée vs inutilisée pour vous.' : 'Encre dépensée vs inutilisée côté adversaire.');
+    els.inkFloatTotal.textContent = round1(metrics.totalInkFloat);
+    els.inkFloatAverage.textContent = `${round1(metrics.totalInkFloat)} encre inutilisée au total.`;
+    const totalActions = metrics.questCount + metrics.challengeCount;
+    const questPct = pct(metrics.questCount, totalActions);
+    els.actionRatioKpi.textContent = totalActions ? `${questPct}%` : '—';
+    els.actionRatioLabel.textContent = `${metrics.questCount} quête(s) · ${metrics.challengeCount} défi(s)`;
+    els.topDeckTurns.textContent = metrics.handKnown ? metrics.topDeckTurns : '—';
+    els.topDeckBadge.textContent = metrics.handKnown ? (metrics.topDeckTurns >= 3 ? 'Attention : la main s’épuise souvent.' : 'Tours critiques en fin de tour.') : 'Main non visible.';
+    document.querySelector('#topDeckTurns')?.closest('.pro-card')?.classList.toggle('risk', metrics.topDeckTurns >= 3);
+    if(els.topQuestersTitle) els.topQuestersTitle.textContent = global ? 'Moteurs de Lore du BO3' : 'Moteurs de Lore';
+    if(els.topQuestersHelp) els.topQuestersHelp.textContent = global ? 'Les cartes qui ont fait avancer le score sur l’ensemble de la série.' : 'Les cartes qui ont rapporté le plus de lore.';
+    if(els.mostInkedTitle) els.mostInkedTitle.textContent = global ? 'Dead Weights du matchup' : 'Cartes les plus encrées';
+    if(els.mostInkedHelp) els.mostInkedHelp.textContent = global ? 'Cartes souvent sacrifiées : utile pour repérer ce qui performe mal dans ce matchup.' : 'Les cartes sacrifiées pour construire l’encrier.';
+    if(els.playTimingTitle) els.playTimingTitle.textContent = global ? 'Cartes jouées dans le BO3' : 'Cartes jouées par tour';
+    if(els.playTimingHelp) els.playTimingHelp.textContent = global ? 'Chronologie cumulée par game, sans fusionner les courbes tour par tour.' : 'Chronologie exacte des cartes jouées pendant la partie, dans l’ordre.';
+    renderQuickInsights(m, metrics);
+    renderInkChart(metrics.inkByTurn); renderQuestChart(metrics.questCount, metrics.challengeCount); renderHandChart(metrics.handByTurn);
+    syncChartsWithTheme(state.scope);
+    updateChartSummary('inkChartSummary', summarizeInk(metrics.inkByTurn));
+    updateChartSummary('questChartSummary', summarizeQuest(metrics.questCount, metrics.challengeCount));
+    updateChartSummary('handChartSummary', summarizeHand(metrics.handByTurn));
+    renderStatTables(m);
+  }
+
+  function renderEmptyStats(){
+    ['inkFloatTotal','actionRatioKpi','topDeckTurns','questChallengeCenter'].forEach(id => { if(els[id]) els[id].textContent='—'; });
+    ['topQuestersTable','mostInkedTable','playTimingTable','challengeTable'].forEach(id => els[id].innerHTML='<div class="empty-line">Importez un replay.</div>');
+    if(els.quickInsights) els.quickInsights.innerHTML='';
+    renderInkChart([]); renderQuestChart(0,0); renderHandChart([]);
+    updateChartSummary('inkChartSummary','Résumé du graphique économie d’encre disponible après import.');
+    updateChartSummary('questChartSummary','Résumé du graphique quête défi disponible après import.');
+    updateChartSummary('handChartSummary','Résumé du graphique de main disponible après import.');
+  }
+
+  function renderQuickInsights(m, metrics){
+    if(!els.quickInsights) return;
+    const cards = cardsForScope(m, state.scope);
+    const isOpponent = state.scope === 'opponent';
+
+    if(isGlobalView()){
+      const scopedCards = cardsForScope(m, state.scope);
+      const topQuester = loreEngineCards(scopedCards).sort(compareLoreEngines)[0];
+      const mostInked = [...scopedCards].sort((a,b)=>(b.inked||0)-(a.inked||0) || fullName(a).localeCompare(fullName(b)))[0];
+      const scopedNarrative = generateBo3ScopedNarrative(m, state.scope);
+      const items = [
+        {
+          label:isOpponent ? 'Résumé adverse' : 'Votre résumé de série',
+          value:scopedNarrative.title,
+          helper:scopedNarrative.summary,
+          card:''
+        },
+        {
+          label:isOpponent ? 'Moteur de lore adverse' : 'Votre moteur de lore',
+          value:topQuester ? fullName(topQuester) : 'Non détecté',
+          helper:topQuester ? `${n(topQuester.lore)} lore cumulé sur la série.` : 'Aucune carte lore identifiée dans ce scope.',
+          card:topQuester ? cardKey(topQuester) : ''
+        },
+        {
+          label:isOpponent ? 'Carte adverse la plus encrée' : 'Dead weight possible',
+          value:mostInked ? `${fullName(mostInked)} · ${n(mostInked.inked)}x` : 'Non détecté',
+          helper:isOpponent ? 'Carte adverse le plus souvent transformée en encre.' : 'Carte de votre deck souvent transformée en encre dans ce matchup.',
+          card:mostInked ? cardKey(mostInked) : ''
+        }
+      ];
+      els.quickInsights.innerHTML = items.map(item => {
+        const attrs = item.card ? `data-card-key="${esc(item.card)}"` : '';
+        return `<button type="button" class="quick-insight bo3-scope-summary" ${attrs}><span>${esc(item.label)}</span><strong>${esc(item.value)}</strong><small>${esc(item.helper)}</small></button>`;
+      }).join('');
+      bindCardButtons();
+      return;
+    }
+
+    const maxFloat = [...(metrics.inkByTurn || [])].sort((a,b)=>b.float-a.float)[0];
+    const topQuester = loreEngineCards(cards).sort(compareLoreEngines)[0];
+    const mostInked = [...cards].sort((a,b)=>(b.inked||0)-(a.inked||0))[0];
+    const topDeckTurn = [...(metrics.handByTurn || [])].filter(r => r.handCount <= 1)[0];
+    const items = [
+      {
+        label:isOpponent ? 'Fenêtre de tempo adverse' : 'Top erreur de tempo',
+        value:maxFloat?.turn ? `T${maxFloat.turn} · ${round1(maxFloat.float)} float` : 'Non détecté',
+        helper:isOpponent ? 'Moment où l’adversaire a le moins converti son encre.' : 'Le tour où votre encre a été le moins bien convertie.',
+        target:'#inkFloatChart'
+      },
+      {
+        label:isOpponent ? 'Win condition adverse' : 'Win condition principale',
+        value:topQuester ? fullName(topQuester) : 'Non détectée',
+        helper:isOpponent ? 'La carte qui a le plus accéléré son score.' : 'La carte qui a le plus fait avancer votre lore.',
+        card:topQuester ? cardKey(topQuester) : ''
+      },
+      {
+        label:isOpponent ? 'Carte adverse sacrifiée' : 'Carte la plus sacrifiée',
+        value:mostInked ? `${fullName(mostInked)} · ${n(mostInked.inked)}x` : 'Non détectée',
+        helper:'Carte le plus souvent utilisée comme encre.',
+        card:mostInked ? cardKey(mostInked) : ''
+      },
+      {
+        label:isOpponent ? 'Main adverse critique' : 'Main critique',
+        value:topDeckTurn ? `T${topDeckTurn.turn} · ${topDeckTurn.handCount} carte` : 'Non détectée',
+        helper:isOpponent ? 'Tour adverse terminé avec 0 ou 1 carte en main.' : 'Tour terminé avec 0 ou 1 carte en main.',
+        target:'#handCurveChart'
+      }
+    ];
+    els.quickInsights.innerHTML = items.map(item => {
+      const attrs = item.card ? `data-card-key="${esc(item.card)}"` : item.target ? `data-focus-target="${esc(item.target)}"` : '';
+      return `<button type="button" class="quick-insight" ${attrs}><span>${esc(item.label)}</span><strong>${esc(item.value)}</strong><small>${esc(item.helper)}</small></button>`;
+    }).join('');
+    bindQuickInsights();
+    bindCardButtons();
+  }
+
+  function bindQuickInsights(){
+    document.querySelectorAll('[data-focus-target]').forEach(btn => btn.onclick = () => {
+      const target = document.querySelector(btn.dataset.focusTarget);
+      if(!target) return;
+      const panel = target.closest('.chart-panel, .stat-panel, .match-read') || target;
+      panel.scrollIntoView({ behavior:'smooth', block:'center' });
+      panel.classList.remove('focus-pulse');
+      void panel.offsetWidth;
+      panel.classList.add('focus-pulse');
+    });
+  }
+
+
+  function renderStatTables(m){
+    const cards = cardsForScope(m, state.scope);
+    renderTable(els.topQuestersTable, sortCards(cards.filter(c=>c.quest||c.lore), els.topQuestersSort?.value || 'lore_desc', 'quest').slice(0,12), ['Carte','Aventures','Lore'], c => [cardButton(c), c.quest || 0, c.lore || 0]);
+    renderTable(els.mostInkedTable, sortCards(cards.filter(c=>c.inked), els.mostInkedSort?.value || 'count_desc', 'inked').slice(0,12), ['Carte','Encrée','Type'], c => [cardButton(c), c.inked || 0, typeLabel(c.type)]);
+    renderPlayedSequenceTable(m);
+    renderTable(els.challengeTable, sortCards(cards.filter(c=>c.challenge), els.challengeSort?.value || 'wins_desc', 'challenge').slice(0,12), ['Carte','Défis','Bilan'], c => [cardButton(c), c.challenge || 0, 'À vérifier']);
+    bindCardButtons();
+  }
+
+  function renderPlayedSequenceTable(m){
+    if(!els.playTimingTable) return;
+    const owner = state.scope === 'opponent' ? 'opponent' : 'mine';
+    const global = isGlobalView();
+    const rows = (m.timeline || [])
+      .filter(r => r.owner === owner && r.type === 'play')
+      .map((r, index) => {
+        const card = r.card ? hydrateCard(r.card) : null;
+        return { ...r, index:index + 1, card };
+      });
+    if(global){
+      renderTable(els.playTimingTable, rows, ['Game','Carte jouée','Tour','Détail'], r => {
+        const cardHtml = r.card && cardKey(r.card) ? cardButton(r.card) : `<span>${esc(cleanCardName(r.cardName || r.title))}</span>`;
+        const meta = r.card ? [typeLabel(r.card.type), r.card.cost !== null && r.card.cost !== undefined ? `Coût ${r.card.cost}` : '', inkLabel(r.card.colors?.[0])].filter(Boolean).join(' · ') : '—';
+        return [`Game ${esc(r.gameNumber || (n(r.gameIndex)+1) || '?')}`, cardHtml, `Tour ${esc(r.turn)}`, meta || '—'];
+      });
+      return;
+    }
+    renderTable(els.playTimingTable, rows, ['Carte jouée','Tour','Détail'], r => {
+      const cardHtml = r.card && cardKey(r.card) ? cardButton(r.card) : `<span>${esc(cleanCardName(r.cardName || r.title))}</span>`;
+      const meta = r.card ? [typeLabel(r.card.type), r.card.cost !== null && r.card.cost !== undefined ? `Coût ${r.card.cost}` : '', inkLabel(r.card.colors?.[0])].filter(Boolean).join(' · ') : '—';
+      return [cardHtml, `Tour ${esc(r.turn)}`, meta || '—'];
+    });
+  }
+
+  function sortCards(cards, mode, fallback){
+    return [...cards].sort((a,b)=>{
+      if(mode === 'name_asc') return fullName(a).localeCompare(fullName(b));
+      if(mode === 'type_asc') return typeLabel(a.type).localeCompare(typeLabel(b.type));
+      if(mode === 'turn_asc') return (a.avgTurn || 99) - (b.avgTurn || 99);
+      if(mode === 'turn_desc') return (b.avgTurn || 0) - (a.avgTurn || 0);
+      if(mode === 'lore_desc') return (b.lore||0) - (a.lore||0);
+      if(mode === 'count_desc') return ((b.inked||0)+(b.played||0)+(b.quest||0)) - ((a.inked||0)+(a.played||0)+(a.quest||0));
+      if(mode === 'losses_desc') return fullName(a).localeCompare(fullName(b));
+      if(mode === 'wins_desc') return (b.challenge||0) - (a.challenge||0);
+      return (b[fallback]||0) - (a[fallback]||0);
+    });
+  }
+
+  function renderTable(container, rows, headers, map){
+    if(!rows.length){ container.innerHTML='<div class="empty-line">Aucune donnée détectée.</div>'; return; }
+    const desktop = `<table class="data-table desktop-table"><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${map(r).map(v=>`<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const mobile = `<div class="mobile-row">${rows.map(r=>{
+      const values = map(r);
+      const first = values[0] || '—';
+      const rest = values.slice(1).map((v,i)=>`<div><dt>${esc(headers[i+1] || '')}</dt><dd>${v}</dd></div>`).join('');
+      return `<div class="mobile-stat-card"><div class="mobile-stat-main">${first}</div><dl>${rest}</dl></div>`;
+    }).join('')}</div>`;
+    container.innerHTML = desktop + mobile;
+  }
+
+  function cardButton(c){ return `<button type="button" class="card-link" data-card-key="${esc(cardKey(c))}">${cardThumbHtml(c, 'thumb')}<span>${esc(fullName(c))}</span></button>`; }
+
+  function renderCards(){
+    const m = getWorkingData();
+    if(!m){ els.cardsSubtitle.textContent='Importez un replay pour afficher les cartes détectées.'; els.cardsGrid.innerHTML='<div class="empty-line">Aucune carte détectée pour le moment.</div>'; return; }
+    const global = isGlobalView();
+    let cards = state.cardFilter === 'all' ? m.cards : cardsForScope(m, state.cardFilter);
+    cards = cards.sort((a,b)=>(b.seen||0)-(a.seen||0) || fullName(a).localeCompare(fullName(b))).slice(0,160);
+    const scopeLabel = state.cardFilter === 'opponent' ? 'adverse(s)' : state.cardFilter === 'mine' ? 'de votre deck' : 'détectée(s)';
+    els.cardsSubtitle.textContent = global ? `${cards.length} carte(s) ${scopeLabel} sur l’ensemble du BO3.` : `${cards.length} carte(s) détectée(s).`;
+    els.cardsGrid.innerHTML = cards.map(c => {
+      const universe = cardUniverse(c);
+      const artists = cardArtists(c);
+      const mainMeta = [rarityLabel(c.rarity), setLabel(c), `#${c.number || '—'}`].filter(Boolean).join(' · ');
+      const infoMeta = [`Univers ${universe}`, `Artiste(s) ${artists}`].filter(x => !x.endsWith('—')).join(' · ');
+      return `<button type="button" class="card-mini" data-card-key="${esc(cardKey(c))}">${cardThumbHtml(c, 'card-mini-thumb')}<div><h3>${esc(fullName(c))}</h3><p>${esc(mainMeta)}</p>${infoMeta ? `<p class="card-mini-info">${esc(infoMeta)}</p>` : ''}<div class="mini-meta"><span class="meta-chip">Vue ${n(c.seen)}</span><span class="meta-chip">Jouée ${n(c.played)}</span><span class="meta-chip">Encrée ${n(c.inked)}</span></div></div></button>`;
+    }).join('');
+    bindCardButtons();
+  }
+
+  function renderTimeline(){
+    const m = getWorkingData();
+    if(!m){ els.timelineList.innerHTML='<div class="empty-line">Le journal apparaîtra après import.</div>'; return; }
+    const filter = els.timelineFilter.value;
+    let rows = m.timeline;
+    if(filter === 'mine' || filter === 'opponent') rows = rows.filter(r => r.owner === filter);
+    else if(filter !== 'all') rows = rows.filter(r => r.type === filter || (filter === 'challenge' && r.type === 'challenge'));
+    rows = rows.slice(0,260);
+    els.timelineList.innerHTML = rows.length ? rows.map((r,i) => timelineRowHtml(r,i)).join('') : '<div class="empty-line">Aucune action pour ce filtre.</div>';
+    bindCardButtons();
+  }
+
+  function timelineRowHtml(r, index){
+    const c = r.card ? hydrateCard(r.card) : null;
+    const hasCard = c && cardKey(c) && (c.image || c.imageSmall || fullName(c) !== 'Carte inconnue');
+    const thumb = hasCard ? cardThumbHtml(c, 'timeline-thumb') : `<span class="timeline-thumb thumb-placeholder">${esc(r.icon || '•')}</span>`;
+    const cardKeyAttr = hasCard ? `data-card-key="${esc(cardKey(c))}"` : '';
+    const ownerLabel = r.owner === 'mine' ? 'Moi' : 'Adversaire';
+    return `<article class="timeline-row story-row" data-turn="${esc(r.turn)}" data-owner="${esc(r.owner)}" style="--delay:${Math.min(index,18)}"><button type="button" class="timeline-art" ${cardKeyAttr} aria-label="${hasCard ? `Ouvrir la carte ${esc(fullName(c))}` : 'Action sans carte identifiée'}">${thumb}</button><div class="timeline-copy"><div class="timeline-line"><span class="timeline-turn">Tour ${esc(r.turn)}</span><h3>${esc(r.title)}</h3></div><p>${esc(r.detail)}</p><div class="timeline-meta"><span>${ownerLabel}</span><span>${esc(actionTypeLabel(r.type))}</span></div></div><div class="timeline-impact"><span>${esc(r.icon)}</span></div></article>`;
+  }
+
+
+
+
+  function cleanCardName(value){
+    return String(value || '').replace(/\s+/g, ' ').trim() || 'Carte inconnue';
+  }
+  function actionTypeLabel(type){
+    return ({ ink:'Encre', play:'Carte jouée', quest:'Quête', challenge:'Défi', move:'Déplacement', ability:'Capacité', end:'Fin de tour' })[type] || type;
+  }
+
+  function bindCardButtons(){
+    document.querySelectorAll('[data-card-key]').forEach(btn => btn.onclick = () => {
+      const working = getWorkingData();
+      const card = working?.cards.find(c => cardKey(c) === btn.dataset.cardKey) || state.merged?.cards.find(c => cardKey(c) === btn.dataset.cardKey);
+      if(card) openCardModal(card, btn);
+    });
+  }
+
+  function openCardModal(card, trigger){
+    state.lastFocused = trigger || document.activeElement;
+    const c = hydrateCard(card);
+    els.modalBody.innerHTML = cardDetailHtml(c);
+    els.cardModal.classList.add('active'); els.cardModal.setAttribute('aria-hidden','false');
+    setTimeout(() => { els.cardModal.querySelector('.modal-card')?.focus(); }, 0);
+  }
+  function closeCardModal(){
+    els.cardModal.classList.remove('active'); els.cardModal.setAttribute('aria-hidden','true'); els.modalBody.innerHTML='';
+    if(state.lastFocused?.focus) state.lastFocused.focus();
+  }
+
+  function cardDetailHtml(c){
+    const color = inkKey(c.colors?.[0] || c.color);
+    const text = formatCardText(c.text || abilityText(c));
+    const detailImage = c.image || c.imageSmall;
+    const imageHtml = detailImage ? `<img src="${esc(detailImage)}" alt="${esc(fullName(c))}" loading="lazy">` : `<div class="card-art-placeholder"><strong>${esc(initials(fullName(c)))}</strong><span>${esc(fullName(c))}</span><small>Image indisponible</small></div>`;
+    const universe = cardUniverse(c);
+    const artists = cardArtists(c);
+    return `<div class="card-detail"><div class="card-image">${imageHtml}</div><div class="card-detail-main"><section class="detail-panel"><div class="kicker">Carte</div><h2 class="detail-title"><span class="ink-dot ink-${color}"></span>${esc(fullName(c))}</h2><div class="chip-row"><span class="chip">${esc(setLabel(c) || 'Chapitre inconnu')}</span><span class="chip">${esc(rarityLabel(c.rarity) || 'Rareté —')}</span><span class="chip">#${esc(c.number || '—')}</span><span class="chip">${esc(inkLabel(c.colors?.[0]) || 'Encre —')}</span></div><div class="detail-grid" style="margin-top:1rem">${field('Type', typeLabel(c.type))}${field('Coût', c.cost ?? '—')}${field('Encrable', c.inkable === true ? 'Oui' : c.inkable === false ? 'Non' : '—')}${field('Rareté', rarityLabel(c.rarity) || '—')}${field('Force', c.strength ?? '—')}${field('Volonté', c.willpower ?? '—')}${field('Lore', c.lore ?? '—')}</div></section><section class="detail-panel detail-panel-info"><div class="kicker">Informations</div><div class="detail-grid">${field('Chapitre', setLabel(c) || '—')}${field('Univers', universe)}${field('Artiste(s)', artists)}</div></section>${text ? `<section class="detail-panel"><div class="kicker">Texte de carte</div><div class="card-text">${text}</div></section>` : ''}<section class="detail-panel"><div class="kicker">Classifications</div><div class="chip-row">${(c.classifications || []).length ? c.classifications.map(x=>`<span class="chip">${esc(x)}</span>`).join('') : '<span class="chip">—</span>'}</div></section></div></div>`;
+  }
+  function metadataFallbackCard(c){
+    const keys = new Set(cardReferenceKeys(c));
+    if(c?.id?.includes('-')){
+      const [setNum, number] = String(c.id).split('-');
+      const code = SET_NUM_TO_CODE[setNum] || setNum;
+      keys.add(`${setNum}-${strip0(number)}`);
+      keys.add(slug(`${code}-${strip0(number)}`));
+      keys.add(slug(`${code} ${strip0(number)}`));
+    }
+    for(const key of keys){
+      const local = state.index.get(key);
+      if(local) return local;
+    }
+    return null;
+  }
+  function cardUniverse(c){
+    const fallback = metadataFallbackCard(c);
+    return c?.franchise || c?.story || c?.universe || c?.raw?.franchise || c?.raw?.story || c?.raw?.universe || fallback?.franchise || fallback?.story || fallback?.universe || fallback?.raw?.franchise || fallback?.raw?.story || fallback?.raw?.universe || '—';
+  }
+  function cardArtists(c){
+    const fallback = metadataFallbackCard(c);
+    const values = [c?.artists, c?.illustrators, c?.illustrator, c?.artist, c?.raw?.illustrators, c?.raw?.artists, c?.raw?.artist, fallback?.artists, fallback?.illustrators, fallback?.illustrator, fallback?.artist, fallback?.raw?.illustrators, fallback?.raw?.artists, fallback?.raw?.artist]
+      .flatMap(v => arrayify(v));
+    return values.length ? [...new Set(values)].join(' / ') : '—';
+  }
+  function field(label, value){ return `<div class="detail-field"><small>${esc(label)}</small><strong>${esc(value)}</strong></div>`; }
+  function initials(name){ return String(name || '?').split(/\s+|-+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?'; }
+  function cardThumbHtml(c, cls='thumb'){ const img = c.imageSmall || c.image; return img ? `<img class="${esc(cls)}" src="${esc(img)}" alt="" loading="lazy">` : `<span class="${esc(cls)} thumb-placeholder" aria-hidden="true">${esc(initials(fullName(c)))}</span>`; }
+
+  function cssThemeColors(){
+    const styles = getComputedStyle(document.documentElement);
+    const first = styles.getPropertyValue('--theme-color-1').trim() || getThemeColors(state.scope)[0];
+    const second = styles.getPropertyValue('--theme-color-2').trim() || getThemeColors(state.scope)[1];
+    return [first, second];
+  }
+
+  function chartColorsForScope(scope){
+    return document.documentElement.dataset.themeScope === scope ? cssThemeColors() : getThemeColors(scope);
+  }
+
+
+  function chartHighlightPalette(kind='moment'){
+    const styles = getComputedStyle(document.documentElement);
+    const warn = styles.getPropertyValue('--warn').trim() || '#f6c54d';
+    const bad = styles.getPropertyValue('--bad').trim() || '#fb7185';
+    const good = styles.getPropertyValue('--good').trim() || '#34d399';
+    const accent = styles.getPropertyValue('--theme-color-2').trim() || warn;
+    if(kind === 'refill') return good;
+    if(kind === 'overtake') return accent;
+    if(kind === 'board') return bad;
+    return warn;
+  }
+
+  function makeHighlightMessages(length, highlights){
+    const messages = Array.from({ length }, () => '');
+    (highlights || []).forEach(h => {
+      if(Number.isInteger(h.index) && h.index >= 0 && h.index < length){
+        const message = h.message || h.summary || '';
+        messages[h.index] = messages[h.index] ? `${messages[h.index]} · ${message}` : message;
+      }
+    });
+    return messages;
+  }
+
+  function makeHighlightKinds(length, highlights){
+    const kinds = Array.from({ length }, () => '');
+    (highlights || []).forEach(h => {
+      if(Number.isInteger(h.index) && h.index >= 0 && h.index < length){
+        kinds[h.index] = h.kind || kinds[h.index] || 'moment';
+      }
+    });
+    return kinds;
+  }
+
+  function stylePointHighlights(dataset, normalBg, normalBorder, kind='moment'){
+    const messages = Array.isArray(dataset.highlightMessages) ? dataset.highlightMessages : [];
+    const kinds = Array.isArray(dataset.highlightKinds) ? dataset.highlightKinds : [];
+    const len = dataset.data?.length || messages.length || 0;
+    dataset.pointRadius = Array.from({ length:len }, (_, i) => messages[i] ? 8 : 4);
+    dataset.pointHoverRadius = Array.from({ length:len }, (_, i) => messages[i] ? 11 : 6);
+    dataset.pointBackgroundColor = Array.from({ length:len }, (_, i) => messages[i] ? chartHighlightPalette(kinds[i] || kind) : normalBg);
+    dataset.pointBorderColor = Array.from({ length:len }, (_, i) => messages[i] ? '#fff' : normalBorder);
+    dataset.pointBorderWidth = Array.from({ length:len }, (_, i) => messages[i] ? 3 : 1.5);
+    dataset._highlightKind = kind;
+    dataset._normalPointBg = normalBg;
+    dataset._normalPointBorder = normalBorder;
+    return dataset;
+  }
+
+  function styleBarHighlights(dataset, normalBg, normalBorder, kind='float'){
+    const messages = Array.isArray(dataset.highlightMessages) ? dataset.highlightMessages : [];
+    const alert = chartHighlightPalette(kind);
+    const len = dataset.data?.length || messages.length || 0;
+    dataset.backgroundColor = Array.from({ length:len }, (_, i) => messages[i] ? hexToRgba(alert, .88) : normalBg);
+    dataset.borderColor = Array.from({ length:len }, (_, i) => messages[i] ? '#fff' : normalBorder);
+    dataset.borderWidth = Array.from({ length:len }, (_, i) => messages[i] ? 2 : 1);
+    dataset._highlightKind = kind;
+    dataset._normalBarBg = normalBg;
+    dataset._normalBarBorder = normalBorder;
+    return dataset;
+  }
+
+  function restyleDatasetHighlights(dataset){
+    if(!dataset || !Array.isArray(dataset.highlightMessages) || !dataset.highlightMessages.some(Boolean)) return false;
+    if(dataset._normalBarBg !== undefined){
+      styleBarHighlights(dataset, dataset._normalBarBg, dataset._normalBarBorder || dataset._normalBarBg, dataset._highlightKind || 'float');
+      return true;
+    }
+    stylePointHighlights(dataset, dataset._normalPointBg || dataset.borderColor || '#fff', dataset._normalPointBorder || dataset.borderColor || '#fff', dataset._highlightKind || 'moment');
+    return true;
+  }
+
+  function detectLoreHighlights(rows){
+    const out = { mine:[], opponent:[] };
+    (rows || []).forEach((row, index) => {
+      if(index <= 0) return;
+      const prev = rows[index - 1] || {};
+      ['mine','opponent'].forEach(owner => {
+        const other = owner === 'mine' ? 'opponent' : 'mine';
+        const previousMine = n(prev?.[owner]);
+        const previousOther = n(prev?.[other]);
+        const currentMine = n(row?.[owner]);
+        const currentOther = n(row?.[other]);
+        const delta = currentMine - previousMine;
+
+        if(delta >= 5){
+          const label = owner === 'mine' ? 'vous gagnez' : 'l’adversaire gagne';
+          out[owner].push({
+            kind:'sprint', owner, index, turn:n(row.turn), delta,
+            message:`🔥 Accélération : ${label} +${delta} lore !`,
+            summary:`Tour ${n(row.turn)} : accélération de lore ${owner === 'mine' ? 'pour vous' : 'adverse'} (+${delta} lore)`
+          });
+        }
+
+        if(previousMine < previousOther && currentMine > currentOther){
+          out[owner].push({
+            kind:'overtake', owner, index, turn:n(row.turn), delta:currentMine - currentOther,
+            message:'⚔️ Overtake : reprise de l’avantage au score !',
+            summary:`Tour ${n(row.turn)} : ${owner === 'mine' ? 'vous passez devant au score' : 'l’adversaire reprend l’avantage au score'}`
+          });
+        }
+      });
+    });
+    return out;
+  }
+
+  function detectHandHighlights(rows, owner='mine'){
+    return (rows || []).map((row, index) => {
+      if(index <= 0) return null;
+      const prev = rows[index - 1] || {};
+      const delta = n(row?.handCount) - n(prev?.handCount);
+      if(delta < 3) return null;
+      return {
+        kind:'refill', owner, index, turn:n(row.turn), delta,
+        message:`📦 Second Souffle : main rechargée de +${delta} cartes !`,
+        summary:`Tour ${n(row.turn)} : second souffle ${owner === 'mine' ? 'pour vous' : 'côté adversaire'} (+${delta} cartes)`
+      };
+    }).filter(Boolean);
+  }
+
+  function detectBoardControlHighlights(rows){
+    return (rows || []).map((row, index) => {
+      const mineChallenges = n(row?.mineChallenge);
+      const opponentChallenges = n(row?.opponentChallenge);
+      const totalChallenges = n(row?.challenge);
+      const bestOwner = mineChallenges >= opponentChallenges ? 'mine' : 'opponent';
+      const bestValue = Math.max(mineChallenges, opponentChallenges, totalChallenges);
+      if(bestValue < 3) return null;
+      const owner = Math.max(mineChallenges, opponentChallenges) >= 3 ? bestOwner : 'both';
+      const ownerLabel = owner === 'mine' ? 'vous' : owner === 'opponent' ? 'l’adversaire' : 'la table';
+      return {
+        kind:'board', owner, index, turn:n(row.turn), delta:bestValue,
+        message:`⚔️ Nettoyage de board : ${bestValue} défis ce tour !`,
+        summary:`Tour ${n(row.turn)} : nettoyage de board par ${ownerLabel} (${bestValue} défis)`
+      };
+    }).filter(Boolean);
+  }
+
+  function actionContextForMoment(m, owner, turn, kind){
+    const source = Array.isArray(m?.timeline) ? m.timeline : (Array.isArray(m?.actions) ? m.actions : []);
+    const rows = source.filter(a => (owner === 'both' || a?.owner === owner) && n(a.turn) === n(turn));
+    let candidates = [];
+    if(kind === 'sprint' || kind === 'overtake') candidates = rows.filter(a => a.type === 'quest');
+    else if(kind === 'refill') candidates = rows.filter(a => a.type === 'play' || a.type === 'ability');
+    else if(kind === 'board') candidates = rows.filter(a => a.type === 'challenge');
+    else candidates = rows.filter(a => a.type === 'play' || a.type === 'ability');
+    const names = [...new Set(candidates.map(a => cleanCardName(a.cardName || a.title || '')).filter(name => name && name !== 'Carte inconnue' && !/^Résout un effet$/i.test(name)))];
+    if(!names.length) return '';
+    return ` · ${esc(names.slice(0, 2).join(' / '))}`;
+  }
+
+  function collectKeyMoments(m){
+    if(!m || isGlobalView()) return [];
+
+    // UX curation: the charts keep every highlight (sprint, refill, overtake, board),
+    // but the hero recap only keeps rare, narrative moments.
+    // No card names here: this block should be readable at a glance.
+    const lore = detectLoreHighlights(m.loreSeries || []);
+    const overtakes = [...(lore.mine || []), ...(lore.opponent || [])].filter(item => item.kind === 'overtake');
+    const refills = [
+      ...detectHandHighlights(m.proMetrics?.handByTurn || [], 'mine'),
+      ...detectHandHighlights(m.opponentProMetrics?.handByTurn || [], 'opponent')
+    ];
+
+    return [...overtakes, ...refills]
+      .sort((a,b) => n(a.turn) - n(b.turn) || ({ overtake:0, refill:1 }[a.kind] ?? 9) - ({ overtake:0, refill:1 }[b.kind] ?? 9))
+      .slice(0, 5);
+  }
+
+  function keyMomentText(moment){
+    const turn = `T${n(moment?.turn)}`;
+    const owner = moment?.owner;
+    if(moment?.kind === 'overtake'){
+      return owner === 'mine'
+        ? `${turn} · Vous reprenez l’avantage au score`
+        : `${turn} · L’adversaire reprend l’avantage`;
+    }
+    if(moment?.kind === 'refill'){
+      const delta = n(moment?.delta);
+      return owner === 'mine'
+        ? `${turn} · Main rechargée (+${delta} cartes)`
+        : `${turn} · Main adverse rechargée (+${delta} cartes)`;
+    }
+    return `${turn} · Moment clé détecté`;
+  }
+
+  function renderKeyMoments(m){
+    if(!els.keyMoments) return;
+    const moments = collectKeyMoments(m);
+    if(!moments.length){
+      els.keyMoments.hidden = true;
+      els.keyMoments.innerHTML = '';
+      return;
+    }
+    els.keyMoments.hidden = false;
+    els.keyMoments.innerHTML = `<div class="key-moments-title">Moments clés</div><div class="key-moment-list">${moments.map(moment => `<span class="key-moment key-moment-${escAttr(moment.kind)}">${esc(keyMomentText(moment))}</span>`).join('')}</div>`;
+  }
+
+  function chartColorAt(value, index){
+    return Array.isArray(value) ? (value[index] || value.find(Boolean) || '#fff') : (value || '#fff');
+  }
+
+  function renderLoreChart(rows){
+    const labels = rows.map(r=>`T${r.turn}`);
+    const mine = chartColorsForScope('mine');
+    const opponent = chartColorsForScope('opponent');
+    const highlights = detectLoreHighlights(rows);
+    const mineDataset = { label:'Vous', data:rows.map(r=>r.mine), tension:.35, borderWidth:3, borderColor:mine[0], backgroundColor:hexToRgba(mine[0], .13), highlightMessages:makeHighlightMessages(rows.length, highlights.mine), highlightKinds:makeHighlightKinds(rows.length, highlights.mine), fill:false };
+    const opponentDataset = { label:'Adversaire', data:rows.map(r=>r.opponent), tension:.35, borderWidth:3, borderColor:opponent[0], backgroundColor:hexToRgba(opponent[0], .11), highlightMessages:makeHighlightMessages(rows.length, highlights.opponent), highlightKinds:makeHighlightKinds(rows.length, highlights.opponent), fill:false };
+    stylePointHighlights(mineDataset, mine[0], mine[0], 'sprint');
+    stylePointHighlights(opponentDataset, opponent[0], opponent[0], 'sprint');
+    const datasets = [
+      mineDataset,
+      opponentDataset,
+      { label:'Ligne de victoire · 20 lore', data:rows.map(()=>20), borderColor:'rgba(251,113,133,.88)', borderDash:[8,8], borderWidth:2, pointRadius:0, pointHoverRadius:0, fill:false, tension:0 }
+    ];
+    charts.lore = chart(charts.lore, 'loreChart', 'line', { labels, datasets }, { scales:{ y:{ beginAtZero:true, suggestedMax:21 } } });
+    updateChartDataTable('loreChart', labels, datasets, 'Données du graphique de lore');
+  }
+  function renderActionChart(rows){
+    const labels = rows.map(r=>`T${r.turn}`);
+    const theme = cssThemeColors();
+    const boardHighlights = detectBoardControlHighlights(rows);
+    const challengeDataset = { label:'Défis', data:rows.map(r=>r.challenge), backgroundColor:hexToRgba(theme[1], .78), borderColor:hexToRgba(theme[1], .78), borderWidth:1, highlightMessages:makeHighlightMessages(rows.length, boardHighlights) };
+    styleBarHighlights(challengeDataset, hexToRgba(theme[1], .78), hexToRgba(theme[1], .78), 'board');
+    const datasets = [
+      { label:'Encrées', data:rows.map(r=>r.ink), backgroundColor:theme[1] },
+      { label:'Jouées', data:rows.map(r=>r.play), backgroundColor:theme[0] },
+      { label:'Quêtes', data:rows.map(r=>r.quest), backgroundColor:hexToRgba(theme[0], .78) },
+      challengeDataset
+    ];
+    charts.action = chart(charts.action, 'actionChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } } });
+    updateChartDataTable('actionChart', labels, datasets, 'Données du graphique des actions par tour');
+  }
+  function renderInkChart(rows){
+    const labels = rows.map(r=>`T${r.turn}`);
+    const theme = cssThemeColors();
+    const datasets = [
+      { label:'Encre dépensée', data:rows.map(r=>r.spent), backgroundColor:theme[0], borderColor:theme[0], borderWidth:1 },
+      { label:'Encre inutilisée', data:rows.map(r=>r.float), backgroundColor:theme[1], borderColor:theme[1], borderWidth:1 }
+    ];
+    charts.ink = chart(charts.ink, 'inkFloatChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 } } } });
+    updateChartDataTable('inkFloatChart', labels, datasets, 'Données du graphique d’économie d’encre');
+  }
+  function renderQuestChart(quest, challenge){
+    const total = n(quest) + n(challenge);
+    if(els.questChallengeCenter) els.questChallengeCenter.textContent = total ? `${pct(quest,total)}%` : '—';
+    const theme = cssThemeColors();
+    const labels = ['Quête','Défi'];
+    const datasets = [{ data:[n(quest), n(challenge)], backgroundColor:[theme[0], theme[1]], borderColor:['rgba(255,255,255,.18)','rgba(255,255,255,.18)'], borderWidth:1, hoverOffset:8 }];
+    charts.matrix = chart(charts.matrix, 'questChallengeChart', 'doughnut', { labels, datasets }, { cutout:'72%' });
+    updateChartDataTable('questChallengeChart', labels, datasets, 'Données du graphique quête contre défi');
+  }
+  function renderHandChart(rows){
+    const labels = rows.map(r=>`T${r.turn}`);
+    const theme = cssThemeColors();
+    const highlights = detectHandHighlights(rows, state.scope);
+    const handDataset = { label:'Cartes en main', data:rows.map(r=>r.handCount), tension:.35, borderWidth:3, borderColor:theme[0], backgroundColor:hexToRgba(theme[0], .16), highlightMessages:makeHighlightMessages(rows.length, highlights), fill:true };
+    stylePointHighlights(handDataset, theme[1], theme[0], 'refill');
+    const datasets = [handDataset];
+    charts.hand = chart(charts.hand, 'handCurveChart', 'line', { labels, datasets }, { scales:{ y:{ beginAtZero:true, suggestedMax:8, ticks:{ precision:0 } } } });
+    updateChartDataTable('handCurveChart', labels, datasets, 'Données du graphique de Card Advantage');
+  }
+
+  function chart(existing, id, type, data, options={}){
+    if(existing) existing.destroy();
+    const canvas = $(id); if(!canvas) return null;
+    const defaults = {
+      responsive:true,
+      maintainAspectRatio:false,
+      layout:{ padding:{ top:22, right:28, bottom:18, left:18 } },
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ labels:{ color:'#ececf0', usePointStyle:true, padding:18, font:{ size:12, weight:'700' } } },
+        tooltip:{ enabled:false, external:externalTooltipHandler }
+      },
+      scales:{
+        x:{ ticks:{ color:'#c9cad3', padding:8, font:{ size:12, weight:'700' } }, grid:{ color:'rgba(255,255,255,.075)' } },
+        y:{ ticks:{ color:'#c9cad3', padding:8, font:{ size:12, weight:'700' } }, grid:{ color:'rgba(255,255,255,.075)' }, grace:'8%' }
+      }
+    };
+    if(type === 'doughnut'){ delete defaults.scales; defaults.layout = { padding:{ top:10, right:10, bottom:10, left:10 } }; defaults.interaction = { mode:'nearest', intersect:true }; }
+    return new Chart(canvas, { type, data, options:deepMerge(defaults, options) });
+  }
+
+  function externalTooltipHandler(context){
+    const { chart, tooltip } = context;
+    let el = chart.canvas.parentNode.querySelector('.chart-tooltip');
+    if(!el){
+      el = document.createElement('div');
+      el.className = 'chart-tooltip';
+      chart.canvas.parentNode.appendChild(el);
+    }
+    if(tooltip.opacity === 0){ el.style.opacity = 0; return; }
+    const title = tooltip.title?.[0] || '';
+    const rows = tooltip.body?.map((body, i) => {
+      const item = tooltip.dataPoints[i];
+      const bg = item?.dataset?.backgroundColor;
+      const color = chartColorAt(item?.dataset?.borderColor, item?.dataIndex) || chartColorAt(bg, item?.dataIndex) || '#fff';
+      return `<div class="chart-tooltip-row"><span style="background:${escAttr(color)}"></span>${esc(body.lines.join(' '))}</div>`;
+    }).join('') || '';
+    const highlightRows = (tooltip.dataPoints || []).map(item => item?.dataset?.highlightMessages?.[item.dataIndex]).filter(Boolean).map(message => `<div class="chart-tooltip-row chart-tooltip-highlight"><span></span>${esc(message)}</div>`).join('');
+    el.innerHTML = `<div class="chart-tooltip-title">${esc(title)}</div>${rows}${highlightRows}`;
+    el.style.opacity = 1;
+    el.style.left = tooltip.caretX + 'px';
+    el.style.top = tooltip.caretY + 'px';
+  }
+
+  function updateChartDataTable(canvasId, labels, datasets, caption){
+    const canvas = $(canvasId); if(!canvas) return;
+    const old = canvas.parentNode.querySelector(`table[data-chart-table="${canvasId}"]`);
+    if(old) old.remove();
+    const table = document.createElement('table');
+    table.className = 'sr-only';
+    table.setAttribute('data-chart-table', canvasId);
+    table.setAttribute('aria-label', caption);
+    table.innerHTML = `<caption>${esc(caption)}</caption><thead><tr><th>Tour</th>${datasets.map(d=>`<th>${esc(d.label || 'Série')}</th>`).join('')}</tr></thead><tbody>${labels.map((label, i)=>`<tr><th>${esc(label)}</th>${datasets.map(d=>`<td>${esc(d.data?.[i] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    canvas.insertAdjacentElement('afterend', table);
+  }
+
+  function destroyCharts(){ Object.keys(charts).forEach(k => { if(charts[k]) charts[k].destroy(); charts[k]=null; }); }
+
+  function setTab(tab){
+    if(isGlobalView() && tab === 'timeline') tab = 'overview';
+    state.activeTab = tab;
+    const run = () => {
+      document.querySelectorAll('#analysisTabs [role="tab"]').forEach(btn => {
+        const active = btn.dataset.tab === tab;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        btn.tabIndex = active ? 0 : -1;
+      });
+      document.querySelectorAll('[role="tabpanel"]').forEach(sec => {
+        const active = sec.id === `tab-${tab}`;
+        sec.classList.toggle('active', active);
+        sec.hidden = !active;
+      });
+    };
+    if(document.startViewTransition) document.startViewTransition(run); else run();
+  }
+
+  function handleTabsKeydown(e){
+    const tabs = [...document.querySelectorAll('#analysisTabs [role="tab"]')].filter(tab => tab.offsetParent !== null && !tab.hidden);
+    const index = tabs.indexOf(document.activeElement);
+    if(index < 0) return;
+    let next = index;
+    if(e.key === 'ArrowRight') next = (index + 1) % tabs.length;
+    else if(e.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+    else if(e.key === 'Home') next = 0;
+    else if(e.key === 'End') next = tabs.length - 1;
+    else return;
+    e.preventDefault();
+    tabs[next].focus();
+    setTab(tabs[next].dataset.tab);
+  }
+  function setScope(scope){
+    state.scope = scope;
+    document.querySelectorAll('[data-scope]').forEach(b=>b.classList.toggle('active', b.dataset.scope === scope));
+    updateDynamicTheme(getWorkingData() || state.merged, scope);
+    renderStats();
+    syncChartsWithTheme(scope);
+  }
+  function setCardFilter(filter){ state.cardFilter = filter; document.querySelectorAll('[data-card-filter]').forEach(b=>b.classList.toggle('active', b.dataset.cardFilter === filter)); renderCards(); }
+
+  function handleModalKeydown(e){
+    if(!els.cardModal?.classList.contains('active')) return;
+    if(e.key === 'Escape'){ e.preventDefault(); closeCardModal(); return; }
+    if(e.key !== 'Tab') return;
+    const focusable = [...els.cardModal.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(el => !el.disabled && el.offsetParent !== null);
+    if(!focusable.length) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }
+
+  function buildInkProfiles(m){
+    return { mine:detectInkProfile(m, 'mine'), opponent:detectInkProfile(m, 'opponent') };
+  }
+
+  function detectInkProfile(m, scope){
+    const counts = {};
+    const cards = cardsForScope(m, scope);
+    cards.forEach(c => {
+      const colors = arrayify(c.colors?.length ? c.colors : c.color || c.ink || c.inkColor);
+      const stats = normalizeOwnerStats(c.ownerStats)[scope];
+      const weight = Math.max(1, n(stats.seen || c.seen) + n(stats.played || c.played) + n(stats.inked || c.inked) + n(stats.quest || c.quest));
+      (colors.length ? colors : ['inkless']).forEach(raw => {
+        const key = inkKey(raw);
+        if(key && key !== 'inkless') counts[key] = (counts[key] || 0) + weight;
+      });
+    });
+    const inks = Object.entries(counts)
+      .sort((a,b) => b[1] - a[1] || inkLabel(a[0]).localeCompare(inkLabel(b[0]), 'fr'))
+      .slice(0, 2)
+      .map(([key]) => key);
+    return { inks, label:inkPairLabel(inks), colors:inks.map(key => INK_COLORS[key] || INK_COLORS.inkless), counts };
+  }
+
+  function inkPairLabel(inks){
+    return inks?.length ? inks.map(inkLabel).join(' / ') : 'Encres non détectées';
+  }
+
+  function formatMatchupLabel(profiles){
+    return `${profiles?.mine?.label || 'Encres non détectées'} vs ${profiles?.opponent?.label || 'Encres non détectées'}`;
+  }
+
+  function inkPairHtml(profile){
+    const inks = profile?.inks?.length ? profile.inks : ['inkless'];
+    const dots = inks.map(key => `<i class="ink-dot ink-${escAttr(key)}"></i>`).join('');
+    return `<b class="ink-pair">${dots}<span>${esc(profile?.label || 'Encres non détectées')}</span></b>`;
+  }
+
+  function updateDynamicTheme(m, scope='mine'){
+    if(m){
+      state.themes.mine = detectInkTheme(m, 'mine');
+      state.themes.opponent = detectInkTheme(m, 'opponent');
+    }
+    const colors = getThemeColors(scope);
+    const root = document.documentElement;
+    root.style.setProperty('--theme-color-1', colors[0]);
+    root.style.setProperty('--theme-color-2', colors[1]);
+    root.style.setProperty('--aura-one', colors[0]);
+    root.style.setProperty('--aura-two', colors[1]);
+    root.style.setProperty('--blue', colors[0]);
+    root.style.setProperty('--warn', colors[1]);
+    root.dataset.themeScope = scope;
+  }
+
+  function detectInkTheme(m, scope){
+    const profile = detectInkProfile(m, scope);
+    const dominant = profile.inks || [];
+    const first = INK_COLORS[dominant[0]] || (scope === 'opponent' ? INK_COLORS.ruby : INK_COLORS.sapphire);
+    const second = dominant[1] ? INK_COLORS[dominant[1]] : (dominant[0] ? INK_COLORS.inkless : (scope === 'opponent' ? INK_COLORS.amethyst : INK_COLORS.amber));
+    return [first, second];
+  }
+
+  function getThemeColors(scope=state.scope){
+    const pair = state.themes?.[scope] || state.themes?.mine || [INK_COLORS.sapphire, INK_COLORS.amber];
+    return [pair[0] || INK_COLORS.sapphire, pair[1] || pair[0] || INK_COLORS.amber];
+  }
+
+  function syncChartsWithTheme(scope=state.scope){
+    const theme = cssThemeColors();
+    if(charts.lore){
+      const mine = chartColorsForScope('mine');
+      const opponent = chartColorsForScope('opponent');
+      const ds = charts.lore.data.datasets || [];
+      if(ds[0]){ ds[0].borderColor = mine[0]; ds[0].backgroundColor = hexToRgba(mine[0], .13); }
+      if(ds[1]){ ds[1].borderColor = opponent[0]; ds[1].backgroundColor = hexToRgba(opponent[0], .11); }
+      charts.lore.update('active');
+    }
+    if(charts.action){
+      const ds = charts.action.data.datasets || [];
+      if(ds[0]) ds[0].backgroundColor = theme[1];
+      if(ds[1]) ds[1].backgroundColor = theme[0];
+      if(ds[2]) ds[2].backgroundColor = hexToRgba(theme[0], .78);
+      if(ds[3]) ds[3].backgroundColor = hexToRgba(theme[1], .78);
+      charts.action.update('active');
+    }
+    if(charts.ink){
+      const ds = charts.ink.data.datasets || [];
+      if(ds[0]){ ds[0].backgroundColor = theme[0]; ds[0].borderColor = theme[0]; }
+      if(ds[1]){
+        ds[1]._normalBarBg = theme[1];
+        ds[1]._normalBarBorder = theme[1];
+        if(!restyleDatasetHighlights(ds[1])){ ds[1].backgroundColor = theme[1]; ds[1].borderColor = theme[1]; }
+      }
+      charts.ink.update('active');
+    }
+    if(charts.matrix){
+      const ds = charts.matrix.data.datasets?.[0];
+      if(ds) ds.backgroundColor = [theme[0], theme[1]];
+      charts.matrix.update('active');
+    }
+    if(charts.hand){
+      const ds = charts.hand.data.datasets?.[0];
+      if(ds){
+        ds.borderColor = theme[0];
+        ds.backgroundColor = hexToRgba(theme[0], .16);
+        ds._normalPointBg = theme[1];
+        ds._normalPointBorder = theme[0];
+        if(!restyleDatasetHighlights(ds)){
+          ds.pointBackgroundColor = theme[1];
+          ds.pointBorderColor = theme[0];
+        }
+      }
+      charts.hand.update('active');
+    }
+  }
+
+  function updateChartSummary(id, text){ const el = $(id); if(el) el.textContent = text; }
+  function summarizeLore(rows){
+    if(!rows?.length) return 'Aucune donnée de lore à afficher.';
+    const last = rows[rows.length-1];
+    const highlights = detectLoreHighlights(rows);
+    const all = [...highlights.mine, ...highlights.opponent];
+    const overtake = all.find(h => h.kind === 'overtake' && h.owner === 'mine') || all.find(h => h.kind === 'overtake');
+    const sprint = all.filter(h => h.kind === 'sprint').sort((a,b)=>b.delta-a.delta)[0];
+    const suffix = overtake ? ` Overtake détecté au tour ${overtake.turn}.` : sprint ? ` Accélération détectée au tour ${sprint.turn} : +${sprint.delta} lore ${sprint.owner === 'mine' ? 'pour vous' : 'adverse'}.` : '';
+    return `Résumé du graphique : vous terminez à ${n(last.mine)} lore contre ${n(last.opponent)} pour l’adversaire au tour ${last.turn}.${suffix}`;
+  }
+  function summarizeActions(rows){
+    if(!rows?.length) return 'Aucune action à afficher.';
+    const board = detectBoardControlHighlights(rows).sort((a,b)=>b.delta-a.delta)[0];
+    const suffix = board ? ` Nettoyage de board détecté au tour ${board.turn} (${board.delta} défis).` : '';
+    return `Résumé du graphique : ${sum(rows,'ink')} carte(s) encrée(s), ${sum(rows,'play')} carte(s) jouée(s), ${sum(rows,'quest')} quête(s) et ${sum(rows,'challenge')} défi(s).${suffix}`;
+  }
+  function summarizeInk(rows){
+    if(!rows?.length) return 'Aucune donnée d’économie d’encre à afficher.';
+    const peak = [...rows].sort((a,b)=>b.float-a.float)[0];
+    return peak ? `Résumé du graphique : ${round1(sum(rows,'float'))} encre inutilisée au total, pic au tour ${peak.turn} avec ${round1(peak.float)}.` : 'Aucune encre inutilisée détectée.';
+  }
+  function summarizeQuest(quest, challenge){ const total = n(quest)+n(challenge); return total ? `Résumé du graphique : ${pct(quest,total)}% quête, avec ${quest} quête(s) et ${challenge} défi(s).` : 'Aucune quête ou défi détecté.'; }
+  function summarizeHand(rows){
+    if(!rows?.length) return 'Aucune donnée de main à afficher.';
+    const critical = rows.filter(r=>n(r.handCount)<=1).length;
+    const refill = detectHandHighlights(rows, state.scope).sort((a,b)=>b.delta-a.delta)[0];
+    const suffix = refill ? ` Second souffle détecté au tour ${refill.turn} : +${refill.delta} cartes en main.` : '';
+    return `Résumé du graphique : ${critical} tour(s) critique(s) terminés avec 0 ou 1 carte en main.${suffix}`;
+  }
+
+  function applyPatch(obj, patch){
+    const parts = pointerParts(patch.path); if(!parts.length) return;
+    let parent = obj;
+    for(let i=0;i<parts.length-1;i++){ const k=parts[i]; if(parent[k] === undefined) parent[k] = /^\d+$/.test(parts[i+1]) ? [] : {}; parent = parent[k]; if(parent == null) return; }
+    const key = parts[parts.length-1];
+    if(Array.isArray(parent)){
+      const idx = key === '-' ? parent.length : Number(key);
+      if(patch.op === 'add') parent.splice(idx, 0, patch.value);
+      else if(patch.op === 'remove') parent.splice(idx, 1);
+      else if(patch.op === 'replace') parent[idx] = patch.value;
+    }else{
+      if(patch.op === 'remove') delete parent[key];
+      else parent[key] = patch.value;
+    }
+  }
+  function pointerParts(path){ return String(path||'').split('/').slice(1).map(p => p.replace(/~1/g,'/').replace(/~0/g,'~')); }
+  function zoneStats(snapshot, zoneKey){
+    const z = snapshot?.[zoneKey] || {};
+    const hand = Array.isArray(z.hand) ? z.hand.length : n(z.handCount);
+    const inkArr = Array.isArray(z.inkwell) ? z.inkwell : [];
+    const ink = inkArr.length || n(z.inkwellCount);
+    const exerted = inkArr.reduce((count, card) => count + ((card?.exerted || card?.card?.exerted) ? 1 : 0), 0);
+    return { hand, ink, exerted, lore:n(z.lore) };
+  }
+  function buildActionSeries(map){ return [...map.values()].sort((a,b)=>a.turn-b.turn); }
+
+  function isUsableImageUrl(value){
+    return typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+  }
+
+  function firstImageUrl(values){
+    for(const value of values.flat(Infinity)){
+      if(isUsableImageUrl(value)) return value.trim();
+    }
+    return '';
+  }
+
+  function getCardImage(rawInput, preferred='normal'){
+    const raw = rawInput?.card && typeof rawInput.card === 'object' ? { ...rawInput.card, ...rawInput } : (rawInput || {});
+    const fr = raw.translations?.fr || {};
+    const en = raw.translations?.en || {};
+    const direct = preferred === 'small'
+      ? [raw.imageSmallUrl, raw.image_small, raw.imageSmall, raw.smallImageUrl, raw.thumbnailUrl, raw.thumbnail, raw.imageUrl, raw.image, fr.imageSmallUrl, fr.imageUrl, en.imageSmallUrl, en.imageUrl]
+      : [raw.imageLargeUrl, raw.imageNormalUrl, raw.imageUrl, raw.image, raw.imageFullUrl, raw.fullImageUrl, fr.imageUrl, en.imageUrl, raw.imageSmallUrl, raw.imageSmall];
+    const uris = raw.image_uris || raw.imageUris || raw.images || raw.imageUrls || {};
+    const digital = uris.digital || uris.digital_image || uris.digitalImages || raw.digital || {};
+    const faces = Array.isArray(raw.card_faces) ? raw.card_faces : [];
+    const preferredUris = preferred === 'small'
+      ? [digital.small, uris.small, digital.normal, uris.normal, digital.large, uris.large, digital.full, uris.full]
+      : [digital.normal, uris.normal, digital.large, uris.large, digital.full, uris.full, digital.small, uris.small];
+    return firstImageUrl([direct, preferredUris, faces.map(face => getCardImage(face, preferred))]);
+  }
+
+  function formatCardText(text){
+    const source = cleanSymbols(text || '');
+    return source.split(/\n+/).map(line => {
+      let html = esc(line.trim());
+      html = html.replace(/^([A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆ0-9'’\- ]{3,})(?=\s+(?:[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆ][a-zà-ÿ]|[a-zà-ÿ]))/u, '<span class="ability-name">$1</span>');
+      html = html.replace(/\b(Shift|Evasive|Challenger|Resist|Rush|Ward|Support|Bodyguard|Singer|Vanish|Reckless|Sing Together)\b/gi, '<span class="keyword-badge">$1</span>');
+      return `<p>${html}</p>`;
+    }).join('');
+  }
+  function cleanSymbols(t){ return String(t).replace(/\[INKCOST\]|\{I\}/g,'⬡').replace(/\[EXERT\]|\{E\}/g,'↷').replace(/\[STRENGTH\]/g,'¤').replace(/\s{2,}/g,' '); }
+  function abilityText(c){ return (c.specialAbilities || []).map(a => `${a.name || ''} ${a.effect || ''}`).join('\n'); }
+  function fullName(c){ return c.fullName || [c.name, c.version].filter(Boolean).join(' - ') || c.cardName || 'Carte inconnue'; }
+  function cardKey(c){ return slug(c.id || fullName(c)); }
+  function slug(v){ return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+  function esc(v){ return String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+  function escAttr(v){ return String(v ?? '').replace(/["'<>]/g, ''); }
+  function n(v){ const x=Number(v); return Number.isFinite(x) ? x : 0; }
+  function nullable(v){ const x=Number(v); return Number.isFinite(x) ? x : null; }
+  function boolValue(v){ if(v === true || v === false) return v; if(String(v).toLowerCase() === 'true') return true; if(String(v).toLowerCase() === 'false') return false; return null; }
+  function arrayify(v){ if(Array.isArray(v)) return v.filter(x=>x!==null&&x!==undefined&&String(x).trim()!==''); if(v===undefined||v===null||v==='') return []; return String(v).split(/\s*[,/·]\s*/).filter(Boolean); }
+  function strip0(v){ return String(v ?? '').trim().replace(/^0+/, '') || String(v ?? '').trim(); }
+  function normalizeSetCode(v){ const raw=String(v||'').trim().toUpperCase(); return raw ? ({ FC:'TFC', SHS:'SSK', WITW:'WHW', WIS:'WIN', WUN:'WIL' }[raw] || raw) : ''; }
+  function setLabel(c){ const code = c.setCode || c.setCodes?.[0] || ''; return code ? `${code} — ${SET_LABELS[code] || code}` : ''; }
+  function inkLabel(v){ return INK_FR[v] || v || ''; }
+  function rarityLabel(v){ const raw=String(v||''); return RARITY_FR[raw] || RARITY_FR[raw.toLowerCase()] || raw; }
+  function typeLabel(v){ if(Array.isArray(v)) return v.map(typeLabel).join(' · '); return TYPE_FR[v] || TYPE_FR[String(v||'').toLowerCase()] || v || '—'; }
+  function inkKey(v){
+    const raw=String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if(raw.includes('amber') || raw.includes('ambre')) return 'amber';
+    if(raw.includes('amethyst') || raw.includes('amet')) return 'amethyst';
+    if(raw.includes('emerald') || raw.includes('emeraude')) return 'emerald';
+    if(raw.includes('ruby') || raw.includes('rubis')) return 'ruby';
+    if(raw.includes('sapphire') || raw.includes('saphir')) return 'sapphire';
+    if(raw.includes('steel') || raw.includes('acier')) return 'steel';
+    return 'inkless';
+  }
+  function sum(arr, key){ return arr.reduce((s,x)=>s+n(x[key]),0); }
+  function mean(arr){ const a=arr.map(n).filter(Number.isFinite); return a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0; }
+  function pct(a,b){ return b ? Math.round(n(a)/n(b)*100) : 0; }
+  function round1(v){ const x=n(v); return Math.round(x*10)/10; }
+  function hexToRgba(hex, alpha=.16){
+    const clean = String(hex || '').trim().replace('#','');
+    const full = clean.length === 3 ? clean.split('').map(ch => ch + ch).join('') : clean;
+    const value = /^([0-9a-f]{6})$/i.test(full) ? full : '2f8bd9';
+    const r = parseInt(value.slice(0,2), 16);
+    const g = parseInt(value.slice(2,4), 16);
+    const b = parseInt(value.slice(4,6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  function formatBytes(bytes){ const units=['B','KB','MB']; let v=n(bytes), i=0; while(v>=1024&&i<units.length-1){v/=1024;i++;} return `${v.toFixed(v>=10||i===0?0:1)} ${units[i]}`; }
+  function deepClone(obj){ return JSON.parse(JSON.stringify(obj || {})); }
+  function deepMerge(a,b){ const out={...a}; for(const [k,v] of Object.entries(b||{})){ out[k] = v && typeof v==='object' && !Array.isArray(v) ? deepMerge(out[k]||{}, v) : v; } return out; }
+})();
+// =========================================================
+// Auth UI · Supabase
+// Version intégrée, sans fermeture accidentelle au clic extérieur
+// =========================================================
+
+function initAuthUI() {
+  const authToggle = document.getElementById('authToggle');
+  const authClose = document.getElementById('authClose');
+  const authPanel = document.getElementById('authPanel');
+
+  const authLoggedOut = document.getElementById('authLoggedOut');
+  const authLoggedIn = document.getElementById('authLoggedIn');
+
+  const authPillLabel = document.getElementById('authPillLabel');
+  const authPillState = document.getElementById('authPillState');
+
+  const emailInput = document.getElementById('authEmail');
+  const passwordInput = document.getElementById('authPassword');
+
+  const btnDiscordLogin = document.getElementById('btnDiscordLogin');
+  const btnLogin = document.getElementById('btnLogin');
+  const btnSignup = document.getElementById('btnSignup');
+  const btnLogout = document.getElementById('btnLogout');
+
+  const userDisplay = document.getElementById('userDisplay');
+  const authMessage = document.getElementById('authMessage');
+
+  if (!authToggle || !authPanel) return;
+
+  function openPanel() {
+    authPanel.classList.remove('auth-hidden');
+    authPanel.setAttribute('aria-hidden', 'false');
+    authToggle.setAttribute('aria-expanded', 'true');
+  }
+
+  function closePanel() {
+    authPanel.classList.add('auth-hidden');
+    authPanel.setAttribute('aria-hidden', 'true');
+    authToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  function togglePanel() {
+    if (authPanel.classList.contains('auth-hidden')) openPanel();
+    else closePanel();
+  }
+
+  function setMessage(text = '', type = '') {
+    if (!authMessage) return;
+
+    authMessage.textContent = text;
+    authMessage.classList.remove('is-error', 'is-success');
+
+    if (type === 'error') authMessage.classList.add('is-error');
+    if (type === 'success') authMessage.classList.add('is-success');
+  }
+
+  function setLoading(isLoading) {
+    [btnDiscordLogin, btnLogin, btnSignup, btnLogout].forEach((button) => {
+      if (!button) return;
+      button.disabled = isLoading;
+      button.style.opacity = isLoading ? '0.65' : '';
+      button.style.cursor = isLoading ? 'wait' : '';
+    });
+  }
+
+  function getUserLabel(user) {
+    const meta = user?.user_metadata || {};
+    return (
+      meta.full_name ||
+      meta.global_name ||
+      meta.name ||
+      meta.user_name ||
+      meta.preferred_username ||
+      meta.custom_claims?.global_name ||
+      user?.email ||
+      'Compte connecté'
+    );
+  }
+
+  function getLoginProviderLabel(user) {
+    const provider = user?.app_metadata?.provider;
+    if (provider === 'discord') return 'Connecté avec Discord';
+    if (provider === 'email') return 'Connecté par email';
+    return 'Compte connecté';
+  }
+
+  function updateAuthUI(user) {
+    const isLoggedIn = Boolean(user);
+    const accountProfileTitle = document.getElementById('accountProfileTitle');
+    const accountProfileText = document.getElementById('accountProfileText');
+
+    authLoggedOut?.classList.toggle('auth-hidden', isLoggedIn);
+    authLoggedIn?.classList.toggle('auth-hidden', !isLoggedIn);
+
+    authToggle.classList.toggle('is-online', isLoggedIn);
+
+    if (authPillLabel) {
+      authPillLabel.textContent = isLoggedIn ? 'Compte' : 'Connexion';
+    }
+
+    if (authPillState) {
+      authPillState.textContent = isLoggedIn ? 'Connecté' : 'Compte';
+    }
+
+    if (userDisplay) {
+      userDisplay.textContent = getUserLabel(user);
+    }
+
+    if (accountProfileTitle) {
+      accountProfileTitle.textContent = isLoggedIn ? 'Compte connecté' : 'Non connecté';
+    }
+
+    if (accountProfileText) {
+      accountProfileText.textContent = isLoggedIn
+        ? `${getLoginProviderLabel(user)} · ${getUserLabel(user)}.`
+        : 'Connectez-vous pour associer vos analyses à un compte.';
+    }
+
+    if (isLoggedIn && emailInput && passwordInput) {
+      emailInput.value = '';
+      passwordInput.value = '';
+    }
+  }
+
+  async function handleDiscordLogin() {
+    try {
+      setLoading(true);
+      setMessage('Redirection vers Discord…');
+      await signInWithDiscord();
+    } catch (err) {
+      setMessage(`Erreur Discord : ${err.message}`, 'error');
+      setLoading(false);
+    }
+  }
+
+  async function handleSignup() {
+    const email = emailInput?.value.trim();
+    const password = passwordInput?.value;
+
+    if (!email || !password) {
+      setMessage('Veuillez remplir les deux champs.', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage('Création du compte…');
+
+      await signUpUser(email, password);
+
+      setMessage(
+        'Compte créé. Vérifiez votre email pour confirmer votre accès.',
+        'success'
+      );
+    } catch (err) {
+      setMessage(`Erreur d’inscription : ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleLogin() {
+    const email = emailInput?.value.trim();
+    const password = passwordInput?.value;
+
+    if (!email || !password) {
+      setMessage('Veuillez remplir les deux champs.', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage('Connexion en cours…');
+
+      const data = await signInUser(email, password);
+
+      updateAuthUI(data.user);
+      setMessage('');
+      closePanel();
+    } catch (err) {
+      setMessage(`Erreur de connexion : ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      setLoading(true);
+      await signOutUser();
+
+      updateAuthUI(null);
+      setMessage('');
+      closePanel();
+    } catch (err) {
+      setMessage(`Erreur : ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  authToggle.addEventListener('click', togglePanel);
+  authClose?.addEventListener('click', closePanel);
+
+  btnDiscordLogin?.addEventListener('click', handleDiscordLogin);
+  btnSignup?.addEventListener('click', handleSignup);
+  btnLogin?.addEventListener('click', handleLogin);
+  btnLogout?.addEventListener('click', handleLogout);
+
+  [emailInput, passwordInput].forEach((input) => {
+    input?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') handleLogin();
+      if (event.key === 'Escape') closePanel();
+    });
+  });
+
+  getCurrentUser()
+    .then(updateAuthUI)
+    .catch(() => updateAuthUI(null));
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    updateAuthUI(session?.user ?? null);
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAuthUI);
+} else {
+  initAuthUI();
+}
+
+
+// =========================================================
+// App Shell · Navigation Analyse / Performances / Compte
+// =========================================================
+
+function initAppShell() {
+  const viewButtons = [...document.querySelectorAll('[data-app-view]')];
+  const appPanels = [...document.querySelectorAll('[data-app-panel]')];
+  const perfButtons = [...document.querySelectorAll('[data-performance-view]')];
+  const perfPanels = [...document.querySelectorAll('[data-performance-panel]')];
+  const authPanel = document.getElementById('authPanel');
+  const authToggle = document.getElementById('authToggle');
+
+  function closeAuthPanel() {
+    if (!authPanel || !authToggle) return;
+    authPanel.classList.add('auth-hidden');
+    authPanel.setAttribute('aria-hidden', 'true');
+    authToggle.setAttribute('aria-expanded', 'false');
+  }
+
+  function setPerformanceView(view = 'stats') {
+    const next = view === 'history' ? 'history' : 'stats';
+
+    perfButtons.forEach((button) => {
+      const active = button.dataset.performanceView === next;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    perfPanels.forEach((panel) => {
+      const active = panel.dataset.performancePanel === next;
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+  }
+
+  function setAppView(view = 'analysis', options = {}) {
+    const next = ['analysis', 'performances', 'account'].includes(view) ? view : 'analysis';
+
+    appPanels.forEach((panel) => {
+      const active = panel.dataset.appPanel === next;
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+
+    document.querySelectorAll('.app-nav-button[data-app-view]').forEach((button) => {
+      const active = button.dataset.appView === next;
+      button.classList.toggle('active', active);
+      if (active) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+
+    document.body.dataset.appView = next;
+
+    if (next === 'performances') {
+      setPerformanceView(options.perfView || 'stats');
+    }
+
+    if (!options.silent) {
+      closeAuthPanel();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  viewButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setAppView(button.dataset.appView, {
+        perfView: button.dataset.perfView || button.dataset.performanceView || 'stats',
+      });
+    });
+  });
+
+  perfButtons.forEach((button) => {
+    button.addEventListener('click', () => setPerformanceView(button.dataset.performanceView));
+  });
+
+  setAppView('analysis', { silent: true });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAppShell);
+} else {
+  initAppShell();
+}

@@ -1,0 +1,8503 @@
+import './style.css';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatches, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles } from './supabase.js';
+
+(() => {
+  'use strict';
+
+  const LOCAL_CARD_DATA_URL = '/lorcana-cards-import-ready.json';
+  const MAX_FILES = 20;
+  const SET_NUM_TO_CODE = { '1':'TFC', '2':'ROTF', '3':'ITI', '4':'URR', '5':'SSK', '6':'AZS', '7':'ARI', '8':'ROJ', '9':'FAB', '10':'WHW', '11':'WIN', '12':'WIL', '13':'SET13', '14':'SET14' };
+  const SET_CODE_TO_NUM = Object.fromEntries(Object.entries(SET_NUM_TO_CODE).map(([n,c]) => [c,n]));
+  Object.assign(SET_CODE_TO_NUM, { FC:'1', TFC:'1', SHS:'5', WITW:'10', WIS:'11', WUN:'12' });
+  const SET_LABELS = { TFC:'Premier Chapitre', FC:'Premier Chapitre', ROTF:'L’Ascension des Floodborn', ITI:'Les Terres d’Encres', URR:'Le Retour d’Ursula', SSK:'Ciel Scintillant', AZS:'La Mer Azurite', ARI:'L’Île d’Archazia', ROJ:'Le Règne de Jafar', FAB:'Fabuleux', WHW:'Lueurs dans les Profondeurs', WIN:'Givresort', WIL:'Contrées Inconnues', SET13:'Invasion Épineuse !', SET14:'Hyperia City', P1:'Cartes Promo — Année 1', P2:'Cartes Promo — Année 2', P3:'Cartes Promo — Année 3' };
+  const INK_FR = { amber:'Ambre', amethyst:'Améthyste', emerald:'Émeraude', ruby:'Rubis', sapphire:'Saphir', steel:'Acier', Amber:'Ambre', Amethyst:'Améthyste', Emerald:'Émeraude', Ruby:'Rubis', Sapphire:'Saphir', Steel:'Acier', 'Dual Ink':'Double encre' };
+  const RARITY_FR = { common:'Commune', uncommon:'Inhabituelle', rare:'Rare', 'super rare':'Très rare', super_rare:'Très rare', legendary:'Légendaire', enchanted:'Enchantée', iconic:'Iconique', promo:'Promo', Common:'Commune', Uncommon:'Inhabituelle', Rare:'Rare', Legendary:'Légendaire', Enchanted:'Enchantée', Iconic:'Iconique', Promo:'Promo' };
+  const TYPE_FR = { character:'Personnage', action:'Action', song:'Chanson', item:'Objet', location:'Lieu', Character:'Personnage', Action:'Action', Item:'Objet', Location:'Lieu' };
+  const INK_COLORS = { amber:'#f6c54d', amethyst:'#8b5cc7', emerald:'#34d399', ruby:'#fb7185', sapphire:'#2f8bd9', steel:'#9ca3af', inkless:'#63636d' };
+  const GAME_ACTIONS = new Set(['ADD_TO_INK','PLAY_CARD','QUEST','CHALLENGE','ATTACK','END_TURN','MOVE_TO_LOCATION','ACTIVATE_ABILITY','RESPOND_TO_PROMPT']);
+  const $ = id => document.getElementById(id);
+  const els = {};
+  const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, performanceLore:null, performanceAction:null };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0 };
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  function init(){
+    collectEls();
+    bindUI();
+    initSaveIntegration();
+    scheduleLocalCardLoad();
+  }
+
+  function collectEls(){
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','quickInsights','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceResultPills','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyResultPills','historyFormatFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
+  }
+
+  function bindUI(){
+    const updatePointerAura = e => {
+      const x = Math.max(0, Math.min(100, (e.clientX / Math.max(1, window.innerWidth)) * 100));
+      const y = Math.max(0, Math.min(100, (e.clientY / Math.max(1, window.innerHeight)) * 100));
+      document.documentElement.style.setProperty('--mx', `${x.toFixed(2)}%`);
+      document.documentElement.style.setProperty('--my', `${y.toFixed(2)}%`);
+    };
+    const finePointer = window.matchMedia?.('(pointer:fine)')?.matches !== false;
+    if(finePointer){
+      document.addEventListener('mousemove', updatePointerAura, { passive:true });
+      document.addEventListener('pointermove', event => {
+        if(event.pointerType && event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
+        updatePointerAura(event);
+      }, { passive:true });
+    }
+
+    els.browseButton?.addEventListener('click', () => els.fileInput.click());
+    els.dropzone?.addEventListener('click', e => { if(e.target !== els.browseButton) els.fileInput.click(); });
+    els.dropzone?.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); els.fileInput.click(); } });
+    els.fileInput?.addEventListener('change', e => handleFiles([...e.target.files]));
+    ['dragenter','dragover'].forEach(type => els.dropzone?.addEventListener(type, e => { e.preventDefault(); els.dropzone.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(type => els.dropzone?.addEventListener(type, e => { e.preventDefault(); els.dropzone.classList.remove('dragover'); }));
+    els.dropzone?.addEventListener('drop', e => handleFiles([...e.dataTransfer.files]));
+    els.clearButton?.addEventListener('click', () => { clearReplays(); setTab('overview'); });
+    els.bulkSaveAllButton?.addEventListener('click', saveBulkQueue);
+    els.bulkImportMoreButton?.addEventListener('click', () => { if(els.fileInput){ els.fileInput.value = ''; els.fileInput.click(); } });
+    els.bulkClearButton?.addEventListener('click', clearBulkQueue);
+
+    document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
+    els.analysisTabs?.addEventListener('keydown', handleTabsKeydown);
+    document.querySelectorAll('[data-scope]').forEach(btn => btn.addEventListener('click', () => setScope(btn.dataset.scope)));
+    document.querySelectorAll('[data-card-filter]').forEach(btn => btn.addEventListener('click', () => setCardFilter(btn.dataset.cardFilter)));
+    [els.topQuestersSort, els.mostInkedSort, els.playTimingSort, els.challengeSort, els.timelineFilter].forEach(el => el?.addEventListener('change', renderAll));
+    els.closeModal?.addEventListener('click', closeCardModal);
+    els.mulliganButton?.addEventListener('click', toggleMulliganResolution);
+    els.saveAnalysisButton?.addEventListener('click', saveCurrentAnalysis);
+    els.historyRefreshButton?.addEventListener('click', () => refreshSavedMatches({ force:true }));
+    els.deckManagerRefresh?.addEventListener('click', async () => { await refreshDeckProfiles({ force:true, silent:true }); await refreshSavedMatches({ force:true, silent:true }); renderAccountPage(); });
+    [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
+    document.addEventListener('click', handlePerformanceFilterClick);
+    document.addEventListener('click', handleAccountDeckManagerClick);
+    document.addEventListener('click', handlePerformanceSortClick);
+    document.addEventListener('click', handleMulliganLabFilterClick);
+    document.addEventListener('click', handleResponsiveFilterToggle);
+    document.addEventListener('click', handleBulkQueueClick);
+    document.addEventListener('click', handlePostImportCleanupClick);
+    document.addEventListener('click', handlePerformanceDetailClick);
+    document.addEventListener('click', handlePerformanceListModalClick);
+    document.addEventListener('click', handleDataMaintenanceClick);
+    document.addEventListener('click', handleInfoDotClick);
+    [els.saveDeckSelect, els.saveDeckNameInput].forEach(el => el?.addEventListener('input', () => syncSaveButton()));
+    document.querySelectorAll('[data-app-view="performances"], [data-performance-view]').forEach(btn => btn.addEventListener('click', () => refreshSavedMatches({ silent:true })));
+    els.cardModal?.addEventListener('click', e => { if(e.target === els.cardModal) closeCardModal(); });
+    document.addEventListener('keydown', handleModalKeydown);
+  }
+
+  function setApiStatus(text, mode='loading'){
+    if(!els.apiBadge) return;
+    els.apiBadge.classList.toggle('ready', mode === 'ready');
+    els.apiBadge.classList.toggle('error', mode === 'error');
+    els.apiBadge.innerHTML = `<span></span>${esc(text)}`;
+  }
+
+  async function loadLocalCards(){
+    setApiStatus('Base locale · chargement…');
+    try{
+      const res = await fetch(LOCAL_CARD_DATA_URL, { cache:'no-store' });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+      state.cards = Array.isArray(payload) ? payload : (payload.cards || []);
+      buildCardIndex();
+      setApiStatus(`Base locale prête · ${state.cards.length} cartes`, 'ready');
+    }catch(err){
+      console.warn(err);
+      setApiStatus('Base locale introuvable', 'error');
+    }
+  }
+
+  function scheduleLocalCardLoad(){
+    setApiStatus('Base locale · prête au chargement…');
+    const start = () => {
+      if(!state.cardLoadPromise) state.cardLoadPromise = loadLocalCards();
+    };
+    if('requestIdleCallback' in window) window.requestIdleCallback(start, { timeout:1800 });
+    else window.setTimeout(start, 900);
+  }
+
+  async function ensureLocalCardsLoaded(){
+    if(state.cards?.length && state.index?.size) return;
+    if(!state.cardLoadPromise) state.cardLoadPromise = loadLocalCards();
+    await state.cardLoadPromise;
+  }
+
+  function buildCardIndex(){
+    state.index.clear();
+    for(const raw of state.cards){
+      const card = normalizeLocalCard(raw);
+      const keys = new Set(cardReferenceKeys(card));
+      keys.add(slug(`${card.name} ${card.version}`));
+
+      // V41: index set/number pairs without creating false cross-products.
+      // Some local rows represent reprints: set="TFC\nFAB" and number="161\n163".
+      // The old code paired every set with every number, causing TFC-161 to match the wrong card.
+      alignedPrintReferenceKeys(card).forEach(k => keys.add(k));
+
+      keys.forEach(k => { if(k && !state.index.has(k)) state.index.set(k, card); });
+    }
+  }
+
+  function alignedPrintReferenceKeys(card){
+    const keys = new Set();
+    const codes = arrayify(card?.setCodes?.length ? card.setCodes : card?.setCode || card?.set || '').map(normalizeSetCode).filter(Boolean);
+    const numbers = arrayify(card?.numbers?.length ? card.numbers : card?.number || card?.cardNumber || '').map(strip0).filter(Boolean);
+    if(!codes.length || !numbers.length) return [];
+
+    const addPair = (code, number) => addSetNumberReferenceKeys(keys, code, number);
+
+    if(codes.length === numbers.length){
+      codes.forEach((code, idx) => addPair(code, numbers[idx]));
+    }else if(codes.length === 1){
+      numbers.forEach(number => addPair(codes[0], number));
+    }else if(numbers.length === 1){
+      codes.forEach(code => addPair(code, numbers[0]));
+    }else{
+      const maxAligned = Math.min(codes.length, numbers.length);
+      for(let i = 0; i < maxAligned; i += 1) addPair(codes[i], numbers[i]);
+    }
+    return [...keys];
+  }
+
+  function addSetNumberReferenceKeys(keys, code, number){
+    const normalizedCode = normalizeSetCode(code);
+    const cardNumber = strip0(number);
+    if(!normalizedCode || !cardNumber) return;
+    const setNum = SET_CODE_TO_NUM[code] || SET_CODE_TO_NUM[normalizedCode] || normalizedCode;
+    keys.add(`${setNum}-${cardNumber}`);
+    keys.add(slug(`${code}-${cardNumber}`));
+    keys.add(slug(`${normalizedCode}-${cardNumber}`));
+    keys.add(slug(`${code} ${cardNumber}`));
+    keys.add(slug(`${normalizedCode} ${cardNumber}`));
+  }
+
+  function normalizeLocalCard(raw){
+    const setCodes = arrayify(raw.setCodes?.length ? raw.setCodes : raw.set || raw.setCode).flatMap(v => String(v).split(/[\n,+/]/)).map(normalizeSetCode).filter(Boolean);
+    const numbers = arrayify(raw.numbers?.length ? raw.numbers : raw.number || raw.cardNumber || raw.collector_number || raw.collectorNumber).flatMap(v => String(v).split(/[\n,+/]/)).map(strip0).filter(Boolean);
+    return {
+      source:'local', id:raw.id || raw.cardId || '', name:raw.name || raw.cardName || '', version:raw.version || raw.title || '', fullName:raw.fullName || raw.cardName || [raw.name, raw.version || raw.title].filter(Boolean).join(' - '),
+      type:raw.cardType || raw.type || '', colors:arrayify(raw.colors?.length ? raw.colors : raw.color || raw.inkColor), cost:n(raw.cost ?? raw.inkCost), inkable:boolValue(raw.inkable ?? raw.inkwell), rarity:raw.rarity || '',
+      strength:nullable(raw.strength), willpower:nullable(raw.willpower), lore:nullable(raw.lore), moveCost:nullable(raw.moveCost), classifications:arrayify(raw.classifications),
+      text:raw.text || raw.ability || raw.rulesText || '', flavorText:raw.flavorText || '', franchise:raw.franchise || raw.story || raw.universe || '', artists:arrayify(raw.illustrators || raw.artists || raw.artist),
+      setCodes, setCode:setCodes[0] || '', numbers, number:numbers[0] || strip0(raw.number || raw.cardNumber || raw.collector_number || raw.collectorNumber), image:getCardImage(raw, 'normal'), imageSmall:getCardImage(raw, 'small'), raw
+    };
+  }
+
+  async function handleFiles(files){
+    if(!files.length) return;
+    await ensureLocalCardsLoaded();
+    const accepted = files.slice(0, MAX_FILES);
+    if(accepted.length > 1 || state.bulkQueue.length){
+      await handleBulkFiles(accepted, { append:!!state.bulkQueue.length });
+      return;
+    }
+    try{
+      const imported = await readReplayInputFile(accepted[0]);
+      applyImportedReplayGroup(imported, { resetBulk:false, sourceLabel:accepted[0]?.name || '' });
+    }catch(err){
+      console.error(err);
+      alert(`Impossible de lire ${accepted[0]?.name || 'ce fichier'}: ${err.message}`);
+    }
+  }
+
+  async function handleBulkFiles(files, options={}){
+    await ensureLocalCardsLoaded();
+    if(!options.append){
+      state.bulkQueue = [];
+      state.activeBulkIndex = null;
+      clearReplays({ keepBulk:true });
+    }
+    state.bulkSaving = false;
+    if(state.currentUser){
+      try{ await refreshSavedMatches({ silent:true }); }
+      catch(err){ console.warn('Historique indisponible pour la détection des doublons', err); }
+      try{ await refreshDeckProfiles({ silent:true }); }
+      catch(err){ console.warn('Decks indisponibles pour l’attribution par lot', err); }
+    }
+
+    for(const file of files){
+      const item = {
+        id:`bulk-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        fileName:file.name || 'Replay',
+        fileSize:file.size || 0,
+        replays:[], sessions:[], merged:null, matchMeta:null,
+        status:'reading', message:'Lecture du replay…', duplicate:null, savedId:null, error:null, assignedDeck:null
+      };
+      state.bulkQueue.push(item);
+      renderBulkQueue();
+      try{
+        const previousMatchMeta = state.matchMeta;
+        const imported = await readReplayInputFile(file);
+        const matchMeta = imported.find(entry => entry.matchMeta)?.matchMeta || state.matchMeta || null;
+        state.matchMeta = matchMeta;
+        const sessions = imported.map(entry => entry.session).filter(Boolean);
+        const merged = mergeSessions(sessions);
+        state.matchMeta = previousMatchMeta;
+        item.replays = imported;
+        item.sessions = sessions;
+        item.merged = merged;
+        item.matchMeta = matchMeta;
+        const duplicate = merged ? findDuplicateSavedMatchForData(merged) : null;
+        item.duplicate = duplicate || null;
+        item.status = duplicate ? 'duplicate' : 'ready';
+        item.message = duplicate ? 'Déjà présent dans l’historique.' : 'Prêt à sauvegarder. Deck à nommer plus tard depuis l’historique.';
+      }catch(err){
+        console.error(err);
+        item.status = 'error';
+        item.error = err;
+        item.message = `Erreur de lecture : ${err.message}`;
+      }
+      renderBulkQueue();
+    }
+
+    const firstReady = Number.isInteger(state.activeBulkIndex) && state.bulkQueue[state.activeBulkIndex]?.merged
+      ? state.activeBulkIndex
+      : state.bulkQueue.findIndex(item => item.merged && item.status !== 'error');
+    if(firstReady >= 0) activateBulkItem(firstReady);
+    else renderBulkQueue();
+  }
+
+  function applyImportedReplayGroup(imported, options={}){
+    const replays = Array.isArray(imported) ? imported : [];
+    const matchMeta = options.matchMeta !== undefined ? options.matchMeta : (replays.find(entry => entry.matchMeta)?.matchMeta || state.matchMeta || null);
+    state.replays = replays;
+    state.sessions = state.replays.map(r => r.session).filter(Boolean);
+    state.matchMeta = matchMeta;
+    state.merged = mergeSessions(state.sessions);
+    state.isBO3 = state.sessions.length > 1;
+    state.viewMode = state.isBO3 ? 'global' : (state.sessions.length ? 0 : null);
+    state.mulliganResolved = false;
+    state.lastSavedMatchId = null;
+    state.loadedSavedMatchId = null;
+    state.performanceExpandedLists = { cards:false, mulligan:false };
+    state.statExpandedLists = {};
+    if(state.isBO3 && state.cardFilter === 'all') state.cardFilter = 'opponent';
+    if(els.saveDeckSelect) els.saveDeckSelect.value = '';
+    if(els.saveDeckNameInput) els.saveDeckNameInput.value = '';
+    if(els.fileInput) els.fileInput.value = '';
+    if(els.dropzoneStatus) els.dropzoneStatus.textContent = state.sessions.length ? `${state.sessions.length} replay(s) chargé(s). Analyse prête.` : 'Aucun replay chargé.';
+    document.body.classList.toggle('empty-state', !state.sessions.length);
+    document.body.classList.toggle('has-results', !!state.sessions.length);
+    setTab('overview');
+    renderAll();
+  }
+
+  function activateBulkItem(index){
+    const item = state.bulkQueue[index];
+    if(!item || !item.merged) return;
+    state.activeBulkIndex = index;
+    applyImportedReplayGroup(item.replays, { matchMeta:item.matchMeta });
+    renderBulkQueue();
+  }
+
+  function clearBulkQueue(){
+    state.bulkQueue = [];
+    state.activeBulkIndex = null;
+    state.bulkSaving = false;
+    renderBulkQueue();
+  }
+
+  async function readReplayInputFile(file){
+    const fileName = String(file.name || 'replay');
+    if(/\.zip$/i.test(fileName)) return readMatchReplayZip(file);
+    const replay = await readReplayFile(file);
+    const session = parseReplay(replay, file);
+    return [{ file, replay, session }];
+  }
+
+  async function readMatchReplayZip(file){
+    if(!window.JSZip) throw new Error('JSZip est nécessaire pour lire une archive BO3.');
+    const zip = await window.JSZip.loadAsync(file);
+    const matchEntry = zip.file(/^match\.json$/i)?.[0] || null;
+    let matchMeta = null;
+    if(matchEntry){
+      try{ matchMeta = JSON.parse(await matchEntry.async('string')); }
+      catch(err){ console.warn('match.json illisible', err); }
+    }
+    if(matchMeta) state.matchMeta = matchMeta;
+
+    const replayEntries = Object.values(zip.files)
+      .filter(entry => !entry.dir && /\.replay(\.gz)?$/i.test(entry.name) && !/match\.json$/i.test(entry.name))
+      .sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric:true, sensitivity:'base' }));
+
+    if(!replayEntries.length) throw new Error('Aucun fichier .replay trouvé dans cette archive.');
+
+    const imported = [];
+    for(let index = 0; index < replayEntries.length; index += 1){
+      const entry = replayEntries[index];
+      const buffer = await entry.async('arraybuffer');
+      const replay = await readReplayBuffer(buffer, entry.name);
+      const pseudoFile = {
+        name: entry.name,
+        size: buffer.byteLength || entry._data?.uncompressedSize || 0,
+        parentName: file.name,
+        isZipEntry:true,
+        lastModified: 0,
+        playedAt: null
+      };
+      const session = parseReplay(replay, pseudoFile);
+      enrichSessionWithMatchMeta(session, matchMeta, index);
+      imported.push({ file:pseudoFile, parentFile:file, replay, session, matchMeta });
+    }
+    return imported;
+  }
+
+  function enrichSessionWithMatchMeta(session, matchMeta, index){
+    session.gameIndex = index;
+    session.gameNumber = index + 1;
+    if(!matchMeta?.games?.length) return;
+    const info = matchMeta.games.find(g => String(g.gameId || '') === String(session.data?.gameId || '')) || matchMeta.games[index];
+    if(!info) return;
+    session.gameNumber = n(info.gameNumber || session.gameNumber);
+    session.matchGameInfo = info;
+    session.matchScoreAfter = info.matchScoreAfter || null;
+    if(info.winner !== undefined){
+      session.winner = Number(info.winner);
+      session.isWin = Number(info.winner) === Number(session.perspective);
+    }
+    if(info.victoryReason) session.victoryReason = info.victoryReason;
+    session.playedAt = session.playedAt || firstValidDate([info.playedAt, info.startedAt, info.createdAt, matchMeta.playedAt, matchMeta.startedAt, matchMeta.createdAt]);
+  }
+
+  async function readReplayFile(file){
+    const buf = await file.arrayBuffer();
+    return readReplayBuffer(buf, file.name || 'replay');
+  }
+
+  async function readReplayBuffer(buf, fileName='replay'){
+    let text;
+    if(/\.gz$/i.test(fileName)){
+      if(window.pako) text = window.pako.ungzip(new Uint8Array(buf), { to:'string' });
+      else {
+        const ds = new DecompressionStream('gzip');
+        const stream = new Blob([buf]).stream().pipeThrough(ds);
+        text = await new Response(stream).text();
+      }
+    }else{
+      text = new TextDecoder().decode(buf);
+    }
+    return JSON.parse(text);
+  }
+
+  function clearReplays(options={}){
+    state.replays = []; state.sessions = []; state.merged = null; state.isBO3 = false; state.viewMode = 0; state.matchMeta = null; state.mulliganResolved = false; state.lastSavedMatchId = null; state.loadedSavedMatchId = null; state.statExpandedLists = {};
+    if(!options.keepBulk){ state.bulkQueue = []; state.activeBulkIndex = null; state.bulkSaving = false; }
+    document.body.classList.add('empty-state'); document.body.classList.remove('has-results','bo3-global','bo3-game');
+    if(els.fileInput) els.fileInput.value = '';
+    if(els.dropzoneStatus) els.dropzoneStatus.textContent = 'Aucun replay chargé.';
+    if(els.bo3Selector){ els.bo3Selector.innerHTML = ''; els.bo3Selector.hidden = true; }
+    destroyCharts();
+    renderAll();
+    renderBulkQueue();
+  }
+
+  function reimportReplay(){
+    clearReplays();
+    setTab('overview');
+    if(els.fileInput){
+      els.fileInput.value = '';
+      setTimeout(() => els.fileInput.click(), 0);
+    }
+  }
+
+  function parseReplay(data, file){
+    const perspective = Number(data.perspective || data.baseSnapshot?.viewingAs || 1);
+    const playerNames = data.playerNames || {};
+    const myPlayerNumber = perspective;
+    const opponentNumber = String(perspective) === '1' ? 2 : 1;
+    const myName = playerNames[myPlayerNumber] || 'Joueur';
+    const opponentName = playerNames[opponentNumber] || 'Adversaire';
+    const winner = Number(data.winner || 0);
+    const isWin = winner === perspective;
+
+    const working = deepClone(data.baseSnapshot || {});
+    const mulligan = extractMulligan(data, perspective);
+    const rows = { mine:[], opponent:[] };
+    const currentRows = { mine:null, opponent:null };
+    let firstTurnPlayer = null;
+    const seenCards = new Map();
+    const passiveSeenOnce = new Set();
+    const timeline = [];
+    const loreByTurn = new Map();
+    const actionByTurn = new Map();
+
+    const frames = [...(data.frames || [])].sort((a,b) => n(a.seq) - n(b.seq));
+
+    const ownerFromPlayer = player => {
+      const value = Number(player);
+      if(value !== 1 && value !== 2) return null;
+      return value === perspective ? 'mine' : 'opponent';
+    };
+    const ownerFromValue = value => {
+      const numeric = Number(value);
+      if(numeric === 1 || numeric === 2) return ownerFromPlayer(numeric);
+      const raw = String(value || '').toLowerCase().replace(/[\s_-]+/g, '');
+      if(['mine','me','my','myplayer','self'].includes(raw)) return 'mine';
+      if(['opponent','adversaire','opp','opposingplayer'].includes(raw)) return 'opponent';
+      return null;
+    };
+    const zoneFromOwner = owner => owner === 'mine' ? 'myPlayer' : owner === 'opponent' ? 'opponent' : null;
+    const deckOwners = buildDeckOwnerIndex(data, perspective);
+    const replayCardIndex = buildReplayCardIndex(data);
+    const inferFrameOwner = (frame, snapshot) => {
+      const taken = frame.takenAction || {};
+      const candidates = [
+        frame.player, frame.playerNumber, frame.playerId, frame.actor, frame.actorPlayer, frame.actorPlayerNumber,
+        taken.player, taken.playerNumber, taken.playerId, taken.actor, taken.actorPlayer, taken.actorPlayerNumber,
+        taken.owner, taken.controller
+      ];
+      for(const candidate of candidates){
+        const owner = ownerFromValue(candidate);
+        if(owner) return owner;
+      }
+      // Important: a patch path indicates which zone changed, not who performed the action.
+      // Using it as the actor was the source of the Moi/Adversaire card mixing.
+      if(GAME_ACTIONS.has(frame.actionType)) return ownerFromPlayer(snapshot?.currentPlayer);
+      return null;
+    };
+
+    const ensureTurnRow = (player, snapshot) => {
+      if(![1,2].includes(Number(player))) return null;
+      const owner = ownerFromPlayer(player);
+      if(currentRows[owner]) return currentRows[owner];
+      const zoneKey = zoneFromOwner(owner);
+      if(!zoneKey) return null;
+      const z = zoneStats(snapshot, zoneKey);
+      const row = { owner, player:Number(player), turn:rows[owner].length + 1, globalTurn:n(snapshot.turnNumber || 1), startInk:z.ink, capacity:z.ink, spent:z.exerted, float:0, inked:0, played:0, quest:0, challenge:0, handStart:z.hand, handEnd:z.hand, endInk:z.ink };
+      currentRows[owner] = row;
+      return row;
+    };
+
+    const updateTurnRow = (owner, snapshot) => {
+      const row = currentRows[owner]; if(!row) return;
+      const zoneKey = zoneFromOwner(owner);
+      if(!zoneKey) return;
+      const z = zoneStats(snapshot, zoneKey);
+      const beforeCap = row.capacity;
+      row.capacity = Math.max(row.capacity, z.ink);
+      row.spent = Math.max(row.spent, z.exerted);
+      row.handEnd = z.hand;
+      row.endInk = z.ink;
+      if(z.ink > beforeCap) row.inked += z.ink - beforeCap;
+    };
+
+    const closeTurnRow = (owner, snapshot) => {
+      const row = currentRows[owner]; if(!row) return;
+      updateTurnRow(owner, snapshot);
+      row.float = Math.max(0, round1(row.capacity - row.spent));
+      rows[owner].push(row);
+      currentRows[owner] = null;
+    };
+
+    const recordLore = (turn, mineLore, oppLore) => {
+      const key = Number(turn) || 1;
+      loreByTurn.set(key, { turn:key, mine:n(mineLore), opponent:n(oppLore) });
+    };
+    recordLore(1, zoneStats(working,'myPlayer').lore, zoneStats(working,'opponent').lore);
+    scanVisibleCardsForStats(working, seenCards, passiveSeenOnce);
+
+    for(const frame of frames){
+      const actionType = frame.actionType;
+      const actorOwner = inferFrameOwner(frame, working);
+      const beforeCurrent = Number(working.currentPlayer);
+      const beforeOwner = ownerFromPlayer(beforeCurrent);
+      const isGame = GAME_ACTIONS.has(actionType);
+      if(isGame && [1,2].includes(beforeCurrent)){
+        if(firstTurnPlayer === null) firstTurnPlayer = beforeCurrent;
+        ensureTurnRow(beforeCurrent, working);
+        updateTurnRow(beforeOwner, working);
+      }
+
+      updateActionStatsFromFrame(frame, actorOwner, seenCards, timeline, actionByTurn, actorOwner ? currentRows[actorOwner] : null, working, deckOwners, replayCardIndex);
+      creditNonQuestLoreSources(frame, actorOwner, seenCards, working, deckOwners, replayCardIndex);
+
+      for(const patch of frame.patch || []) applyPatch(working, patch);
+      scanVisibleCardsForStats(working, seenCards, passiveSeenOnce);
+
+      if(isGame && [1,2].includes(beforeCurrent)){
+        updateTurnRow(beforeOwner, working);
+      }
+
+      const afterCurrent = Number(working.currentPlayer);
+      if([1,2].includes(beforeCurrent) && afterCurrent !== beforeCurrent){
+        closeTurnRow(beforeOwner, working);
+      }
+
+      const myLore = zoneStats(working,'myPlayer').lore;
+      const oppLore = zoneStats(working,'opponent').lore;
+      recordLore(frame.turnNumber || working.turnNumber || 1, myLore, oppLore);
+    }
+    closeTurnRow('mine', working); closeTurnRow('opponent', working);
+
+    const finalMineLore = zoneStats(working,'myPlayer').lore || n(data.baseSnapshot?.myPlayer?.lore);
+    const finalOppLore = zoneStats(working,'opponent').lore || n(data.baseSnapshot?.opponent?.lore);
+    const actions = timeline.filter(a => a.type !== 'end');
+    const cards = [...seenCards.values()].map(c => finalizeCard(c));
+
+    const proMetrics = computeMetrics(rows.mine, actions.filter(a => a.owner === 'mine'));
+    const opponentProMetrics = computeMetrics(rows.opponent, actions.filter(a => a.owner === 'opponent'));
+    const inkProfiles = buildInkProfiles({ cards });
+    const matchupLabel = formatMatchupLabel(inkProfiles);
+
+    return { fileName:file.name, fileSize:file.size, data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel };
+  }
+
+  function updateActionStatsFromFrame(frame, owner, seenCards, timeline, actionByTurn, row, snapshot, deckOwners, replayCardIndex){
+    if(owner !== 'mine' && owner !== 'opponent') return;
+    const taken = frame.takenAction || {};
+    const type = frame.actionType;
+    const turn = n(frame.turnNumber || row?.globalTurn || snapshot?.turnNumber || 1);
+    const sourceCard = sourceCardForAction(frame, owner, snapshot, deckOwners, replayCardIndex);
+    const inkedFromHandCard = type === 'ADD_TO_INK' ? inkedCardFromHandForFrame(frame, owner, snapshot, replayCardIndex) : null;
+    const statSourceCard = type === 'ADD_TO_INK' ? inkedFromHandCard : sourceCard;
+    const sourceOwner = statSourceCard ? deckOwnerForCard(statSourceCard, owner, deckOwners) : owner;
+    const canCountSource = !statSourceCard || sourceOwner === owner;
+    const sourceName = statSourceCard ? cleanCardName(fullName(statSourceCard)) : (sourceCard ? cleanCardName(fullName(sourceCard)) : cleanCardName(actionSourceName(frame, type) || 'Carte inconnue'));
+    let entryType = '', title = '', detail = '', icon = '•', timelineCard = null;
+    const agg = actionByTurn.get(turn) || { turn, ink:0, play:0, quest:0, challenge:0, mineChallenge:0, opponentChallenge:0 };
+
+    const countSource = (inc) => {
+      if(statSourceCard && canCountSource) updateCardStat(seenCards, statSourceCard, owner, inc);
+      else if(type !== 'ADD_TO_INK' && !statSourceCard && actionSourceName(frame, type)) updateCardStat(seenCards, { fullName:actionSourceName(frame, type), id:taken.cardId || taken.sourceCardId || '' }, owner, inc);
+    };
+    const useCardForTimeline = () => {
+      const timelineSource = statSourceCard || sourceCard;
+      timelineCard = timelineSource && canCountSource ? hydrateCard(timelineSource) : null;
+    };
+
+    if(type === 'ADD_TO_INK'){
+      const countedFromHand = !!inkedFromHandCard;
+      entryType='ink'; icon='◆'; title=`Encre ${sourceName}`; detail=`${owner === 'mine' ? 'Vous transformez' : 'L’adversaire transforme'} ${sourceName} en ressource d’encre.`; agg.ink += 1;
+      if(countedFromHand) countSource({ inked:1, seen:1 });
+      useCardForTimeline();
+    }else if(type === 'PLAY_CARD'){
+      if(!sourceCard && sourceName === 'Carte inconnue') return;
+      entryType='play'; icon='▶'; title=`Joue ${sourceName}`; detail=`${owner === 'mine' ? 'Vous jouez' : 'L’adversaire joue'} ${sourceName}.`; agg.play += 1; if(row) row.played += 1;
+      countSource({ played:1, seen:1, firstTurn:turn }); useCardForTimeline();
+    }else if(type === 'QUEST'){
+      const lore = questLoreForFrame(frame, owner, sourceCard, snapshot);
+      entryType='quest'; icon=''; title=`Quête avec ${sourceName}`; detail=`${owner === 'mine' ? 'Vous partez' : 'L’adversaire part'} à l’aventure${lore ? ` pour ${lore} lore` : ''}.`; agg.quest += 1; if(row) row.quest += 1;
+      countSource({ quest:1, lore, seen:1 }); useCardForTimeline();
+    }else if(type === 'CHALLENGE' || type === 'ATTACK'){
+      const target = cleanCardName(actionTargetName(frame) || 'une cible adverse');
+      entryType='challenge'; icon=''; title=`Défi avec ${sourceName}`; detail=`${owner === 'mine' ? 'Vous défiez' : 'L’adversaire défie'} ${target}.`; agg.challenge += 1; agg[`${owner}Challenge`] = n(agg[`${owner}Challenge`]) + 1; if(row) row.challenge += 1;
+      countSource({ challenge:1, seen:1 }); useCardForTimeline();
+    }else if(type === 'END_TURN'){
+      entryType='end'; icon='↪'; title='Fin de tour'; detail=`${owner === 'mine' ? 'Vous terminez' : 'L’adversaire termine'} le tour.`;
+      timelineCard = null;
+    }else if(type === 'MOVE_TO_LOCATION'){
+      entryType='move'; icon='↗'; title=sourceCard ? `Déplace ${sourceName}` : 'Déplace une carte'; detail=sourceCard ? `${sourceName} se déplace vers un lieu.` : 'Une carte se déplace vers un lieu.';
+      useCardForTimeline();
+    }else if(type === 'ACTIVATE_ABILITY'){
+      entryType='ability'; icon=''; title=sourceCard ? `Active ${sourceName}` : 'Active une capacité'; detail=sourceCard ? `Capacité de ${sourceName}.` : 'Une capacité est activée.';
+      if(sourceCard && canCountSource) updateCardStat(seenCards, sourceCard, owner, { seen:1 });
+      useCardForTimeline();
+    }else if(type === 'RESPOND_TO_PROMPT'){
+      const promptPlayedCard = sourceCard && (frame.patch || []).some(p => p?.op === 'add' && pathHasAnyZone(p.path, ['field','characters','items','locations']));
+      if(promptPlayedCard){
+        entryType='play'; icon='▶'; title=`Joue ${sourceName}`; detail=`${owner === 'mine' ? 'Vous jouez' : 'L’adversaire joue'} ${sourceName}.`; agg.play += 1; if(row) row.played += 1;
+        countSource({ played:1, seen:1, firstTurn:turn }); useCardForTimeline();
+      }else{
+        entryType='ability'; icon=''; title='Résout un effet'; detail='Un effet est résolu.';
+        timelineCard = null;
+      }
+    }
+    actionByTurn.set(turn, agg);
+    if(entryType){
+      timeline.push({
+        owner, type:entryType, turn, icon, title, detail, rawType:type, cardName:sourceName,
+        cardKey:timelineCard ? cardKey(timelineCard) : '', card:timelineCard,
+        handCount:zoneStats(snapshot, owner === 'mine' ? 'myPlayer' : 'opponent').hand
+      });
+    }
+  }
+
+  function buildDeckOwnerIndex(data, perspective){
+    const base = data?.baseSnapshot || {};
+    const sets = { mine:new Set(), opponent:new Set() };
+    const mineChunks = [base.mySetup, data?.mySetup, base.myPlayer?.setup, base.players?.[perspective]?.setup, base.playerSetups?.[perspective]];
+    const opponentNumber = String(perspective) === '1' ? 2 : 1;
+    const opponentChunks = [base.opponentSetup, data?.opponentSetup, base.opponent?.setup, base.players?.[opponentNumber]?.setup, base.playerSetups?.[opponentNumber]];
+    mineChunks.forEach(chunk => collectDeckIds(chunk, sets.mine));
+    opponentChunks.forEach(chunk => collectDeckIds(chunk, sets.opponent));
+    return sets;
+  }
+
+  function collectDeckIds(value, out, depth=0){
+    if(!value || depth > 4) return;
+    if(Array.isArray(value)){
+      value.forEach(item => addDeckId(item, out));
+      return;
+    }
+    if(typeof value !== 'object') { addDeckId(value, out); return; }
+    for(const key of ['deckCardIds','deckIds','decklist','deck','cards','mainDeck']){
+      if(value[key] !== undefined) collectDeckIds(value[key], out, depth + 1);
+    }
+  }
+
+  function addDeckId(value, out){
+    if(value === undefined || value === null) return;
+    if(typeof value === 'object'){
+      const id = canonicalCardId(value);
+      if(id) out.add(id);
+      return;
+    }
+    const raw = String(value).trim();
+    if(!raw) return;
+    const parts = raw.split(/[\s,;]+/).filter(Boolean);
+    parts.forEach(part => {
+      const id = canonicalCardId({ id:part });
+      if(id) out.add(id);
+    });
+  }
+
+  function canonicalCardId(cardLike){
+    const raw = String(cardLike?.id || cardLike?.cardId || cardLike?.card_id || '').trim();
+    if(!raw) return '';
+    const compact = raw.replace(/^lorcana[-_:]/i, '').replace(/[^a-z0-9-]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    const match = compact.match(/^(\d{1,2})-(\d{1,4})$/) || compact.match(/^(\d{1,2})-(\d{1,4})-/);
+    if(match) return `${Number(match[1])}-${Number(match[2])}`;
+    return slug(compact);
+  }
+
+  function deckOwnerForCard(cardLike, fallbackOwner, deckOwners){
+    const id = canonicalCardId(cardLike);
+    if(!id || !deckOwners) return fallbackOwner;
+    const inMine = deckOwners.mine?.has(id);
+    const inOpponent = deckOwners.opponent?.has(id);
+    if(inMine && !inOpponent) return 'mine';
+    if(inOpponent && !inMine) return 'opponent';
+    return fallbackOwner;
+  }
+
+
+  function questLoreForFrame(frame, owner, sourceCard, snapshot){
+    const taken = frame?.takenAction || {};
+    const explicit = n(taken.loreGained ?? taken.lore ?? taken.loreGain ?? taken.questLore);
+    if(explicit > 0) return explicit;
+    const delta = positiveLoreDeltasByOwner(frame, snapshot).find(item => item.owner === owner)?.delta;
+    if(n(delta) > 0) return n(delta);
+    return n(cardIntrinsicLore(sourceCard));
+  }
+
+  function inkedCardFromHandForFrame(frame, owner, snapshot, replayCardIndex){
+    if(owner !== 'mine' && owner !== 'opponent') return null;
+    const patches = Array.isArray(frame?.patch) ? frame.patch : [];
+    const handCandidates = [];
+    const pushHandCard = (value) => {
+      extractCards(value, []).forEach(card => handCandidates.push(card));
+    };
+    for(const patch of patches){
+      const path = String(patch?.path || '');
+      if(ownerFromPatchPath(path) !== owner || !isOwnerHandPath(path)) continue;
+      // A card inked from hand leaves the hand. Attribute standard ink and extra-ink effects
+      // only when we can see that hand movement. Cards moved from discard/field must not feed
+      // the "cartes sacrifiées" statistic.
+      if(patch.op === 'remove'){
+        pushHandCard(patch.value);
+        pushHandCard(valueAtPointer(snapshot, path));
+        pushHandCard(valueAtPointer(snapshot, parentPointer(path)));
+      }
+    }
+    const direct = cardFromActionFields(frame, frame?.actionType, true);
+    const directResolved = resolveCardReference(direct, owner, replayCardIndex);
+    const directCard = directResolved || (direct && isKnownActionCard(direct) ? direct : null);
+    if(directCard && handContainsCard(snapshot, owner, directCard, replayCardIndex)) handCandidates.unshift(directCard);
+    for(const candidate of handCandidates){
+      const resolved = resolveCardReference(candidate, owner, replayCardIndex) || candidate;
+      const hydrated = hydrateCard(resolved);
+      if(isKnownActionCard(hydrated)) return hydrated;
+    }
+    return null;
+  }
+
+  function handContainsCard(snapshot, owner, cardLike, replayCardIndex){
+    const zone = owner === 'mine' ? 'myPlayer' : owner === 'opponent' ? 'opponent' : '';
+    const hand = Array.isArray(snapshot?.[zone]?.hand) ? snapshot[zone].hand : [];
+    if(!hand.length || !cardLike) return false;
+    const wantedKeys = new Set(cardReferenceKeys(cardLike));
+    const resolved = resolveCardReference(cardLike, owner, replayCardIndex);
+    if(resolved) cardReferenceKeys(resolved).forEach(key => wantedKeys.add(key));
+    return hand.some(card => cardReferenceKeys(card).some(key => wantedKeys.has(key)));
+  }
+
+  function sourceCardForAction(frame, owner, snapshot, deckOwners, replayCardIndex){
+    const type = frame.actionType;
+    const direct = cardFromActionFields(frame, type);
+    const directResolved = resolveCardReference(direct, owner, replayCardIndex);
+    if(directResolved && isKnownActionCard(directResolved)) return hydrateCard(directResolved);
+    if(direct && isKnownActionCard(direct)) return hydrateCard(direct);
+
+    if(type === 'ADD_TO_INK') return findCardInOwnerPatches(frame, owner, snapshot, ['inkwell','hand'], deckOwners, replayCardIndex);
+    if(type === 'PLAY_CARD') return findCardInOwnerPatches(frame, owner, snapshot, ['play','field','characters','items','locations','discard','hand'], deckOwners, replayCardIndex);
+    if(type === 'RESPOND_TO_PROMPT') return findCardInOwnerPatches(frame, owner, snapshot, ['field','characters','items','locations'], deckOwners, replayCardIndex);
+    if(type === 'QUEST' || type === 'CHALLENGE' || type === 'ATTACK' || type === 'MOVE_TO_LOCATION') return findCardInOwnerPatches(frame, owner, snapshot, ['play','field','characters','items','locations'], deckOwners, replayCardIndex);
+    if(type === 'ACTIVATE_ABILITY'){
+      const explicit = cardFromActionFields(frame, type, true);
+      const explicitResolved = resolveCardReference(explicit, owner, replayCardIndex);
+      if(explicitResolved && isKnownActionCard(explicitResolved)) return hydrateCard(explicitResolved);
+      if(explicit && isKnownActionCard(explicit)) return hydrateCard(explicit);
+      const boardSource = findCardInOwnerPatches(frame, owner, snapshot, ['field','characters','items','locations','play'], deckOwners, replayCardIndex);
+      if(boardSource && isKnownActionCard(boardSource)) return hydrateCard(boardSource);
+      return null;
+    }
+    return null;
+  }
+
+  function creditNonQuestLoreSources(frame, actorOwner, seenCards, snapshot, deckOwners, replayCardIndex){
+    if(!frame || frame.actionType === 'QUEST') return;
+    const deltas = positiveLoreDeltasByOwner(frame, snapshot);
+    if(!deltas.length) return;
+
+    const type = frame.actionType;
+
+    deltas.forEach(({ owner, delta }) => {
+      if(delta <= 0) return;
+
+      // V115: on attribue le delta de lore au propriétaire du gain, pas forcément à
+      // l'acteur inféré du frame. C'est indispensable pour les effets qui résolvent
+      // en différé, notamment Lucky Dime : l'ACTIVATE_ABILITY pose promptSourceCard,
+      // puis le gain de lore arrive seulement sur le frame GAME_FINISH suivant.
+      const sourceCard = sourceCardForLoreDelta(frame, owner, actorOwner, snapshot, deckOwners, replayCardIndex);
+      const sourceOwner = sourceCard ? deckOwnerForCard(sourceCard, owner, deckOwners) : owner;
+      const sourceCanReceiveLore = sourceCard && sourceOwner === owner && canAttributeNonQuestLoreToSource(sourceCard, type);
+
+      if(sourceCanReceiveLore){
+        updateCardStat(seenCards, sourceCard, owner, { lore:delta, seen:1, loreActions:1 });
+        return;
+      }
+
+      // Les lieux génèrent leur lore au début du tour. Duel.ink les stocke souvent
+      // dans /locations et non dans /field : creditPassiveLocationLore lit maintenant
+      // les deux structures.
+      creditPassiveLocationLore(snapshot, owner, delta, seenCards);
+    });
+  }
+
+  function sourceCardForLoreDelta(frame, loreOwner, actorOwner, snapshot, deckOwners, replayCardIndex){
+    const ownersToTry = [];
+    if(actorOwner === loreOwner) ownersToTry.push(actorOwner);
+    ownersToTry.push(loreOwner);
+
+    for(const owner of [...new Set(ownersToTry.filter(Boolean))]){
+      const direct = sourceCardForAction(frame, owner, snapshot, deckOwners, replayCardIndex);
+      if(direct) return direct;
+    }
+
+    // Source persistante d'une capacité en cours de résolution. Elle existe souvent
+    // dans le snapshot AVANT l'application du frame qui modifie le lore.
+    const promptSources = [
+      frame?.promptSourceCard,
+      snapshot?.promptSourceCard,
+      ...(Array.isArray(frame?.patch) ? frame.patch
+        .filter(patch => String(patch?.path || '') === '/promptSourceCard')
+        .map(patch => patch.value) : [])
+    ];
+    for(const raw of promptSources){
+      if(!raw || !isCardLike(raw)) continue;
+      const resolved = resolveCardReference(raw, loreOwner, replayCardIndex) || raw;
+      const hydrated = hydrateCard(resolved);
+      if(!isKnownActionCard(hydrated)) continue;
+      if(deckOwnerForCard(hydrated, loreOwner, deckOwners) === loreOwner) return hydrated;
+    }
+
+    return null;
+  }
+
+  function canAttributeNonQuestLoreToSource(card, actionType){
+    if(!card) return false;
+    if(canCardDirectlyGainLore(card)) return true;
+    const type = typeLabel(card.type || card.cardType || '').toLowerCase();
+    const rawType = String(card.type || card.cardType || '').toLowerCase();
+    const isItem = type.includes('objet') || rawType.includes('item');
+    const isAction = type.includes('action') || type.includes('chanson') || rawType.includes('action') || rawType.includes('song');
+    const isLocation = type.includes('lieu') || rawType.includes('location');
+    // Une capacité activée qui provoque un delta positif de lore doit être attribuable à sa source,
+    // même si le texte local n'est pas complet dans l'index de cartes. GAME_FINISH est inclus
+    // car Duel.ink peut appliquer le gain final de Lucky Dime dans ce frame technique.
+    if(actionType === 'ACTIVATE_ABILITY' || actionType === 'GAME_FINISH') return isItem || isAction || isLocation || canCardDirectlyGainLore(card);
+    if(actionType === 'PLAY_CARD' || actionType === 'RESPOND_TO_PROMPT') return isAction || isItem || isLocation;
+    return isItem || isAction || isLocation;
+  }
+
+  function positiveLoreDeltasByOwner(frame, snapshot){
+    const patches = Array.isArray(frame?.patch) ? frame.patch : [];
+    const currentLore = {
+      mine:n(zoneStats(snapshot, 'myPlayer').lore),
+      opponent:n(zoneStats(snapshot, 'opponent').lore)
+    };
+    const out = [];
+    patches.forEach(patch => {
+      const owner = ownerFromLorePatchPath(patch?.path);
+      if(!owner || patch?.op !== 'replace') return;
+      const nextValue = n(patch.value);
+      const previousValue = n(currentLore[owner]);
+      const delta = nextValue - previousValue;
+      currentLore[owner] = nextValue;
+      if(delta > 0) out.push({ owner, delta });
+    });
+    return out;
+  }
+
+  function ownerFromLorePatchPath(path){
+    const p = String(path || '');
+    if(p === '/myPlayer/lore') return 'mine';
+    if(p === '/opponent/lore') return 'opponent';
+    return null;
+  }
+
+  function creditPassiveLocationLore(snapshot, owner, delta, seenCards){
+    if(owner !== 'mine' && owner !== 'opponent') return 0;
+    const locations = fieldCardsForOwner(snapshot, owner).filter(isLocationWithLore);
+    if(!locations.length) return 0;
+
+    let remaining = n(delta);
+    let credited = 0;
+    locations.forEach(location => {
+      if(remaining <= 0) return;
+      const amount = Math.min(remaining, cardIntrinsicLore(location));
+      if(amount <= 0) return;
+      updateCardStat(seenCards, location, owner, { lore:amount, seen:1, loreActions:1 });
+      remaining -= amount;
+      credited += amount;
+    });
+    return credited;
+  }
+
+  function fieldCardsForOwner(snapshot, owner){
+    const zone = owner === 'mine' ? 'myPlayer' : owner === 'opponent' ? 'opponent' : '';
+    const source = zone ? snapshot?.[zone] : null;
+    if(!source) return [];
+    const zones = ['field', 'characters', 'locations', 'items'];
+    return zones.flatMap(key => Array.isArray(source[key]) ? source[key] : []).map(entry => {
+      if(entry?.card && isCardLike(entry.card)){
+        return {
+          ...entry.card,
+          instanceId:entry.instanceId || entry.cardInstanceId || entry.card.instanceId || entry.card.cardInstanceId || '',
+          cardInstanceId:entry.cardInstanceId || entry.instanceId || entry.card.cardInstanceId || entry.card.instanceId || '',
+          exerted:entry.exerted ?? entry.card.exerted,
+          justPlayed:entry.justPlayed ?? entry.card.justPlayed
+        };
+      }
+      return entry;
+    }).filter(isCardLike);
+  }
+
+  function isLocationWithLore(card){
+    const type = String(card?.type || card?.cardType || '').toLowerCase();
+    const label = typeLabel(card?.type || card?.cardType || '').toLowerCase();
+    return (type.includes('location') || label.includes('lieu')) && cardIntrinsicLore(card) > 0;
+  }
+
+  function cardIntrinsicLore(card){
+    const value = card?.lore;
+    if(value === undefined || value === null || value === '') return 0;
+    return n(value);
+  }
+
+  function canCardDirectlyGainLore(card){
+    const text = cardRulesText(card).toLowerCase();
+    if(!text) return false;
+    return /\bgain(?:s)?\s+(?:\d+|x|that much|this much)?\s*lore\b/.test(text)
+      || /\bgain\s+lore\b/.test(text)
+      || /\bgagnez?\s+(?:\d+|x)?\s*(?:éclats? de )?lore\b/.test(text)
+      || /\bremportez?\s+(?:\d+|x)?\s*(?:éclats? de )?lore\b/.test(text);
+  }
+
+  function cardRulesText(card){
+    const raw = card?.raw || {};
+    const abilitySource = card?.specialAbilities || raw.specialAbilities || raw.abilities || [];
+    const abilityList = Array.isArray(abilitySource) ? abilitySource : Object.values(abilitySource || {});
+    const abilityText = abilityList
+      .map(a => typeof a === 'string' ? a : [a?.name, a?.effect, a?.text].filter(Boolean).join(' '))
+      .join(' ');
+    return [
+      card?.rulesText, card?.text, card?.ability, card?.effect,
+      raw.rulesText, raw.text, raw.ability, raw.effect,
+      raw.translations?.fr?.rulesText,
+      abilityText
+    ].filter(Boolean).join(' ');
+  }
+
+  function cardFromActionFields(frame, type, allowPrompt=false){
+    const taken = frame.takenAction || {};
+    const nameFields = actionNameFields(type);
+    const idFields = actionIdFields(type);
+    const instanceFields = actionInstanceFields(type);
+    const name = firstString(nameFields.map(key => taken[key]));
+    const id = firstString(idFields.map(key => taken[key]));
+    const instanceId = firstString(instanceFields.map(key => taken[key]));
+    if(name || id || instanceId) return { id, cardId:id, fullName:name, name, cardName:name, instanceId, cardInstanceId:instanceId };
+    if(allowPrompt && frame.promptSourceCard && isCardLike(frame.promptSourceCard)) return frame.promptSourceCard;
+    return null;
+  }
+
+  function actionNameFields(type){
+    if(type === 'CHALLENGE' || type === 'ATTACK') return ['attackerName','challengerName','sourceName','sourceCardName','characterName'];
+    if(type === 'QUEST') return ['questerName','characterName','sourceName','sourceCardName','cardName','attackerName'];
+    if(type === 'ACTIVATE_ABILITY') return ['sourceName','sourceCardName','cardName','characterName','abilitySourceName','activatedCardName','itemName','locationName'];
+    return ['cardName','sourceName','sourceCardName','characterName','name'];
+  }
+
+  function actionIdFields(type){
+    if(type === 'CHALLENGE' || type === 'ATTACK') return ['attackerCardId','attackerId','challengerCardId','sourceCardId','characterCardId'];
+    if(type === 'QUEST') return ['questerCardId','characterCardId','sourceCardId','cardId'];
+    if(type === 'ACTIVATE_ABILITY') return ['sourceCardId','cardId','characterCardId','abilitySourceCardId','activatedCardId','itemCardId','locationCardId'];
+    return ['cardId','sourceCardId','characterCardId'];
+  }
+
+  function actionInstanceFields(type){
+    if(type === 'CHALLENGE' || type === 'ATTACK') return ['attackerInstanceId','attackerCardInstanceId','challengerInstanceId','sourceInstanceId','sourceCardInstanceId','characterInstanceId','cardInstanceId','instanceId'];
+    if(type === 'QUEST') return ['questerInstanceId','questerCardInstanceId','characterInstanceId','sourceInstanceId','sourceCardInstanceId','cardInstanceId','instanceId'];
+    if(type === 'ACTIVATE_ABILITY') return ['sourceInstanceId','sourceCardInstanceId','characterInstanceId','cardInstanceId','instanceId','abilitySourceInstanceId','activatedInstanceId','itemInstanceId','locationInstanceId'];
+    return ['cardInstanceId','instanceId','sourceInstanceId','sourceCardInstanceId','characterInstanceId'];
+  }
+
+  function actionSourceName(frame, type){
+    const taken = frame.takenAction || {};
+    return firstString(actionNameFields(type).map(key => taken[key]));
+  }
+
+  function actionTargetName(frame){
+    const taken = frame.takenAction || {};
+    return firstString([
+      taken.defenderName, taken.defendingName, taken.challengeeName, taken.targetName,
+      taken.targetCardName, taken.opposingCardName, taken.opponentCardName
+    ]);
+  }
+
+  function isKnownActionCard(card){
+    return !!(card && (card.id || card.cardId || cleanCardName(card.fullName || card.name || card.cardName) !== 'Carte inconnue'));
+  }
+
+  function firstString(values){
+    for(const value of values){
+      if(value === undefined || value === null) continue;
+      const text = String(value).trim();
+      if(text) return text;
+    }
+    return '';
+  }
+
+  function findCardInOwnerPatches(frame, owner, snapshot, zoneHints=[], deckOwners, replayCardIndex){
+    const patches = Array.isArray(frame.patch) ? frame.patch : [];
+    const priority = [];
+    const normal = [];
+    const handShiftFallback = [];
+    const candidates = [];
+
+    const pushCards = (bucket, value) => {
+      const cards = extractCards(value, []);
+      if(cards.length) bucket.push(...cards);
+    };
+
+    const direct = cardFromActionFields(frame, frame.actionType, true);
+    const directResolved = resolveCardReference(direct, owner, replayCardIndex);
+    if(directResolved) priority.push(directResolved);
+    else if(direct && isKnownActionCard(direct)) priority.push(direct);
+
+    for(const patch of patches){
+      const path = String(patch.path || '');
+      const patchOwner = ownerFromPatchPath(path);
+      const isGlobalSource = patchOwner === 'global';
+      if(patchOwner && patchOwner !== owner && !isGlobalSource) continue;
+
+      if(path === '/promptSourceCard'){
+        // Source absolue des PLAY_CARD avec prompt : elle doit passer devant les décalages de main.
+        pushCards(priority, patch.value);
+        continue;
+      }
+
+      if(!isGlobalSource && zoneHints.length && !pathHasAnyZone(path, zoneHints)) continue;
+
+      const isHandPath = isOwnerHandPath(path);
+      const isHandReplace = patch.op === 'replace' && isHandPath;
+      const isHandRemove = patch.op === 'remove' && isHandPath;
+      if(isHandReplace){
+        // Les replaces /hand/5/instanceId, /hand/5/imageUrl, etc. sont souvent des shifts après pioche/recherche.
+        // Les utiliser en priorité fait confondre la carte jouée avec la carte qui glisse dans la main.
+        continue;
+      }
+
+      const isResolutionAdd = patch.op === 'add' && pathHasAnyZone(path, ['discard','field','characters','items','locations','inkwell']);
+      const bucket = isResolutionAdd ? priority : (isHandRemove ? handShiftFallback : normal);
+
+      pushCards(bucket, patch.value);
+
+      const directValue = valueAtPointer(snapshot, path);
+      pushCards(isHandPath ? handShiftFallback : bucket, directValue);
+
+      if(!isHandPath){
+        let parentPath = parentPointer(path);
+        for(let i=0; i<2 && parentPath; i++){
+          pushCards(bucket, valueAtPointer(snapshot, parentPath));
+          parentPath = parentPointer(parentPath);
+        }
+      }
+    }
+
+    candidates.push(...priority, ...normal, ...handShiftFallback);
+
+    for(const candidate of candidates){
+      const resolved = resolveCardReference(candidate, owner, replayCardIndex) || candidate;
+      const hydrated = hydrateCard(resolved);
+      const deckOwner = deckOwnerForCard(hydrated, owner, deckOwners);
+      if(deckOwner === owner) return hydrated;
+    }
+    return candidates.length ? hydrateCard(candidates[0]) : null;
+  }
+
+  function ownerFromPatchPath(path){
+    const p = String(path || '');
+    if(p === '/promptSourceCard' || p.startsWith('/promptSourceCard/')) return 'global';
+    if(p === '/waitingForOpponent' || p.startsWith('/waitingForOpponent/')) return 'global';
+    if(p === '/myPlayer' || p.startsWith('/myPlayer/')) return 'mine';
+    if(p === '/opponent' || p.startsWith('/opponent/')) return 'opponent';
+    return null;
+  }
+
+  function isOwnerHandPath(path){
+    return /^\/(?:myPlayer|opponent)\/hand\/\d+(?:\/|$)/.test(String(path || ''));
+  }
+
+  function pathHasAnyZone(path, zones){
+    const parts = pointerParts(path);
+    return zones.some(zone => parts.includes(zone));
+  }
+
+  function valueAtPointer(obj, path){
+    const parts = pointerParts(path);
+    let current = obj;
+    for(const part of parts){
+      if(current == null) return undefined;
+      current = current[part];
+    }
+    return current;
+  }
+
+  function parentPointer(path){
+    const parts = pointerParts(path);
+    if(parts.length <= 1) return '';
+    return '/' + parts.slice(0, -1).map(p => p.replace(/~/g, '~0').replace(/\//g, '~1')).join('/');
+  }
+
+  function buildReplayCardIndex(data){
+    const index = { mine:new Map(), opponent:new Map() };
+    const addOwnerCards = (owner, value) => {
+      if(owner !== 'mine' && owner !== 'opponent') return;
+      extractCards(value, []).forEach(card => indexCardReference(index[owner], card));
+    };
+    addOwnerCards('mine', data?.baseSnapshot?.myPlayer);
+    addOwnerCards('opponent', data?.baseSnapshot?.opponent);
+    for(const frame of data?.frames || []){
+      for(const patch of frame.patch || []){
+        const owner = ownerFromPatchPath(patch.path);
+        if(owner) addOwnerCards(owner, patch.value);
+      }
+    }
+    return index;
+  }
+
+  function indexCardReference(map, cardLike){
+    if(!map || !cardLike) return;
+    const hydrated = hydrateCard(cardLike);
+    if(!isKnownActionCard(hydrated)) return;
+    for(const key of cardReferenceKeys(cardLike)) if(key && !map.has(key)) map.set(key, hydrated);
+    for(const key of cardReferenceKeys(hydrated)) if(key && !map.has(key)) map.set(key, hydrated);
+  }
+
+  function resolveCardReference(cardLike, owner, replayCardIndex){
+    if(!cardLike || (owner !== 'mine' && owner !== 'opponent') || !replayCardIndex?.[owner]) return null;
+    const map = replayCardIndex[owner];
+    const keys = cardReferenceKeys(cardLike);
+    for(const key of keys){
+      const card = map.get(key);
+      if(card) return hydrateCard(card);
+    }
+    return null;
+  }
+
+  function cardReferenceKeys(cardLike){
+    if(!cardLike) return [];
+    const normalized = normalizeCardReference(cardLike);
+    const keys = new Set();
+    [normalized.instanceId, normalized.cardInstanceId, normalized.id, normalized.cardId].forEach(v => {
+      const text = String(v || '').trim();
+      if(text){ keys.add(text); keys.add(slug(text)); keys.add(canonicalCardId({ id:text })); }
+    });
+    if(normalized.fullName) keys.add(slug(normalized.fullName));
+    if(normalized.name) keys.add(slug(normalized.name));
+    if(normalized.name && normalized.version) keys.add(slug(`${normalized.name} ${normalized.version}`));
+    const setCode = normalizeSetCode(normalized.setCode || normalized.set || '');
+    const number = strip0(normalized.number || normalized.cardNumber || normalized.collector_number || normalized.collectorNumber || '');
+    if(setCode && number){
+      const setNum = SET_CODE_TO_NUM[setCode] || setCode;
+      keys.add(`${setNum}-${number}`);
+      keys.add(slug(`${setCode}-${number}`));
+      keys.add(slug(`${setCode} ${number}`));
+    }
+    const id = String(normalized.id || normalized.cardId || '');
+    const match = id.match(/^(\d{1,2})[-_](\d{1,4})/);
+    if(match) keys.add(`${Number(match[1])}-${Number(match[2])}`);
+    return [...keys].filter(Boolean);
+  }
+
+  function normalizeCardReference(rawInput){
+    const raw = rawInput?.card && typeof rawInput.card === 'object' ? { ...rawInput.card, instanceId:rawInput.instanceId || rawInput.cardInstanceId || rawInput.card.instanceId || rawInput.card.cardInstanceId || '', cardInstanceId:rawInput.cardInstanceId || rawInput.instanceId || rawInput.card.cardInstanceId || rawInput.card.instanceId || '' } : (rawInput || {});
+    const id = raw.id || raw.cardId || raw.card_id || '';
+    const name = raw.name || raw.cardName || '';
+    const version = raw.version || raw.title || raw.subtitle || '';
+    return {
+      ...raw, id, cardId:id, name, version, fullName:raw.fullName || raw.cardName || [name, version].filter(Boolean).join(' - ') || name,
+      instanceId:raw.instanceId || raw.cardInstanceId || '', cardInstanceId:raw.cardInstanceId || raw.instanceId || '',
+      setCode:raw.setCode || raw.set || raw.set_code || '', number:raw.number || raw.cardNumber || raw.collector_number || raw.collectorNumber || ''
+    };
+  }
+
+  function extractMulligan(data, perspective){
+    const initialSnapshot = deepClone(data.baseSnapshot || {});
+    const zoneKey = 'myPlayer';
+    const initial = snapshotHandCards(initialSnapshot, 'mine').slice(0, 7);
+    const working = deepClone(data.baseSnapshot || {});
+    const frames = [...(data.frames || [])].sort((a,b) => n(a.seq) - n(b.seq));
+    for(const frame of frames){
+      if(frame.actionType !== 'MULLIGAN' && frame.actionType !== 'CHOOSE_STARTING_PLAYER') break;
+      for(const patch of frame.patch || []) applyPatch(working, patch);
+    }
+    const resolved = snapshotHandCards(working, 'mine').slice(0, 7);
+    const initialIds = new Set(initial.map(cardIdentity));
+    const resolvedIds = new Set(resolved.map(cardIdentity));
+    const kept = resolved.filter(c => initialIds.has(cardIdentity(c))).length;
+    const replaced = resolved.filter(c => !initialIds.has(cardIdentity(c))).map(c => ({ ...c, mulligan:true }));
+    return { initial, resolved, replaced, kept, changed:replaced.length > 0, visible:initial.length > 0 };
+  }
+
+  function snapshotHandCards(snapshot, owner){
+    if(!snapshot) return [];
+    const zone = owner === 'mine' ? 'myPlayer' : 'opponent';
+    const hand = snapshot?.[zone]?.hand;
+    if(!Array.isArray(hand)) return [];
+    return hand.map(c => hydrateCard(c)).filter(Boolean);
+  }
+
+  function cardIdentity(card){
+    return card?.instanceId || card?.cardInstanceId || card?.id || cardKey(card) || fullName(card);
+  }
+
+  function computeMetrics(turnRows, actions){
+    const questCount = actions.filter(a => a.type === 'quest').length;
+    const challengeCount = actions.filter(a => a.type === 'challenge').length;
+    const handByTurn = turnRows.map(r => ({ turn:r.turn, handCount:r.handEnd }));
+    const inkByTurn = turnRows.map(r => ({ turn:r.turn, capacity:r.capacity, spent:r.spent, float:r.float, inked:r.inked, handStart:r.handStart, handEnd:r.handEnd }));
+    return { totalInkFloat:round1(sum(inkByTurn, 'float')), totalInkSpent:round1(sum(inkByTurn, 'spent')), questCount, challengeCount, topDeckTurns:handByTurn.filter(r => r.handCount <= 1).length, handKnown:handByTurn.length > 0, handByTurn, inkByTurn };
+  }
+
+
+
+  function extractCards(value, found=[], depth=0){
+    if(!value || typeof value !== 'object' || depth > 6) return found;
+    if(isCardLike(value)) found.push(value);
+    if(value.card && isCardLike(value.card)){
+      found.push({
+        ...value.card,
+        instanceId:value.instanceId || value.cardInstanceId || value.card.instanceId || value.card.cardInstanceId || '',
+        cardInstanceId:value.cardInstanceId || value.instanceId || value.card.cardInstanceId || value.card.instanceId || '',
+        exerted:value.exerted ?? value.card.exerted
+      });
+    }
+    if(Array.isArray(value)) value.forEach(v => extractCards(v, found, depth + 1));
+    else Object.values(value).forEach(v => { if(v && typeof v === 'object') extractCards(v, found, depth + 1); });
+    return found;
+  }
+
+  function isCardLike(v){
+    return !!(v && typeof v === 'object'
+      && (v.fullName || v.name || v.cardName || v.title)
+      && (v.id || v.cardId || v.cost !== undefined || v.inkCost !== undefined || v.imageUrl || v.imageSmallUrl || v.image || v.image_uris || v.images || v.rulesText || v.text || v.type || v.cardType));
+  }
+
+
+  function statCardKey(cardLike){
+    const hydrated = cardLike || {};
+    const name = cleanCardName(fullName(hydrated) || hydrated.cardName || hydrated.name || '');
+    const normalizedName = slug(name);
+    if(normalizedName && normalizedName !== 'carte-inconnue') return normalizedName;
+    return cardKey(hydrated);
+  }
+
+  function isPlaceholderCard(cardLike){
+    const name = cleanCardName(fullName(cardLike || {}));
+    return !name || name === 'Carte inconnue' || slug(name) === 'carte-inconnue';
+  }
+
+  function ensureCardSeenOnce(map, cardLike, owner, seenOnce){
+    if(owner !== 'mine' && owner !== 'opponent' || !cardLike || isPlaceholderCard(cardLike)) return;
+    const hydrated = hydrateCard(cardLike);
+    const key = statCardKey(hydrated) || cardKey(hydrated);
+    if(!key) return;
+    const token = `${owner}|${key}`;
+    if(seenOnce?.has(token)) return;
+    const existing = map.get(key);
+    const existingSeen = n(normalizeOwnerStats(existing?.ownerStats)[owner].seen);
+    if(existingSeen <= 0) updateCardStat(map, hydrated, owner, { seen:1 });
+    seenOnce?.add(token);
+  }
+
+  function scanVisibleCardsForStats(snapshot, seenCards, seenOnce){
+    ['mine','opponent'].forEach(owner => {
+      const zone = owner === 'mine' ? 'myPlayer' : 'opponent';
+      const source = snapshot?.[zone];
+      if(!source) return;
+      ['hand','field','characters','locations','items','discard','revealedCards','play'].forEach(zoneKey => {
+        const value = source?.[zoneKey];
+        if(!value) return;
+        extractCards(value, []).forEach(card => ensureCardSeenOnce(seenCards, card, owner, seenOnce));
+      });
+      // Inkwell is visible only when Duel.ink provides the nested card object. Face-down
+      // resources without card data are ignored, but visible cards still become tracked.
+      extractCards(source?.inkwell || [], []).forEach(card => ensureCardSeenOnce(seenCards, card, owner, seenOnce));
+    });
+  }
+
+  function updateCardStat(map, cardLike, owner, inc={}){
+    if(!cardLike || (owner !== 'mine' && owner !== 'opponent')) return;
+    const hydrated = hydrateCard(cardLike);
+    const key = statCardKey(hydrated) || cardKey(hydrated);
+    if(!key) return;
+    const existing = map.get(key) || { ...hydrated, owners:new Set(), seen:0, played:0, inked:0, quest:0, lore:0, challenge:0, firstTurns:[], ownerStats:{ mine:freshOwnerStats(), opponent:freshOwnerStats() } };
+    existing.ownerStats = normalizeOwnerStats(existing.ownerStats);
+    const merged = mergeCard(existing, hydrated);
+    merged.ownerStats = normalizeOwnerStats(existing.ownerStats);
+    merged.owners.add(owner);
+
+    const bucket = merged.ownerStats[owner] || freshOwnerStats();
+    bucket.seen += inc.seen || 0;
+    bucket.played += inc.played || 0;
+    bucket.inked += inc.inked || 0;
+    bucket.quest += inc.quest || 0;
+    bucket.lore += inc.lore || 0;
+    bucket.loreActions += inc.loreActions || 0;
+    bucket.challenge += inc.challenge || 0;
+    if(inc.firstTurn) bucket.firstTurns.push(inc.firstTurn);
+    merged.ownerStats[owner] = bucket;
+
+    merged.seen += inc.seen || 0;
+    merged.played += inc.played || 0;
+    merged.inked += inc.inked || 0;
+    merged.quest += inc.quest || 0;
+    merged.lore += inc.lore || 0;
+    merged.loreActions = n(merged.loreActions) + (inc.loreActions || 0);
+    merged.challenge += inc.challenge || 0;
+    if(inc.firstTurn) merged.firstTurns.push(inc.firstTurn);
+    map.set(key, merged);
+  }
+
+  function freshOwnerStats(){ return { seen:0, played:0, inked:0, quest:0, lore:0, loreActions:0, challenge:0, firstTurns:[] }; }
+
+  function normalizeOwnerStats(stats){
+    return {
+      mine:{ ...freshOwnerStats(), ...(stats?.mine || {}) },
+      opponent:{ ...freshOwnerStats(), ...(stats?.opponent || {}) }
+    };
+  }
+
+  function scopedCard(card, owner){
+    if(owner !== 'mine' && owner !== 'opponent') return card;
+    const stats = normalizeOwnerStats(card.ownerStats)[owner];
+    return { ...card, owners:[owner], seen:n(stats.seen), played:n(stats.played), inked:n(stats.inked), quest:n(stats.quest), lore:n(stats.lore), loreActions:n(stats.loreActions), challenge:n(stats.challenge), firstTurns:stats.firstTurns || [], avgTurn:stats.firstTurns?.length ? mean(stats.firstTurns) : null };
+  }
+
+  function cardsForScope(m, scope=state.scope){
+    if(!m?.cards) return [];
+    if(scope !== 'mine' && scope !== 'opponent') return m.cards;
+    return m.cards
+      .filter(c => normalizeOwnerStats(c.ownerStats)[scope].seen || c.owners?.includes(scope))
+      .map(c => scopedCard(c, scope));
+  }
+
+  function loreEngineCards(cards){
+    return (cards || []).filter(c => n(c?.lore) > 0 || n(c?.loreActions) > 0);
+  }
+
+  function compareLoreEngines(a, b){
+    return (n(b?.lore) - n(a?.lore)) || (n(b?.loreActions) - n(a?.loreActions)) || (n(b?.quest) - n(a?.quest)) || (n(b?.played) - n(a?.played)) || fullName(a).localeCompare(fullName(b));
+  }
+
+
+  function loreActivityChip(card){
+    const type = typeLabel(card?.type || card?.cardType || '').toLowerCase();
+    const rawType = String(card?.type || card?.cardType || '').toLowerCase();
+    const q = n(card?.quest);
+    const a = n(card?.loreActions);
+    const p = n(card?.played);
+    if(type.includes('personnage') || rawType.includes('character')){
+      return `${q} aventure${q > 1 ? 's' : ''}`;
+    }
+    if(type.includes('lieu') || rawType.includes('location')){
+      const v = a || p || n(card?.seen);
+      return `${v} gain${v > 1 ? 's' : ''}`;
+    }
+    if(type.includes('objet') || rawType.includes('item')){
+      const v = a || p || n(card?.seen);
+      return `${v} activation${v > 1 ? 's' : ''}`;
+    }
+    if(type.includes('action') || type.includes('chanson') || rawType.includes('action') || rawType.includes('song')){
+      const v = p || a || n(card?.seen);
+      return `${v} jouée${v > 1 ? 's' : ''}`;
+    }
+    const v = a || q || p || n(card?.seen);
+    return `${v} action${v > 1 ? 's' : ''}`;
+  }
+
+  function hydrateCard(cardLike){
+    const replay = normalizeReplayCard(cardLike);
+    const keys = new Set(cardReferenceKeys(replay));
+    keys.add(slug(`${replay.name} ${replay.version}`));
+    if(replay.setCode && replay.number){
+      const code = normalizeSetCode(replay.setCode);
+      const num = SET_CODE_TO_NUM[code] || String(replay.id || '').split('-')[0];
+      const cardNumber = strip0(replay.number);
+      keys.add(`${num}-${cardNumber}`);
+      keys.add(slug(`${code}-${cardNumber}`));
+      keys.add(slug(`${code} ${cardNumber}`));
+    }
+    let local = null;
+    for(const k of keys){ if(state.index.has(k)){ local = state.index.get(k); break; } }
+    if(!local && replay.id?.includes('-')){
+      const [setNum, number] = replay.id.split('-');
+      const code = SET_NUM_TO_CODE[setNum] || setNum;
+      local = state.index.get(slug(`${code}-${strip0(number)}`)) || state.index.get(`${setNum}-${strip0(number)}`) || null;
+    }
+    return mergeCard(local || {}, replay);
+  }
+
+  function normalizeReplayCard(rawInput){
+    const raw = rawInput?.card && isCardLike(rawInput.card) ? {
+      ...rawInput.card,
+      instanceId:rawInput.instanceId || rawInput.cardInstanceId || rawInput.card.instanceId || rawInput.card.cardInstanceId || '',
+      cardInstanceId:rawInput.cardInstanceId || rawInput.instanceId || rawInput.card.cardInstanceId || rawInput.card.instanceId || '',
+      exerted:rawInput.exerted ?? rawInput.card.exerted
+    } : (rawInput || {});
+    const fr = raw.translations?.fr || {};
+    const id = raw.id || raw.cardId || raw.card_id || '';
+    const name = raw.name || raw.cardName || '';
+    const version = raw.title || raw.version || raw.subtitle || '';
+    const fullName = raw.fullName || raw.cardName || [name, version].filter(Boolean).join(' - ') || name;
+    const setNum = String(id).split('-')[0];
+    const setCode = SET_NUM_TO_CODE[setNum] || normalizeSetCode(raw.set || raw.setCode || raw.set_code || raw.expansion || '');
+    return {
+      source:'replay', id, cardId:id, instanceId:raw.instanceId || raw.cardInstanceId || '', cardInstanceId:raw.cardInstanceId || raw.instanceId || '',
+      name, version, fullName, type:raw.type || raw.cardType || '', colors:arrayify(raw.colors || raw.color || raw.inkColor), cost:nullable(raw.cost ?? raw.inkCost), inkable:boolValue(raw.inkable ?? raw.inkwell), rarity:raw.rarity || '',
+      strength:nullable(raw.strength), willpower:nullable(raw.willpower), lore:nullable(raw.lore), moveCost:nullable(raw.moveCost), classifications:arrayify(raw.subtypes || raw.classifications),
+      text:fr.rulesText || raw.rulesText || raw.text || raw.ability || '', flavorText:fr.flavorText || raw.flavorText || '', franchise:raw.franchise || raw.story || '', artists:arrayify(raw.illustrators || raw.artists || raw.artist),
+      setCodes:setCode ? [setCode] : [], setCode, number:strip0(String(id).split('-')[1] || raw.number || raw.cardNumber || raw.collector_number || raw.collectorNumber || ''),
+      image:getCardImage(raw, 'normal'), imageSmall:getCardImage(raw, 'small'), specialAbilities:raw.specialAbilities || [], abilities:raw.abilities || [], raw
+    };
+  }
+
+  function mergeCard(base, incoming){
+    const out = { ...base };
+    for(const [k,v] of Object.entries(incoming || {})){
+      if(k === 'owners' || k === 'ownerStats') continue;
+      if(k === 'image' || k === 'imageSmall') { if(v) out[k] = v; continue; }
+      if(k === 'text') { if(v && String(v).length > String(out[k] || '').length) out[k] = v; continue; }
+      if((out[k] === undefined || out[k] === null || out[k] === '' || (Array.isArray(out[k]) && !out[k].length)) && !(v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length))) out[k] = v;
+    }
+    return out;
+  }
+  function finalizeCard(c){
+    const ownerStats = normalizeOwnerStats(c.ownerStats);
+    const intrinsicLore = n(cardIntrinsicLore(c));
+    if(intrinsicLore > 0){
+      ['mine','opponent'].forEach(owner => {
+        if(n(ownerStats[owner].quest) > 0 && n(ownerStats[owner].lore) === 0){
+          ownerStats[owner].lore = n(ownerStats[owner].quest) * intrinsicLore;
+        }
+      });
+    }
+    const totalStats = ['mine','opponent'].reduce((acc, owner) => {
+      const stats = ownerStats[owner] || freshOwnerStats();
+      acc.seen += n(stats.seen);
+      acc.played += n(stats.played);
+      acc.inked += n(stats.inked);
+      acc.quest += n(stats.quest);
+      acc.lore += n(stats.lore);
+      acc.loreActions += n(stats.loreActions);
+      acc.challenge += n(stats.challenge);
+      acc.firstTurns.push(...arrayify(stats.firstTurns));
+      return acc;
+    }, { seen:0, played:0, inked:0, quest:0, lore:0, loreActions:0, challenge:0, firstTurns:[] });
+    const ownersValue = c.owners instanceof Set ? [...c.owners] : arrayify(c.owners);
+    return { ...c, owners:ownersValue, ownerStats, seen:totalStats.seen, played:totalStats.played, inked:totalStats.inked, quest:totalStats.quest, lore:totalStats.lore, loreActions:totalStats.loreActions, challenge:totalStats.challenge, firstTurns:totalStats.firstTurns, avgTurn:totalStats.firstTurns.length ? mean(totalStats.firstTurns) : null };
+  }
+
+  function mergeScopedCardTotals(a, b){
+    const out = mergeCard(a || {}, b || {});
+    const toOwnerList = value => value instanceof Set ? [...value] : arrayify(value);
+    const owners = new Set([...toOwnerList(a?.owners), ...toOwnerList(b?.owners)]);
+    out.owners = [...owners].filter(Boolean);
+    const aStats = normalizeOwnerStats(a?.ownerStats);
+    const bStats = normalizeOwnerStats(b?.ownerStats);
+    out.ownerStats = { mine:freshOwnerStats(), opponent:freshOwnerStats() };
+    ['mine','opponent'].forEach(owner => {
+      const firstTurns = [...(aStats[owner].firstTurns || []), ...(bStats[owner].firstTurns || [])];
+      out.ownerStats[owner] = {
+        seen:n(aStats[owner].seen) + n(bStats[owner].seen),
+        played:n(aStats[owner].played) + n(bStats[owner].played),
+        inked:n(aStats[owner].inked) + n(bStats[owner].inked),
+        quest:n(aStats[owner].quest) + n(bStats[owner].quest),
+        lore:n(aStats[owner].lore) + n(bStats[owner].lore),
+        loreActions:n(aStats[owner].loreActions) + n(bStats[owner].loreActions),
+        challenge:n(aStats[owner].challenge) + n(bStats[owner].challenge),
+        firstTurns
+      };
+    });
+    out.seen = n(a?.seen) + n(b?.seen);
+    out.played = n(a?.played) + n(b?.played);
+    out.inked = n(a?.inked) + n(b?.inked);
+    out.quest = n(a?.quest) + n(b?.quest);
+    out.lore = n(a?.lore) + n(b?.lore);
+    out.loreActions = n(a?.loreActions) + n(b?.loreActions);
+    out.challenge = n(a?.challenge) + n(b?.challenge);
+    out.firstTurns = [...(a?.firstTurns || []), ...(b?.firstTurns || [])];
+    out.avgTurn = out.firstTurns.length ? mean(out.firstTurns) : null;
+    return out;
+  }
+
+  function mergeSessions(sessions){
+    if(!sessions.length) return null;
+    const first = sessions[0];
+    const allCards = new Map();
+    const allActions = [];
+    const allTimeline = [];
+    sessions.forEach((s, index) => {
+      const gameIndex = index;
+      const gameNumber = n(s.gameNumber || index + 1);
+      s.cards.forEach(c => {
+        const k = cardKey(c);
+        const withGame = { ...c, ownerStats:normalizeOwnerStats(c.ownerStats), gameIndex, gameNumber };
+        const prev = allCards.get(k);
+        allCards.set(k, prev ? mergeScopedCardTotals(prev, withGame) : withGame);
+      });
+      allActions.push(...s.actions.map(a => ({ ...a, gameIndex, gameNumber })));
+      allTimeline.push(...s.timeline.map(t => ({ ...t, gameIndex, gameNumber })));
+    });
+    const cards = [...allCards.values()];
+    const inkProfiles = buildInkProfiles({ cards });
+    const matchupLabel = formatMatchupLabel(inkProfiles);
+    const wins = sessions.filter(s=>s.isWin).length;
+    const losses = sessions.length - wins;
+    const otpStats = computePlayDrawStats(sessions);
+    const last = sessions[sessions.length - 1] || first;
+    return {
+      isBO3:sessions.length > 1,
+      viewMode:'global',
+      sessions,
+      myName:first.myName,
+      opponentName:first.opponentName,
+      wins,
+      losses,
+      avgTurns:mean(sessions.map(s=>n(s.turnCount))),
+      totalTurns:sum(sessions,'turnCount'),
+      wentFirst:sessions.filter(s=>s.firstTurnPlayer === s.myPlayerNumber).length,
+      otpStats,
+      finalMineLore:last.finalMineLore,
+      finalOppLore:last.finalOppLore,
+      cards,
+      actions:allActions,
+      timeline:allTimeline,
+      proMetrics:mergeMetrics(sessions.map(s=>s.proMetrics)),
+      opponentProMetrics:mergeMetrics(sessions.map(s=>s.opponentProMetrics)),
+      loreSeries:first.loreSeries,
+      actionSeries:first.actionSeries,
+      inkProfiles,
+      matchupLabel,
+      first,
+      last,
+      matchMeta:state.matchMeta
+    };
+  }
+
+  function computePlayDrawStats(sessions){
+    const stats = { otp:{ wins:0, losses:0, total:0 }, otd:{ wins:0, losses:0, total:0 } };
+    sessions.forEach(s => {
+      const bucket = s.firstTurnPlayer === s.myPlayerNumber ? stats.otp : stats.otd;
+      bucket.total += 1;
+      if(s.isWin) bucket.wins += 1; else bucket.losses += 1;
+    });
+    return stats;
+  }
+
+  function sessionToWorkingData(session, index=0){
+    if(!session) return null;
+    const cards = session.cards.map(c => ({ ...c, ownerStats:normalizeOwnerStats(c.ownerStats), gameIndex:index, gameNumber:n(session.gameNumber || index + 1) }));
+    const inkProfiles = session.inkProfiles || buildInkProfiles({ cards });
+    return {
+      isBO3:false,
+      isSingleGame:true,
+      viewMode:index,
+      gameIndex:index,
+      gameNumber:n(session.gameNumber || index + 1),
+      sessions:[session],
+      myName:session.myName,
+      opponentName:session.opponentName,
+      wins:session.isWin ? 1 : 0,
+      losses:session.isWin ? 0 : 1,
+      avgTurns:n(session.turnCount),
+      totalTurns:n(session.turnCount),
+      wentFirst:session.firstTurnPlayer === session.myPlayerNumber ? 1 : 0,
+      otpStats:computePlayDrawStats([session]),
+      finalMineLore:session.finalMineLore,
+      finalOppLore:session.finalOppLore,
+      cards,
+      actions:session.actions.map(a => ({ ...a, gameIndex:index, gameNumber:n(session.gameNumber || index + 1) })),
+      timeline:session.timeline.map(t => ({ ...t, gameIndex:index, gameNumber:n(session.gameNumber || index + 1) })),
+      proMetrics:session.proMetrics,
+      opponentProMetrics:session.opponentProMetrics,
+      loreSeries:session.loreSeries,
+      actionSeries:session.actionSeries,
+      inkProfiles,
+      matchupLabel:session.matchupLabel || formatMatchupLabel(inkProfiles),
+      first:session,
+      last:session
+    };
+  }
+
+  function getWorkingData(){
+    if(!state.sessions.length) return null;
+    if(state.viewMode === 'global') return state.merged;
+    const index = Number(state.viewMode || 0);
+    return sessionToWorkingData(state.sessions[index], index);
+  }
+
+  function isGlobalView(){
+    return state.isBO3 && state.viewMode === 'global';
+  }
+
+  function mergeMetrics(list){
+    if(list.length === 1) return list[0];
+    return { totalInkFloat:sum(list,'totalInkFloat'), totalInkSpent:sum(list,'totalInkSpent'), questCount:sum(list,'questCount'), challengeCount:sum(list,'challengeCount'), topDeckTurns:sum(list,'topDeckTurns'), handKnown:list.some(x=>x.handKnown), inkByTurn:list.flatMap(x=>x.inkByTurn || []), handByTurn:list.flatMap(x=>x.handByTurn || []) };
+  }
+
+  function renderAll(){
+    const m = getWorkingData();
+    updateDynamicTheme(m || state.merged, state.scope);
+    syncViewModeVisibility();
+    renderBo3Selector();
+    document.querySelectorAll('[data-card-filter]').forEach(b=>b.classList.toggle('active', b.dataset.cardFilter === state.cardFilter));
+    renderFiles(); renderBulkQueue(); renderDetected(); renderOverview(); renderStats(); renderCards(); renderTimeline(); renderDeckOptions(); syncSaveButton();
+  }
+
+  function cloudErrorMessage(error){
+    const raw = String(error?.message || error || '').toLowerCase();
+    if(raw.includes('failed to fetch') || raw.includes('network') || raw.includes('fetch') || raw.includes('blocked')){
+      return 'Supabase est inaccessible depuis ce réseau. L’analyse locale reste disponible.';
+    }
+    return error?.message || 'Connexion cloud momentanément indisponible.';
+  }
+
+  function setCloudOffline(error=null){
+    state.cloudOffline = true;
+    state.cloudErrorMessage = cloudErrorMessage(error);
+    state.currentUser = null;
+    syncSaveButton(state.cloudErrorMessage);
+    renderCloudStatus();
+    renderPerformanceData();
+  }
+
+  function setCloudOnline(){
+    state.cloudOffline = false;
+    state.cloudErrorMessage = '';
+    renderCloudStatus();
+  }
+
+  function renderCloudStatus(){
+    document.body?.classList.toggle('cloud-offline', !!state.cloudOffline);
+    if(!els.cloudStatusBanner) return;
+    const show = !!state.cloudOffline && !state.cloudBannerDismissed;
+    els.cloudStatusBanner.hidden = !show;
+    if(show){
+      const text = els.cloudStatusBanner.querySelector('span');
+      if(text) text.textContent = state.cloudErrorMessage || 'L’analyse locale reste disponible. La sauvegarde reprendra quand le cloud sera accessible.';
+    }
+  }
+
+  function initSaveIntegration(){
+    getCurrentUser()
+      .then(user => {
+        setCloudOnline();
+        state.currentUser = user;
+        syncSaveButton();
+        renderBulkQueue();
+        refreshDeckProfiles({ silent:true }).catch(setCloudOffline);
+        refreshSavedMatches({ silent:true }).catch(setCloudOffline);
+      })
+      .catch(error => { setCloudOffline(error); });
+
+    try{
+      supabase.auth.onAuthStateChange((_event, session) => {
+        setCloudOnline();
+        state.currentUser = session?.user || null;
+        syncSaveButton();
+        renderBulkQueue();
+        if(state.currentUser){
+          refreshDeckProfiles({ force:true, silent:true }).catch(setCloudOffline);
+          refreshSavedMatches({ force:true, silent:true }).catch(setCloudOffline);
+        }
+        else {
+          state.savedMatches = [];
+          state.savedMatchesLoaded = false;
+          state.selectedSavedMatchId = null;
+          state.deckProfiles = [];
+          state.deckProfilesLoaded = false;
+          renderDeckOptions();
+          renderBulkQueue();
+          renderPerformanceData();
+        }
+      });
+    }catch(error){
+      setCloudOffline(error);
+    }
+  }
+
+  function syncSaveButton(message=''){
+    if(!els.saveAnalysisPanel || !els.saveAnalysisButton || !els.saveAnalysisStatus) return;
+    const hasAnalysis = !!getWorkingData() && state.sessions.length > 0;
+    els.saveAnalysisPanel.hidden = !hasAnalysis;
+    if(!hasAnalysis){
+      els.saveAnalysisButton.disabled = true;
+      els.saveAnalysisStatus.textContent = 'Importez un replay pour pouvoir sauvegarder une analyse.';
+      return;
+    }
+
+    const loggedIn = !!state.currentUser;
+    if(state.cloudOffline){
+      els.saveAnalysisButton.disabled = true;
+      els.saveAnalysisButton.classList.toggle('is-saved', false);
+      els.saveAnalysisButton.textContent = 'Sauvegarde indisponible';
+      els.saveAnalysisStatus.textContent = message || state.cloudErrorMessage || 'Connexion cloud indisponible sur ce réseau. Vous pouvez continuer l’analyse locale.';
+      return;
+    }
+    els.saveAnalysisButton.disabled = state.savePending || !loggedIn;
+    els.saveAnalysisButton.classList.toggle('is-saved', !!state.lastSavedMatchId && !state.savePending);
+
+    if(state.savePending){
+      els.saveAnalysisButton.textContent = 'Sauvegarde…';
+      els.saveAnalysisStatus.textContent = 'Envoi sécurisé vers votre historique.';
+      return;
+    }
+
+    if(!loggedIn){
+      els.saveAnalysisButton.textContent = 'Connectez-vous pour sauvegarder';
+      els.saveAnalysisStatus.textContent = message || 'Connectez-vous avec Discord pour ajouter cette analyse à votre historique.';
+      return;
+    }
+
+    els.saveAnalysisButton.textContent = state.lastSavedMatchId ? 'Analyse sauvegardée' : 'Sauvegarder l’analyse';
+    els.saveAnalysisStatus.textContent = message || (state.lastSavedMatchId ? 'Ce match est dans votre historique.' : 'Cette analyse sera liée à votre compte.');
+  }
+
+  async function saveCurrentAnalysis(){
+    if(state.savePending) return;
+    if(!state.currentUser){
+      syncSaveButton('Connectez-vous avec Discord avant de sauvegarder.');
+      return;
+    }
+
+    const m = getWorkingData();
+    if(!m){
+      syncSaveButton('Importez un replay avant de sauvegarder.');
+      return;
+    }
+
+    let finalMessage = '';
+    try{
+      state.savePending = true;
+      syncSaveButton();
+      await refreshSavedMatches({ silent:true });
+      const duplicate = findDuplicateSavedMatch(m);
+      if(duplicate){
+        state.loadedSavedMatchId = duplicate.id;
+        state.lastSavedMatchId = duplicate.id;
+        finalMessage = 'Cette analyse existe déjà dans votre historique. Aucun doublon créé.';
+        return;
+      }
+      const deckProfile = await resolveDeckProfileForSave(m);
+      const details = buildSavedAnalysisDetails(m);
+      const payload = buildSavedMatchPayload(m, deckProfile, details);
+      const saved = await saveMatchAnalysis(payload, details);
+      state.lastSavedMatchId = saved?.id || null;
+      await refreshSavedMatches({ force:true, silent:true });
+      state.selectedSavedMatchId = state.lastSavedMatchId;
+      renderPerformanceData();
+      finalMessage = 'Analyse sauvegardée. Elle pourra alimenter l’historique et les statistiques globales.';
+    }catch(err){
+      console.error(err);
+      state.lastSavedMatchId = null;
+      finalMessage = `Erreur de sauvegarde : ${err.message}`;
+    }finally{
+      state.savePending = false;
+      syncSaveButton(finalMessage);
+    }
+  }
+
+  async function saveBulkQueue(){
+    if(state.bulkSaving) return;
+    if(!state.currentUser){
+      if(els.bulkImportStatus) els.bulkImportStatus.textContent = 'Connectez-vous avec Discord avant de sauvegarder un lot.';
+      return;
+    }
+    const queue = state.bulkQueue || [];
+    const candidates = queue.filter(item => item.merged && ['ready','warning'].includes(item.status));
+    if(!candidates.length){
+      if(els.bulkImportStatus) els.bulkImportStatus.textContent = 'Aucune analyse valide à sauvegarder dans la file.';
+      renderBulkQueue();
+      return;
+    }
+    state.bulkSaving = true;
+    renderBulkQueue();
+    try{
+      await refreshSavedMatches({ silent:true });
+      let savedCount = 0;
+      let duplicateCount = 0;
+      for(const item of candidates){
+        item.status = 'saving';
+        item.message = 'Sauvegarde en cours…';
+        renderBulkQueue();
+        const duplicate = findDuplicateSavedMatchForData(item.merged);
+        if(duplicate){
+          item.status = 'duplicate';
+          item.duplicate = duplicate;
+          item.message = 'Déjà présent dans l’historique. Aucun doublon créé.';
+          duplicateCount += 1;
+          continue;
+        }
+        const previous = snapshotCurrentReplayState();
+        try{
+          restoreReplayStateFromBulkItem(item);
+          const details = buildSavedAnalysisDetails(item.merged);
+          const deckProfile = await resolveBulkDeckForItem(item);
+          const payload = buildSavedMatchPayload(item.merged, deckProfile, details);
+          const saved = await saveMatchAnalysis(payload, details);
+          item.savedId = saved?.id || null;
+          item.status = 'saved';
+          item.message = 'Analyse sauvegardée.';
+          savedCount += 1;
+        }catch(err){
+          console.error(err);
+          item.status = 'error';
+          item.error = err;
+          item.message = `Erreur de sauvegarde : ${err.message}`;
+        }finally{
+          restoreReplayStateSnapshot(previous);
+        }
+        renderBulkQueue();
+      }
+      await refreshSavedMatches({ force:true, silent:true });
+      if(els.bulkImportStatus) els.bulkImportStatus.textContent = `${savedCount} analyse(s) sauvegardée(s). ${duplicateCount ? `${duplicateCount} doublon(s) ignoré(s).` : ''}`.trim();
+    }finally{
+      state.bulkSaving = false;
+      renderBulkQueue();
+    }
+  }
+
+  function snapshotCurrentReplayState(){
+    return {
+      replays:state.replays,
+      sessions:state.sessions,
+      merged:state.merged,
+      isBO3:state.isBO3,
+      viewMode:state.viewMode,
+      matchMeta:state.matchMeta
+    };
+  }
+
+  function restoreReplayStateSnapshot(snapshot){
+    if(!snapshot) return;
+    state.replays = snapshot.replays;
+    state.sessions = snapshot.sessions;
+    state.merged = snapshot.merged;
+    state.isBO3 = snapshot.isBO3;
+    state.viewMode = snapshot.viewMode;
+    state.matchMeta = snapshot.matchMeta;
+  }
+
+  function restoreReplayStateFromBulkItem(item){
+    state.replays = item.replays || [];
+    state.sessions = item.sessions || [];
+    state.merged = item.merged || null;
+    state.isBO3 = state.sessions.length > 1;
+    state.viewMode = state.isBO3 ? 'global' : 0;
+    state.matchMeta = item.matchMeta || null;
+  }
+
+  function buildSavedMatchPayload(m, deckProfile={}, details={}){
+    const global = !!(m?.isBO3 || isGlobalView());
+    const format = global ? 'BO3' : 'BO1';
+    const profiles = m.inkProfiles || buildInkProfiles(m);
+    const wins = n(m.wins);
+    const losses = n(m.losses);
+    const win = wins > losses;
+    const result = win ? 'win' : 'loss';
+    const scoreLabel = global ? `${wins}-${losses}` : `${n(m.finalMineLore)}-${n(m.finalOppLore)}`;
+    const matchup = m.matchupLabel || formatMatchupLabel(profiles);
+    const title = `${format} · ${win ? 'Victoire' : 'Défaite'} ${scoreLabel} · ${matchup}`;
+    const quality = auditCurrentAnalysisQuality(m, details, deckProfile);
+    const fingerprint = savedMatchSignatureFromM(m);
+    const playedAt = detectPlayedAt(m) || null;
+
+    return {
+      title,
+      format,
+      result,
+      wins,
+      losses,
+      score_label:scoreLabel,
+      matchup_label:matchup,
+      mine_colors:(profiles.mine?.inks || []).map(inkLabel),
+      opponent_colors:(profiles.opponent?.inks || []).map(inkLabel),
+      opponent_name:m.opponentName || '',
+      deck_name:deckProfile.name || null,
+      deck_profile_id:deckProfile.id || null,
+      duelink_url:null,
+      played_at:playedAt,
+      replay_fingerprint:fingerprint || null,
+      data_quality:quality.status,
+      quality_issues:quality.issues,
+      total_turns:Math.round(global ? n(m.totalTurns) : n(m.avgTurns || m.first?.turnCount)),
+      avg_turns:round1(m.avgTurns || 0),
+      final_mine_lore:n(m.finalMineLore),
+      final_opp_lore:n(m.finalOppLore),
+      analysis_json:buildSavedAnalysisJson(m, { format, result, scoreLabel, matchup, profiles, deckProfile, quality })
+    };
+  }
+
+
+  function buildSavedAnalysisDetails(m){
+    const sessions = Array.isArray(m?.sessions) && m.sessions.length ? m.sessions : (m?.first ? [m.first] : []);
+    const games = [];
+    const cardStats = [];
+    const turnStats = [];
+
+    sessions.forEach((session, index) => {
+      const gameNumber = n(session.gameNumber || index + 1);
+      const profiles = session.inkProfiles || buildInkProfiles({ cards:session.cards || [] });
+      const mineColors = (profiles.mine?.inks || []).map(inkLabel);
+      const opponentColors = (profiles.opponent?.inks || []).map(inkLabel);
+
+      games.push({
+        game_number:gameNumber,
+        is_win:!!session.isWin,
+        format:state.isBO3 ? 'BO3' : 'BO1',
+        otp:session.firstTurnPlayer === session.myPlayerNumber,
+        first_turn_player:n(session.firstTurnPlayer),
+        turn_count:n(session.turnCount),
+        final_mine_lore:n(session.finalMineLore),
+        final_opp_lore:n(session.finalOppLore),
+        mine_colors:mineColors,
+        opponent_colors:opponentColors,
+        matchup_label:session.matchupLabel || formatMatchupLabel(profiles),
+        game_json:{
+          file_name:session.fileName || '',
+          victory_reason:session.victoryReason || '',
+          mulligan:compactMulligan(session.mulligan),
+          metrics:{ mine:compactMetrics(session.proMetrics), opponent:compactMetrics(session.opponentProMetrics) },
+          lore_series:compactLoreSeries(session.loreSeries),
+          action_series:compactActionSeries(session.actionSeries)
+        }
+      });
+
+      const mulliganMaps = detailedMulliganMaps(session.mulligan);
+      ['mine','opponent'].forEach(owner => {
+        const opening = owner === 'mine' ? mulliganMaps.initial : new Map();
+        const kept = owner === 'mine' ? mulliganMaps.kept : new Map();
+        const replaced = owner === 'mine' ? mulliganMaps.replaced : new Map();
+        (session.cards || []).forEach(card => {
+          const scoped = scopedCard(card, owner);
+          if(!n(scoped.seen) && !scoped.owners?.includes(owner)) return;
+          const key = statCardKey(scoped) || cardKey(scoped) || fullName(scoped);
+          if(!key) return;
+          cardStats.push({
+            game_number:gameNumber,
+            owner,
+            card_key:key,
+            card_name:fullName(scoped),
+            card_type:typeLabel(scoped.type),
+            colors:arrayify(scoped.colors).map(inkLabel),
+            seen:n(scoped.seen),
+            in_opening_hand:n(opening.get(key)),
+            kept_mulligan:n(kept.get(key)),
+            replaced_mulligan:n(replaced.get(key)),
+            played:n(scoped.played),
+            inked:n(scoped.inked),
+            quest_count:n(scoped.quest),
+            lore_generated:n(scoped.lore),
+            challenge_count:n(scoped.challenge),
+            first_turns:Array.isArray(scoped.firstTurns) ? scoped.firstTurns.map(n).filter(Boolean) : [],
+            avg_turn:scoped.avgTurn === null || scoped.avgTurn === undefined ? null : round1(scoped.avgTurn)
+          });
+        });
+        if(owner === 'mine'){
+          const existingKeys = new Set((session.cards || []).map(card => {
+            const scoped = scopedCard(card, 'mine');
+            return statCardKey(scoped) || cardKey(scoped) || fullName(scoped);
+          }).filter(Boolean));
+          const mulliganKeys = new Set([...opening.keys(), ...kept.keys(), ...replaced.keys()]);
+          mulliganKeys.forEach(key => {
+            if(existingKeys.has(key)) return;
+            cardStats.push({
+              game_number:gameNumber,
+              owner:'mine',
+              card_key:key,
+              card_name:fullName(hydrateCard({ id:key, fullName:key, name:key })),
+              card_type:typeLabel(hydrateCard({ id:key, fullName:key, name:key }).type),
+              colors:arrayify(hydrateCard({ id:key, fullName:key, name:key }).colors).map(inkLabel),
+              seen:0,
+              in_opening_hand:n(opening.get(key)),
+              kept_mulligan:n(kept.get(key)),
+              replaced_mulligan:n(replaced.get(key)),
+              played:0,
+              inked:0,
+              quest_count:0,
+              lore_generated:0,
+              challenge_count:0,
+              first_turns:[],
+              avg_turn:null
+            });
+          });
+        }
+      });
+
+      turnStats.push(...detailedTurnRowsForSession(session, gameNumber, 'mine'));
+      turnStats.push(...detailedTurnRowsForSession(session, gameNumber, 'opponent'));
+    });
+
+    return { games, cardStats, turnStats };
+  }
+
+  function mulliganStableCardKey(card){
+    const hydrated = hydrateCard(card || {});
+    return statCardKey(hydrated) || statCardKey(card || {}) || card?.key || card?.id || '';
+  }
+
+  function mulliganInstanceKey(card){
+    return card?.instanceId || card?.instance_id || card?.cardInstanceId || card?.instance || '';
+  }
+
+  function countMulliganCards(cards){
+    const map = new Map();
+    (cards || []).forEach(card => {
+      const key = mulliganStableCardKey(card);
+      if(!key) return;
+      map.set(key, n(map.get(key)) + 1);
+    });
+    return map;
+  }
+
+  function splitMulliganInitialCards(mulligan){
+    const initialCards = arrayify(mulligan?.initial);
+    const resolvedCards = arrayify(mulligan?.resolved);
+    const exactResolved = new Map();
+    resolvedCards.forEach(card => {
+      const instance = mulliganInstanceKey(card);
+      if(!instance) return;
+      exactResolved.set(instance, n(exactResolved.get(instance)) + 1);
+    });
+
+    const keptCards = [];
+    const thrownCards = [];
+    const unresolvedInitial = [];
+
+    initialCards.forEach(card => {
+      const instance = mulliganInstanceKey(card);
+      if(instance && n(exactResolved.get(instance)) > 0){
+        keptCards.push(card);
+        exactResolved.set(instance, n(exactResolved.get(instance)) - 1);
+      }else if(instance){
+        thrownCards.push(card);
+      }else{
+        unresolvedInitial.push(card);
+      }
+    });
+
+    if(unresolvedInitial.length){
+      const resolvedByName = countMulliganCards(resolvedCards);
+      keptCards.forEach(card => {
+        const key = mulliganStableCardKey(card);
+        if(key) resolvedByName.set(key, Math.max(0, n(resolvedByName.get(key)) - 1));
+      });
+      unresolvedInitial.forEach(card => {
+        const key = mulliganStableCardKey(card);
+        if(key && n(resolvedByName.get(key)) > 0){
+          keptCards.push(card);
+          resolvedByName.set(key, n(resolvedByName.get(key)) - 1);
+        }else{
+          thrownCards.push(card);
+        }
+      });
+    }
+
+    return { initialCards, keptCards, thrownCards, replacementCards:arrayify(mulligan?.replaced), resolvedCards };
+  }
+
+  function detailedMulliganMaps(mulligan){
+    // Duel.ink stores "replaced" as the replacement cards drawn after the mulligan, not the cards sent back.
+    // The real decision is: initial card stayed in resolved hand = kept; initial card absent from resolved hand = renvoyée.
+    const split = splitMulliganInitialCards(mulligan);
+    return {
+      initial:countMulliganCards(split.initialCards),
+      kept:countMulliganCards(split.keptCards),
+      replaced:countMulliganCards(split.thrownCards)
+    };
+  }
+
+  function detailedTurnRowsForSession(session, gameNumber, owner){
+    const metrics = owner === 'mine' ? session.proMetrics : session.opponentProMetrics;
+    const loreMap = new Map((session.loreSeries || []).map(row => [n(row.turn), owner === 'mine' ? n(row.mine) : n(row.opponent)]));
+    const actionCounts = new Map();
+    (session.timeline || []).forEach(entry => {
+      if(entry.owner !== owner) return;
+      const turn = n(entry.turn || entry.globalTurn || 1);
+      const bucket = actionCounts.get(turn) || { play:0, quest:0, challenge:0, ink:0 };
+      if(entry.type === 'play') bucket.play += 1;
+      if(entry.type === 'quest') bucket.quest += 1;
+      if(entry.type === 'challenge') bucket.challenge += 1;
+      if(entry.type === 'ink') bucket.ink += 1;
+      actionCounts.set(turn, bucket);
+    });
+    const handMap = new Map((metrics?.handByTurn || []).map(row => [n(row.turn), n(row.handCount)]));
+    return (metrics?.inkByTurn || []).map(row => {
+      const turn = n(row.turn);
+      const counts = actionCounts.get(turn) || { play:0, quest:0, challenge:0, ink:0 };
+      return {
+        game_number:gameNumber,
+        turn,
+        owner,
+        lore:n(loreMap.get(turn)),
+        hand_count:n(row.handEnd ?? handMap.get(turn)),
+        ink_capacity:round1(row.capacity),
+        ink_spent:round1(row.spent),
+        ink_float:round1(row.float),
+        inked:n(row.inked ?? counts.ink),
+        cards_played:n(counts.play),
+        quests:n(counts.quest),
+        challenges:n(counts.challenge)
+      };
+    });
+  }
+
+  function buildSavedAnalysisJson(m, meta){
+    const narrative = generateMatchNarrative(m);
+    return {
+      schema_version:'v78',
+      saved_at:new Date().toISOString(),
+      played_at:detectPlayedAt(m) || null,
+      duplicate_signature:savedMatchSignatureFromM(m),
+      data_quality:meta.quality || null,
+      source:'lorcana-gto-replay-analyzer',
+      view_mode:state.viewMode,
+      format:meta.format,
+      result:{
+        value:meta.result,
+        wins:n(m.wins),
+        losses:n(m.losses),
+        score_label:meta.scoreLabel,
+        final_mine_lore:n(m.finalMineLore),
+        final_opp_lore:n(m.finalOppLore),
+        avg_turns:round1(m.avgTurns || 0),
+        total_turns:n(m.totalTurns || m.avgTurns || 0)
+      },
+      players:{ mine:m.myName || 'Joueur', opponent:m.opponentName || 'Adversaire' },
+      deck:{ id:meta.deckProfile?.id || null, name:meta.deckProfile?.name || null },
+      matchup:{
+        label:meta.matchup,
+        mine:{ label:meta.profiles.mine?.label || '', inks:meta.profiles.mine?.inks || [] },
+        opponent:{ label:meta.profiles.opponent?.label || '', inks:meta.profiles.opponent?.inks || [] }
+      },
+      narrative:{ title:narrative.title, text:narrative.text || narrative.summary || '', badge:narrative.badge || '' },
+      key_moments:collectKeyMoments(m).map(moment => ({ kind:moment.kind, owner:moment.owner, turn:n(moment.turn), delta:n(moment.delta), text:keyMomentText(moment) })),
+      metrics:{ mine:compactMetrics(m.proMetrics), opponent:compactMetrics(m.opponentProMetrics) },
+      mulligan:compactMulligan(m.sessions?.[0]?.mulligan || m.first?.mulligan),
+      charts:{ lore_series:compactLoreSeries(m.loreSeries), action_series:compactActionSeries(m.actionSeries) },
+      cards:{ mine:compactCardStats(cardsForScope(m, 'mine')), opponent:compactCardStats(cardsForScope(m, 'opponent')) },
+      timeline:compactTimeline(m.timeline),
+      games:compactGames(m.sessions || [])
+    };
+  }
+
+  function compactMetrics(metrics={}){
+    return {
+      totalInkFloat:round1(metrics.totalInkFloat),
+      totalInkSpent:round1(metrics.totalInkSpent),
+      questCount:n(metrics.questCount),
+      challengeCount:n(metrics.challengeCount),
+      topDeckTurns:n(metrics.topDeckTurns),
+      handKnown:!!metrics.handKnown,
+      handByTurn:(metrics.handByTurn || []).map(r => ({ turn:n(r.turn), handCount:n(r.handCount) })),
+      inkByTurn:(metrics.inkByTurn || []).map(r => ({ turn:n(r.turn), capacity:n(r.capacity), spent:n(r.spent), float:round1(r.float), inked:n(r.inked), handStart:n(r.handStart), handEnd:n(r.handEnd) }))
+    };
+  }
+
+  function compactLoreSeries(rows=[]){
+    return rows.map(r => ({ turn:n(r.turn), mine:n(r.mine), opponent:n(r.opponent) }));
+  }
+
+  function compactActionSeries(rows=[]){
+    return rows.map(r => ({ turn:n(r.turn), ink:n(r.ink), play:n(r.play), quest:n(r.quest), challenge:n(r.challenge), mineChallenge:n(r.mineChallenge), opponentChallenge:n(r.opponentChallenge) }));
+  }
+
+  function compactCardStats(cards=[]){
+    return (cards || [])
+      .map(card => ({
+        key:statCardKey(card) || cardKey(card),
+        name:fullName(card),
+        type:typeLabel(card.type),
+        colors:arrayify(card.colors).map(inkLabel),
+        seen:n(card.seen),
+        played:n(card.played),
+        inked:n(card.inked),
+        quest:n(card.quest),
+        lore:n(card.lore),
+        loreActions:n(card.loreActions),
+        challenge:n(card.challenge),
+        avgTurn:card.avgTurn === null || card.avgTurn === undefined ? null : round1(card.avgTurn),
+        image:card.imageSmall || card.image || ''
+      }))
+      .filter(card => card.key || card.name)
+      .slice(0, 240);
+  }
+
+  function compactMulliganCard(card={}){
+    if(!card) return null;
+    return {
+      key:statCardKey(card) || cardKey(card),
+      name:fullName(card),
+      type:typeLabel(card.type),
+      colors:arrayify(card.colors).map(inkLabel),
+      image:card.imageSmall || card.image || '',
+      instanceId:card.instanceId || card.cardInstanceId || '',
+      mulligan:!!card.mulligan
+    };
+  }
+
+  function compactMulligan(mulligan){
+    if(!mulligan || !mulligan.visible) return null;
+    const pack = cards => (cards || []).map(compactMulliganCard).filter(Boolean);
+    return {
+      visible:true,
+      kept:n(mulligan.kept),
+      changed:!!mulligan.changed,
+      initial:pack(mulligan.initial),
+      resolved:pack(mulligan.resolved),
+      replaced:pack(mulligan.replaced).map(card => ({ ...card, mulligan:true }))
+    };
+  }
+
+  function compactTimeline(rows=[]){
+    return (rows || []).map(row => ({
+      gameNumber:n(row.gameNumber),
+      turn:n(row.turn),
+      owner:row.owner,
+      type:row.type,
+      title:row.title,
+      detail:row.detail,
+      cardName:row.cardName || '',
+      cardKey:row.cardKey || ''
+    })).slice(0, 800);
+  }
+
+  function compactGames(sessions=[]){
+    return (sessions || []).map((session, index) => ({
+      gameNumber:n(session.gameNumber || index + 1),
+      playedAt:session.playedAt || session.matchGameInfo?.startedAt || session.matchGameInfo?.createdAt || null,
+      isWin:!!session.isWin,
+      firstTurnPlayer:session.firstTurnPlayer,
+      otp:session.firstTurnPlayer === session.myPlayerNumber,
+      turnCount:n(session.turnCount),
+      finalMineLore:n(session.finalMineLore),
+      finalOppLore:n(session.finalOppLore),
+      matchupLabel:session.matchupLabel || '',
+      proMetrics:compactMetrics(session.proMetrics),
+      opponentProMetrics:compactMetrics(session.opponentProMetrics),
+      mulligan:compactMulligan(session.mulligan),
+      loreSeries:compactLoreSeries(session.loreSeries),
+      actionSeries:compactActionSeries(session.actionSeries)
+    }));
+  }
+
+  function loadSavedAnalysis(row){
+    if(!row || !row.analysis_json){
+      if(els.historyStatus) els.historyStatus.textContent = 'Analyse sauvegardée introuvable.';
+      return;
+    }
+    try{
+      const runtime = savedRowToRuntimeState(row);
+      state.replays = runtime.replays;
+      state.sessions = runtime.sessions;
+      state.merged = runtime.merged;
+      state.isBO3 = runtime.isBO3;
+      state.viewMode = runtime.isBO3 ? 'global' : 0;
+      state.matchMeta = { source:'saved_match', id:row.id, created_at:row.created_at };
+      state.mulliganResolved = false;
+      state.lastSavedMatchId = row.id;
+      state.loadedSavedMatchId = row.id;
+      state.selectedSavedMatchId = row.id;
+      if(state.isBO3) state.cardFilter = 'opponent';
+      document.body.classList.toggle('empty-state', !state.sessions.length);
+      document.body.classList.toggle('has-results', !!state.sessions.length);
+      setTab('overview');
+      renderAll();
+      document.querySelector('.app-nav-button[data-app-view="analysis"]')?.click();
+      if(els.statusText) els.statusText.textContent = 'Analyse sauvegardée rechargée depuis votre historique.';
+      if(els.historyStatus) els.historyStatus.textContent = 'Analyse ouverte dans l’onglet Analyse.';
+    }catch(err){
+      console.error(err);
+      if(els.historyStatus) els.historyStatus.textContent = `Erreur de chargement : ${err.message}`;
+    }
+  }
+
+  function savedRowToRuntimeState(row){
+    const analysis = row.analysis_json || {};
+    const format = String(row.format || analysis.format || 'BO1').toUpperCase();
+    const globalCards = savedCardsToRuntimeCards(analysis.cards || {});
+    const fullTimeline = savedTimelineToRuntime(analysis.timeline || []);
+    const games = Array.isArray(analysis.games) ? analysis.games : [];
+    const isBO3 = format === 'BO3' && games.length > 1;
+    const myName = analysis.players?.mine || 'Joueur';
+    const opponentName = row.opponent_name || analysis.players?.opponent || 'Adversaire';
+    const profiles = savedInkProfiles(row, analysis);
+
+    const sessions = isBO3
+      ? games.map((game, index) => savedGameToSession(row, analysis, game, index, myName, opponentName, profiles))
+      : [savedGameToSession(row, analysis, null, 0, myName, opponentName, profiles)];
+
+    const merged = isBO3 ? savedMergedToWorkingData(row, analysis, sessions, globalCards, fullTimeline, profiles, myName, opponentName) : sessionToWorkingData(sessions[0], 0);
+    const replays = sessions.map((session, index) => ({
+      file:{ name:`${format} sauvegardé · ${formatSavedDate(row.created_at)}${isBO3 ? ` · Game ${index + 1}` : ''}`, size:0, savedMatchId:row.id },
+      replay:{ saved:true, id:row.id },
+      session
+    }));
+    return { isBO3, sessions, merged, replays };
+  }
+
+  function savedMergedToWorkingData(row, analysis, sessions, cards, timeline, profiles, myName, opponentName){
+    const result = analysis.result || {};
+    const wins = n(row.wins ?? result.wins);
+    const losses = n(row.losses ?? result.losses);
+    const loreSeries = compactLoreSeries(analysis.charts?.lore_series || []);
+    const actionSeries = compactActionSeries(analysis.charts?.action_series || []);
+    return {
+      isBO3:true,
+      isSavedAnalysis:true,
+      viewMode:'global',
+      sessions,
+      myName,
+      opponentName,
+      wins,
+      losses,
+      avgTurns:round1(row.avg_turns || mean(sessions.map(s => n(s.turnCount)))),
+      totalTurns:n(row.total_turns || result.total_turns || sum(sessions, 'turnCount')),
+      wentFirst:sessions.filter(s => s.firstTurnPlayer === s.myPlayerNumber).length,
+      otpStats:computePlayDrawStats(sessions),
+      finalMineLore:n(row.final_mine_lore ?? result.final_mine_lore),
+      finalOppLore:n(row.final_opp_lore ?? result.final_opp_lore),
+      cards,
+      actions:timeline.map(t => ({ ...t, actionType:t.type })),
+      timeline,
+      proMetrics:savedMetrics(analysis.metrics?.mine),
+      opponentProMetrics:savedMetrics(analysis.metrics?.opponent),
+      loreSeries,
+      actionSeries,
+      inkProfiles:profiles,
+      matchupLabel:row.matchup_label || analysis.matchup?.label || formatMatchupLabel(profiles),
+      first:sessions[0],
+      last:sessions[sessions.length - 1],
+      savedAnalysis:analysis
+    };
+  }
+
+  function savedGameToSession(row, analysis, game, index, myName, opponentName, profiles){
+    const isBo3Game = !!game;
+    const gameNumber = n(game?.gameNumber || index + 1);
+    const result = analysis.result || {};
+    const isWin = isBo3Game ? !!game.isWin : row.result === 'win';
+    const otp = isBo3Game ? !!game.otp : null;
+    const turnCount = n(game?.turnCount || row.total_turns || result.total_turns || result.avg_turns);
+    const finalMineLore = n(game?.finalMineLore ?? row.final_mine_lore ?? result.final_mine_lore);
+    const finalOppLore = n(game?.finalOppLore ?? row.final_opp_lore ?? result.final_opp_lore);
+    const timeline = savedTimelineToRuntime(analysis.timeline || [], isBo3Game ? gameNumber : null);
+    const cards = isBo3Game ? savedCardsFromTimeline(timeline, analysis.cards || {}) : savedCardsToRuntimeCards(analysis.cards || {});
+    const mulligan = savedMulliganToRuntime(game?.mulligan || (!isBo3Game ? analysis.mulligan : null));
+    const firstTurnPlayer = otp === null ? 1 : (otp ? 1 : 2);
+    return {
+      isSavedAnalysis:true,
+      data:{ saved:true, id:row.id },
+      file:{ name:`Analyse sauvegardée ${formatSavedDate(row.created_at)}` },
+      perspective:1,
+      myPlayerNumber:1,
+      opponentNumber:2,
+      firstTurnPlayer,
+      myName,
+      opponentName,
+      gameIndex:index,
+      gameNumber,
+      winner:isWin ? 1 : 2,
+      isWin,
+      turnCount,
+      finalMineLore,
+      finalOppLore,
+      wins:isWin ? 1 : 0,
+      losses:isWin ? 0 : 1,
+      cards,
+      actions:timeline.map(t => ({ ...t, actionType:t.type })),
+      timeline,
+      proMetrics:savedMetrics(game?.proMetrics || analysis.metrics?.mine),
+      opponentProMetrics:savedMetrics(game?.opponentProMetrics || analysis.metrics?.opponent),
+      loreSeries:compactLoreSeries(game?.loreSeries || analysis.charts?.lore_series || []),
+      actionSeries:compactActionSeries(game?.actionSeries || analysis.charts?.action_series || []),
+      inkProfiles:profiles,
+      matchupLabel:row.matchup_label || analysis.matchup?.label || formatMatchupLabel(profiles),
+      mulligan
+    };
+  }
+
+  function savedMulliganToRuntime(mulligan){
+    if(!mulligan || !mulligan.visible) return null;
+    const convert = cards => (cards || []).map(item => {
+      const card = savedCompactCardToRuntime({ ...item, seen:1 }, 'mine');
+      return {
+        ...card,
+        instanceId:item.instanceId || card.instanceId || '',
+        cardInstanceId:item.instanceId || card.cardInstanceId || '',
+        mulligan:!!item.mulligan
+      };
+    });
+    const initial = convert(mulligan.initial);
+    const resolved = convert(mulligan.resolved);
+    const replaced = convert(mulligan.replaced).map(card => ({ ...card, mulligan:true }));
+    return {
+      visible:true,
+      initial,
+      resolved,
+      replaced,
+      kept:n(mulligan.kept),
+      changed:!!mulligan.changed
+    };
+  }
+
+  function savedInkProfiles(row, analysis){
+    const normalize = values => arrayify(values).map(inkKey).filter(Boolean);
+    const mine = normalize(row.mine_colors?.length ? row.mine_colors : analysis.matchup?.mine?.inks);
+    const opponent = normalize(row.opponent_colors?.length ? row.opponent_colors : analysis.matchup?.opponent?.inks);
+    return {
+      mine:{ inks:mine, label:mine.map(inkLabel).join(' / ') || analysis.matchup?.mine?.label || '—' },
+      opponent:{ inks:opponent, label:opponent.map(inkLabel).join(' / ') || analysis.matchup?.opponent?.label || '—' }
+    };
+  }
+
+  function savedMetrics(metrics={}){
+    return {
+      totalInkFloat:round1(metrics?.totalInkFloat),
+      totalInkSpent:round1(metrics?.totalInkSpent),
+      questCount:n(metrics?.questCount),
+      challengeCount:n(metrics?.challengeCount),
+      topDeckTurns:n(metrics?.topDeckTurns),
+      handKnown:!!metrics?.handKnown,
+      handByTurn:(metrics?.handByTurn || []).map(r => ({ turn:n(r.turn), handCount:n(r.handCount) })),
+      inkByTurn:(metrics?.inkByTurn || []).map(r => ({ turn:n(r.turn), capacity:n(r.capacity), spent:n(r.spent), float:round1(r.float), inked:n(r.inked), handStart:n(r.handStart), handEnd:n(r.handEnd) }))
+    };
+  }
+
+  function savedCardsToRuntimeCards(cardsByOwner={}){
+    const map = new Map();
+    ['mine','opponent'].forEach(owner => {
+      (cardsByOwner?.[owner] || []).forEach(compact => {
+        const card = savedCompactCardToRuntime(compact, owner);
+        const key = cardKey(card);
+        map.set(key, map.has(key) ? mergeScopedCardTotals(map.get(key), card) : card);
+      });
+    });
+    return [...map.values()].map(finalizeCard);
+  }
+
+  function savedCardsFromTimeline(timeline=[], cardsByOwner={}){
+    const global = savedCardsToRuntimeCards(cardsByOwner);
+    const byKey = new Map(global.map(card => [cardKey(card), card]));
+    const map = new Map();
+    timeline.forEach(row => {
+      if(!row.cardKey && !row.cardName) return;
+      const key = row.cardKey || slug(row.cardName);
+      const owner = row.owner === 'opponent' ? 'opponent' : 'mine';
+      const existing = byKey.get(key) || savedCompactCardToRuntime({ key, name:row.cardName || 'Carte inconnue', seen:1 }, owner);
+      const stats = normalizeOwnerStats(existing.ownerStats);
+      const ownerStats = { mine:freshOwnerStats(), opponent:freshOwnerStats() };
+      ownerStats[owner] = { ...freshOwnerStats(), seen:1, played:row.type === 'play' ? 1 : 0, inked:row.type === 'ink' ? 1 : 0, quest:row.type === 'quest' ? 1 : 0, challenge:row.type === 'challenge' ? 1 : 0, lore:0, loreActions:0, firstTurns:[n(row.turn)].filter(Boolean) };
+      const card = { ...existing, owners:[owner], ownerStats, seen:1, played:ownerStats[owner].played, inked:ownerStats[owner].inked, quest:ownerStats[owner].quest, challenge:ownerStats[owner].challenge, lore:0, loreActions:0, firstTurns:ownerStats[owner].firstTurns };
+      map.set(cardKey(card), map.has(cardKey(card)) ? mergeScopedCardTotals(map.get(cardKey(card)), card) : card);
+    });
+    return [...map.values()].map(finalizeCard);
+  }
+
+  function savedCompactCardToRuntime(compact={}, owner='mine'){
+    const key = compact.key || slug(compact.name);
+    const local = state.index.get(key) || state.index.get(slug(compact.name)) || null;
+    const incoming = {
+      id:key,
+      name:compact.name || local?.name || 'Carte inconnue',
+      fullName:compact.name || fullName(local || {}),
+      type:compact.type || local?.type || '',
+      colors:(compact.colors || []).map(inkKey),
+      image:compact.image || local?.image || '',
+      imageSmall:compact.image || local?.imageSmall || local?.image || ''
+    };
+    const hydrated = mergeCard(local || {}, incoming);
+    const ownerStats = { mine:freshOwnerStats(), opponent:freshOwnerStats() };
+    ownerStats[owner] = {
+      ...freshOwnerStats(),
+      seen:n(compact.seen),
+      played:n(compact.played),
+      inked:n(compact.inked),
+      quest:n(compact.quest),
+      lore:n(compact.lore),
+      loreActions:n(compact.loreActions),
+      challenge:n(compact.challenge),
+      firstTurns:[]
+    };
+    const stats = ownerStats[owner];
+    return { ...hydrated, owners:[owner], ownerStats, seen:stats.seen, played:stats.played, inked:stats.inked, quest:stats.quest, lore:stats.lore, loreActions:stats.loreActions, challenge:stats.challenge, firstTurns:[], avgTurn:null };
+  }
+
+  function savedTimelineToRuntime(rows=[], gameNumber=null){
+    return (rows || [])
+      .filter(row => gameNumber === null || n(row.gameNumber) === n(gameNumber))
+      .map(row => {
+        const key = row.cardKey || '';
+        const name = row.cardName || '';
+        return {
+          gameNumber:n(row.gameNumber || gameNumber || 1),
+          turn:n(row.turn),
+          owner:row.owner === 'opponent' ? 'opponent' : 'mine',
+          type:row.type || 'ability',
+          title:row.title || (name ? `Action avec ${name}` : 'Action'),
+          detail:row.detail || '',
+          cardName:name,
+          cardKey:key,
+          icon:savedActionIcon(row.type),
+          card:key || name ? { id:key || slug(name), name, fullName:name } : null
+        };
+      });
+  }
+
+  function savedActionIcon(type){
+    return ({ ink:'◆', play:'▶', quest:'', challenge:'', move:'↗', ability:'', end:'↪' })[type] || '•';
+  }
+
+
+  async function refreshDeckProfiles(options={}){
+    if(!state.currentUser){
+      state.deckProfiles = [];
+      state.deckProfilesLoaded = false;
+      renderDeckOptions();
+      return [];
+    }
+    if(state.deckProfilesLoading) return state.deckProfiles;
+    if(state.deckProfilesLoaded && !options.force){
+      renderDeckOptions();
+      return state.deckProfiles;
+    }
+
+    try{
+      state.deckProfilesLoading = true;
+      const rows = await listDeckProfiles();
+      state.deckProfiles = Array.isArray(rows) ? rows : [];
+      state.deckProfilesLoaded = true;
+    }catch(err){
+      console.error(err);
+      state.deckProfiles = [];
+      state.deckProfilesLoaded = false;
+      if(els.saveDeckHint) els.saveDeckHint.textContent = `Deck profiles indisponibles : ${err.message}`;
+    }finally{
+      state.deckProfilesLoading = false;
+      renderDeckOptions();
+      renderAccountPage();
+    }
+    return state.deckProfiles;
+  }
+
+
+  function renderAccountPage(){
+    renderDeckManager();
+    renderDataQualityPanel();
+    renderDuplicateAudit();
+  }
+
+  function deckProfileUsageCounts(){
+    const counts = new Map();
+    (state.savedMatches || []).forEach(row => {
+      const id = row.deck_profile_id;
+      if(!id) return;
+      counts.set(id, n(counts.get(id)) + 1);
+    });
+    return counts;
+  }
+
+  function renderDeckManager(){
+    if(!els.deckManagerList || !els.deckManagerStatus) return;
+    if(!state.currentUser){
+      els.deckManagerStatus.textContent = 'Connectez-vous pour créer et organiser vos versions de decks.';
+      els.deckManagerList.innerHTML = '';
+      return;
+    }
+    const profiles = namedDeckProfiles({ includeArchived:true });
+    const activeProfiles = profiles.filter(profile => !isArchivedDeckProfile(profile));
+    const archivedProfiles = profiles.filter(isArchivedDeckProfile);
+    const counts = deckProfileUsageCounts();
+    els.deckManagerStatus.textContent = `${activeProfiles.length} deck${activeProfiles.length > 1 ? 's' : ''} actif${activeProfiles.length > 1 ? 's' : ''}${archivedProfiles.length ? ` · ${archivedProfiles.length} archivé${archivedProfiles.length > 1 ? 's' : ''}` : ''}.`;
+    if(!profiles.length){
+      els.deckManagerList.innerHTML = '<div class="history-empty-state"><strong>Aucune version de deck.</strong><span>Sauvegardez une analyse avec un nom de deck pour commencer.</span></div>';
+      return;
+    }
+    els.deckManagerList.innerHTML = profiles.map(profile => {
+      const colors = profileColors(profile);
+      const count = n(counts.get(profile.id));
+      const mergeOptions = activeProfiles
+        .filter(other => other.id !== profile.id && colorFilterKey(profileColors(other)) === colorFilterKey(colors))
+        .map(other => `<option value="${escAttr(other.id)}">${esc(other.name)}</option>`)
+        .join('');
+      const archived = isArchivedDeckProfile(profile);
+      return `<article class="deck-manager-card ${archived ? 'is-archived' : ''}" data-deck-manager-card="${escAttr(profile.id)}">
+        <div class="deck-manager-main">
+          <div class="deck-manager-title-row">
+            <strong>${inkDotsHtml(colors)}<span>${esc(profile.name)}</span></strong>
+            ${archived ? '<em>Archivé</em>' : ''}
+          </div>
+          <small>${colors.map(inkLabel).join(' / ') || 'Bicolorité non détectée'} · ${count} analyse${count > 1 ? 's' : ''} liée${count > 1 ? 's' : ''}</small>
+        </div>
+        <div class="deck-manager-actions">
+          <label class="deck-manager-field"><span>Renommer</span><input type="text" value="${escAttr(profile.name)}" data-deck-rename-input="${escAttr(profile.id)}"></label>
+          <button type="button" class="ghost-button compact" data-deck-rename="${escAttr(profile.id)}">Renommer</button>
+          <label class="deck-manager-field deck-merge-field"><span>Fusionner vers</span><select data-deck-merge-select="${escAttr(profile.id)}"><option value="">Choisir une version compatible</option>${mergeOptions}</select></label>
+          <button type="button" class="ghost-button compact" data-deck-merge="${escAttr(profile.id)}" ${mergeOptions ? '' : 'disabled'}>Fusionner</button>
+          <button type="button" class="ghost-button compact danger" data-deck-archive="${escAttr(profile.id)}">${archived ? 'Désarchiver' : 'Archiver'}</button>
+        </div>
+      </article>`;
+    }).join('');
+  }
+
+
+  function auditCurrentAnalysisQuality(m, details={}, deckProfile={}){
+    const sessions = Array.isArray(m?.sessions) && m.sessions.length ? m.sessions : (m?.first ? [m.first] : []);
+    const expectedGames = Math.max(1, sessions.length || (m?.isBO3 ? n(m?.wins) + n(m?.losses) : 1));
+    const detailGames = Array.isArray(details.games) ? details.games.length : 0;
+    const cardRows = Array.isArray(details.cardStats) ? details.cardStats.length : 0;
+    const turnRows = Array.isArray(details.turnStats) ? details.turnStats.length : 0;
+    const missingImages = countMissingCardImagesInMatch(m);
+    const issues = {
+      expected_games: expectedGames,
+      saved_games: detailGames,
+      card_rows: cardRows,
+      turn_rows: turnRows,
+      missing_images: missingImages.count,
+      missing_image_cards: missingImages.names.slice(0, 24),
+      played_at_missing: !detectPlayedAt(m),
+      deck_missing: !deckProfile?.id && !deckProfile?.name,
+      bo3_game_mismatch: !!m?.isBO3 && detailGames !== expectedGames,
+      detailed_rows_missing: detailGames < expectedGames || cardRows === 0 || turnRows === 0
+    };
+    let status = 'complete';
+    if(issues.detailed_rows_missing || issues.bo3_game_mismatch) status = 'partial';
+    else if(issues.missing_images || issues.played_at_missing || issues.deck_missing) status = 'warning';
+    return { status, issues };
+  }
+
+  function countMissingCardImagesInMatch(m){
+    const names = new Set();
+    const cards = [
+      ...(m ? cardsForScope(m, 'mine') : []),
+      ...(m ? cardsForScope(m, 'opponent') : []),
+      ...arrayify(m?.mulligan?.initial),
+      ...arrayify(m?.mulligan?.resolved),
+      ...arrayify(m?.mulligan?.replaced),
+      ...arrayify(m?.first?.mulligan?.initial),
+      ...arrayify(m?.first?.mulligan?.resolved),
+      ...arrayify(m?.first?.mulligan?.replaced)
+    ];
+    cards.forEach(card => {
+      const hydrated = hydrateCard(card);
+      const name = fullName(hydrated) || card?.name || card?.fullName || '';
+      const image = hydrated.imageSmall || hydrated.image || getCardImage(hydrated);
+      if(name && !image) names.add(name);
+    });
+    return { count:names.size, names:[...names].sort((a,b)=>a.localeCompare(b)) };
+  }
+
+  function rowQualityInfo(row, detailedIds=null){
+    const issues = row?.quality_issues || row?.analysis_json?.data_quality?.issues || {};
+    const hasDetail = detailedIds ? detailedIds.has(row.id) : hasDetailedAnalyticsForRow(row);
+    const missingImages = n(issues.missing_images) || countMissingCardImages([row]);
+    const deckMissing = !isNamedDeckName(row?.deck_name || row?.analysis_json?.deck?.name || '');
+    const duplicate = duplicateGroups(state.savedMatches || []).some(group => group.some(item => item.id === row.id));
+    let status = row?.data_quality || row?.analysis_json?.data_quality?.status || '';
+    if(!status || status === 'unknown') status = hasDetail ? 'complete' : 'partial';
+    if(status === 'complete' && (missingImages || deckMissing || duplicate)) status = 'warning';
+    const labels = [];
+    if(status === 'complete') labels.push({ type:'complete', label:'Complète' });
+    if(status === 'partial') labels.push({ type:'partial', label:'Partielle' });
+    if(status === 'warning') labels.push({ type:'warning', label:'À vérifier' });
+    if(deckMissing) labels.push({ type:'warning', label:'Deck à nommer' });
+    if(missingImages) labels.push({ type:'warning', label:`${missingImages} image${missingImages>1?'s':''}` });
+    if(duplicate) labels.push({ type:'danger', label:'Doublon possible' });
+    return { status, labels, issues:{...issues, missing_images:missingImages, deck_missing:deckMissing, duplicate} };
+  }
+
+  function hasDetailedAnalyticsForRow(row){
+    const id = row?.id;
+    if(!id) return false;
+    return (state.savedAnalytics?.games || []).some(item => item.match_id === id)
+      && (state.savedAnalytics?.cardStats || []).some(item => item.match_id === id)
+      && (state.savedAnalytics?.turnStats || []).some(item => item.match_id === id);
+  }
+
+  function qualityBadgesHtml(row){
+    const info = rowQualityInfo(row);
+    return `<span class="history-quality-badges">${info.labels.slice(0,3).map(item => `<em class="quality-badge ${escAttr(item.type)}">${esc(item.label)}</em>`).join('')}</span>`;
+  }
+
+  function isNamedDeckName(name){
+    return !!String(name || '').trim() && !/^deck\s+(non\s+)?(nomm[ée]|renseign[ée]|à\s+nommer)/i.test(String(name || '').trim());
+  }
+
+  function renderDataQualityPanel(){
+    if(!els.dataQualityTitle || !els.dataQualityText || !els.dataQualitySummary) return;
+    if(!state.currentUser){
+      els.dataQualityTitle.textContent = '—';
+      els.dataQualityText.textContent = 'Connectez-vous pour voir l’état de vos sauvegardes.';
+      els.dataQualitySummary.innerHTML = '';
+      return;
+    }
+    const rows = state.savedMatches || [];
+    const detailedIds = new Set([
+      ...(state.savedAnalytics?.games || []).map(row => row.match_id),
+      ...(state.savedAnalytics?.cardStats || []).map(row => row.match_id),
+      ...(state.savedAnalytics?.turnStats || []).map(row => row.match_id),
+    ].filter(Boolean));
+    const qualityRows = rows.map(row => rowQualityInfo(row, detailedIds));
+    const complete = qualityRows.filter(info => info.status === 'complete').length;
+    const partial = qualityRows.filter(info => info.status === 'partial').length;
+    const warnings = qualityRows.filter(info => info.status === 'warning').length;
+    const missingImages = qualityRows.reduce((sum, info) => sum + n(info.issues.missing_images), 0);
+    const duplicates = duplicateGroups(rows).reduce((sum, group) => sum + Math.max(0, group.length - 1), 0);
+    els.dataQualityTitle.textContent = rows.length ? `${complete}/${rows.length} propres` : 'Aucune donnée';
+    els.dataQualityText.textContent = rows.length ? `${partial} partielle(s), ${warnings} à vérifier. Les statistiques avancées privilégient les sauvegardes complètes.` : 'Sauvegardez une analyse pour activer le contrôle qualité.';
+    els.dataQualitySummary.innerHTML = [
+      qualityBadge('Exploitables', complete, 'Analyses complètes, reliées aux tables détaillées.'),
+      qualityBadge('Partielles', partial, 'Anciennes sauvegardes ou tables détaillées absentes.'),
+      qualityBadge('Images manquantes', missingImages, 'Cartes sans URL image exploitable.'),
+      qualityBadge('Doublons potentiels', duplicates, 'À nettoyer avant de tirer des conclusions.'),
+    ].join('');
+  }
+
+  function qualityBadge(label, value, help){
+    return `<div class="data-quality-item"><strong>${esc(value)}</strong><span>${esc(label)}</span><small>${esc(help)}</small></div>`;
+  }
+
+  function countMissingCardImages(rows){
+    const names = new Set();
+    (rows || []).forEach(row => {
+      const buckets = [row.analysis_json?.cards?.mine, row.analysis_json?.cards?.opponent, row.analysis_json?.cardStats, row.analysis_json?.mulligan?.initial, row.analysis_json?.mulligan?.kept, row.analysis_json?.mulligan?.replaced];
+      buckets.flat().filter(Boolean).forEach(card => {
+        const name = card.name || card.card_name || card.fullName || '';
+        const image = card.image || card.imageUrl || card.image_url || card.card?.image || '';
+        if(name && !image && !getCardImage(card)) names.add(name);
+      });
+    });
+    return names.size;
+  }
+
+  function duplicateGroups(rows){
+    const map = new Map();
+    (rows || []).forEach(row => {
+      const sig = savedMatchSignatureFromRow(row);
+      if(!sig) return;
+      const list = map.get(sig) || [];
+      list.push(row);
+      map.set(sig, list);
+    });
+    return [...map.values()].filter(group => group.length > 1);
+  }
+
+  function renderDuplicateAudit(){
+    if(!els.duplicateAuditList) return;
+    if(!state.currentUser){
+      els.duplicateAuditList.innerHTML = '<div class="empty-line">Connectez-vous pour vérifier vos sauvegardes.</div>';
+      return;
+    }
+    const rows = state.savedMatches || [];
+    const detailedIds = new Set([
+      ...(state.savedAnalytics?.games || []).map(row => row.match_id),
+      ...(state.savedAnalytics?.cardStats || []).map(row => row.match_id),
+      ...(state.savedAnalytics?.turnStats || []).map(row => row.match_id),
+    ].filter(Boolean));
+    const unnamed = rows.filter(row => rowQualityInfo(row, detailedIds).issues.deck_missing);
+    const partial = rows.filter(row => rowQualityInfo(row, detailedIds).status === 'partial');
+    const imageRows = rows.filter(row => n(rowQualityInfo(row, detailedIds).issues.missing_images) > 0);
+    const duplicates = duplicateGroups(rows);
+    const cards = [];
+    if(unnamed.length){
+      cards.push(maintenanceCardHtml('Decks à nommer', `${unnamed.length} analyse(s) sans version de deck fiable.`, unnamed.slice(0,4), 'Assigner un deck depuis l’historique.'));
+    }
+    if(partial.length){
+      cards.push(maintenanceCardHtml('Analyses partielles', `${partial.length} sauvegarde(s) ne remplissent pas toutes les tables détaillées.`, partial.slice(0,4), 'Réimport recommandé si vous voulez des stats deck précises.'));
+    }
+    if(imageRows.length){
+      cards.push(maintenanceCardHtml('Images manquantes', `${imageRows.length} analyse(s) contiennent au moins une carte sans visuel.`, imageRows.slice(0,4), 'Réimporter avec la base cartes actuelle peut corriger certains cas.'));
+    }
+    duplicates.forEach(group => {
+      cards.push(duplicateGroupHtml(group));
+    });
+    if(!cards.length){
+      els.duplicateAuditList.innerHTML = '<div class="data-clean-state"><strong>Base propre.</strong><span>Aucun doublon évident, aucun deck manquant et pas d’ancienne sauvegarde problématique détectée.</span></div>';
+      return;
+    }
+    els.duplicateAuditList.innerHTML = cards.join('');
+  }
+
+  function maintenanceCardHtml(title, intro, rows=[], note=''){
+    return `<article class="maintenance-card"><div><strong>${esc(title)}</strong><span>${esc(intro)}</span>${note ? `<small>${esc(note)}</small>` : ''}</div><div class="maintenance-mini-list">${rows.map(row => `<button type="button" data-maintenance-select="${escAttr(row.id)}"><b>${esc(row.format || 'BO1')} · ${esc(row.score_label || '')}</b><span>${esc(row.deck_name || row.matchup_label || 'Analyse sauvegardée')}</span></button>`).join('')}</div></article>`;
+  }
+
+  function duplicateGroupHtml(group=[]){
+    const first = group[0] || {};
+    return `<article class="maintenance-card duplicate-group"><div><strong>Doublon potentiel</strong><span>${esc(first.format || 'BO1')} · ${esc(first.score_label || '')} · ${esc(first.matchup_label || 'Matchup inconnu')}</span><small>${group.length} sauvegardes très similaires détectées.</small></div><div class="maintenance-mini-list">${group.map((row, index) => `<button type="button" data-maintenance-select="${escAttr(row.id)}"><b>${esc(formatSavedDate(getSavedMatchPlayedAt(row)))}</b><span>${index === 0 ? 'À garder en priorité' : 'Vérifier / supprimer si doublon'}</span></button>`).join('')}</div></article>`;
+  }
+
+  function handleDataMaintenanceClick(event){
+    const select = event.target.closest('[data-maintenance-select]');
+    if(!select) return;
+    event.preventDefault();
+    const id = select.dataset.maintenanceSelect;
+    const row = state.savedMatches.find(item => item.id === id);
+    if(!row) return;
+    state.selectedSavedMatchId = id;
+    document.querySelector('.app-nav-button[data-app-view="performances"]')?.click();
+    if(els.historyDetail) renderSavedMatchDetail(row);
+    setTimeout(() => document.getElementById('historyList')?.scrollIntoView({ behavior:'smooth', block:'start' }), 0);
+  }
+
+  async function handleAccountDeckManagerClick(event){
+    const renameBtn = event.target.closest('[data-deck-rename]');
+    const mergeBtn = event.target.closest('[data-deck-merge]');
+    const archiveBtn = event.target.closest('[data-deck-archive]');
+    if(!renameBtn && !mergeBtn && !archiveBtn) return;
+    event.preventDefault();
+    if(!state.currentUser) return;
+    try{
+      if(renameBtn){
+        const id = renameBtn.dataset.deckRename;
+        const input = document.querySelector(`[data-deck-rename-input="${CSS.escape(id)}"]`);
+        const name = String(input?.value || '').trim();
+        if(!name) throw new Error('Nom de deck manquant.');
+        await renameDeckProfile(id, name);
+      }
+      if(mergeBtn){
+        const id = mergeBtn.dataset.deckMerge;
+        const select = document.querySelector(`[data-deck-merge-select="${CSS.escape(id)}"]`);
+        const targetId = String(select?.value || '').trim();
+        if(!targetId) throw new Error('Choisissez une version cible.');
+        await mergeDeckProfiles(id, targetId);
+      }
+      if(archiveBtn){
+        const id = archiveBtn.dataset.deckArchive;
+        const profile = state.deckProfiles.find(item => item.id === id);
+        await archiveDeckProfile(id, !isArchivedDeckProfile(profile));
+      }
+      await refreshDeckProfiles({ force:true, silent:true });
+      await refreshSavedMatches({ force:true, silent:true });
+      renderAccountPage();
+      renderDeckOptions();
+      renderPerformanceData();
+    }catch(err){
+      console.error(err);
+      if(els.deckManagerStatus) els.deckManagerStatus.textContent = `Erreur : ${err.message}`;
+    }
+  }
+
+
+  function handleInfoDotClick(event){
+    const button = event.target.closest('.info-dot[data-info]');
+    document.querySelectorAll('.info-popover').forEach(node => node.remove());
+    if(!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const pop = document.createElement('div');
+    pop.className = 'info-popover';
+    pop.textContent = button.dataset.info || '';
+    document.body.appendChild(pop);
+    const rect = button.getBoundingClientRect();
+    const width = Math.min(320, window.innerWidth - 32);
+    pop.style.maxWidth = `${width}px`;
+    const left = Math.min(window.innerWidth - width - 16, Math.max(16, rect.left + rect.width / 2 - width / 2));
+    const top = Math.min(window.innerHeight - 80, rect.bottom + 10);
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+  }
+
+  function renderDeckOptions(){
+    const profiles = namedDeckProfiles();
+    const saveOptions = saveDeckOptionsForCurrentMatch(profiles);
+    const fallbackSave = '';
+    if(els.saveDeckSelect){
+      syncSelectOptions(els.saveDeckSelect, saveOptions, fallbackSave);
+    }
+    if(els.saveDeckPills){
+      renderPillGroup(els.saveDeckPills, 'saveDeckSelect', saveOptions, els.saveDeckSelect?.value || fallbackSave);
+      els.saveDeckPills.hidden = saveOptions.length <= 1;
+    }
+    renderPerformanceFilterPills();
+  }
+
+  function saveDeckOptionsForCurrentMatch(profiles=namedDeckProfiles()){
+    const m = state.merged || getWorkingData?.();
+    const colors = detectedMineColorsFromMatch(m);
+    const wantedKey = colorFilterKey(colors);
+    const candidates = wantedKey
+      ? profiles.filter(profile => profileMatchesColorKey(profile, wantedKey))
+      : [];
+    const sorted = candidates.sort((a,b)=>String(a.name || '').localeCompare(String(b.name || '')));
+    return [
+      { value:'', label:sorted.length ? 'Aucune version choisie' : 'Créer une nouvelle version', colors },
+      ...sorted.map(profile => ({ value:profile.id, label:profile.name, colors:profileColors(profile) }))
+    ];
+  }
+
+  function detectedMineColorsFromMatch(m){
+    const direct = arrayify(m?.inkProfiles?.mine?.inks || m?.profiles?.mine?.inks).map(inkKey).filter(color => color && color !== 'inkless').slice(0,2);
+    if(direct.length) return direct;
+    const cards = typeof cardsForScope === 'function' && m ? cardsForScope(m, 'mine') : [];
+    const counts = new Map();
+    (cards || []).forEach(card => {
+      arrayify(card?.colors).map(inkKey).filter(Boolean).forEach(color => {
+        if(color && color !== 'inkless') counts.set(color, n(counts.get(color)) + Math.max(1, n(card.seen) + n(card.played) + n(card.inked)));
+      });
+    });
+    return [...counts.entries()].sort((a,b)=>b[1]-a[1]).map(([color])=>color).slice(0,2);
+  }
+
+  function profileMatchesColorKey(profile, key){
+    if(!key) return false;
+    return deckProfileColorKey(profile) === key;
+  }
+
+  function namedDeckProfiles(options={}){
+    const includeArchived = !!options.includeArchived;
+    return [...(state.deckProfiles || [])]
+      .filter(profile => isNamedDeckProfile(profile) && (includeArchived || !isArchivedDeckProfile(profile)))
+      .sort((a,b)=>String(a.name || '').localeCompare(String(b.name || '')));
+  }
+
+  function isArchivedDeckProfile(profile){
+    return !!profile?.archived_at;
+  }
+
+  function isNamedDeckProfile(profile){
+    const name = String(profile?.name || '').trim();
+    return !!name && !/^deck\s+(non\s+)?(nomm[ée]|renseign[ée])/i.test(name);
+  }
+
+
+  function profileColors(profile){
+    const fromName = extractInkKeys(profile?.name || '');
+    if(fromName.length >= 2) return fromName.slice(0,2);
+    const merged = [...fromName];
+    const add = colors => arrayify(colors).forEach(value => extractInkKeys(value).forEach(color => {
+      if(color && color !== 'inkless' && !merged.includes(color)) merged.push(color);
+    }));
+    add(profile?.colors);
+    return merged.slice(0,2);
+  }
+
+  function extractInkKeys(value){
+    const raw = String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const out = [];
+    const checks = [
+      ['amber', ['ambre','amber']],
+      ['amethyst', ['amethyste','amethyst','amet']],
+      ['emerald', ['emeraude','emerald']],
+      ['ruby', ['rubis','ruby']],
+      ['sapphire', ['saphir','sapphire']],
+      ['steel', ['acier','steel']]
+    ];
+    checks.forEach(([key, words]) => {
+      if(words.some(word => raw.includes(word)) && !out.includes(key)) out.push(key);
+    });
+    const direct = inkKey(value);
+    if(direct && direct !== 'inkless' && !out.includes(direct)) out.push(direct);
+    return out;
+  }
+
+  function deckProfileColorKey(profile){
+    return colorFilterKey(profileColors(profile));
+  }
+
+  function inferColorsFromDeckName(name){
+    const found = [];
+    const raw = String(name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const checks = [
+      ['amber', ['ambre','amber']],
+      ['amethyst', ['amethyste','amethyst','amet']],
+      ['emerald', ['emeraude','emerald']],
+      ['ruby', ['rubis','ruby']],
+      ['sapphire', ['saphir','sapphire']],
+      ['steel', ['acier','steel']]
+    ];
+    checks.forEach(([key, words]) => {
+      if(words.some(word => raw.includes(word))) found.push(key);
+    });
+    return found.slice(0,2);
+  }
+
+  function handleResponsiveFilterToggle(event){
+    const btn = event.target.closest('[data-filter-toggle]');
+    if(!btn) return;
+    const target = btn.dataset.filterToggle;
+    const panel = target === 'history' ? btn.closest('.history-toolbar-viz') : btn.closest('.performance-filter-bar-viz');
+    if(!panel) return;
+    const open = !panel.classList.contains('filters-open');
+    panel.classList.toggle('filters-open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.textContent = open ? 'Masquer les filtres' : (target === 'history' ? 'Filtres avancés' : 'Modifier les filtres');
+  }
+
+  function handlePerformanceFilterClick(event){
+    const btn = event.target.closest('[data-perf-filter][data-value]');
+    if(!btn) return;
+    const targetId = btn.dataset.perfFilter;
+    const target = els[targetId];
+    if(!target) return;
+    target.value = btn.dataset.value ?? 'all';
+    if(targetId === 'performanceColorFilter' && els.performanceDeckFilter) els.performanceDeckFilter.value = 'all';
+    if(targetId === 'historyColorFilter' && els.historyDeckFilter) els.historyDeckFilter.value = 'all';
+    if(targetId === 'saveDeckSelect'){
+      if(els.saveDeckSelect) els.saveDeckSelect.value = btn.dataset.value || '';
+      renderPillGroup(els.saveDeckPills, 'saveDeckSelect', saveDeckOptionsForCurrentMatch(), els.saveDeckSelect?.value || '');
+      syncSaveButton();
+    }
+    target.dispatchEvent(new Event('input', { bubbles:true }));
+  }
+
+  function handlePerformanceDetailClick(event){
+    const btn = event.target.closest('[data-performance-detail]');
+    if(!btn) return;
+    event.preventDefault();
+    const allowed = ['overview','cards','mulligan','matchups','curves','data'];
+    state.performanceDetailTab = allowed.includes(btn.dataset.performanceDetail) ? btn.dataset.performanceDetail : 'overview';
+    renderPerformanceDetailPanels();
+  }
+
+  function renderPerformanceDetailPanels(){
+    const activeTab = state.performanceDetailTab || 'overview';
+    const deckScoped = isPerformanceDataScoped();
+    document.querySelectorAll('.performance-detail-tab').forEach(button => {
+      const active = button.dataset.performanceDetail === activeTab;
+      const requiresDeck = ['cards','mulligan','matchups','curves'].includes(button.dataset.performanceDetail);
+      button.classList.toggle('active', active);
+      button.classList.toggle('requires-deck', requiresDeck && !deckScoped);
+      button.title = requiresDeck && !deckScoped ? 'Sélectionnez une bicolorité ou une version de deck pour lire cette section correctement.' : '';
+      if(active) button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('[data-performance-detail-panel]').forEach(panel => {
+      const active = panel.dataset.performanceDetailPanel === activeTab;
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+    if(activeTab === 'curves'){
+      setTimeout(() => renderPerformanceCharts(state.lastPerformanceAnalytics || { turnCurve:[] }), 0);
+    }
+  }
+
+  function handlePerformanceSortClick(event){
+    const btn = event.target.closest('[data-performance-sort][data-value]');
+    if(!btn) return;
+    const type = btn.dataset.performanceSort;
+    const value = btn.dataset.value;
+    if(type === 'cards') state.performanceCardSort = value || 'lore';
+    if(type === 'mulligan') state.performanceMulliganSort = value || 'smart';
+    renderPerformanceData();
+  }
+
+  function handlePerformanceListModalClick(event){
+    const btn = event.target.closest('button[data-performance-full-list]');
+    if(!btn) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const type = btn.dataset.performanceFullList;
+    if(type === 'cards' || type === 'mulligan'){
+      state.performanceExpandedLists = { ...(state.performanceExpandedLists || {}), [type]: !state.performanceExpandedLists?.[type] };
+      renderPerformanceData();
+    }
+  }
+
+  function bindPerformanceFullListButtons(){
+    document.querySelectorAll('button[data-performance-full-list]').forEach(button => {
+      button.onclick = event => handlePerformanceListModalClick(event);
+    });
+  }
+
+  function openPerformanceListModal(title, html){
+    if(!els.cardModal || !els.modalBody) return;
+    state.lastFocused = document.activeElement;
+    els.modalBody.innerHTML = `<div class="performance-list-modal"><div class="modal-section-title"><span>Statistiques deck</span><h2>${esc(title)}</h2></div>${html}</div>`;
+    els.cardModal.classList.add('active');
+    els.cardModal.setAttribute('aria-hidden','false');
+    els.closeModal?.focus();
+    bindPerformanceCardTiles();
+  }
+
+  function renderPerformanceFilterPills(){
+    const colorOptions = performanceColorOptionsForPills();
+    syncSelectOptions(els.performanceColorFilter, colorOptions, 'all');
+    renderPillGroup(els.performanceColorPills, 'performanceColorFilter', colorOptions, els.performanceColorFilter?.value || 'all');
+
+    const deckOptions = deckFilterOptionsForPills('performance');
+    syncSelectOptions(els.performanceDeckFilter, deckOptions, 'all');
+    const showDeckVersions = shouldShowDeckVersionFilter(deckOptions, els.performanceColorFilter?.value || 'all');
+    if(els.performanceVersionBlock) els.performanceVersionBlock.hidden = !showDeckVersions;
+    renderPillGroup(els.performanceDeckPills, 'performanceDeckFilter', deckOptions, els.performanceDeckFilter?.value || 'all');
+
+    renderPillGroup(els.performanceFormatPills, 'performanceFormatFilter', [
+      { value:'all', label:'Tous' }, { value:'BO1', label:'BO1' }, { value:'BO3', label:'BO3' }
+    ], els.performanceFormatFilter?.value || 'all');
+    renderPillGroup(els.performanceResultPills, 'performanceResultFilter', [
+      { value:'all', label:'Tous' }, { value:'win', label:'Victoires' }, { value:'loss', label:'Défaites' }
+    ], els.performanceResultFilter?.value || 'all');
+
+    syncSelectOptions(els.historyColorFilter, colorOptions, 'all');
+    renderPillGroup(els.historyColorPills, 'historyColorFilter', colorOptions, els.historyColorFilter?.value || 'all');
+    const opponentColorOptions = historyOpponentColorOptionsForPills();
+    syncSelectOptions(els.historyOpponentColorFilter, opponentColorOptions, 'all');
+    renderPillGroup(els.historyOpponentColorPills, 'historyOpponentColorFilter', opponentColorOptions, els.historyOpponentColorFilter?.value || 'all');
+    const historyDeckOptions = deckFilterOptionsForPills('history');
+    syncSelectOptions(els.historyDeckFilter, historyDeckOptions, 'all');
+    const showHistoryVersions = shouldShowDeckVersionFilter(historyDeckOptions, els.historyColorFilter?.value || 'all');
+    if(els.historyVersionBlock) els.historyVersionBlock.hidden = !showHistoryVersions;
+    renderPillGroup(els.historyDeckPills, 'historyDeckFilter', historyDeckOptions, els.historyDeckFilter?.value || 'all');
+    renderPillGroup(els.historyFormatPills, 'historyFormatFilter', [
+      { value:'all', label:'Tous' }, { value:'BO1', label:'BO1' }, { value:'BO3', label:'BO3' }
+    ], els.historyFormatFilter?.value || 'all');
+    renderPillGroup(els.historyResultPills, 'historyResultFilter', [
+      { value:'all', label:'Tous' }, { value:'win', label:'Victoires' }, { value:'loss', label:'Défaites' }
+    ], els.historyResultFilter?.value || 'all');
+  }
+
+  function syncSelectOptions(select, options, fallback='all'){
+    if(!select) return;
+    const previous = select.value || fallback;
+    select.innerHTML = options.map(option => `<option value="${escAttr(option.value)}">${esc(option.label)}</option>`).join('');
+    select.value = options.some(option => String(option.value) === String(previous)) ? previous : fallback;
+  }
+
+  function performanceColorOptionsForPills(){
+    const map = new Map();
+    (state.savedMatches || []).forEach(row => {
+      const colors = rowMineColors(row);
+      const key = colorFilterKey(colors);
+      if(!key) return;
+      const item = map.get(key) || { value:key, label:colors.map(inkLabel).filter(Boolean).join(' / '), colors, count:0 };
+      item.count += 1;
+      map.set(key, item);
+    });
+    return [
+      { value:'all', label:'Toutes les bicolorités' },
+      ...[...map.values()].sort((a,b)=>b.count-a.count || a.label.localeCompare(b.label)).map(item => ({ ...item, label:`${item.label} · ${item.count}` }))
+    ];
+  }
+
+  function historyOpponentColorOptionsForPills(){
+    const map = new Map();
+    (state.savedMatches || []).forEach(row => {
+      const colors = rowOpponentColors(row);
+      const key = colorFilterKey(colors);
+      if(!key) return;
+      const item = map.get(key) || { value:key, label:colors.map(inkLabel).filter(Boolean).join(' / '), colors, count:0 };
+      item.count += 1;
+      map.set(key, item);
+    });
+    return [
+      { value:'all', label:'Tous les adversaires' },
+      ...[...map.values()].sort((a,b)=>b.count-a.count || a.label.localeCompare(b.label)).map(item => ({ ...item, label:`${item.label} · ${item.count}` }))
+    ];
+  }
+
+  function deckFilterOptionsForPills(mode='performance'){
+    const colorSelect = mode === 'history' ? els.historyColorFilter : els.performanceColorFilter;
+    const selectedColor = String(colorSelect?.value || 'all');
+    const rows = (state.savedMatches || []).filter(row => selectedColor === 'all' || colorFilterKey(rowMineColors(row)) === selectedColor);
+    const counts = new Map();
+    rows.forEach(row => {
+      const id = row.deck_profile_id || '';
+      if(!id) return;
+      const profile = state.deckProfiles.find(item => item.id === id);
+      if(!profile || !isNamedDeckProfile(profile)) return;
+      if(selectedColor !== 'all' && !profileMatchesColorKey(profile, selectedColor)) return;
+      counts.set(id, n(counts.get(id)) + 1);
+    });
+    const profiles = [...counts.keys()]
+      .map(id => state.deckProfiles.find(profile => profile.id === id))
+      .filter(Boolean)
+      .sort((a,b)=>String(a.name || '').localeCompare(String(b.name || '')));
+    return [
+      { value:'all', label:'Toutes les versions' },
+      ...profiles.map(profile => ({ value:profile.id, label:`${profile.name} · ${counts.get(profile.id)}`, colors:profileColors(profile) }))
+    ];
+  }
+
+  function shouldShowDeckVersionFilter(options, selectedColorValue){
+    const selectedColor = String(selectedColorValue || 'all');
+    if(selectedColor === 'all') return false;
+    return (options || []).filter(option => option.value !== 'all').length > 1;
+  }
+
+  function rowMineColors(row){
+    return arrayify(row.mine_colors || row.analysis_json?.profiles?.mine?.inks || row.analysis_json?.inkProfiles?.mine?.inks || row.analysis_json?.cards?.mine?.[0]?.colors).map(inkKey).filter(color => color && color !== 'inkless').slice(0,2);
+  }
+
+  function rowOpponentColors(row){
+    return arrayify(row.opponent_colors || row.analysis_json?.profiles?.opponent?.inks || row.analysis_json?.inkProfiles?.opponent?.inks || row.analysis_json?.cards?.opponent?.[0]?.colors).map(inkKey).filter(color => color && color !== 'inkless').slice(0,2);
+  }
+
+  function colorFilterKey(colors){
+    const values = arrayify(colors).map(inkKey).filter(Boolean).sort();
+    return values.length ? values.join('|') : '';
+  }
+
+
+  function renderPillGroup(target, selectId, options, activeValue){
+    if(!target) return;
+    target.innerHTML = options.map(option => {
+      const active = String(option.value) === String(activeValue);
+      const dots = inkDotsHtml(option.colors || []);
+      return `<button type="button" class="filter-pill ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-pressed="${active ? 'true' : 'false'}">${dots}<span>${esc(option.label)}</span></button>`;
+    }).join('');
+  }
+
+  function inkDotsHtml(colors){
+    const values = arrayify(colors).map(inkKey).filter(Boolean).slice(0,2);
+    if(!values.length) return '';
+    return `<span class="filter-ink-dots" aria-hidden="true">${values.map(color => `<i class="ink-dot ink-${escAttr(color)}"></i>`).join('')}</span>`;
+  }
+
+  function readSaveDeckSelection(){
+    const typed = String(els.saveDeckNameInput?.value || '').trim();
+    const selectedId = String(els.saveDeckSelect?.value || '').trim();
+    const selected = selectedId ? state.deckProfiles.find(profile => profile.id === selectedId) : null;
+    if(typed) return { mode:'typed', id:null, name:typed };
+    if(selected) return { mode:'existing', id:selected.id, name:selected.name };
+    return { mode:'none', id:null, name:null };
+  }
+
+  async function resolveDeckProfileForSave(m){
+    const deck = readSaveDeckSelection();
+    if(!deck.name) return { id:null, name:null };
+    const profiles = m?.inkProfiles || buildInkProfiles(m);
+    const mineColors = (profiles.mine?.inks || []).map(inkLabel);
+    if(deck.id) return { id:deck.id, name:deck.name };
+    const profile = await upsertDeckProfile({ name:deck.name, colors:mineColors });
+    await refreshDeckProfiles({ force:true, silent:true });
+    if(els.saveDeckSelect && profile?.id) els.saveDeckSelect.value = profile.id;
+    if(els.saveDeckNameInput) els.saveDeckNameInput.value = '';
+    return { id:profile?.id || null, name:profile?.name || deck.name };
+  }
+
+  async function refreshSavedMatches(options={}){
+    if(!state.currentUser){
+      state.savedMatches = [];
+      state.savedMatchesLoaded = false;
+      state.selectedSavedMatchId = null;
+      state.expandedSavedMatchId = null;
+      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' };
+      renderPerformanceData();
+      return [];
+    }
+    if(state.savedMatchesLoading) return state.savedMatches;
+    if(state.savedMatchesLoaded && !options.force){
+      renderPerformanceData();
+      return state.savedMatches;
+    }
+
+    try{
+      state.savedMatchesLoading = true;
+      if(!options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
+      const rows = await listSavedMatches(100);
+      state.savedMatches = Array.isArray(rows) ? rows : [];
+      state.savedMatchesLoaded = true;
+      if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
+      await refreshSavedAnalytics(state.savedMatches, { force:!!options.force });
+    }catch(err){
+      console.error(err);
+      state.savedMatches = [];
+      state.savedMatchesLoaded = true;
+      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:err.message || 'Historique indisponible.' };
+      if(els.historyStatus) els.historyStatus.textContent = `Erreur historique : ${err.message || err}`;
+      if(els.historyList) els.historyList.innerHTML = `<div class="history-empty-state"><strong>Impossible de charger l’historique.</strong><span>${esc(err.message || err)}. Vérifiez la connexion puis réessayez.</span><button type="button" class="ghost-button compact" id="historyRetryInline">Réessayer</button></div>`;
+      document.getElementById('historyRetryInline')?.addEventListener('click', () => refreshSavedMatches({ force:true }));
+    }finally{
+      state.savedMatchesLoading = false;
+      renderPerformanceData();
+    }
+    return state.savedMatches;
+  }
+
+
+  async function refreshSavedAnalytics(rows=[], options={}){
+    const ids = [...new Set((rows || []).map(row => row.id).filter(Boolean))].sort();
+    const key = ids.join('|');
+    if(!ids.length){
+      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' };
+      return state.savedAnalytics;
+    }
+    if(!options.force && state.savedAnalytics?.key === key && !state.savedAnalytics?.error){
+      return state.savedAnalytics;
+    }
+    try{
+      state.savedAnalytics = { ...(state.savedAnalytics || {}), key, loading:true, error:'' };
+      const details = await listSavedAnalyticsDetails(ids);
+      state.savedAnalytics = {
+        key,
+        loading:false,
+        error:'',
+        games:Array.isArray(details?.games) ? details.games : [],
+        cardStats:Array.isArray(details?.cardStats) ? details.cardStats : [],
+        turnStats:Array.isArray(details?.turnStats) ? details.turnStats : []
+      };
+    }catch(err){
+      console.error(err);
+      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key, loading:false, error:err.message || 'Données analytiques indisponibles.' };
+    }
+    return state.savedAnalytics;
+  }
+
+  function findDuplicateSavedMatch(m){
+    return findDuplicateSavedMatchForData(m);
+  }
+
+  function findDuplicateSavedMatchForData(m){
+    const signature = savedMatchSignatureFromM(m);
+    if(!signature) return null;
+    return (state.savedMatches || []).find(row => savedMatchSignatureFromRow(row) === signature) || null;
+  }
+
+  function savedMatchSignatureFromM(m){
+    if(!m) return '';
+    const global = !!(m.isBO3 || isGlobalView());
+    const format = global ? 'BO3' : 'BO1';
+    const played = detectPlayedAt(m) || '';
+    const profiles = m.inkProfiles || buildInkProfiles(m);
+    const matchup = m.matchupLabel || formatMatchupLabel(profiles) || '';
+    const opponent = m.opponentName || m.first?.opponentName || '';
+    const games = (m.sessions?.length ? m.sessions : (m.first ? [m.first] : [])).map((game, idx) => [idx + 1, n(game.finalMineLore), n(game.finalOppLore), n(game.turnCount), game.isWin ? 'W' : 'L'].join('-')).join('|');
+    const score = global ? `${n(m.wins)}-${n(m.losses)}` : `${n(m.finalMineLore)}-${n(m.finalOppLore)}`;
+    return slug([format, played ? played.slice(0,16) : '', opponent, matchup, score, games].join('::'));
+  }
+
+  function savedMatchSignatureFromRow(row){
+    if(!row) return '';
+    if(row.replay_fingerprint) return row.replay_fingerprint;
+    const stored = row.analysis_json?.duplicate_signature;
+    if(stored) return stored;
+    const format = String(row.format || row.analysis_json?.format || 'BO1').toUpperCase();
+    const played = getSavedMatchPlayedAt(row) || '';
+    const opponent = row.opponent_name || row.analysis_json?.players?.opponent || '';
+    const matchup = row.matchup_label || row.analysis_json?.matchup?.label || '';
+    const score = row.score_label || '';
+    const games = (row.analysis_json?.games || []).map((game, idx) => [idx + 1, n(game.finalMineLore), n(game.finalOppLore), n(game.turnCount), game.isWin ? 'W' : 'L'].join('-')).join('|');
+    return slug([format, played ? String(played).slice(0,16) : '', opponent, matchup, score, games].join('::'));
+  }
+
+  function renderPerformanceData(){
+    const safe = (label, fn) => {
+      try{ fn(); }
+      catch(err){
+        console.error(`[performances] ${label}`, err);
+        if(els.historyStatus) els.historyStatus.textContent = `Erreur ${label} : ${err.message || err}`;
+        if(label === 'historique' && els.historyList){
+          els.historyList.innerHTML = `<div class="history-empty-state"><strong>Historique temporairement indisponible.</strong><span>${esc(err.message || err)}. Les autres sections restent utilisables.</span><button type="button" class="ghost-button compact" data-performance-view="stats">Retour aux statistiques</button></div>`;
+        }
+      }
+    };
+    safe('filtres', renderPerformanceFilterPills);
+    safe('statistiques', renderSavedStats);
+    safe('historique', renderSavedHistory);
+    safe('compte', renderAccountPage);
+  }
+
+  function filteredSavedMatches(mode='history'){
+    let rows = [...(state.savedMatches || [])].sort((a,b) => savedMatchPlayedTime(b) - savedMatchPlayedTime(a));
+    const deck = mode === 'stats' ? (els.performanceDeckFilter?.value || 'all') : (els.historyDeckFilter?.value || 'all');
+    const color = mode === 'stats' ? (els.performanceColorFilter?.value || 'all') : (els.historyColorFilter?.value || 'all');
+    const opponentColor = mode === 'history' ? (els.historyOpponentColorFilter?.value || 'all') : 'all';
+    const result = mode === 'stats' ? (els.performanceResultFilter?.value || 'all') : (els.historyResultFilter?.value || 'all');
+    const format = mode === 'stats' ? (els.performanceFormatFilter?.value || 'all') : (els.historyFormatFilter?.value || 'all');
+    const query = mode === 'history' ? String(els.historySearchInput?.value || '').trim().toLowerCase() : '';
+    if(color && color !== 'all') rows = rows.filter(row => colorFilterKey(rowMineColors(row)) === color);
+    if(opponentColor && opponentColor !== 'all') rows = rows.filter(row => colorFilterKey(rowOpponentColors(row)) === opponentColor);
+    if(deck && deck !== 'all') rows = rows.filter(row => row.deck_profile_id === deck || row.deck_name === deck);
+    if(result !== 'all') rows = rows.filter(row => row.result === result);
+    if(format !== 'all') rows = rows.filter(row => String(row.format || '').toUpperCase() === format);
+    if(query){
+      rows = rows.filter(row => [row.title, row.matchup_label, row.opponent_name, row.deck_name, row.score_label]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(query));
+    }
+    return rows;
+  }
+
+  function renderSavedStats(){
+    const loggedIn = !!state.currentUser;
+    if(els.performanceLoginHint){
+      els.performanceLoginHint.hidden = loggedIn && !state.cloudOffline;
+      const strong = els.performanceLoginHint.querySelector('strong');
+      const span = els.performanceLoginHint.querySelector('span');
+      if(state.cloudOffline){
+        if(strong) strong.textContent = 'Performances cloud indisponibles sur ce réseau.';
+        if(span) span.textContent = 'L’analyse locale fonctionne toujours. Les statistiques sauvegardées reviendront dès que Supabase sera accessible.';
+      }else{
+        if(strong) strong.textContent = 'Connectez-vous pour voir vos performances.';
+        if(span) span.textContent = 'Vos matchs sauvegardés sont liés à votre compte Discord.';
+      }
+    }
+    const rows = filteredSavedMatches('stats');
+    const total = rows.length;
+    const wins = rows.filter(row => row.result === 'win').length;
+    const bo3 = rows.filter(row => String(row.format || '').toUpperCase() === 'BO3').length;
+    const bo1 = rows.filter(row => String(row.format || '').toUpperCase() !== 'BO3').length;
+    const deckScoped = isPerformanceDataScoped();
+    applyPerformanceTheme();
+    const analytics = buildPerformanceAnalytics(rows);
+    const cardSignals = analytics.cardSignals;
+    const playDraw = analytics.playDraw;
+    document.querySelectorAll('.card-signal-card').forEach(card => { card.hidden = !deckScoped; });
+
+    if(els.performanceSavedCount) els.performanceSavedCount.textContent = loggedIn ? String(total) : '—';
+    if(els.performanceWinrate) els.performanceWinrate.textContent = loggedIn && total ? `${Math.round((wins / total) * 100)}%` : '—';
+    if(els.performanceBo3Count) els.performanceBo3Count.textContent = loggedIn ? String(bo3) : '—';
+    if(els.performanceSampleLabel) els.performanceSampleLabel.textContent = loggedIn ? `${total} analyse${total > 1 ? 's' : ''}` : '—';
+    if(els.performanceSampleHelp) els.performanceSampleHelp.textContent = loggedIn ? `${analytics.games.length || 0} game(s) · ${bo3} BO3 · ${bo1} BO1` : 'Connectez-vous pour activer l’historique.';
+
+    document.querySelectorAll('.card-signal-card').forEach(card => card.classList.toggle('is-muted', loggedIn && !deckScoped));
+    if(!deckScoped){
+      if(els.performanceTopLore) els.performanceTopLore.textContent = loggedIn ? 'Choisissez un deck' : '—';
+      if(els.performanceTopLoreHelp) els.performanceTopLoreHelp.textContent = 'Ce signal devient pertinent quand les matchs appartiennent au même deck.';
+      if(els.performanceMostInked) els.performanceMostInked.textContent = loggedIn ? 'Choisissez un deck' : '—';
+      if(els.performanceMostInkedHelp) els.performanceMostInkedHelp.textContent = 'Évite de mélanger des cartes issues de stratégies différentes.';
+    }else{
+      if(els.performanceTopLore) els.performanceTopLore.innerHTML = loggedIn && cardSignals.topLore ? performanceMiniCardSignalHtml(cardSignals.topLore, `${cardSignals.topLore.lore} lore`) : '—';
+      if(els.performanceTopLoreHelp) els.performanceTopLoreHelp.textContent = cardSignals.topLore ? `${cardSignals.topLore.played || 0} fois jouée · cliquez la carte pour le détail.` : 'Disponible après plusieurs analyses sauvegardées avec ce deck.';
+      if(els.performanceMostInked) els.performanceMostInked.innerHTML = loggedIn && cardSignals.topInked ? performanceMiniCardSignalHtml(cardSignals.topInked, `${cardSignals.topInked.inked} encrage(s)`) : '—';
+      if(els.performanceMostInkedHelp) els.performanceMostInkedHelp.textContent = cardSignals.topInked ? `${cardSignals.topInked.seen || 0} vues · à vérifier selon le plan de jeu.` : 'Disponible après plusieurs analyses sauvegardées avec ce deck.';
+    }
+
+    if(els.performanceOtpSplit) els.performanceOtpSplit.innerHTML = loggedIn && playDraw.total ? otpOtdBarsHtml(playDraw) : '—';
+    if(els.performanceOtpSplitHelp) els.performanceOtpSplitHelp.textContent = playDraw.total ? `Premier : ${playDraw.otpWins} victoire(s) sur ${playDraw.otpTotal} · Second : ${playDraw.otdWins} victoire(s) sur ${playDraw.otdTotal}` : 'Aucune donnée premier / second disponible.';
+    if(els.performanceFormatSplit) els.performanceFormatSplit.innerHTML = loggedIn ? formatSplitBarsHtml(bo1, bo3) : '—';
+    if(els.performanceFormatSplitHelp) els.performanceFormatSplitHelp.textContent = loggedIn ? 'Répartition de vos analyses sauvegardées.' : 'Connectez-vous pour voir vos formats.';
+
+    if(els.performanceAvgTurns) els.performanceAvgTurns.textContent = loggedIn && analytics.avgTurns ? `${analytics.avgTurns}` : '—';
+    if(els.performanceAvgTurnsHelp) els.performanceAvgTurnsHelp.textContent = analytics.avgTurns ? `Durée moyenne des ${analytics.games.length} game(s) filtrée(s).` : 'Disponible avec les nouvelles sauvegardes V62+.';
+    if(els.performanceTopDeckAvg) els.performanceTopDeckAvg.textContent = loggedIn && analytics.avgTopDeck !== null ? `${analytics.avgTopDeck}` : '—';
+    if(els.performanceTopDeckAvgHelp) els.performanceTopDeckAvgHelp.textContent = analytics.avgTopDeck !== null ? 'Tours moyens terminés à 0 ou 1 carte en main.' : 'Donnée absente sur cet échantillon.';
+    if(els.performanceAvgLore) els.performanceAvgLore.textContent = loggedIn && analytics.avgFinalLore !== null ? `${analytics.avgFinalLore}` : '—';
+    if(els.performanceAvgLoreHelp) els.performanceAvgLoreHelp.textContent = analytics.avgFinalLore !== null ? 'Lore final moyen côté joueur.' : 'Donnée absente sur cet échantillon.';
+    const scopedQuality = rows.map(row => rowQualityInfo(row));
+    const scopedComplete = scopedQuality.filter(info => info.status === 'complete').length;
+    const scopedPartial = scopedQuality.filter(info => info.status === 'partial').length;
+    if(els.performanceDataQuality) els.performanceDataQuality.textContent = loggedIn ? `${scopedComplete}/${rows.length || 0}` : '—';
+    if(els.performanceDataQualityHelp) els.performanceDataQualityHelp.textContent = rows.length ? `${scopedPartial} analyse(s) partielle(s) dans l’échantillon filtré.` : 'Aucune sauvegarde dans l’échantillon.';
+
+    renderPerformanceCoach(analytics, { total, wins, bo1, bo3, deckScoped });
+    renderPerformanceActionPlan(analytics, { rows, total, wins, bo1, bo3, deckScoped });
+    renderPerformanceMatchups(rows, analytics, { deckScoped });
+
+    renderPerformanceTable(els.performanceCardImpactTable, performanceCardImpactHtml(analytics));
+    renderPerformanceTable(els.performanceMulliganTable, performanceMulliganHtml(analytics));
+    renderPerformanceTable(els.performanceTurnCurveTable, performanceTurnCurveHtml(analytics));
+    state.lastPerformanceAnalytics = deckScoped ? analytics : { ...analytics, turnCurve:[] };
+    renderPerformanceCharts(state.lastPerformanceAnalytics);
+    renderPerformanceDetailPanels();
+    bindPerformanceCardTiles();
+    bindPerformanceFullListButtons();
+  }
+
+  function isPerformanceDeckScoped(){
+    return isPerformanceDataScoped();
+  }
+
+  function isPerformanceDataScoped(){
+    const color = String(els.performanceColorFilter?.value || 'all');
+    const deck = String(els.performanceDeckFilter?.value || 'all');
+    return (color && color !== 'all') || (deck && deck !== 'all');
+  }
+
+  function selectedPerformanceColors(){
+    const deckId = String(els.performanceDeckFilter?.value || 'all');
+    if(deckId && deckId !== 'all'){
+      const profile = state.deckProfiles.find(item => item.id === deckId);
+      if(profile) return arrayify(profile.colors).map(inkKey).filter(Boolean);
+    }
+    const color = String(els.performanceColorFilter?.value || 'all');
+    if(color && color !== 'all') return color.split('|').map(inkKey).filter(Boolean);
+    return [];
+  }
+
+  function applyPerformanceTheme(){
+    const colors = selectedPerformanceColors();
+    const theme = colors.length ? colors.map(c => INK_COLORS[c]).filter(Boolean) : [];
+    const first = theme[0] || INK_COLORS.sapphire;
+    const second = theme[1] || theme[0] || INK_COLORS.amber;
+    document.documentElement.style.setProperty('--theme-color-1', first);
+    document.documentElement.style.setProperty('--theme-color-2', second);
+  }
+
+  function otpOtdBarsHtml(playDraw){
+    const otp = Math.max(0, Math.min(100, n(playDraw.otpRate)));
+    const otd = Math.max(0, Math.min(100, n(playDraw.otdRate)));
+    return `<div class="mini-bars mini-bars-otp">
+      <div class="mini-bar-row"><span>Vous commencez</span><strong>${otp}%</strong><i><b style="width:${otp}%"></b></i><small>${n(playDraw.otpWins)} victoire(s) sur ${n(playDraw.otpTotal)} partie(s)</small></div>
+      <div class="mini-bar-row"><span>Vous jouez second</span><strong>${otd}%</strong><i><b style="width:${otd}%"></b></i><small>${n(playDraw.otdWins)} victoire(s) sur ${n(playDraw.otdTotal)} partie(s)</small></div>
+    </div>`;
+  }
+
+  function formatSplitBarsHtml(bo1, bo3){
+    const total = Math.max(1, n(bo1) + n(bo3));
+    const bo1Pct = Math.round((n(bo1) / total) * 100);
+    const bo3Pct = Math.round((n(bo3) / total) * 100);
+    return `<div class="format-split-viz"><div class="format-split-bar"><span style="width:${bo1Pct}%"></span><b style="width:${bo3Pct}%"></b></div><small>BO1 ${n(bo1)} · BO3 ${n(bo3)}</small></div>`;
+  }
+
+
+  function buildPerformanceAnalytics(rows){
+    const rowIds = new Set((rows || []).map(row => row.id).filter(Boolean));
+    const rowsById = new Map((rows || []).map(row => [row.id, row]));
+    const detailedGames = (state.savedAnalytics?.games || []).filter(row => rowIds.has(row.match_id));
+    const detailedCards = (state.savedAnalytics?.cardStats || []).filter(row => rowIds.has(row.match_id));
+    const detailedTurns = (state.savedAnalytics?.turnStats || []).filter(row => rowIds.has(row.match_id));
+    const hasDetailedRows = detailedGames.length || detailedCards.length || detailedTurns.length;
+    const games = detailedGames.length ? detailedGames.map(game => {
+      const matchRow = rowsById.get(game.match_id) || {};
+      const opponentColors = rowOpponentColors(matchRow);
+      const json = gameJsonFromDetailRow(game);
+      const stored = normalizeStoredGameAnalytics(json, 'mine');
+      return {
+        matchId:game.match_id,
+        gameNumber:n(game.game_number),
+        playedAt:game.played_at || matchRow.played_at || matchRow.created_at,
+        isWin:!!game.is_win,
+        otp:!!game.otp,
+        turnCount:n(game.turn_count || stored.turnCount),
+        finalMineLore:n(game.final_mine_lore ?? stored.finalMineLore),
+        finalOppLore:n(game.final_opp_lore ?? stored.finalOppLore),
+        loreSeries:stored.loreSeries,
+        actionSeries:stored.actionSeries,
+        proMetrics:stored.proMetrics,
+        opponentColors,
+        opponentKey:colorFilterKey(opponentColors) || 'unknown',
+        opponentLabel:opponentColors.length ? opponentColors.map(inkLabel).join(' / ') : 'Adversaire inconnu',
+        opponentName:matchRow.opponent_name || '',
+        matchupLabel:matchRow.matchup_label || ''
+      };
+    }) : fallbackGamesFromSavedRows(rows);
+    const fallbackCardRows = fallbackCardRowsFromSavedRows(rows);
+    const cardRows = chooseBestCardRows(detailedCards, fallbackCardRows, rows);
+    const fallbackTurnRows = fallbackTurnRowsFromSavedRows(rows);
+    const turnRows = chooseBestTurnRows(detailedTurns, fallbackTurnRows, rows);
+    const gameKey = game => `${game.matchId || game.match_id || ''}::${n(game.gameNumber || game.game_number || 1)}`;
+    const gameByKey = new Map(games.map(game => [gameKey(game), game]));
+
+    const mineCards = aggregateDetailedCards(cardRows.filter(row => row.owner === 'mine'), games, gameByKey);
+    const mulliganCards = aggregateEmpiricalMulliganCards(rows, detailedGames, games, gameByKey);
+    const cardValues = mergeEmpiricalMulliganIntoCards([...mineCards.values()], mulliganCards);
+    const topLore = cardValues.filter(card => card.lore > 0).sort((a,b)=>b.lore-a.lore || b.played-a.played || a.name.localeCompare(b.name))[0] || null;
+    const topInked = cardValues.filter(card => card.inked > 0).sort((a,b)=>b.inked-a.inked || b.seen-a.seen || a.name.localeCompare(b.name))[0] || null;
+    const avgTurns = avg(games.map(game => game.turnCount).filter(Boolean));
+    const avgFinalLore = avg(games.map(game => game.finalMineLore).filter(value => value !== null && value !== undefined));
+    const avgTopDeck = avgTopDeckFromTurns(turnRows.filter(row => row.owner === 'mine'));
+    const playDraw = aggregateGamesPlayDraw(games);
+
+    return {
+      rows,
+      games,
+      cardRows,
+      turnRows,
+      hasDetailedRows:!!hasDetailedRows,
+      cardSignals:{ topLore, topInked },
+      cards:cardValues,
+      playDraw,
+      avgTurns:avgTurns === null ? null : round1(avgTurns),
+      avgFinalLore:avgFinalLore === null ? null : round1(avgFinalLore),
+      avgTopDeck:avgTopDeck === null ? null : round1(avgTopDeck),
+      turnCurve:aggregateTurnCurve(turnRows.filter(row => row.owner === 'mine'), games),
+      loreMilestones:aggregateLoreMilestones(turnRows.filter(row => row.owner === 'mine'), games),
+      mulliganLab:buildMulliganLabMeta(cardValues, games)
+    };
+  }
+
+  function normalizeStoredMetrics(metrics={}){
+    const source = metrics || {};
+    const hand = arrayify(source.handByTurn || source.hand_by_turn).map(row => ({
+      turn:n(row.turn),
+      handCount:n(row.handCount ?? row.hand_count ?? row.handEnd ?? row.hand_end)
+    })).filter(row => row.turn);
+    const ink = arrayify(source.inkByTurn || source.ink_by_turn).map(row => ({
+      turn:n(row.turn),
+      capacity:n(row.capacity ?? row.ink_capacity),
+      spent:n(row.spent ?? row.ink_spent),
+      float:round1(row.float ?? row.ink_float),
+      inked:n(row.inked),
+      handStart:n(row.handStart ?? row.hand_start),
+      handEnd:n(row.handEnd ?? row.hand_end)
+    })).filter(row => row.turn);
+    return {
+      ...source,
+      handKnown:source.handKnown ?? source.hand_known ?? hand.length > 0,
+      totalInkFloat:round1(source.totalInkFloat ?? source.total_ink_float),
+      totalInkSpent:round1(source.totalInkSpent ?? source.total_ink_spent),
+      questCount:n(source.questCount ?? source.quest_count),
+      challengeCount:n(source.challengeCount ?? source.challenge_count),
+      topDeckTurns:n(source.topDeckTurns ?? source.top_deck_turns),
+      handByTurn:hand,
+      inkByTurn:ink
+    };
+  }
+
+  function normalizeStoredGameAnalytics(json={}, owner='mine'){
+    const raw = parseStoredJson(json);
+    const metricsRoot = raw.metrics || raw.proMetrics || raw.pro_metrics || {};
+    const ownerMetrics = metricsRoot?.[owner] || metricsRoot;
+    return {
+      turnCount:n(raw.turnCount ?? raw.turn_count),
+      finalMineLore:n(raw.finalMineLore ?? raw.final_mine_lore),
+      finalOppLore:n(raw.finalOppLore ?? raw.final_opp_lore),
+      loreSeries:compactLoreSeries(raw.loreSeries || raw.lore_series || raw.charts?.lore_series || []),
+      actionSeries:compactActionSeries(raw.actionSeries || raw.action_series || raw.charts?.action_series || []),
+      proMetrics:normalizeStoredMetrics(raw.proMetrics || raw.pro_metrics || ownerMetrics || {})
+    };
+  }
+
+  function gameAnalyticsTurnRows(game={}, owner='mine'){
+    const rows = [];
+    const loreSeries = compactLoreSeries(game.loreSeries || game.lore_series || game.charts?.lore_series || []);
+    const actionSeries = compactActionSeries(game.actionSeries || game.action_series || game.charts?.action_series || []);
+    const metrics = normalizeStoredMetrics(game.proMetrics || game.pro_metrics || game.metrics?.[owner] || game.metrics || {});
+    const loreMap = new Map(loreSeries.map(row => [n(row.turn), owner === 'opponent' ? n(row.opponent) : n(row.mine)]));
+    const actionMap = new Map(actionSeries.map(row => [n(row.turn), row]));
+    const handMap = new Map((metrics.handByTurn || []).map(row => [n(row.turn), n(row.handCount)]));
+    const inkMap = new Map((metrics.inkByTurn || []).map(row => [n(row.turn), row]));
+    const maxTurn = Math.min(30, Math.max(
+      n(game.turnCount || game.turn_count),
+      ...loreSeries.map(row => n(row.turn)),
+      ...actionSeries.map(row => n(row.turn)),
+      ...(metrics.handByTurn || []).map(row => n(row.turn)),
+      ...(metrics.inkByTurn || []).map(row => n(row.turn)),
+      0
+    ));
+    let previousLore = 0;
+    let previousHand = null;
+    let previousInk = null;
+    for(let turn = 1; turn <= maxTurn; turn += 1){
+      if(loreMap.has(turn)) previousLore = n(loreMap.get(turn));
+      if(handMap.has(turn)) previousHand = n(handMap.get(turn));
+      if(inkMap.has(turn)) previousInk = inkMap.get(turn);
+      const action = actionMap.get(turn) || {};
+      rows.push({
+        match_id:game.matchId || game.match_id,
+        game_number:n(game.gameNumber || game.game_number || 1),
+        turn,
+        owner,
+        lore:previousLore,
+        hand_count:previousHand === null ? 0 : n(previousHand),
+        ink_capacity:n(previousInk?.capacity),
+        ink_spent:n(previousInk?.spent),
+        ink_float:round1(previousInk?.float),
+        inked:n(previousInk?.inked ?? action.ink),
+        cards_played:n(action.play),
+        quests:n(action.quest),
+        challenges:n(action.challenge)
+      });
+    }
+    return rows;
+  }
+
+  function mergeTurnRow(existing={}, fallback={}){
+    const merged = { ...fallback, ...existing };
+    ['lore','hand_count','ink_capacity','ink_spent','ink_float','inked','cards_played','quests','challenges'].forEach(key => {
+      const primary = Number(existing?.[key]);
+      const secondary = Number(fallback?.[key]);
+      if((!Number.isFinite(primary) || (primary === 0 && Number.isFinite(secondary) && secondary > 0)) && Number.isFinite(secondary)){
+        merged[key] = fallback[key];
+      }
+    });
+    return merged;
+  }
+
+  function chooseBestTurnRows(detailedRows=[], fallbackRows=[], matchRows=[]){
+    const map = new Map();
+    const keyFor = row => `${row.match_id || row.matchId || ''}::${n(row.game_number || row.gameNumber || 1)}::${row.owner || 'mine'}::${n(row.turn)}`;
+    (fallbackRows || []).forEach(row => {
+      if(!row?.match_id && !row?.matchId) return;
+      const key = keyFor(row);
+      map.set(key, { ...row });
+    });
+    (detailedRows || []).forEach(row => {
+      if(!row?.match_id && !row?.matchId) return;
+      const key = keyFor(row);
+      map.set(key, mergeTurnRow(row, map.get(key) || {}));
+    });
+    return [...map.values()].filter(row => n(row.turn));
+  }
+
+  function fallbackGamesFromSavedRows(rows){
+    const games = [];
+    (rows || []).forEach(row => {
+      const analysis = parseStoredJson(row.analysis_json);
+      const saved = Array.isArray(analysis?.games) ? analysis.games : [];
+      if(saved.length){
+        saved.forEach((game, index) => {
+          const stored = normalizeStoredGameAnalytics(game, 'mine');
+          const opponentColors = rowOpponentColors(row);
+          games.push({
+            matchId:row.id,
+            gameNumber:n(game.gameNumber || game.game_number || index + 1),
+            playedAt:game.playedAt || game.played_at || analysis?.played_at || row.created_at,
+            isWin:!!(game.isWin ?? game.is_win),
+            otp:!!game.otp,
+            turnCount:n(game.turnCount ?? game.turn_count ?? stored.turnCount ?? row.total_turns ?? row.avg_turns),
+            finalMineLore:n(game.finalMineLore ?? game.final_mine_lore ?? stored.finalMineLore ?? row.final_mine_lore),
+            finalOppLore:n(game.finalOppLore ?? game.final_opp_lore ?? stored.finalOppLore ?? row.final_opp_lore),
+            loreSeries:stored.loreSeries,
+            actionSeries:stored.actionSeries,
+            proMetrics:stored.proMetrics,
+            opponentColors,
+            opponentKey:colorFilterKey(opponentColors) || 'unknown',
+            opponentLabel:opponentColors.length ? opponentColors.map(inkLabel).join(' / ') : 'Adversaire inconnu',
+            opponentName:row.opponent_name || '',
+            matchupLabel:row.matchup_label || ''
+          });
+        });
+      }else{
+        const stored = normalizeStoredGameAnalytics(analysis, 'mine');
+        const opponentColors = rowOpponentColors(row);
+        games.push({
+          matchId:row.id,
+          gameNumber:1,
+          playedAt:analysis?.played_at || row.created_at,
+          isWin:row.result === 'win',
+          otp:false,
+          turnCount:n(row.total_turns || row.avg_turns || stored.turnCount),
+          finalMineLore:n(row.final_mine_lore ?? stored.finalMineLore),
+          finalOppLore:n(row.final_opp_lore ?? stored.finalOppLore),
+          loreSeries:stored.loreSeries,
+          actionSeries:stored.actionSeries,
+          proMetrics:stored.proMetrics,
+          opponentColors,
+          opponentKey:colorFilterKey(opponentColors) || 'unknown',
+          opponentLabel:opponentColors.length ? opponentColors.map(inkLabel).join(' / ') : 'Adversaire inconnu',
+          opponentName:row.opponent_name || '',
+          matchupLabel:row.matchup_label || ''
+        });
+      }
+    });
+    return games;
+  }
+
+  function fallbackCardRowsFromSavedRows(rows){
+    const out = [];
+    (rows || []).forEach(row => {
+      const cards = row.analysis_json?.cards?.mine || [];
+      cards.forEach(card => out.push({
+        match_id:row.id,
+        game_number:1,
+        owner:'mine',
+        card_key:card.key || card.name,
+        card_name:card.name,
+        card_type:card.type,
+        colors:card.colors || [],
+        seen:n(card.seen),
+        in_opening_hand:0,
+        kept_mulligan:0,
+        replaced_mulligan:0,
+        played:n(card.played),
+        inked:n(card.inked),
+        quest_count:n(card.quest),
+        lore_generated:n(card.lore),
+        lore_actions:n(card.loreActions),
+        challenge_count:n(card.challenge),
+        avg_turn:card.avgTurn
+      }));
+    });
+    return out;
+  }
+
+  function chooseBestCardRows(detailedRows=[], fallbackRows=[], matchRows=[]){
+    const byMatch = (rows, field='match_id') => {
+      const map = new Map();
+      (rows || []).forEach(row => {
+        const id = row?.[field];
+        if(!id) return;
+        const list = map.get(id) || [];
+        list.push(row);
+        map.set(id, list);
+      });
+      return map;
+    };
+    const detailedByMatch = byMatch(detailedRows, 'match_id');
+    const fallbackByMatch = byMatch(fallbackRows, 'match_id');
+    const ids = new Set([
+      ...(matchRows || []).map(row => row.id).filter(Boolean),
+      ...detailedByMatch.keys(),
+      ...fallbackByMatch.keys()
+    ]);
+    const out = [];
+    ids.forEach(id => {
+      const detailed = detailedByMatch.get(id) || [];
+      const fallback = fallbackByMatch.get(id) || [];
+      if(!fallback.length){ out.push(...detailed); return; }
+      if(!detailed.length){ out.push(...fallback); return; }
+      const detailedScore = cardRowsCompletenessScore(detailed);
+      const fallbackScore = cardRowsCompletenessScore(fallback);
+      // V89: old saved_card_stats rows can be partial/stale after bulk imports or schema migrations.
+      // Prefer the source that carries the richer per-match totals, otherwise keep detailed rows for better game-level samples.
+      if(fallbackScore > detailedScore * 1.08 || fallback.length > detailed.length * 1.35){
+        out.push(...fallback);
+      }else{
+        out.push(...detailed);
+      }
+    });
+    return out;
+  }
+
+  function cardRowsCompletenessScore(rows=[]){
+    return (rows || []).reduce((total, row) => total
+      + 1
+      + n(row.seen)
+      + n(row.played)
+      + n(row.inked)
+      + n(row.quest_count)
+      + n(row.lore_generated)
+      + n(row.challenge_count)
+      + n(row.in_opening_hand)
+      + n(row.kept_mulligan)
+      + n(row.replaced_mulligan), 0);
+  }
+
+  function fallbackTurnRowsFromSavedRows(rows){
+    const out = [];
+    (rows || []).forEach(row => {
+      const analysis = parseStoredJson(row.analysis_json);
+      const savedGames = Array.isArray(analysis?.games) ? analysis.games : [];
+      if(savedGames.length){
+        savedGames.forEach((game, index) => {
+          const stored = normalizeStoredGameAnalytics(game, 'mine');
+          out.push(...gameAnalyticsTurnRows({
+            ...stored,
+            matchId:row.id,
+            gameNumber:n(game.gameNumber || game.game_number || index + 1),
+            turnCount:n(game.turnCount ?? game.turn_count ?? row.total_turns ?? row.avg_turns ?? stored.turnCount),
+            finalMineLore:n(game.finalMineLore ?? game.final_mine_lore ?? row.final_mine_lore ?? stored.finalMineLore),
+            finalOppLore:n(game.finalOppLore ?? game.final_opp_lore ?? row.final_opp_lore ?? stored.finalOppLore)
+          }, 'mine'));
+        });
+      }else{
+        const stored = normalizeStoredGameAnalytics(analysis, 'mine');
+        out.push(...gameAnalyticsTurnRows({
+          ...stored,
+          matchId:row.id,
+          gameNumber:1,
+          turnCount:n(row.total_turns || row.avg_turns || stored.turnCount),
+          finalMineLore:n(row.final_mine_lore ?? stored.finalMineLore),
+          finalOppLore:n(row.final_opp_lore ?? stored.finalOppLore)
+        }, 'mine'));
+      }
+    });
+    return out;
+  }
+
+
+  function parseStoredJson(value){
+    if(!value) return {};
+    if(typeof value === 'object') return value;
+    if(typeof value === 'string'){
+      try{ return JSON.parse(value); }catch(_err){ return {}; }
+    }
+    return {};
+  }
+
+  function gameJsonFromDetailRow(row){
+    const json = parseStoredJson(row?.game_json);
+    if(json && Object.keys(json).length) return json;
+    return parseStoredJson(row?.analysis_json);
+  }
+
+  function savedGameRowsForMulligan(savedRows=[], detailedGameRows=[]){
+    const out = [];
+    if(Array.isArray(detailedGameRows) && detailedGameRows.length){
+      detailedGameRows.forEach(row => {
+        const json = gameJsonFromDetailRow(row);
+        if(json?.mulligan){
+          out.push({
+            match_id:row.match_id,
+            game_number:n(row.game_number || json.gameNumber || 1),
+            game_json:json
+          });
+        }
+      });
+    }
+    (savedRows || []).forEach(row => {
+      const analysis = parseStoredJson(row.analysis_json);
+      const games = Array.isArray(analysis?.games) ? analysis.games : [];
+      if(games.length){
+        games.forEach((game, index) => {
+          if(!game?.mulligan) return;
+          out.push({
+            match_id:row.id,
+            game_number:n(game.gameNumber || game.game_number || index + 1),
+            game_json:game
+          });
+        });
+      }else if(analysis?.mulligan){
+        out.push({
+          match_id:row.id,
+          game_number:1,
+          game_json:{ mulligan:analysis.mulligan }
+        });
+      }
+    });
+    const seen = new Set();
+    return out.filter(row => {
+      const key = `${row.match_id || ''}::${n(row.game_number || 1)}`;
+      if(seen.has(key)) return false;
+      seen.add(key);
+      return !!row.match_id && !!gameJsonFromDetailRow(row)?.mulligan;
+    });
+  }
+
+  function createMulliganCardSeed(card){
+    const hydrated = hydrateCard(card || {});
+    const name = fullName(hydrated) || card?.name || card?.fullName || mulliganStableCardKey(card);
+    const key = cardKey(hydrated) || slug(name) || card?.key || '';
+    return {
+      key,
+      name,
+      type:typeLabel(hydrated.type || card?.type || ''),
+      colors:arrayify(hydrated.colors?.length ? hydrated.colors : card?.colors).map(inkLabel).filter(Boolean),
+      cost:nullable(hydrated.cost ?? card?.cost),
+      inkable:hydrated.inkable ?? card?.inkable,
+      image:hydrated.imageSmall || hydrated.image || card?.image || card?.imageSmall || ''
+    };
+  }
+
+  function mergeMulliganCardSeed(existing, seed){
+    if(!seed) return existing;
+    if(!existing) return seed;
+    return {
+      ...existing,
+      key:existing.key || seed.key,
+      name:existing.name || seed.name,
+      type:existing.type || seed.type,
+      colors:arrayify(existing.colors).length ? existing.colors : seed.colors,
+      cost:existing.cost ?? seed.cost,
+      inkable:existing.inkable ?? seed.inkable,
+      image:existing.image || seed.image
+    };
+  }
+
+  function aggregateEmpiricalMulliganCards(savedRows=[], detailedGameRows=[], games=[], gameByKey=new Map()){
+    const rows = savedGameRowsForMulligan(savedRows, detailedGameRows);
+    const map = new Map();
+
+    rows.forEach(row => {
+      const gameNumber = n(row.game_number || 1);
+      const g = gameByKey.get(`${row.match_id}::${gameNumber}`) || (games || []).find(game => game.matchId === row.match_id && n(game.gameNumber) === gameNumber) || {};
+      const mulligan = gameJsonFromDetailRow(row)?.mulligan || {};
+      const split = splitMulliganInitialCards(mulligan);
+      const initialByKey = new Map();
+
+      split.initialCards.forEach(card => {
+        const key = mulliganStableCardKey(card);
+        if(!key) return;
+        const item = initialByKey.get(key) || { seed:null, opening:0, kept:0, replaced:0 };
+        item.seed = mergeMulliganCardSeed(item.seed, createMulliganCardSeed(card));
+        item.opening += 1;
+        initialByKey.set(key, item);
+      });
+
+      split.keptCards.forEach(card => {
+        const key = mulliganStableCardKey(card);
+        if(!key) return;
+        const item = initialByKey.get(key) || { seed:null, opening:0, kept:0, replaced:0 };
+        item.seed = mergeMulliganCardSeed(item.seed, createMulliganCardSeed(card));
+        item.kept += 1;
+        initialByKey.set(key, item);
+      });
+
+      split.thrownCards.forEach(card => {
+        const key = mulliganStableCardKey(card);
+        if(!key) return;
+        const item = initialByKey.get(key) || { seed:null, opening:0, kept:0, replaced:0 };
+        item.seed = mergeMulliganCardSeed(item.seed, createMulliganCardSeed(card));
+        item.replaced += 1;
+        initialByKey.set(key, item);
+      });
+
+      initialByKey.forEach((sample, key) => {
+        const seed = sample.seed || createMulliganCardSeed({ name:key });
+        const item = map.get(key) || {
+          key:seed.key || slug(key),
+          name:seed.name || key,
+          type:seed.type || '',
+          colors:seed.colors || [],
+          cost:seed.cost,
+          inkable:seed.inkable,
+          image:seed.image || '',
+          seen:0, played:0, inked:0, quest:0, lore:0, challenge:0,
+          opening:0, kept:0, replaced:0,
+          gamesSeen:0, winsSeen:0, gamesNotSeen:0, winsNotSeen:0, gamesPlayed:0, winsPlayed:0, keptGames:0, keptWins:0,
+          firstTurns:[], samples:[]
+        };
+
+        item.key = item.key || seed.key || slug(key);
+        item.name = item.name || seed.name || key;
+        item.type = item.type || seed.type || '';
+        item.colors = arrayify(item.colors).length ? item.colors : (seed.colors || []);
+        item.cost = item.cost ?? seed.cost;
+        item.inkable = item.inkable ?? seed.inkable;
+        item.image = item.image || seed.image || '';
+
+        item.opening += n(sample.opening);
+        item.kept += n(sample.kept);
+        item.replaced += n(sample.replaced);
+        if(n(sample.kept) > 0){ item.keptGames += 1; if(g.isWin) item.keptWins += 1; }
+        item.samples.push({
+          matchId:row.match_id,
+          gameNumber,
+          isWin:!!g.isWin,
+          otp:!!g.otp,
+          opponentKey:g.opponentKey || 'unknown',
+          opponentLabel:g.opponentLabel || 'Adversaire inconnu',
+          opponentColors:g.opponentColors || [],
+          opening:n(sample.opening),
+          kept:n(sample.kept),
+          replaced:n(sample.replaced),
+          seen:0,
+          played:0
+        });
+        map.set(key, item);
+      });
+    });
+
+    map.forEach(item => {
+      item.keepRate = pct(item.kept, item.kept + item.replaced);
+      item.keptWr = pct(item.keptWins, item.keptGames);
+    });
+
+    return map;
+  }
+
+  function mergeEmpiricalMulliganIntoCards(cards=[], mulliganMap=new Map()){
+    const map = new Map();
+    (cards || []).forEach(card => {
+      const key = card.name || card.key || '';
+      if(!key) return;
+      map.set(key, { ...card });
+    });
+
+    mulliganMap.forEach((mulligan, key) => {
+      const existingKey = [...map.keys()].find(itemKey => slug(itemKey) === slug(key) || slug(map.get(itemKey)?.name || '') === slug(mulligan.name || key));
+      const targetKey = existingKey || key;
+      const base = existingKey ? map.get(existingKey) : {
+        key:mulligan.key || slug(key),
+        name:mulligan.name || key,
+        type:mulligan.type || '',
+        colors:mulligan.colors || [],
+        seen:0, played:0, inked:0, quest:0, lore:0, challenge:0,
+        gamesSeen:0, winsSeen:0, gamesNotSeen:0, winsNotSeen:0, gamesPlayed:0, winsPlayed:0,
+        firstTurns:[]
+      };
+      map.set(targetKey, {
+        ...base,
+        key:base.key || mulligan.key,
+        name:base.name || mulligan.name || key,
+        type:base.type || mulligan.type || '',
+        colors:arrayify(base.colors).length ? base.colors : (mulligan.colors || []),
+        cost:base.cost ?? mulligan.cost,
+        inkable:base.inkable ?? mulligan.inkable,
+        image:base.image || mulligan.image || '',
+        opening:n(mulligan.opening),
+        kept:n(mulligan.kept),
+        replaced:n(mulligan.replaced),
+        keptGames:n(mulligan.keptGames),
+        keptWins:n(mulligan.keptWins),
+        keepRate:pct(mulligan.kept, n(mulligan.kept) + n(mulligan.replaced)),
+        keptWr:pct(mulligan.keptWins, mulligan.keptGames),
+        samples:arrayify(mulligan.samples)
+      });
+    });
+
+    return [...map.values()];
+  }
+
+  function aggregateDetailedCards(rows, games, gameByKey){
+    const allGameKeys = games.map(game => `${game.matchId}::${n(game.gameNumber || 1)}`);
+    const map = new Map();
+    rows.forEach(row => {
+      const displayName = row.card_name || row.card_key || '';
+      const key = statCardKey({ fullName:displayName, name:displayName, type:row.card_type, colors:row.colors }) || slug(row.card_key || displayName);
+      if(!key || !displayName) return;
+      const item = map.get(key) || {
+        key,
+        name:displayName,
+        type:row.card_type || '',
+        colors:row.colors || [],
+        seen:0, played:0, inked:0, quest:0, lore:0, challenge:0,
+        opening:0, kept:0, replaced:0,
+        gamesSeen:0, winsSeen:0, gamesNotSeen:0, winsNotSeen:0, gamesPlayed:0, winsPlayed:0, keptGames:0, keptWins:0,
+        firstTurns:[], samples:[]
+      };
+      item.seen += n(row.seen);
+      item.played += n(row.played);
+      item.inked += n(row.inked);
+      item.quest += n(row.quest_count);
+      item.lore += n(row.lore_generated);
+      item.challenge += n(row.challenge_count);
+      item.opening += n(row.in_opening_hand);
+      item.kept += n(row.kept_mulligan);
+      item.replaced += n(row.replaced_mulligan);
+      if(Array.isArray(row.first_turns)) item.firstTurns.push(...row.first_turns.map(n).filter(Boolean));
+      const g = gameByKey.get(`${row.match_id}::${n(row.game_number || 1)}`);
+      if(g){
+        item.samples.push({
+          matchId:row.match_id,
+          gameNumber:n(row.game_number || 1),
+          isWin:!!g.isWin,
+          otp:!!g.otp,
+          opponentKey:g.opponentKey || 'unknown',
+          opponentLabel:g.opponentLabel || 'Adversaire inconnu',
+          opponentColors:g.opponentColors || [],
+          opening:n(row.in_opening_hand),
+          kept:n(row.kept_mulligan),
+          replaced:n(row.replaced_mulligan),
+          seen:n(row.seen),
+          played:n(row.played)
+        });
+      }
+      if(g && n(row.seen) > 0){ item.gamesSeen += 1; if(g.isWin) item.winsSeen += 1; }
+      if(g && n(row.played) > 0){ item.gamesPlayed += 1; if(g.isWin) item.winsPlayed += 1; }
+      if(g && n(row.kept_mulligan) > 0){ item.keptGames += 1; if(g.isWin) item.keptWins += 1; }
+      map.set(key, item);
+    });
+    map.forEach(item => {
+      item.opening = Math.max(n(item.opening), n(item.kept) + n(item.replaced));
+      const hydrated = hydrateCard({ id:item.key, cardId:item.key, fullName:item.name, name:item.name, type:item.type, colors:item.colors });
+      const intrinsicLore = n(cardIntrinsicLore(hydrated));
+      if(intrinsicLore > 0 && n(item.quest) > 0 && n(item.lore) === 0){
+        item.lore = n(item.quest) * intrinsicLore;
+      }
+      const seenGameKeys = new Set(rows.filter(row => (statCardKey({ fullName:row.card_name || row.card_key || '', name:row.card_name || row.card_key || '', type:row.card_type, colors:row.colors }) || slug(row.card_key || row.card_name || '')) === item.key && n(row.seen) > 0).map(row => `${row.match_id}::${n(row.game_number || 1)}`));
+      allGameKeys.forEach(key => {
+        if(seenGameKeys.has(key)) return;
+        const g = gameByKey.get(key);
+        if(!g) return;
+        item.gamesNotSeen += 1;
+        if(g.isWin) item.winsNotSeen += 1;
+      });
+      item.gihWr = pct(item.winsSeen, item.gamesSeen);
+      item.playedWr = pct(item.winsPlayed, item.gamesPlayed);
+      item.gnsWr = pct(item.winsNotSeen, item.gamesNotSeen);
+      item.iih = item.gamesSeen >= 2 && item.gamesNotSeen >= 2 ? item.gihWr - item.gnsWr : null;
+      item.keepRate = pct(item.kept, item.kept + item.replaced);
+      item.keptWr = pct(item.keptWins, item.keptGames);
+      item.avgFirstTurn = item.firstTurns.length ? round1(avg(item.firstTurns)) : null;
+    });
+    return map;
+  }
+
+  function aggregateGamesPlayDraw(games){
+    let otpTotal = 0, otpWins = 0, otdTotal = 0, otdWins = 0;
+    games.forEach(game => {
+      if(game.otp){ otpTotal += 1; if(game.isWin) otpWins += 1; }
+      else { otdTotal += 1; if(game.isWin) otdWins += 1; }
+    });
+    return { otpTotal, otpWins, otdTotal, otdWins, total:otpTotal + otdTotal, otpRate:pct(otpWins, otpTotal), otdRate:pct(otdWins, otdTotal) };
+  }
+
+  function avgTopDeckFromTurns(rows){
+    if(!rows.length) return null;
+    const byGame = new Map();
+    rows.forEach(row => {
+      const key = `${row.match_id}::${n(row.game_number || 1)}`;
+      if(n(row.hand_count) <= 1) byGame.set(key, n(byGame.get(key)) + 1);
+      else if(!byGame.has(key)) byGame.set(key, 0);
+    });
+    return byGame.size ? avg([...byGame.values()]) : null;
+  }
+
+  function aggregateTurnCurve(rows, games=[]){
+    const rowKey = row => `${row.match_id || row.matchId || ''}::${n(row.game_number || row.gameNumber || 1)}`;
+    const gameKey = game => `${game.matchId || game.match_id || ''}::${n(game.gameNumber || game.game_number || 1)}`;
+    const rowsByGame = new Map();
+    (rows || []).forEach(row => {
+      const turn = n(row.turn);
+      if(!turn || turn > 30) return;
+      const key = rowKey(row);
+      const list = rowsByGame.get(key) || [];
+      list.push(row);
+      rowsByGame.set(key, list);
+    });
+
+    const gameKeys = new Set([...rowsByGame.keys()]);
+    (games || []).forEach(game => gameKeys.add(gameKey(game)));
+    const gameMap = new Map((games || []).map(game => [gameKey(game), game]));
+    const byTurn = new Map();
+
+    function add(turn, values){
+      if(!turn || turn > 30) return;
+      const bucket = byTurn.get(turn) || {
+        turn,
+        loreSum:0, loreCount:0,
+        handSum:0, handCount:0,
+        inkFloatSum:0, inkFloatCount:0,
+        inkedSum:0, inkedCount:0,
+        playedSum:0, playedCount:0,
+        questsSum:0, questsCount:0,
+        challengesSum:0, challengesCount:0
+      };
+      const addValue = (key, value) => {
+        const num = Number(value);
+        if(!Number.isFinite(num)) return;
+        bucket[`${key}Sum`] += num;
+        bucket[`${key}Count`] += 1;
+      };
+      addValue('lore', values.lore);
+      addValue('hand', values.hand);
+      addValue('inkFloat', values.inkFloat);
+      addValue('inked', values.inked);
+      addValue('played', values.played);
+      addValue('quests', values.quests);
+      addValue('challenges', values.challenges);
+      byTurn.set(turn, bucket);
+    }
+
+    gameKeys.forEach(key => {
+      const game = gameMap.get(key) || {};
+      const list = (rowsByGame.get(key) || []).slice().sort((a,b)=>n(a.turn)-n(b.turn));
+      const lastTurnFromRows = list.reduce((max,row)=>Math.max(max,n(row.turn)),0);
+      const gameTurnCount = n(game.turnCount || game.turn_count || 0);
+      const finalLore = n(game.finalMineLore ?? game.final_mine_lore ?? 0);
+      const maxTurn = Math.min(30, Math.max(lastTurnFromRows, gameTurnCount));
+      if(!maxTurn && !list.length) return;
+      if(!list.length && gameTurnCount && finalLore){
+        for(let turn = 1; turn <= Math.min(30, gameTurnCount); turn += 1){
+          add(turn, {
+            lore:round1(finalLore * (turn / Math.max(1, gameTurnCount))),
+            hand:0,
+            inkFloat:0,
+            inked:0,
+            played:0,
+            quests:0,
+            challenges:0
+          });
+        }
+        return;
+      }
+      const rowByTurn = new Map(list.map(row => [n(row.turn), row]));
+      let previous = null;
+      for(let turn = 1; turn <= maxTurn; turn += 1){
+        const row = rowByTurn.get(turn);
+        if(row){
+          previous = {
+            lore:n(row.lore),
+            hand:n(row.hand_count),
+            inkFloat:n(row.ink_float),
+            inked:n(row.inked),
+            played:n(row.cards_played),
+            quests:n(row.quests),
+            challenges:n(row.challenges)
+          };
+          add(turn, previous);
+          continue;
+        }
+        if(!previous) continue;
+        const values = { ...previous, inked:0, played:0, quests:0, challenges:0 };
+        if(finalLore && gameTurnCount && turn === gameTurnCount){
+          values.lore = finalLore;
+        }else if(finalLore && gameTurnCount && lastTurnFromRows && turn > lastTurnFromRows && gameTurnCount > lastTurnFromRows){
+          const startLore = previous.lore;
+          const progress = (turn - lastTurnFromRows) / Math.max(1, gameTurnCount - lastTurnFromRows);
+          values.lore = round1(startLore + (finalLore - startLore) * Math.max(0, Math.min(1, progress)));
+        }
+        add(turn, values);
+      }
+    });
+
+    const maxRelevantTurn = Math.min(30, Math.max(
+      ...[...byTurn.keys()],
+      ...(games || []).map(game => n(game.turnCount || game.turn_count || 0)),
+      0
+    ));
+
+    return [...byTurn.values()]
+      .sort((a,b)=>a.turn-b.turn)
+      .filter(row => row.turn <= maxRelevantTurn)
+      .map(row => {
+        const avgMetric = key => row[`${key}Count`] ? round1(row[`${key}Sum`] / row[`${key}Count`]) : 0;
+        return {
+          turn:row.turn,
+          lore:avgMetric('lore'),
+          hand:avgMetric('hand'),
+          inkFloat:avgMetric('inkFloat'),
+          inked:avgMetric('inked'),
+          played:avgMetric('played'),
+          quests:avgMetric('quests'),
+          challenges:avgMetric('challenges')
+        };
+      });
+  }
+
+  function aggregateLoreMilestones(turnRows=[], games=[]){
+    const byGame = new Map();
+    const rowKey = row => `${row.match_id || row.matchId || ''}::${n(row.game_number || row.gameNumber || 1)}`;
+    (turnRows || []).forEach(row => {
+      const key = rowKey(row);
+      if(!key || key === '::1') return;
+      const list = byGame.get(key) || [];
+      list.push(row);
+      byGame.set(key, list);
+    });
+    (games || []).forEach(game => {
+      const key = `${game.matchId || game.match_id || ''}::${n(game.gameNumber || game.game_number || 1)}`;
+      if(!key || key === '::1') return;
+      const synthetic = gameAnalyticsTurnRows(game, 'mine');
+      if(!synthetic.length) return;
+      const existing = byGame.get(key) || [];
+      const byTurn = new Map(existing.map(row => [n(row.turn), row]));
+      synthetic.forEach(row => {
+        const turn = n(row.turn);
+        if(!byTurn.has(turn)) byTurn.set(turn, row);
+        else byTurn.set(turn, mergeTurnRow(byTurn.get(turn), row));
+      });
+      byGame.set(key, [...byTurn.values()]);
+    });
+
+    const buckets = Array.from({ length:21 }, (_, lore) => ({ lore, sum:0, count:0 }));
+    byGame.forEach((list, key) => {
+      const game = (games || []).find(g => `${g.matchId || g.match_id || ''}::${n(g.gameNumber || g.game_number || 1)}` === key) || {};
+      const sorted = [...list]
+        .map(row => ({ turn:n(row.turn), lore:n(row.lore), hand:n(row.hand_count) }))
+        .filter(row => row.turn)
+        .sort((a,b)=>a.turn-b.turn);
+      const finalLore = n(game.finalMineLore ?? game.final_mine_lore);
+      const finalTurn = n(game.turnCount ?? game.turn_count);
+      if(finalTurn && finalLore && (!sorted.length || sorted[sorted.length - 1].turn < finalTurn || sorted[sorted.length - 1].lore < finalLore)){
+        sorted.push({ turn:finalTurn, lore:finalLore, hand:sorted[sorted.length - 1]?.hand ?? 0 });
+      }
+      if(!sorted.length) return;
+      for(let target = 0; target <= 20; target += 1){
+        if(target === 0){ buckets[target].sum += sorted[0].turn || 1; buckets[target].count += 1; continue; }
+        let previous = { turn:1, lore:0 };
+        let found = null;
+        for(const row of sorted){
+          if(row.lore >= target){
+            if(row.lore > previous.lore && row.turn !== previous.turn){
+              const ratio = (target - previous.lore) / Math.max(1, row.lore - previous.lore);
+              found = previous.turn + (row.turn - previous.turn) * Math.max(0, Math.min(1, ratio));
+            }else{
+              found = row.turn;
+            }
+            break;
+          }
+          previous = row;
+        }
+        if(Number.isFinite(found)){
+          buckets[target].sum += found;
+          buckets[target].count += 1;
+        }
+      }
+    });
+    return buckets.map(bucket => ({
+      lore:bucket.lore,
+      avgTurn:bucket.count ? round1(bucket.sum / bucket.count) : null,
+      count:bucket.count
+    }));
+  }
+
+  function filterPerformanceCardsBySort(cards, sort){
+    return [...(cards || [])].filter(card => {
+      if(sort === 'played') return n(card.played) > 0;
+      if(sort === 'inked') return n(card.inked) > 0;
+      if(sort === 'played_winrate') return n(card.gamesPlayed) > 0;
+      return n(card.lore) > 0;
+    });
+  }
+
+  function filterMulliganCardsBySort(cards, sort){
+    return [...(cards || [])].filter(card => {
+      if(sort === 'kept') return n(card.kept) > 0;
+      if(sort === 'thrown') return n(card.replaced) > 0;
+      if(sort === 'kept_wr') return n(card.keptGames) > 0;
+      return n(card.opening) > 0;
+    });
+  }
+
+
+
+  function statusToneFromWinrate(wr, total=0){
+    if(!total) return 'neutral';
+    if(wr >= 60) return 'success';
+    if(wr >= 50) return 'good';
+    if(wr >= 45) return 'warning';
+    return 'danger';
+  }
+
+  function performanceToneLabel(tone){
+    if(tone === 'success') return 'Solide';
+    if(tone === 'good') return 'Positif';
+    if(tone === 'warning') return 'Instable';
+    if(tone === 'danger') return 'À travailler';
+    return 'À construire';
+  }
+
+  function miniGaugeHtml(label, value, max, help='', tone='neutral'){
+    const numeric = Number(value);
+    const hasValue = Number.isFinite(numeric);
+    const pctValue = hasValue ? Math.max(4, Math.min(100, Math.round((numeric / Math.max(1, max)) * 100))) : 0;
+    const shown = hasValue ? numeric : '—';
+    return `<div class="health-gauge ${escAttr(tone)}">
+      <div class="health-gauge-top"><span>${esc(label)}</span><strong>${esc(String(shown))}</strong></div>
+      <div class="health-gauge-track"><i style="width:${pctValue}%"></i></div>
+      ${help ? `<small>${esc(help)}</small>` : ''}
+    </div>`;
+  }
+
+  function deckHealthTags(analytics, wr, total){
+    const tags = [];
+    const topDeck = analytics.avgTopDeck;
+    const playDraw = analytics.playDraw || {};
+    if(total < 8) tags.push({ label:'Volume faible', tone:'neutral' });
+    else tags.push({ label: wr >= 55 ? 'Deck positif' : wr < 45 ? 'Plan fragile' : 'À stabiliser', tone:statusToneFromWinrate(wr,total) });
+    if(topDeck !== null){
+      if(topDeck <= 1.5) tags.push({ label:'Bonne main', tone:'success' });
+      else if(topDeck >= 3) tags.push({ label:'Ressources faibles', tone:'warning' });
+    }
+    if(playDraw.total && Math.abs(n(playDraw.otpRate)-n(playDraw.otdRate)) >= 20) tags.push({ label:'OTP / OTD à comparer', tone:'warning' });
+    else if(playDraw.total) tags.push({ label:'Départ stable', tone:'good' });
+    if(analytics.cardSignals?.topLore) tags.push({ label:'Moteur identifié', tone:'good' });
+    return tags.slice(0,4);
+  }
+
+  function deckHealthDashboardHtml(analytics, meta={}){
+    const total = n(meta.total);
+    const wins = n(meta.wins);
+    const wr = pct(wins, total);
+    const tone = statusToneFromWinrate(wr,total);
+    const avgTurns = analytics.avgTurns;
+    const avgLore = analytics.avgFinalLore;
+    const topDeck = analytics.avgTopDeck;
+    const tags = deckHealthTags(analytics, wr, total);
+    return `<section class="deck-health-dashboard ${escAttr(tone)}" aria-label="Santé du deck">
+      <article class="glass deck-health-main ${escAttr(tone)}">
+        <span>Santé du deck</span>
+        <strong>${total ? `${wr}%` : '—'}</strong>
+        <small>${total ? `${wins}/${total} victoires` : 'Sélectionnez un deck'}</small>
+        <div class="deck-health-status">${esc(performanceToneLabel(tone))}</div>
+      </article>
+      <article class="glass deck-health-details">
+        <div class="deck-health-tags">
+          ${tags.map(tag => `<span class="deck-health-tag ${escAttr(tag.tone)}">${esc(tag.label)}</span>`).join('')}
+        </div>
+        <div class="deck-health-gauges">
+          ${miniGaugeHtml('Durée moyenne', avgTurns, 18, avgTurns ? 'Plus la barre est longue, plus vos games s’étirent.' : 'À confirmer', 'neutral')}
+          ${miniGaugeHtml('Main critique', topDeck, 6, topDeck !== null ? 'Tours moyens à 0 ou 1 carte.' : 'Donnée absente', topDeck >= 3 ? 'warning' : 'good')}
+          ${miniGaugeHtml('Lore final moyen', avgLore, 20, avgLore !== null ? 'Pression moyenne en fin de game.' : 'Donnée absente', avgLore >= 14 ? 'good' : 'neutral')}
+        </div>
+      </article>
+    </section>`;
+  }
+
+
+
+  function renderPerformanceCoach(analytics, meta={}){
+    const deckScoped = !!meta.deckScoped;
+    const root = document.getElementById('performanceDeckCoach');
+    if(root){
+      if(!deckScoped){
+        root.innerHTML = `<section class="deck-health-dashboard neutral" aria-label="Santé du deck">
+          <article class="glass deck-health-main neutral">
+            <span>Santé du deck</span>
+            <strong>—</strong>
+            <small>Choisissez une bicolorité ou une version</small>
+            <div class="deck-health-status">À filtrer</div>
+          </article>
+          <article class="glass deck-health-details">
+            <div class="deck-health-tags"><span class="deck-health-tag neutral">Stats verrouillées</span><span class="deck-health-tag neutral">Éviter les faux signaux</span></div>
+            <div class="deck-health-empty">Les lectures cartes, mulligan et matchups deviennent utiles quand les matchs appartiennent au même plan de jeu.</div>
+          </article>
+        </section>`;
+      }else{
+        root.innerHTML = deckHealthDashboardHtml(analytics, meta);
+      }
+    }
+
+    if(!deckScoped){
+      if(els.performanceCoachTitle) els.performanceCoachTitle.textContent = 'Choisissez un deck';
+      if(els.performanceCoachText) els.performanceCoachText.textContent = 'Le diagnostic devient utile uniquement quand les matchs appartiennent au même deck ou à la même bicolorité.';
+      if(els.performanceBestSignal) els.performanceBestSignal.textContent = '—';
+      if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = 'Sélectionnez une bicolorité ou une version.';
+      if(els.performanceWarningSignal) els.performanceWarningSignal.textContent = '—';
+      if(els.performanceWarningSignalText) els.performanceWarningSignalText.textContent = 'Aucun signal exploitable pour l’instant.';
+      return;
+    }
+
+    const cards = analytics.cards || [];
+    const bestPlayed = cards
+      .filter(card => n(card.gamesPlayed) >= 2)
+      .sort((a,b) => n(b.playedWr)-n(a.playedWr) || n(b.gamesPlayed)-n(a.gamesPlayed) || n(b.lore)-n(a.lore))[0];
+    const topLore = analytics.cardSignals?.topLore;
+    const topInked = analytics.cardSignals?.topInked;
+    const negativeImpact = cards
+      .filter(card => card.iih !== null && Number.isFinite(Number(card.iih)) && n(card.gamesSeen) >= 2 && n(card.gamesNotSeen) >= 2)
+      .sort((a,b) => n(a.iih)-n(b.iih) || n(b.seen)-n(a.seen))[0];
+    const highInkRate = cards
+      .filter(card => n(card.inked) >= 3 && n(card.seen) > 0)
+      .map(card => ({ ...card, inkRate:Math.round((n(card.inked) / Math.max(1,n(card.seen))) * 100) }))
+      .filter(card => card.inkRate >= 45)
+      .sort((a,b) => b.inkRate-a.inkRate || n(b.inked)-n(a.inked))[0];
+
+    if(els.performanceCoachTitle) els.performanceCoachTitle.textContent = performanceToneLabel(statusToneFromWinrate(pct(n(meta.wins), n(meta.total)), n(meta.total)));
+    if(els.performanceCoachText) els.performanceCoachText.textContent = `${pct(n(meta.wins), n(meta.total))}% de winrate · ${n(meta.total)} analyse${n(meta.total) > 1 ? 's' : ''}.`;
+
+    if(bestPlayed){
+      if(els.performanceBestSignal) els.performanceBestSignal.textContent = bestPlayed.name;
+      if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = `Top performer · ${bestPlayed.playedWr}% WR quand jouée.`;
+    }else if(topLore){
+      if(els.performanceBestSignal) els.performanceBestSignal.textContent = topLore.name;
+      if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = `Moteur de lore · ${topLore.lore} lore.`;
+    }else{
+      if(els.performanceBestSignal) els.performanceBestSignal.textContent = 'Volume à construire';
+      if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = 'Ajoutez quelques games pour faire ressortir les cartes clés.';
+    }
+
+    if(highInkRate){
+      if(els.performanceWarningSignal) els.performanceWarningSignal.textContent = highInkRate.name;
+      if(els.performanceWarningSignalText) els.performanceWarningSignalText.textContent = `Encrage fréquent · ${highInkRate.inkRate}%.`;
+    }else if(negativeImpact && n(negativeImpact.iih) <= -10){
+      if(els.performanceWarningSignal) els.performanceWarningSignal.textContent = negativeImpact.name;
+      if(els.performanceWarningSignalText) els.performanceWarningSignalText.textContent = `Signal à surveiller · plus de volume nécessaire.`;
+    }else{
+      if(els.performanceWarningSignal) els.performanceWarningSignal.textContent = topInked?.name || 'Aucun gros signal négatif';
+      if(els.performanceWarningSignalText) els.performanceWarningSignalText.textContent = topInked ? `${topInked.inked} encrage(s) observé(s).` : 'Rien d’anormal sur l’échantillon actuel.';
+    }
+  }
+
+  function renderPerformanceActionPlan(analytics, meta={}){
+    if(!els.performanceActionPlan) return;
+    const loggedIn = !!state.currentUser;
+    const deckScoped = !!meta.deckScoped;
+    const rows = meta.rows || [];
+    if(!loggedIn){
+      els.performanceActionPlan.innerHTML = `<article class="glass action-plan-card primary">
+        <span>Plan d’action</span>
+        <strong>Connectez-vous pour activer le suivi</strong>
+        <p>Les priorités de progression se basent sur vos analyses sauvegardées.</p>
+      </article>`;
+      return;
+    }
+    if(!deckScoped){
+      const missingDeck = typeof deckMissingRows === 'function' ? deckMissingRows().length : 0;
+      const total = n(meta.total);
+      const profiles = namedDeckProfiles().filter(profile => !isArchivedDeckProfile(profile)).length;
+      const actions = [
+        {
+          tone:'primary',
+          label:'Priorité',
+          title: missingDeck ? `${missingDeck} analyse${missingDeck > 1 ? 's' : ''} à ranger` : 'Choisissez une bicolorité',
+          text: missingDeck ? 'Attribuez les decks manquants depuis l’historique pour éviter de mélanger plusieurs plans de jeu.' : 'Les signaux cartes, mulligan et matchups deviennent fiables dès que l’échantillon est cohérent.',
+          meta: missingDeck ? 'Nettoyage post-import' : `${total} analyse${total > 1 ? 's' : ''} disponibles`
+        },
+        {
+          label:'Base',
+          title:`${profiles} deck${profiles > 1 ? 's' : ''} actif${profiles > 1 ? 's' : ''}`,
+          text:'Utilisez les versions de decks pour séparer contrôle, midrange, aggro ou variantes de tournoi.',
+          meta:'Organisation'
+        },
+        {
+          label:'Lecture',
+          title:'Éviter les faux signaux',
+          text:'Les statistiques cartes et mulligan sont volontairement verrouillées quand toutes les bicolorités sont mélangées.',
+          meta:'Fiabilité'
+        }
+      ];
+      els.performanceActionPlan.innerHTML = actions.map(actionPlanCardHtml).join('');
+      return;
+    }
+
+    const total = n(meta.total);
+    const wins = n(meta.wins);
+    const wr = pct(wins, total);
+    const cards = analytics.cards || [];
+    const topDeck = analytics.avgTopDeck;
+    const playDraw = analytics.playDraw || {};
+    const topInked = cards
+      .filter(card => n(card.inked) >= 2 && n(card.seen) > 0)
+      .map(card => ({ ...card, inkRate:Math.round((n(card.inked)/Math.max(1,n(card.seen))) * 100) }))
+      .sort((a,b)=>b.inkRate-a.inkRate || n(b.inked)-n(a.inked))[0];
+    const weakCard = cards
+      .filter(card => card.iih !== null && Number.isFinite(Number(card.iih)) && n(card.gamesSeen) >= 3 && n(card.gamesNotSeen) >= 3)
+      .sort((a,b)=>n(a.iih)-n(b.iih))[0];
+    const mulliganCards = cards.filter(card => n(card.opening) >= 2);
+    const oftenThrown = [...mulliganCards].sort((a,b)=>n(b.replaced)-n(a.replaced) || n(b.opening)-n(a.opening))[0];
+
+    const actions = [];
+    if(total < 8){
+      actions.push({
+        tone:'primary',
+        label:'Priorité',
+        title:'Renforcer l’échantillon',
+        text:`${total} analyse${total > 1 ? 's' : ''} seulement : les tendances sont utiles, mais pas encore assez solides pour conclure.`,
+        meta:'Objectif : 10 à 15 games'
+      });
+    }else if(wr < 45){
+      actions.push({
+        tone:'danger',
+        label:'Priorité',
+        title:'Identifier la cause des défaites',
+        text:`${wr}% de winrate sur l’échantillon filtré. Commencez par les matchups faibles et les tours où la main s’épuise.`,
+        meta:`${wins}/${total} victoires`
+      });
+    }else if(wr >= 60){
+      actions.push({
+        tone:'success',
+        label:'Priorité',
+        title:'Conserver le plan actuel',
+        text:`${wr}% de winrate : le deck performe. Cherchez plutôt les ajustements matchup par matchup que les gros changements.`,
+        meta:`${wins}/${total} victoires`
+      });
+    }else{
+      actions.push({
+        tone:'primary',
+        label:'Priorité',
+        title:'Stabiliser les matchups',
+        text:`${wr}% de winrate : le deck est jouable, mais les écarts par matchup et OTP/OTD doivent guider les prochains tests.`,
+        meta:`${wins}/${total} victoires`
+      });
+    }
+
+    if(topDeck !== null && topDeck >= 2.5){
+      actions.push({
+        label:'Ressource',
+        title:'Main qui s’essouffle',
+        text:`Vous terminez en moyenne ${topDeck} tour(s) avec 0 ou 1 carte. Surveillez pioche, curve et cartes mortes.`,
+        meta:'Main critique'
+      });
+    }else if(playDraw.total && Math.abs(n(playDraw.otpRate)-n(playDraw.otdRate)) >= 20){
+      const weaker = n(playDraw.otpRate) < n(playDraw.otdRate) ? 'quand vous commencez' : 'quand vous jouez second';
+      actions.push({
+        label:'Départ',
+        title:'Écart OTP / OTD',
+        text:`Le deck semble moins stable ${weaker}. Testez des lignes de mulligan différentes selon le départ.`,
+        meta:`OTP ${n(playDraw.otpRate)}% · OTD ${n(playDraw.otdRate)}%`
+      });
+    }else{
+      actions.push({
+        label:'Départ',
+        title:'Comparer OTP / OTD',
+        text:'Gardez cette lecture active : un écart de départ révèle souvent une curve trop fragile ou trop réactive.',
+        meta:'Tempo'
+      });
+    }
+
+    if(topInked && topInked.inkRate >= 45){
+      actions.push({
+        label:'Deckbuilding',
+        title:`${topInked.name} souvent encrée`,
+        text:`Elle finit en encre dans ${topInked.inkRate}% des apparitions vues. Signal utile pour repérer un slot flexible, pas une preuve définitive.`,
+        meta:`${n(topInked.inked)} encrage(s)`,
+        card:topInked
+      });
+    }else if(weakCard && n(weakCard.iih) <= -10){
+      actions.push({
+        label:'Carte',
+        title:`${weakCard.name} à surveiller`,
+        text:`Les parties où elle apparaît semblent moins favorables. À confirmer avec plus de volume avant de conclure.`,
+        meta:'Impact carte',
+        card:weakCard
+      });
+    }else if(oftenThrown){
+      actions.push({
+        label:'Mulligan',
+        title:`${oftenThrown.name} souvent renvoyée`,
+        text:`Elle revient souvent dans les mains de départ puis repart au mulligan. Vérifiez si elle arrive trop tôt pour le plan de jeu.`,
+        meta:'Main de départ',
+        card:oftenThrown
+      });
+    }else{
+      actions.push({
+        label:'Mulligan',
+        title:'Créer du volume',
+        text:'Le Mulligan Lab devient vraiment utile quand les mêmes cartes apparaissent plusieurs fois dans les mains de départ.',
+        meta:'À confirmer'
+      });
+    }
+
+    els.performanceActionPlan.innerHTML = actions.slice(0,3).map(actionPlanCardHtml).join('');
+  }
+
+  function actionPlanCardHtml(item={}){
+    const hasCard = !!item.card;
+    let visual = '';
+    if(hasCard){
+      const view = performanceCardView(item.card);
+      visual = `<div class="action-plan-visual">${cardThumbHtml(view, 'action-plan-thumb')}</div>`;
+    }
+    return `<article class="glass action-plan-card action-plan-card-v2 ${hasCard ? 'with-card' : ''} ${escAttr(item.tone || '')}">
+      ${visual}
+      <div class="action-plan-copy">
+        <span>${esc(item.label || 'Action')}</span>
+        <strong>${esc(item.title || 'À analyser')}</strong>
+        <div class="action-plan-badges">
+          ${item.meta ? `<em>${esc(item.meta)}</em>` : ''}
+          <em>${hasCard ? 'Carte suivie' : 'Axe de test'}</em>
+        </div>
+        ${item.text ? `<p>${esc(item.text)}</p>` : ''}
+      </div>
+    </article>`;
+  }
+
+
+  function renderPerformanceMatchups(rows, analytics, meta={}){
+    if(!els.performanceMatchupBreakdown) return;
+    if(!meta.deckScoped){
+      els.performanceMatchupBreakdown.innerHTML = '<div class="deck-required compact"><strong>Sélectionnez un deck ou une bicolorité</strong><span>Les matchups deviennent lisibles uniquement quand l’échantillon représente une stratégie cohérente.</span></div>';
+      return;
+    }
+    const gamesByMatch = new Map();
+    (analytics.games || []).forEach(game => {
+      const key = game.matchId || game.match_id || '';
+      if(!key) return;
+      const item = gamesByMatch.get(key) || { total:0, wins:0 };
+      item.total += 1;
+      if(game.isWin) item.wins += 1;
+      gamesByMatch.set(key,item);
+    });
+    const buckets = new Map();
+    (rows || []).forEach(row => {
+      const colors = rowOpponentColors(row);
+      const key = colorFilterKey(colors) || 'unknown';
+      const label = colors.length ? colors.map(inkLabel).join(' / ') : 'Adversaire inconnu';
+      const bucket = buckets.get(key) || { key, label, colors, matches:0, wins:0, games:0, gameWins:0 };
+      bucket.matches += 1;
+      if(row.result === 'win') bucket.wins += 1;
+      const g = gamesByMatch.get(row.id);
+      bucket.games += g?.total || (String(row.format || '').toUpperCase() === 'BO3' ? n(row.wins)+n(row.losses) : 1);
+      bucket.gameWins += g?.wins || n(row.wins || (row.result === 'win' ? 1 : 0));
+      buckets.set(key,bucket);
+    });
+    const items = [...buckets.values()]
+      .filter(item => item.matches > 0)
+      .sort((a,b) => b.matches-a.matches || pct(b.wins,b.matches)-pct(a.wins,a.matches) || a.label.localeCompare(b.label))
+      .slice(0,6);
+    if(!items.length){
+      els.performanceMatchupBreakdown.innerHTML = '<div class="empty-line">Aucun matchup exploitable sur cet échantillon.</div>';
+      return;
+    }
+    els.performanceMatchupBreakdown.innerHTML = items.map(item => {
+      const wr = pct(item.wins,item.matches);
+      const gameWr = pct(item.gameWins,item.games);
+      return `<article class="matchup-breakdown-card">
+        <div class="matchup-breakdown-title">${inkDotsHtml(item.colors)}<strong>${esc(item.label)}</strong></div>
+        <div class="matchup-breakdown-meter"><span style="width:${Math.max(0, Math.min(100, wr))}%"></span></div>
+        <div class="matchup-breakdown-meta"><span>${wr}% WR match</span><span>${item.wins}V / ${item.matches}</span><span>${gameWr}% WR game</span></div>
+      </article>`;
+    }).join('');
+  }
+
+  function performanceMiniCardSignalHtml(card, meta=''){
+    const view = performanceCardView(card);
+    return `<button type="button" class="mini-card-signal-btn" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}">
+      <span class="mini-card-signal-art">${cardThumbHtml(view, 'mini-card-signal-thumb')}</span>
+      <span class="mini-card-signal-copy"><strong>${esc(card.name || 'Carte')}</strong><small>${esc(meta)}</small></span>
+    </button>`;
+  }
+
+  function performanceCardImpactHtml(analytics, options={}){
+    if(!isPerformanceDeckScoped()){
+      return '<div class="deck-required"><strong>Sélectionnez une bicolorité ou un deck</strong><span>Les cartes clés ne sont pas affichées sur “Toutes les bicolorités”, pour éviter de mélanger des listes et des synergies différentes.</span></div>';
+    }
+    const sort = state.performanceCardSort || 'lore';
+    const expanded = !!state.performanceExpandedLists?.cards || !!options.full;
+    const sorted = filterPerformanceCardsBySort(analytics.cards, sort).sort((a,b)=>comparePerformanceCards(a,b,sort));
+    const limit = expanded ? 80 : 4;
+    const rows = sorted.slice(0, limit);
+    if(!rows.length) return '<div class="empty-line">Aucune statistique carte disponible pour ce deck. Réimportez et sauvegardez des matchs avec la V62+ pour alimenter ces signaux.</div>';
+    return `<div class="performance-block-toolbar">
+      <div class="sort-pills" aria-label="Trier les cartes clés">
+        ${performanceSortButton('cards','lore','Lore',sort)}
+        ${performanceSortButton('cards','played','Jouées',sort)}
+        ${performanceSortButton('cards','inked','Encrées',sort)}
+        ${performanceSortButton('cards','played_winrate','Winrate si jouée',sort)}
+      </div>
+      ${sorted.length > (expanded ? 4 : limit) ? `<button type="button" class="ghost-button compact" data-performance-full-list="cards">${expanded ? 'Réduire la liste' : `Voir les ${sorted.length} cartes`}</button>` : ''}
+    </div>
+    <div class="performance-card-gallery key-card-gallery ${expanded ? 'expanded' : ''}">${rows.map(card => performanceKeyCardHtml(card)).join('')}</div>`;
+  }
+
+  function comparePerformanceCards(a,b,sort){
+    const name = () => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity:'base' });
+    if(sort === 'played') return (n(b.played)-n(a.played)) || (n(b.gamesPlayed)-n(a.gamesPlayed)) || (n(b.lore)-n(a.lore)) || name();
+    if(sort === 'inked') return (n(b.inked)-n(a.inked)) || (n(b.seen)-n(a.seen)) || (n(b.played)-n(a.played)) || name();
+    if(sort === 'played_winrate') return (n(b.playedWr)-n(a.playedWr)) || (n(b.gamesPlayed)-n(a.gamesPlayed)) || (n(b.played)-n(a.played)) || name();
+    return (n(b.lore)-n(a.lore)) || (n(b.loreActions)-n(a.loreActions)) || (n(b.quest)-n(a.quest)) || (n(b.played)-n(a.played)) || name();
+  }
+
+  function performanceSortButton(type,value,label,active){
+    return `<button type="button" class="sort-pill ${active === value ? 'active' : ''}" data-performance-sort="${escAttr(type)}" data-value="${escAttr(value)}">${esc(label)}</button>`;
+  }
+
+  function performanceCardStatusBadges(card){
+    const badges = [];
+    const playedWr = n(card.playedWr);
+    const gamesPlayed = n(card.gamesPlayed);
+    const seen = Math.max(1,n(card.seen));
+    const inkRate = Math.round((n(card.inked) / seen) * 100);
+    if(gamesPlayed >= 5 && playedWr >= 60) badges.push({ label:'Top performer', tone:'success' });
+    if(n(card.lore) >= 8) badges.push({ label:'Moteur de lore', tone:'gold' });
+    if(n(card.inked) >= 3 && inkRate >= 45) badges.push({ label:`Encrage fréquent ${inkRate}%`, tone:'blue' });
+    if(n(card.played) <= 2 && n(card.inked) >= 3) badges.push({ label:'Slot flexible ?', tone:'neutral' });
+    if(gamesPlayed > 0 && gamesPlayed < 5) badges.push({ label:'À confirmer', tone:'neutral' });
+    if(!badges.length) badges.push({ label:'Carte suivie', tone:'neutral' });
+    return badges.slice(0,3);
+  }
+
+  function statTokenHtml(label, value, tone='neutral'){
+    return `<span class="stat-token ${escAttr(tone)}"><b>${esc(String(value))}</b><small>${esc(label)}</small></span>`;
+  }
+
+  function mulliganShortTag(recommendation, keep, throwPct, copyPattern){
+    const key = recommendation?.key || 'context';
+    if(key === 'copy_limit') return 'Garder 1 copie max';
+    if(key === 'throw') return 'Mulligan fréquent';
+    if(key === 'keep') return 'À garder souvent';
+    if(key === 'playdraw') return 'Dépend OTP / OTD';
+    if(key === 'matchup') return 'Dépend matchup';
+    if(key === 'low_sample') return 'Pas assez de données';
+    if(copyPattern?.keptAndCut?.length) return 'Doublon à limiter';
+    if(keep >= 60) return 'Plutôt garder';
+    if(throwPct >= 60) return 'Plutôt renvoyer';
+    return 'Selon la main';
+  }
+
+
+  function performanceKeyCardHtml(card){
+    const view = performanceCardView(card);
+    const sampleWeak = n(card.gamesPlayed) < 5;
+    const winLabel = card.gamesPlayed ? (sampleWeak ? 'À confirmer' : `${card.playedWr}% WR`) : 'Peu jouée';
+    const inkPercent = Math.min(100, Math.round((n(card.inked) / Math.max(1, n(card.seen))) * 100));
+    const badges = performanceCardStatusBadges(card);
+    return `<article class="performance-card-tile performance-card-tile-v2 is-clickable" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}">
+      <div class="performance-card-art">${cardThumbHtml(view, 'performance-card-thumb')}</div>
+      <div class="performance-card-body">
+        <h3>${esc(performanceDisplayName(card))}</h3>
+        <div class="card-status-row">${badges.map(b => `<span class="card-status-badge ${escAttr(b.tone)}">${esc(b.label)}</span>`).join('')}</div>
+        <div class="performance-stat-strip stat-token-strip">
+          ${statTokenHtml('lore', n(card.lore), 'lore')}
+          ${statTokenHtml('jouée', n(card.played), 'played')}
+          ${statTokenHtml('encrée', n(card.inked), 'inked')}
+          ${statTokenHtml('WR', winLabel, sampleWeak ? 'neutral' : 'success')}
+        </div>
+        <div class="tiny-meter card-ink-meter" title="Part des apparitions qui finissent en encre"><i style="width:${inkPercent}%"></i></div>
+      </div>
+    </article>`;
+  }
+
+  function handleMulliganLabFilterClick(event){
+    const btn = event.target.closest('[data-mulligan-filter][data-value]');
+    if(!btn) return;
+    event.preventDefault();
+    const filter = btn.dataset.mulliganFilter;
+    const value = btn.dataset.value || 'all';
+    if(filter === 'matchup') state.performanceMulliganMatchupFilter = value;
+    if(filter === 'play') state.performanceMulliganPlayFilter = value;
+    if(filter === 'recommendation') state.performanceMulliganRecommendationFilter = value;
+    state.performanceExpandedLists = { ...(state.performanceExpandedLists || {}), mulligan:false };
+    renderPerformanceData();
+  }
+
+  function buildMulliganLabMeta(cards=[], games=[]){
+    const matchupMap = new Map();
+    games.forEach(game => {
+      const key = game.opponentKey || 'unknown';
+      const item = matchupMap.get(key) || { key, label:game.opponentLabel || 'Adversaire inconnu', colors:game.opponentColors || [], games:0 };
+      item.games += 1;
+      matchupMap.set(key, item);
+    });
+    return { matchups:[...matchupMap.values()].sort((a,b)=>b.games-a.games || a.label.localeCompare(b.label)) };
+  }
+
+  function mulliganLabButton(group, value, label, active, extra=''){
+    return `<button type="button" class="mulligan-lab-pill ${String(active) === String(value) ? 'active' : ''}" data-mulligan-filter="${escAttr(group)}" data-value="${escAttr(value)}" aria-pressed="${String(active) === String(value) ? 'true' : 'false'}">${extra}<span>${esc(label)}</span></button>`;
+  }
+
+  function mulliganFilteredCard(card, filters){
+    const allSamples = arrayify(card.samples);
+    const samples = allSamples.filter(sample => {
+      if(!n(sample.opening) && !n(sample.kept) && !n(sample.replaced)) return false;
+      if(filters.matchup !== 'all' && String(sample.opponentKey || 'unknown') !== String(filters.matchup)) return false;
+      if(filters.play === 'otp' && !sample.otp) return false;
+      if(filters.play === 'otd' && sample.otp) return false;
+      return true;
+    });
+    if(!allSamples.length){
+      const base = { ...card, _raw:card };
+      base.recommendation = mulliganRecommendation(base, []);
+      base.mulliganScore = mulliganPriorityScore(base);
+      return base;
+    }
+    const out = {
+      ...card,
+      _raw:card,
+      opening:samples.reduce((sum,row)=>sum+n(row.opening),0),
+      kept:samples.reduce((sum,row)=>sum+n(row.kept),0),
+      replaced:samples.reduce((sum,row)=>sum+n(row.replaced),0),
+      keptGames:samples.filter(row => n(row.kept) > 0).length,
+      keptWins:samples.filter(row => n(row.kept) > 0 && row.isWin).length,
+      samples
+    };
+    out.keepRate = pct(out.kept, out.kept + out.replaced);
+    out.keptWr = pct(out.keptWins, out.keptGames);
+    // Important: the recommendation must be computed on the filtered context, not on the full history.
+    out.recommendation = mulliganRecommendation(out, samples);
+    out.mulliganScore = mulliganPriorityScore(out);
+    return out;
+  }
+
+  function mulliganCardTraits(card){
+    const view = performanceCardView(card);
+    const type = typeLabel(card.type || view.type || '').toLowerCase();
+    const rawText = String(view.text || view.rulesText || view.ability || '').toLowerCase();
+    const cost = nullable(card.cost ?? view.cost);
+    const inkable = view.inkable === true || card.inkable === true;
+    const uninkable = view.inkable === false || card.inkable === false;
+    const name = fullName(view) || card.name || '';
+    const isCharacter = type.includes('personnage') || type.includes('character');
+    const isAction = type.includes('action');
+    const isSong = type.includes('song') || type.includes('chanson');
+    const isItem = type.includes('objet') || type.includes('item');
+    const isLocation = type.includes('lieu') || type.includes('location');
+    const isRamp = /ink an additional|additional card|your inkwell|chosen card.*inkwell|put.*into your inkwell|add.*inkwell|encrer une carte suppl|puits d['’]encre|réserve d['’]encre/i.test(rawText);
+    const isDraw = /draw a card|draw \d|draw cards|piochez|piocher|draw and|choisissez.*pioche/i.test(rawText);
+    const isRemoval = /deal \d damage|banish|chosen character|chosen damaged|return chosen|défaussez|bannissez|infligez|remontez|chosen opposing|opposing character/i.test(rawText);
+    const isQuester = n(view.lore) >= 2 && isCharacter;
+    const isEarlyPlay = cost !== null && cost <= 2;
+    const isMidPlay = cost !== null && cost >= 3 && cost <= 4;
+    const isHighCost = cost !== null && cost >= 5;
+    const isVeryHighCost = cost !== null && cost >= 6;
+    return { view, name, type, cost, inkable, uninkable, isCharacter, isAction, isSong, isItem, isLocation, isRamp, isDraw, isRemoval, isQuester, isEarlyPlay, isMidPlay, isHighCost, isVeryHighCost };
+  }
+
+  function mulliganCopyPattern(samples=[]){
+    const rows = arrayify(samples).filter(row => n(row.opening) || n(row.kept) || n(row.replaced));
+    const duplicateRows = rows.filter(row => n(row.opening) >= 2);
+    const keptAndCut = duplicateRows.filter(row => n(row.kept) > 0 && n(row.replaced) > 0);
+    const keptAllDupes = duplicateRows.filter(row => n(row.kept) >= n(row.opening) && n(row.replaced) === 0);
+    const cutAllDupes = duplicateRows.filter(row => n(row.replaced) >= n(row.opening) && n(row.kept) === 0);
+    const duplicateRate = rows.length ? Math.round((duplicateRows.length / rows.length) * 100) : 0;
+    return { rows, duplicateRows, keptAndCut, keptAllDupes, cutAllDupes, duplicateRate };
+  }
+
+  function mulliganRecommendation(card, contextSamples=[]){
+    const opening = n(card.opening);
+    const kept = n(card.kept);
+    const replaced = n(card.replaced);
+    const decisions = kept + replaced;
+    const keepRate = pct(kept, decisions);
+    const samples = arrayify(contextSamples);
+    const copyPattern = mulliganCopyPattern(samples);
+    const lowSample = opening < 4 || decisions < 4;
+
+    if(opening <= 0){
+      return { key:'low_sample', label:'Pas assez de données', tone:'neutral', text:'Aucune vraie main de départ dans ce contexte.', score:0 };
+    }
+
+    if(copyPattern.keptAndCut.length >= 2){
+      return {
+        key:'copy_limit', label:'Garder 1 copie', tone:'context',
+        text:'Observation : au moins une copie est gardée, mais les doublons sont souvent renvoyés.',
+        score:72
+      };
+    }
+
+    if(!lowSample && hasPlayDrawMulliganSplit(samples)){
+      return { key:'playdraw', label:'Dépend OTP / OTD', tone:'context', text:'Vos décisions changent nettement selon le joueur qui commence.', score:64 };
+    }
+
+    if(!lowSample && hasMatchupMulliganSplit(samples)){
+      return { key:'matchup', label:'Dépend du matchup', tone:'context', text:'Vos décisions changent nettement selon les encres adverses.', score:62 };
+    }
+
+    if(keepRate >= 75 && kept >= 2){
+      return { key:'keep', label:'Souvent gardée', tone:'good', text:'Signal empirique fort : vous la gardez très souvent quand elle est en main de départ.', score:86 };
+    }
+
+    if(keepRate <= 25 && replaced >= 2){
+      return { key:'throw', label:'Souvent renvoyée', tone:'danger', text:'Signal empirique fort : vous la renvoyez très souvent depuis la main de départ.', score:28 };
+    }
+
+    if(lowSample){
+      return { key:'low_sample', label:'À confirmer', tone:'neutral', text:'Échantillon faible : lecture informative, pas une recommandation stratégique.', score:46 };
+    }
+
+    if(keepRate >= 60){
+      return { key:'context', label:'Plutôt gardée', tone:'neutral', text:'Tendance positive, mais pas assez nette pour en faire une règle automatique.', score:60 };
+    }
+
+    if(keepRate <= 40){
+      return { key:'context', label:'Plutôt renvoyée', tone:'neutral', text:'Tendance négative, à interpréter selon le reste de la main.', score:42 };
+    }
+
+    return { key:'context', label:'Décision partagée', tone:'neutral', text:'Les décisions sont partagées : cette carte dépend surtout du reste de la main.', score:50 };
+  }
+
+  function mulliganPriorityScore(card){
+    const rec = card.recommendation || mulliganRecommendation(card, arrayify(card.samples));
+    const opening = n(card.opening);
+    const kept = n(card.kept);
+    const replaced = n(card.replaced);
+    const keepRate = pct(kept, kept + replaced);
+    let score = 0;
+    score += kept * 7;
+    score += opening * 2;
+    score += Math.round(keepRate * .9);
+    score -= Math.round(replaced * 1.2);
+    if(rec.key === 'keep') score += 18;
+    if(rec.key === 'copy_limit') score += 14;
+    if(rec.key === 'playdraw' || rec.key === 'matchup') score += 8;
+    if(rec.key === 'throw') score -= 34;
+    return score;
+  }
+
+  function hasPlayDrawMulliganSplit(samples=[]){
+    const rows = arrayify(samples).filter(row => n(row.opening) || n(row.kept) || n(row.replaced));
+    const otp = rows.filter(row => row.otp);
+    const otd = rows.filter(row => !row.otp);
+    const total = group => group.reduce((sum,row)=>sum+n(row.kept)+n(row.replaced),0);
+    if(total(otp) < 4 || total(otd) < 4) return false;
+    const rate = group => pct(group.reduce((sum,row)=>sum+n(row.kept),0), total(group));
+    return Math.abs(rate(otp) - rate(otd)) >= 35;
+  }
+
+  function hasMatchupMulliganSplit(samples=[]){
+    const groups = new Map();
+    arrayify(samples).forEach(row => {
+      if(!n(row.opening) && !n(row.kept) && !n(row.replaced)) return;
+      const key = row.opponentKey || 'unknown';
+      const item = groups.get(key) || { kept:0, total:0 };
+      item.kept += n(row.kept);
+      item.total += n(row.kept) + n(row.replaced);
+      groups.set(key,item);
+    });
+    const rates = [...groups.values()].filter(item => item.total >= 4).map(item => pct(item.kept,item.total));
+    if(rates.length < 2) return false;
+    return Math.max(...rates) - Math.min(...rates) >= 35;
+  }
+
+  function applyMulliganLabFilters(cards=[], filters={}){
+    const rows = cards.map(card => mulliganFilteredCard(card, filters)).filter(card => n(card.opening) > 0 || n(card.kept) > 0 || n(card.replaced) > 0);
+    if(filters.recommendation && filters.recommendation !== 'all') return rows.filter(card => {
+      if(filters.recommendation === 'context') return ['context','copy_limit','matchup','playdraw'].includes(card.recommendation?.key);
+      return card.recommendation?.key === filters.recommendation;
+    });
+    return rows;
+  }
+
+  function mulliganLabSummary(cards=[]){
+    const summary = { keep:0, throw:0, matchup:0, playdraw:0, low_sample:0, context:0, copy_limit:0 };
+    cards.forEach(card => { const key = card.recommendation?.key || 'context'; summary[key] = n(summary[key]) + 1; });
+    return summary;
+  }
+
+  function performanceMulliganHtml(analytics, options={}){
+    if(!isPerformanceDeckScoped()){
+      return '<div class="deck-required"><strong>Sélectionnez une bicolorité ou un deck</strong><span>Le Mulligan Lab doit être lu deck par deck. Sur plusieurs listes, les recommandations deviennent trompeuses.</span></div>';
+    }
+    const filters = {
+      matchup:state.performanceMulliganMatchupFilter || 'all',
+      play:state.performanceMulliganPlayFilter || 'all',
+      recommendation:state.performanceMulliganRecommendationFilter || 'all'
+    };
+    const sort = state.performanceMulliganSort || 'smart';
+    const expanded = !!state.performanceExpandedLists?.mulligan || !!options.full;
+    let rows = applyMulliganLabFilters(analytics.cards || [], filters);
+    rows = filterMulliganCardsBySort(rows, sort).sort((a,b)=>compareMulliganCards(a,b,sort));
+    const limit = expanded ? 80 : 10;
+    const visible = rows.slice(0, limit);
+    const matchups = analytics.mulliganLab?.matchups || [];
+    const matchupButtons = [mulliganLabButton('matchup','all','Tous matchups',filters.matchup)]
+      .concat(matchups.slice(0,8).map(item => mulliganLabButton('matchup', item.key, `${item.label} · ${item.games}`, filters.matchup, inkDotsHtml(item.colors || []))))
+      .join('');
+    const playButtons = [
+      mulliganLabButton('play','all','OTP + OTD',filters.play),
+      mulliganLabButton('play','otp','Vous commencez',filters.play),
+      mulliganLabButton('play','otd','Vous jouez second',filters.play)
+    ].join('');
+    const recButtons = [
+      mulliganLabButton('recommendation','all','Toutes',filters.recommendation),
+      mulliganLabButton('recommendation','keep','À garder',filters.recommendation),
+      mulliganLabButton('recommendation','throw','À renvoyer',filters.recommendation),
+      mulliganLabButton('recommendation','context','Contexte',filters.recommendation),
+      mulliganLabButton('recommendation','low_sample','À confirmer',filters.recommendation)
+    ].join('');
+    const controlsHtml = `<div class="mulligan-lab-controls mulligan-lab-controls-compact">
+      <div><span>Matchup</span><div class="mulligan-lab-row">${matchupButtons}</div></div>
+      <div><span>Départ</span><div class="mulligan-lab-row">${playButtons}</div></div>
+      <div><span>Signal</span><div class="mulligan-lab-row">${recButtons}</div></div>
+    </div>`;
+    const toolbarHtml = `<div class="performance-block-toolbar mulligan-lab-toolbar action-first">
+      <div class="sort-pills" aria-label="Trier le guide mulligan">
+        ${performanceSortButton('mulligan','smart','Priorité',sort)}
+        ${performanceSortButton('mulligan','kept','Plus gardées',sort)}
+        ${performanceSortButton('mulligan','thrown','Plus renvoyées',sort)}
+        ${performanceSortButton('mulligan','seen','Plus vues',sort)}
+        ${performanceSortButton('mulligan','kept_wr','WR gardée',sort)}
+      </div>
+      ${rows.length > (expanded ? 10 : limit) ? `<button type="button" class="ghost-button compact" data-performance-full-list="mulligan">${expanded ? 'Réduire' : `Voir ${rows.length} cartes`}</button>` : ''}
+    </div>`;
+    const listHtml = visible.length ? `<div class="mulligan-visual-list mulligan-lab-list ${expanded ? 'expanded' : ''}">${visible.map(card => performanceMulliganCardHtml(card)).join('')}</div>` : '<div class="empty-line">Aucune carte ne correspond à ces filtres. Essayez “Toutes” ou un autre matchup.</div>';
+    return `<section class="mulligan-lab mulligan-lab-action-first">${controlsHtml}${toolbarHtml}${listHtml}</section>`;
+  }
+
+  function compareMulliganCards(a,b,sort){
+    const name = () => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity:'base' });
+    const aThrown = n(a.replaced);
+    const bThrown = n(b.replaced);
+    if(sort === 'smart') return n(b.mulliganScore)-n(a.mulliganScore) || (n(b.opening)-n(a.opening)) || name();
+    if(sort === 'kept') return (n(b.kept)-n(a.kept)) || (n(b.keepRate)-n(a.keepRate)) || (n(b.opening)-n(a.opening)) || name();
+    if(sort === 'thrown') return (bThrown-aThrown) || ((100-n(b.keepRate))-(100-n(a.keepRate))) || (n(b.opening)-n(a.opening)) || name();
+    if(sort === 'kept_wr') return (n(b.keptWr)-n(a.keptWr)) || (n(b.keptGames)-n(a.keptGames)) || (n(b.kept)-n(a.kept)) || name();
+    return (n(b.opening)-n(a.opening)) || ((n(b.kept)+n(b.replaced))-(n(a.kept)+n(a.replaced))) || name();
+  }
+
+  function performanceMulliganCardHtml(card){
+    const view = performanceCardView(card);
+    const displayName = fullName(view) || card.name || 'Carte';
+    const kept = n(card.kept);
+    const replaced = n(card.replaced);
+    const total = Math.max(1, kept + replaced);
+    const keep = Math.round((kept / total) * 100);
+    const throwPct = 100 - keep;
+    const recommendation = card.recommendation || mulliganRecommendation(card, arrayify(card._raw?.samples));
+    const traits = mulliganCardTraits(card);
+    const copyPattern = mulliganCopyPattern(card.samples);
+    const curveLabel = traits.cost !== null ? `Coût ${traits.cost}` : 'Coût —';
+    const inkLabelText = traits.inkable ? 'Encrable' : traits.uninkable ? 'Non-encrable' : 'Encrable —';
+    const decisionTag = mulliganShortTag(recommendation, keep, throwPct, copyPattern);
+    const wrBadge = card.keptGames >= 8 ? `${card.keptWr}% WR gardée` : `${n(card.opening)} mains`;
+    return `<article class="mulligan-visual-card mulligan-lab-card mulligan-lab-card-v2 is-clickable ${escAttr(recommendation.tone || 'neutral')}" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(displayName)}">
+      <div class="mulligan-visual-art">${cardThumbHtml(view, 'mulligan-visual-thumb')}</div>
+      <div class="mulligan-visual-body">
+        <div class="mulligan-card-head"><h3>${esc(displayName)}</h3><span class="mulligan-rec ${escAttr(recommendation.tone || 'neutral')}">${esc(decisionTag)}</span></div>
+        <div class="mulligan-card-stats compact">
+          <span>${n(card.opening)} mains</span><span>${kept} gardées</span><span>${replaced} renvoyées</span><span>${esc(curveLabel)}</span><span>${esc(inkLabelText)}</span>
+        </div>
+        <div class="mulligan-bar"><i style="width:${keep}%"></i><b style="width:${throwPct}%"></b></div>
+        <div class="mulligan-bar-labels"><span>Garder ${keep}%</span><span>Renvoyer ${throwPct}%</span></div>
+        <div class="mulligan-bottom-tags"><span>${esc(wrBadge)}</span>${copyPattern.keptAndCut.length ? `<span>Doublon limité · ${copyPattern.keptAndCut.length}</span>` : ''}</div>
+      </div>
+    </article>`;
+  }
+
+  function performanceTurnCurveHtml(analytics){
+    const rows = analytics.turnCurve || [];
+    if(!rows.length) return '<div class="empty-line">Aucune courbe moyenne disponible sur cet échantillon.</div>';
+    const milestone20 = (analytics.loreMilestones || []).find(item => n(item.lore) === 20 && item.avgTurn !== null);
+    const milestone15 = (analytics.loreMilestones || []).find(item => n(item.lore) === 15 && item.avgTurn !== null);
+    const speedHtml = milestone20 ? `<span>Vitesse réelle</span><strong>20 lore ≈ T${esc(String(milestone20.avgTurn))}</strong><small>${n(milestone20.count)} partie(s) · ${milestone15 ? `15 lore ≈ T${esc(String(milestone15.avgTurn))}` : 'palier 15 à confirmer'}</small>` : '<span>Vitesse réelle</span><strong>À confirmer</strong><small>Ajoutez des parties terminées pour calculer les paliers.</small>';
+    const actionTotals = rows.reduce((acc, row) => { acc.ink += n(row.inked); acc.play += n(row.played); acc.quest += n(row.quests); acc.challenge += n(row.challenges); return acc; }, { ink:0, play:0, quest:0, challenge:0 });
+    const actionAxis = [['Tempo', actionTotals.play], ['Lore', actionTotals.quest], ['Board', actionTotals.challenge], ['Encrage', actionTotals.ink]].sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Plan';
+    const actionHtml = `<span>Plan moyen</span><strong>${esc(actionAxis)} dominant</strong><small>${esc(`${round1(actionTotals.play)} jouées · ${round1(actionTotals.quest)} quêtes · ${round1(actionTotals.challenge)} défis`)}</small>`;
+    return `<div class="performance-charts-grid">
+      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Lore & main moyenne <button class="info-dot" type="button" data-info="La courbe est calculée tour par tour uniquement avec les parties qui atteignent réellement le tour affiché. Le repère de vitesse indique à quel tour moyen le deck atteint les paliers de lore.">?</button></h3><p>Progression moyenne vers 20 lore, sans pénaliser les tours tardifs avec les parties déjà terminées.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceLoreAvgChart">${speedHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceLoreAvgChart" aria-label="Courbe moyenne de lore et de main"></canvas></div></article>
+      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Plan de jeu par tour <button class="info-dot" type="button" data-info="Chaque barre montre ce que le deck fait en moyenne à ce tour : encrer, jouer des cartes, quêter ou défier. Les tours tardifs utilisent uniquement les parties qui les atteignent réellement.">?</button></h3><p>Encrage, cartes jouées, quêtes et défis : le plan de jeu moyen tour par tour.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceActionAvgChart">${actionHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceActionAvgChart" aria-label="Actions moyennes par tour"></canvas></div></article>
+    </div>`;
+  }
+
+
+  function looksLikeTechnicalCardName(value=''){
+    const raw = String(value || '').trim();
+    if(!raw) return false;
+    if(/^[a-z0-9_:-]{10,}$/i.test(raw) && !/\s/.test(raw)) return true;
+    if(/^card[_-]/i.test(raw)) return true;
+    if(/^[0-9a-f]{8,}/i.test(raw)) return true;
+    return false;
+  }
+
+  function performanceCardView(card){
+    const local = findLocalCardByPerformanceCard(card);
+    const saved = findSavedCardByPerformanceCard(card);
+    const seed = saved || local || { id:card.key, fullName:card.name, name:card.name, type:card.type, colors:card.colors || [] };
+    const hydrated = hydrateCard(seed);
+    const image = saved?.image || saved?.imageSmall || hydrated.image || hydrated.imageSmall || '';
+    const imageSmall = saved?.imageSmall || saved?.image || hydrated.imageSmall || hydrated.image || '';
+    const resolvedName = saved ? (saved.fullName || saved.name || fullName(saved)) : (local ? fullName(local) : fullName(hydrated));
+    const displayName = cleanCardName(resolvedName && resolvedName !== 'Carte inconnue' ? resolvedName : (card.name || card.key || 'Carte inconnue'));
+    return {
+      ...hydrated,
+      image,
+      imageSmall,
+      fullName:displayName,
+      name:displayName,
+      type:card.type || saved?.type || hydrated.type || '',
+      colors:card.colors?.length ? card.colors : (saved?.colors?.length ? saved.colors : hydrated.colors)
+    };
+  }
+
+  function performanceDisplayName(card){
+    const view = performanceCardView(card || {});
+    return cleanCardName(fullName(view) || card?.name || card?.key || 'Carte inconnue');
+  }
+
+  function findSavedCardByPerformanceCard(card){
+    const wantedKey = slug(card?.key || '');
+    const wantedName = slug(card?.name || '');
+    if(!wantedKey && !wantedName) return null;
+    for(const row of state.savedMatches || []){
+      const pools = [row.analysis_json?.cards?.mine, row.analysis_json?.cards?.opponent];
+      (row.analysis_json?.games || []).forEach(game => {
+        const mull = game?.mulligan || {};
+        pools.push(mull.initial, mull.resolved, mull.replaced);
+      });
+      if(row.analysis_json?.mulligan){
+        const mull = row.analysis_json.mulligan;
+        pools.push(mull.initial, mull.resolved, mull.replaced);
+      }
+      for(const cards of pools){
+        for(const saved of (cards || [])){
+          const key = slug(saved?.key || '');
+          const name = slug(saved?.name || '');
+          if((wantedKey && key === wantedKey) || (wantedName && name === wantedName)){
+            if(saved?.image || saved?.imageSmall) return saved;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  function findLocalCardByPerformanceCard(card){
+    const candidates = [card?.key, card?.name, slug(card?.name || '')].filter(Boolean);
+    for(const key of candidates){
+      const direct = state.index.get(key) || state.index.get(slug(key));
+      if(direct) return direct;
+    }
+    const wanted = slug(card?.name || '');
+    if(!wanted) return null;
+    const wantedCore = wanted.replace(/-+/g,'-');
+    const seen = new Set();
+    for(const local of state.index.values()){
+      if(!local || seen.has(local)) continue;
+      seen.add(local);
+      const localFull = slug(fullName(local));
+      const localName = slug(local.name || '');
+      const localVersion = slug(local.version || '');
+      if(localFull === wantedCore || localName === wantedCore || localVersion === wantedCore) return local;
+      if(localFull.includes(wantedCore) || wantedCore.includes(localFull)) return local;
+      const wantedBase = wantedCore.split('-').slice(0,2).join('-');
+      const localBase = localFull.split('-').slice(0,2).join('-');
+      if(wantedBase && (localFull.startsWith(wantedBase) || localBase === wantedBase)) return local;
+    }
+    return null;
+  }
+
+  function bindPerformanceCardTiles(){
+    document.querySelectorAll('[data-performance-card-key], [data-performance-card-name]').forEach(tile => {
+      tile.onclick = () => openCardModal(performanceCardView({ key:tile.dataset.performanceCardKey, name:tile.dataset.performanceCardName }), tile);
+      tile.onkeydown = event => { if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); tile.click(); } };
+    });
+  }
+
+
+  function renderPerformanceCharts(analytics){
+    const rows = analytics.turnCurve || [];
+    const labels = rows.map(row => `T${row.turn}`);
+    if(!rows.length || !document.getElementById('performanceLoreAvgChart')){
+      if(charts.performanceLore){ charts.performanceLore.destroy(); charts.performanceLore = null; }
+      if(charts.performanceAction){ charts.performanceAction.destroy(); charts.performanceAction = null; }
+      return;
+    }
+    const [mine, opp] = chartColorsForScope('mine');
+    const isMobile = window.matchMedia?.('(max-width:820px)')?.matches === true;
+    const maxLore = Math.max(21, ...rows.map(row => n(row.lore) + 2));
+    const barMax = rows.length <= 12 ? (isMobile ? 22 : 46) : (rows.length <= 18 ? (isMobile ? 18 : 38) : (isMobile ? 15 : 34));
+    const barCategory = rows.length <= 12 ? .96 : (rows.length <= 18 ? .94 : .90);
+    const barRatio = rows.length <= 12 ? .90 : .86;
+    charts.performanceLore = chart(charts.performanceLore, 'performanceLoreAvgChart', 'line', {
+      labels,
+      datasets:[{
+        label:'Lore moyen',
+        data:rows.map(row => n(row.lore)),
+        borderColor:mine,
+        backgroundColor:hexToRgba(mine,.10),
+        pointBackgroundColor:mine,
+        pointBorderColor:'rgba(255,255,255,.88)',
+        borderWidth:2.5,
+        tension:.50,
+        fill:true
+      },{
+        label:'Main moyenne',
+        data:rows.map(row => n(row.hand)),
+        borderColor:opp,
+        backgroundColor:'transparent',
+        pointBackgroundColor:opp,
+        pointBorderColor:'rgba(255,255,255,.88)',
+        borderWidth:2.2,
+        tension:.50,
+        fill:false
+      },{
+        label:'Objectif · 20 lore',
+        data:rows.map(() => 20),
+        borderColor:'rgba(255,255,255,.22)',
+        borderDash:[6,8],
+        borderWidth:1,
+        pointRadius:0,
+        pointHoverRadius:0,
+        tension:0,
+        fill:false,
+        noGlow:true,
+        tooltipSkip:true
+      }]
+    }, { scales:{ y:{ beginAtZero:true, suggestedMax:maxLore, ticks:{ precision:0 }, grid:{ display:true, color:'rgba(255,255,255,.07)' } } } });
+
+    charts.performanceAction = chart(charts.performanceAction, 'performanceActionAvgChart', 'bar', {
+      labels,
+      datasets:[
+        { label:'Encrées', data:rows.map(row => n(row.inked)), backgroundColor:'rgba(148,163,184,.58)', maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio },
+        { label:'Jouées', data:rows.map(row => n(row.played)), backgroundColor:hexToRgba(mine,.88), maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio },
+        { label:'Quêtes', data:rows.map(row => n(row.quests)), backgroundColor:hexToRgba(opp,.88), maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio },
+        { label:'Défis', data:rows.map(row => n(row.challenges)), backgroundColor:'rgba(251,113,133,.78)', maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio }
+      ]
+    }, { scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 }, grid:{ display:true, color:'rgba(255,255,255,.07)' } } }, datasets:{ bar:{ maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio } } });
+  }
+
+
+  function renderPerformanceTable(target, html){
+    if(!target) return;
+    target.innerHTML = html;
+  }
+
+  function pct(wins,total){
+    return total ? Math.round((wins / total) * 100) : 0;
+  }
+
+  function avg(values){
+    const nums = (values || []).map(Number).filter(Number.isFinite);
+    if(!nums.length) return null;
+    return nums.reduce((sum,value)=>sum+value,0) / nums.length;
+  }
+
+
+  function deckMissingRows(){
+    return (state.savedMatches || []).filter(row => {
+      const name = row.deck_name || row.analysis_json?.deck?.name || '';
+      return !row.deck_profile_id && !isNamedDeckName(name);
+    });
+  }
+
+  function cleanupGroupsByColor(rows){
+    const groups = new Map();
+    (rows || []).forEach(row => {
+      const key = colorFilterKey(rowMineColors(row)) || 'unknown';
+      const group = groups.get(key) || { key, rows:[] };
+      group.rows.push(row);
+      groups.set(key, group);
+    });
+    return [...groups.values()].sort((a,b) => b.rows.length - a.rows.length || cleanupGroupLabel(a.key).localeCompare(cleanupGroupLabel(b.key)));
+  }
+
+  function cleanupGroupLabel(key){
+    if(!key || key === 'unknown') return 'Bicolorité non détectée';
+    return key.split('|').map(inkLabel).join(' / ');
+  }
+
+  function cleanupGroupColors(key){
+    if(!key || key === 'unknown') return [];
+    return key.split('|').map(inkKey).filter(Boolean).slice(0,2);
+  }
+
+  function renderPostImportCleanup(){
+    if(!els.postImportCleanupList) return;
+    if(!state.currentUser){
+      els.postImportCleanupList.innerHTML = '<div class="empty-line">Connectez-vous pour vérifier les analyses à nommer.</div>';
+      return;
+    }
+    if(state.savedMatchesLoading){
+      els.postImportCleanupList.innerHTML = '<div class="empty-line">Chargement des analyses à ranger…</div>';
+      return;
+    }
+    const missingDeckRows = deckMissingRows();
+    const duplicates = duplicateGroups(state.savedMatches || []);
+    const partial = (state.savedMatches || []).filter(row => rowQualityInfo(row).status === 'partial');
+    if(!missingDeckRows.length && !duplicates.length && !partial.length){
+      els.postImportCleanupList.innerHTML = '<div class="cleanup-success"><strong>Tout est rangé.</strong><span>Aucune analyse sans deck, aucun doublon évident, aucune ancienne sauvegarde partielle détectée.</span></div>';
+      return;
+    }
+
+    const summary = `<div class="cleanup-summary">
+      <span><b>${missingDeckRows.length}</b> deck${missingDeckRows.length > 1 ? 's' : ''} à nommer</span>
+      <span><b>${duplicates.reduce((sum, group) => sum + Math.max(0, group.length - 1), 0)}</b> doublon${duplicates.length > 1 ? 's' : ''} potentiel${duplicates.length > 1 ? 's' : ''}</span>
+      <span><b>${partial.length}</b> analyse${partial.length > 1 ? 's' : ''} partielle${partial.length > 1 ? 's' : ''}</span>
+    </div>`;
+
+    const groups = cleanupGroupsByColor(missingDeckRows);
+    const groupHtml = groups.length ? groups.map(group => {
+      const colors = cleanupGroupColors(group.key);
+      const matchingProfiles = namedDeckProfiles().filter(profile => profileMatchesColorKey(profile, group.key));
+      const existing = matchingProfiles.length
+        ? matchingProfiles.map(profile => `<button type="button" class="cleanup-deck-pill" data-cleanup-assign-existing="${escAttr(group.key)}" data-profile-id="${escAttr(profile.id)}">${inkDotsHtml(profileColors(profile))}<span>${esc(profile.name)}</span></button>`).join('')
+        : '<span class="cleanup-muted">Aucune version existante pour cette bicolorité.</span>';
+      const samples = group.rows.slice(0,3).map(row => `<li>${esc(row.matchup_label || 'Matchup non renseigné')} · ${esc(row.result === 'win' ? 'Victoire' : 'Défaite')} ${esc(row.score_label || '')}</li>`).join('');
+      return `<article class="cleanup-group" data-cleanup-group="${escAttr(group.key)}">
+        <div class="cleanup-group-head">
+          <div>
+            <strong>${inkDotsHtml(colors)}<span>${esc(cleanupGroupLabel(group.key))}</span></strong>
+            <small>${group.rows.length} analyse${group.rows.length > 1 ? 's' : ''} sans version de deck</small>
+          </div>
+          <button type="button" class="ghost-button compact" data-cleanup-focus-group="${escAttr(group.key)}">Voir dans l’historique</button>
+        </div>
+        <ul class="cleanup-samples">${samples}</ul>
+        <div class="cleanup-existing-decks">${existing}</div>
+        <div class="cleanup-new-deck">
+          <input type="text" data-cleanup-new-deck-name="${escAttr(group.key)}" placeholder="Créer une version, ex. ${escAttr(cleanupGroupLabel(group.key))} Control" maxlength="80">
+          <button type="button" class="primary-button compact" data-cleanup-assign-new="${escAttr(group.key)}">Appliquer au groupe</button>
+        </div>
+      </article>`;
+    }).join('') : '<div class="empty-line">Aucune analyse sans deck à nommer.</div>';
+
+    const duplicateHtml = duplicates.length ? `<details class="cleanup-details">
+      <summary>Doublons potentiels détectés (${duplicates.length} groupe${duplicates.length > 1 ? 's' : ''})</summary>
+      <div class="cleanup-detail-list">${duplicates.slice(0,5).map(group => `<div><strong>${esc(group[0]?.matchup_label || 'Matchup non renseigné')}</strong><span>${group.length} analyses similaires · ouvrez la page Compte pour gérer la suppression.</span></div>`).join('')}</div>
+    </details>` : '';
+
+    const partialHtml = partial.length ? `<details class="cleanup-details">
+      <summary>Anciennes analyses partielles (${partial.length})</summary>
+      <p>Ces sauvegardes peuvent manquer de lignes détaillées pour les stats avancées. Elles restent visibles, mais les nouvelles analyses seront plus fiables.</p>
+    </details>` : '';
+
+    els.postImportCleanupList.innerHTML = summary + groupHtml + duplicateHtml + partialHtml;
+  }
+
+  async function handlePostImportCleanupClick(event){
+    const existing = event.target.closest('[data-cleanup-assign-existing]');
+    const create = event.target.closest('[data-cleanup-assign-new]');
+    const focus = event.target.closest('[data-cleanup-focus-group]');
+    if(!existing && !create && !focus) return;
+
+    if(focus){
+      const key = focus.dataset.cleanupFocusGroup || 'all';
+      if(els.historyColorFilter) els.historyColorFilter.value = key === 'unknown' ? 'all' : key;
+      if(els.historyDeckFilter) els.historyDeckFilter.value = 'all';
+      renderPerformanceData();
+      document.getElementById('historyList')?.scrollIntoView({ behavior:'smooth', block:'start' });
+      return;
+    }
+
+    event.preventDefault();
+    if(!state.currentUser) return;
+    const key = (existing || create).dataset.cleanupAssignExisting || (existing || create).dataset.cleanupAssignNew;
+    try{
+      let deck = null;
+      if(existing){
+        const profile = (state.deckProfiles || []).find(item => String(item.id) === String(existing.dataset.profileId));
+        if(!profile) throw new Error('Deck introuvable.');
+        deck = { deck_profile_id:profile.id, deck_name:profile.name };
+      }
+      if(create){
+        const input = document.querySelector(`[data-cleanup-new-deck-name="${cssEscape(key)}"]`);
+        const name = String(input?.value || '').trim();
+        if(!name) throw new Error('Entrez un nom de deck avant d’appliquer le groupe.');
+        const profile = await upsertDeckProfile({ name, colors:cleanupGroupColors(key) });
+        deck = { deck_profile_id:profile?.id || null, deck_name:profile?.name || name };
+      }
+      const rows = deckMissingRows().filter(row => (colorFilterKey(rowMineColors(row)) || 'unknown') === key);
+      if(!rows.length) throw new Error('Aucune analyse à modifier dans ce groupe.');
+      els.postImportCleanupList.innerHTML = `<div class="empty-line">Mise à jour de ${rows.length} analyse(s)…</div>`;
+      for(const row of rows){
+        await updateSavedMatchDeck(row.id, deck);
+      }
+      await refreshDeckProfiles({ force:true, silent:true });
+      await refreshSavedMatches({ force:true, silent:true });
+      renderDeckOptions();
+      renderPerformanceData();
+    }catch(err){
+      console.error(err);
+      if(els.postImportCleanupList){
+        els.postImportCleanupList.insertAdjacentHTML('afterbegin', `<div class="cleanup-error">Erreur : ${esc(err.message || err)}</div>`);
+      }
+    }
+  }
+
+
+  function historyFilterStateKey(){
+    return [
+      els.historyColorFilter?.value || 'all',
+      els.historyDeckFilter?.value || 'all',
+      els.historyOpponentColorFilter?.value || 'all',
+      els.historyResultFilter?.value || 'all',
+      els.historyFormatFilter?.value || 'all',
+      String(els.historySearchInput?.value || '').trim().toLowerCase()
+    ].join('::');
+  }
+
+  function historyActiveFilterBadges(){
+    const badges = [];
+    const add = (label, value, all='all') => {
+      if(value && value !== all) badges.push(`<span class="history-filter-badge">${esc(label)}</span>`);
+    };
+    add('Bicolorité', els.historyColorFilter?.value || 'all');
+    add('Deck', els.historyDeckFilter?.value || 'all');
+    add('Adversaire', els.historyOpponentColorFilter?.value || 'all');
+    add('Résultat', els.historyResultFilter?.value || 'all');
+    add('Format', els.historyFormatFilter?.value || 'all');
+    if(String(els.historySearchInput?.value || '').trim()) badges.push('<span class="history-filter-badge">Recherche</span>');
+    return badges.length ? badges.join('') : '<span class="history-filter-badge muted">Aucun filtre actif</span>';
+  }
+
+  function historySummaryHtml(rows, total){
+    const visibleRows = rows || [];
+    const wins = visibleRows.filter(row => row.result === 'win').length;
+    const losses = visibleRows.filter(row => row.result === 'loss').length;
+    const winrate = visibleRows.length ? Math.round((wins / visibleRows.length) * 100) : 0;
+    const latest = visibleRows[0];
+    const latestDeck = latest?.deck_name || latest?.analysis_json?.deck?.name || '—';
+    return `<div class="history-summary-strip" aria-label="Résumé de l’historique filtré">
+      <div><span>Total</span><strong>${esc(total)}</strong><small>analyses sauvegardées</small></div>
+      <div><span>Vue actuelle</span><strong>${esc(visibleRows.length)}</strong><small>matchs filtrés</small></div>
+      <div><span>Winrate</span><strong>${visibleRows.length ? `${winrate}%` : '—'}</strong><small>${wins} V · ${losses} D</small></div>
+      <div><span>Dernier deck</span><strong>${esc(latestDeck)}</strong><small>${esc(latest ? formatSavedDate(getSavedMatchPlayedAt(latest)) : '—')}</small></div>
+    </div>`;
+  }
+
+
+  function renderSavedHistory(){
+    if(!els.historyList) return;
+    if(!state.currentUser){
+      renderPostImportCleanup();
+      els.historyList.innerHTML = '<div class="empty-line">Connectez-vous avec Discord pour afficher vos matchs sauvegardés.</div>';
+      if(els.historyStatus) els.historyStatus.textContent = 'Historique disponible après connexion.';
+      if(els.historyDetail){ els.historyDetail.hidden = true; els.historyDetail.innerHTML = ''; }
+      return;
+    }
+
+    if(state.savedMatchesLoading){
+      renderPostImportCleanup();
+      els.historyList.innerHTML = '<div class="empty-line">Chargement de l’historique…</div>';
+      if(els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
+      return;
+    }
+
+    const rows = filteredSavedMatches();
+    const total = state.savedMatches.length;
+    const filterKey = historyFilterStateKey();
+    if(state.historyLastFilterKey !== filterKey){
+      state.historyVisibleCount = 5;
+      state.historyLastFilterKey = filterKey;
+      state.activeHistoryActionsId = null;
+    }
+    const visibleCount = Math.max(5, n(state.historyVisibleCount) || 5);
+    const visibleRows = rows.slice(0, visibleCount);
+    const remaining = Math.max(0, rows.length - visibleRows.length);
+    if(els.historyStatus){
+      els.historyStatus.textContent = total
+        ? `${rows.length} résultat(s) sur ${total} analyse(s). ${visibleRows.length} affiché(s).`
+        : 'Aucune analyse sauvegardée pour le moment.';
+    }
+
+    if(!total){
+      renderPostImportCleanup();
+      els.historyList.innerHTML = '<div class="history-empty-state"><strong>Aucune analyse sauvegardée.</strong><span>Importez un replay, connectez-vous, puis utilisez “Sauvegarder l’analyse”.</span><button type="button" class="primary-button compact-primary" data-app-view="analysis">Importer un replay</button></div>';
+      if(els.historyDetail){ els.historyDetail.hidden = true; els.historyDetail.innerHTML = ''; }
+      return;
+    }
+
+    if(!rows.length){
+      renderPostImportCleanup();
+      els.historyList.innerHTML = `<div class="history-list-head">${historySummaryHtml(rows, total)}<div class="history-active-filters">${historyActiveFilterBadges()}</div></div><div class="empty-line">Aucun match ne correspond aux filtres actuels.</div>`;
+      if(els.historyDetail){ els.historyDetail.hidden = true; }
+      return;
+    }
+
+    if(!rows.some(row => row.id === state.selectedSavedMatchId)) state.selectedSavedMatchId = rows[0].id;
+
+    const listHead = `<div class="history-list-head">
+      ${historySummaryHtml(rows, total)}
+      <div class="history-active-filters">${historyActiveFilterBadges()}</div>
+    </div>`;
+    const loadMore = remaining
+      ? `<button type="button" class="history-load-more" data-history-load-more>Afficher 5 matchs de plus <span>${remaining} restant(s)</span></button>`
+      : `<div class="history-end-note">Tous les matchs filtrés sont affichés.</div>`;
+    els.historyList.innerHTML = `${listHead}<div class="history-compact-list">${visibleRows.map(row => savedMatchRowHtml(row)).join('')}</div>${loadMore}`;
+    bindSavedMatchButtons();
+    renderSavedMatchDetail(rows.find(row => row.id === state.selectedSavedMatchId) || rows[0]);
+    renderPostImportCleanup();
+  }
+
+  function savedMatchRowHtml(row){
+    const isActive = row.id === state.selectedSavedMatchId;
+    const result = row.result === 'win' ? 'Victoire' : 'Défaite';
+    const resultClass = row.result === 'win' ? 'win' : 'loss';
+    const format = String(row.format || 'BO1').toUpperCase();
+    const date = formatSavedDate(getSavedMatchPlayedAt(row));
+    const matchup = row.matchup_label || 'Matchup non renseigné';
+    const colors = rowMineColors(row);
+    const opponentColors = rowOpponentColors(row);
+    const colorDots = inkDotsHtml(colors);
+    const opponentDots = inkDotsHtml(opponentColors);
+    const opponent = row.opponent_name ? `vs ${row.opponent_name}` : 'Adversaire non renseigné';
+    const deck = row.deck_name || row.analysis_json?.deck?.name || 'Deck à nommer';
+    const score = row.score_label || `${n(row.final_mine_lore)}-${n(row.final_opp_lore)}`;
+    const games = Array.isArray(row.analysis_json?.games) ? row.analysis_json.games : [];
+    const hasGames = format === 'BO3' && games.length > 1;
+    const expanded = state.expandedSavedMatchId === row.id;
+    const gamesHtml = expanded && hasGames ? savedGamesHtml(games) : '';
+    const editHtml = state.editingSavedMatchId === row.id ? savedMatchDeckEditHtml(row) : '';
+    const actionsOpen = state.activeHistoryActionsId === row.id;
+    const compactActions = `<button type="button" class="ghost-button history-mini-button primary" data-load-saved="${escAttr(row.id)}">Voir l’analyse</button>
+        <button type="button" class="ghost-button history-mini-button" data-select-saved="${escAttr(row.id)}">Détails</button>
+        <button type="button" class="ghost-button history-mini-button" data-edit-deck="${escAttr(row.id)}">Modifier deck</button>
+        <button type="button" class="ghost-button history-mini-button danger" data-delete-saved="${escAttr(row.id)}">Supprimer</button>`;
+    return `<article class="history-row ${isActive ? 'active' : ''} ${hasGames ? 'has-games' : ''} ${actionsOpen ? 'actions-open' : ''}" data-saved-id="${escAttr(row.id)}">
+      <button type="button" class="history-row-main" data-select-saved="${escAttr(row.id)}" aria-expanded="${expanded && hasGames ? 'true' : 'false'}">
+        <span class="history-result-dot ${resultClass}"></span>
+        <span class="history-row-copy">
+          <strong class="history-primary-line"><em>${esc(format)}</em><span>${colorDots}<span class="history-vs">vs</span>${opponentDots}</span><b>${esc(result)} ${esc(score)}</b></strong>
+          <span class="history-opponent-line">${esc(opponent)}</span>
+          <span class="history-matchup-line">${esc(matchup)}</span>
+          <span class="history-row-deck">Deck · ${esc(deck)}</span>
+          ${qualityBadgesHtml(row)}
+        </span>
+        <span class="history-row-meta"><b>${hasGames ? `${games.length} manches` : `${esc(n(row.total_turns) || '—')} tours`}</b><small>${esc(date)}</small></span>
+      </button>
+      <div class="history-row-actions history-actions-desktop">${compactActions}</div>
+      <button type="button" class="history-options-button" data-toggle-history-actions="${escAttr(row.id)}" aria-expanded="${actionsOpen ? 'true' : 'false'}">${actionsOpen ? 'Fermer' : 'Options'}</button>
+      <div class="history-actions-mobile-panel" ${actionsOpen ? '' : 'hidden'}>${compactActions}</div>
+      ${gamesHtml}
+      ${editHtml}
+    </article>`;
+  }
+
+  function savedMatchDeckEditHtml(row){
+    const rowColors = rowMineColors(row);
+    const rowKey = colorFilterKey(rowColors);
+    const profiles = namedDeckProfiles().filter(profile => profileMatchesColorKey(profile, rowKey));
+    const currentId = row.deck_profile_id || '';
+    const selectedId = Object.prototype.hasOwnProperty.call(state.pendingDeckSelection || {}, row.id) ? state.pendingDeckSelection[row.id] : currentId;
+    const pills = profiles.length
+      ? profiles.map(profile => {
+        const active = profile.id === selectedId;
+        return `<button type="button" class="deck-edit-pill ${active ? 'active' : ''}" data-select-deck-profile="${escAttr(row.id)}" data-profile-id="${escAttr(profile.id)}" aria-pressed="${active ? 'true' : 'false'}">${inkDotsHtml(profileColors(profile))}<span>${esc(profile.name)}</span></button>`;
+      }).join('')
+      : '<span class="deck-edit-empty">Aucune version de deck existante pour cette bicolorité.</span>';
+    return `<div class="deck-edit-panel" data-deck-edit-panel="${escAttr(row.id)}">
+      <div>
+        <strong>Modifier le deck associé</strong>
+        <small>Sélectionnez une version de cette bicolorité, ou créez-en une nouvelle.</small>
+      </div>
+      <div class="deck-edit-pills">${pills}</div>
+      <div class="deck-edit-new">
+        <input type="text" data-new-deck-name="${escAttr(row.id)}" placeholder="Créer un nouveau nom de deck" maxlength="80">
+        <button type="button" class="ghost-button history-mini-button primary" data-apply-deck-selection="${escAttr(row.id)}">Enregistrer</button>
+        <button type="button" class="ghost-button history-mini-button" data-cancel-deck-edit="${escAttr(row.id)}">Annuler</button>
+      </div>
+    </div>`;
+  }
+
+  function savedGamesHtml(games){
+    return `<div class="history-games" aria-label="Manches du BO3">
+      ${games.map(game => {
+        const win = Boolean(game.isWin);
+        const result = win ? 'Victoire' : 'Défaite';
+        const score = `${n(game.finalMineLore)}-${n(game.finalOppLore)}`;
+        const otp = game.otp ? 'OTP' : 'OTD';
+        return `<div class="history-game-row ${win ? 'win' : 'loss'}">
+          <span class="history-game-index">G${n(game.gameNumber) || '—'}</span>
+          <strong>${esc(result)}</strong>
+          <span>${esc(score)}</span>
+          <span>${esc(n(game.turnCount) || '—')} tours</span>
+          <em>${esc(otp)}</em>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function bindSavedMatchButtons(){
+    document.querySelectorAll('[data-history-load-more]').forEach(button => {
+      button.onclick = () => {
+        state.historyVisibleCount = Math.min(filteredSavedMatches().length, (n(state.historyVisibleCount) || 5) + 5);
+        renderPerformanceData();
+      };
+    });
+    document.querySelectorAll('[data-select-saved]').forEach(button => {
+      button.onclick = () => {
+        const id = button.dataset.selectSaved;
+        const row = state.savedMatches.find(item => item.id === id);
+        const games = Array.isArray(row?.analysis_json?.games) ? row.analysis_json.games : [];
+        const isExpandable = String(row?.format || '').toUpperCase() === 'BO3' && games.length > 1;
+        state.selectedSavedMatchId = id;
+        state.expandedSavedMatchId = isExpandable ? (state.expandedSavedMatchId === id ? null : id) : null;
+        renderPerformanceData();
+      };
+    });
+    document.querySelectorAll('[data-load-saved]').forEach(button => {
+      button.onclick = () => {
+        const row = state.savedMatches.find(item => item.id === button.dataset.loadSaved);
+        loadSavedAnalysis(row);
+      };
+    });
+
+    document.querySelectorAll('[data-toggle-history-actions]').forEach(button => {
+      button.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const id = button.dataset.toggleHistoryActions;
+        state.activeHistoryActionsId = state.activeHistoryActionsId === id ? null : id;
+        state.selectedSavedMatchId = id;
+        renderPerformanceData();
+      };
+    });
+
+    document.querySelectorAll('[data-edit-deck]').forEach(button => {
+      button.onclick = event => {
+        event.stopPropagation();
+        const id = button.dataset.editDeck;
+        if(state.editingSavedMatchId === id){
+          state.editingSavedMatchId = null;
+        }else{
+          const row = state.savedMatches.find(item => item.id === id);
+          state.editingSavedMatchId = id;
+          state.pendingDeckSelection = { ...(state.pendingDeckSelection || {}), [id]: row?.deck_profile_id || '' };
+        }
+        state.selectedSavedMatchId = id;
+        renderPerformanceData();
+      };
+    });
+    document.querySelectorAll('[data-cancel-deck-edit]').forEach(button => {
+      button.onclick = () => {
+        state.editingSavedMatchId = null;
+        renderPerformanceData();
+      };
+    });
+    document.querySelectorAll('[data-select-deck-profile]').forEach(button => {
+      button.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const id = button.dataset.selectDeckProfile;
+        state.pendingDeckSelection = { ...(state.pendingDeckSelection || {}), [id]: button.dataset.profileId || '' };
+        state.selectedSavedMatchId = id;
+        renderPerformanceData();
+      };
+    });
+    document.querySelectorAll('[data-apply-deck-selection]').forEach(button => {
+      button.onclick = () => applyDeckSelectionToSavedMatch(button.dataset.applyDeckSelection);
+    });
+    document.querySelectorAll('[data-apply-deck-profile]').forEach(button => {
+      button.onclick = () => applyDeckProfileToSavedMatch(button.dataset.applyDeckProfile, button.dataset.profileId);
+    });
+    document.querySelectorAll('[data-create-deck-for-match]').forEach(button => {
+      button.onclick = () => createAndApplyDeckToSavedMatch(button.dataset.createDeckForMatch);
+    });
+    document.querySelectorAll('[data-delete-saved]').forEach(button => {
+      button.onclick = async () => {
+        const id = button.dataset.deleteSaved;
+        const row = state.savedMatches.find(item => item.id === id);
+        const label = row?.title || 'cette analyse';
+        if(!confirm(`Supprimer ${label} ?`)) return;
+        try{
+          button.disabled = true;
+          await deleteSavedMatch(id);
+          state.savedMatches = state.savedMatches.filter(item => item.id !== id);
+          if(state.selectedSavedMatchId === id) state.selectedSavedMatchId = state.savedMatches[0]?.id || null;
+          if(state.expandedSavedMatchId === id) state.expandedSavedMatchId = null;
+          renderPerformanceData();
+        }catch(err){
+          console.error(err);
+          if(els.historyStatus) els.historyStatus.textContent = `Erreur suppression : ${err.message}`;
+        }
+      };
+    });
+  }
+
+  async function applyDeckSelectionToSavedMatch(matchId){
+    const row = state.savedMatches.find(item => item.id === matchId);
+    if(!row) return;
+    const input = document.querySelector(`[data-new-deck-name="${CSS.escape(matchId)}"]`);
+    const name = String(input?.value || '').trim();
+    if(name){
+      await createAndApplyDeckToSavedMatch(matchId);
+      return;
+    }
+    const profileId = state.pendingDeckSelection?.[matchId] || row.deck_profile_id || '';
+    if(!profileId){
+      if(input) input.focus();
+      if(els.historyStatus) els.historyStatus.textContent = 'Choisissez une version existante ou créez un nouveau nom de deck.';
+      return;
+    }
+    await applyDeckProfileToSavedMatch(matchId, profileId);
+  }
+
+  async function applyDeckProfileToSavedMatch(matchId, profileId){
+    const row = state.savedMatches.find(item => item.id === matchId);
+    const profile = state.deckProfiles.find(item => item.id === profileId);
+    if(!row || !profile) return;
+    try{
+      const updated = await updateSavedMatchDeck(matchId, { deck_profile_id:profile.id, deck_name:profile.name });
+      state.savedMatches = state.savedMatches.map(item => item.id === matchId ? { ...item, ...updated } : item);
+      if(state.pendingDeckSelection) delete state.pendingDeckSelection[matchId];
+      state.editingSavedMatchId = null;
+      await refreshSavedAnalytics(state.savedMatches, { force:true });
+      renderPerformanceData();
+    }catch(err){
+      console.error(err);
+      if(els.historyStatus) els.historyStatus.textContent = `Erreur modification deck : ${err.message}`;
+    }
+  }
+
+  async function createAndApplyDeckToSavedMatch(matchId){
+    const row = state.savedMatches.find(item => item.id === matchId);
+    const input = document.querySelector(`[data-new-deck-name="${CSS.escape(matchId)}"]`);
+    const name = String(input?.value || '').trim();
+    if(!row || !name){
+      if(input) input.focus();
+      return;
+    }
+    try{
+      const colors = rowMineColors(row).map(inkLabel);
+      const profile = await upsertDeckProfile({ name, colors });
+      await refreshDeckProfiles({ force:true, silent:true });
+      await applyDeckProfileToSavedMatch(matchId, profile.id);
+    }catch(err){
+      console.error(err);
+      if(els.historyStatus) els.historyStatus.textContent = `Erreur création deck : ${err.message}`;
+    }
+  }
+
+  function renderSavedMatchDetail(row){
+    if(!els.historyDetail) return;
+    if(!row){
+      els.historyDetail.hidden = true;
+      els.historyDetail.innerHTML = '';
+      return;
+    }
+    const analysis = row.analysis_json || {};
+    const narrative = analysis.narrative || {};
+    const mineCards = analysis.cards?.mine || [];
+    const oppCards = analysis.cards?.opponent || [];
+    const topMineLore = [...mineCards].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest))[0];
+    const topInked = [...mineCards].sort((a,b)=>n(b.inked)-n(a.inked))[0];
+    const topOppLore = [...oppCards].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest))[0];
+    const result = row.result === 'win' ? 'Victoire' : 'Défaite';
+    const resultClass = row.result === 'win' ? 'win' : 'loss';
+    const format = String(row.format || 'BO1').toUpperCase();
+    const score = row.score_label || `${n(row.final_mine_lore)}-${n(row.final_opp_lore)}`;
+    const games = Array.isArray(analysis.games) ? analysis.games : [];
+    const deckName = row.deck_name || analysis.deck?.name || 'Deck à nommer';
+    const opponentName = row.opponent_name || 'Adversaire non renseigné';
+    const date = formatSavedDate(getSavedMatchPlayedAt(row));
+    const turns = n(row.total_turns) || '—';
+    const resultTone = row.result === 'win' ? 'positive' : 'negative';
+    const detailGames = format === 'BO3' && games.length > 1 ? `<div class="history-detail-games"><span>Manches du BO3</span>${savedGamesHtml(games)}</div>` : '';
+    const duelink = row.duelink_url ? `<a href="${escAttr(row.duelink_url)}" target="_blank" rel="noopener">Ouvrir Duel.ink</a>` : '<span>Non renseigné</span>';
+
+    const metricTile = (label, value, sub='', cls='') => `<div class="history-detail-metric ${cls}"><span>${esc(label)}</span><strong>${esc(value)}</strong>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
+    const cardTile = (label, card, value, sub='', cls='') => {
+      const hasCard = !!card;
+      const name = hasCard ? fullName(card) : '—';
+      const thumb = hasCard ? cardThumbHtml(card, 'history-detail-card-img') : `<span class="history-detail-card-img thumb-placeholder">—</span>`;
+      return `<div class="history-detail-card-tile ${cls}">
+        <div class="history-detail-card-art">${thumb}</div>
+        <div class="history-detail-card-copy">
+          <span>${esc(label)}</span>
+          <strong>${esc(name)}</strong>
+          <div class="history-detail-card-stats">${value ? `<em>${esc(value)}</em>` : ''}${sub ? `<small>${esc(sub)}</small>` : ''}</div>
+        </div>
+      </div>`;
+    };
+
+    els.historyDetail.hidden = false;
+    els.historyDetail.innerHTML = `<div class="history-detail-head history-detail-head-v112">
+      <div>
+        <span class="history-detail-kicker">Analyse sauvegardée</span>
+        <h2>${esc(format)} · ${esc(result)} ${esc(score)}</h2>
+        <p>${esc(row.matchup_label || 'Matchup non renseigné')}</p>
+      </div>
+      <div class="history-detail-actions">
+        <small>${esc(date)}</small>
+        <button type="button" class="ghost-button history-mini-button primary" data-load-saved="${escAttr(row.id)}">Ouvrir dans l’analyse</button>
+      </div>
+    </div>
+    <div class="history-detail-kpi-grid">
+      ${metricTile('Résultat', result, score, resultTone)}
+      ${metricTile('Tours', String(turns), format, '')}
+      ${metricTile('Deck', deckName, 'version associée', 'wide')}
+      ${metricTile('Adversaire', opponentName, row.matchup_label || '', 'wide')}
+    </div>
+    ${narrative.title ? `<div class="history-narrative history-narrative-v112"><strong>${esc(narrative.title)}</strong><p>${esc(narrative.text || '')}</p></div>` : ''}
+    ${detailGames}
+    <div class="history-detail-visual-grid">
+      ${cardTile('Moteur de lore', topMineLore, topMineLore ? `${n(topMineLore.lore)} lore` : '', topMineLore ? `${n(topMineLore.played)} jouée(s)` : '', 'lore')}
+      ${cardTile('Carte encrée', topInked, topInked ? `${n(topInked.inked)}x encrée` : '', topInked ? `${n(topInked.played)} jouée(s)` : '', 'ink')}
+      ${cardTile('Menace adverse', topOppLore, topOppLore ? `${n(topOppLore.lore)} lore` : '', topOppLore ? `${n(topOppLore.played)} jouée(s)` : '', 'threat')}
+      <div class="history-detail-card-tile info-only">
+        <div class="history-detail-card-copy">
+          <span>Replay</span>
+          <strong>${duelink}</strong>
+          <small>Source du match</small>
+        </div>
+      </div>
+    </div>`;
+    els.historyDetail.querySelectorAll('[data-load-saved]').forEach(button => {
+      button.onclick = () => loadSavedAnalysis(row);
+    });
+  }
+
+  function getSavedMatchPlayedAt(row){
+    return row?.played_at || row?.analysis_json?.played_at || row?.analysis_json?.games?.[0]?.playedAt || row?.analysis_json?.saved_at || row?.created_at || null;
+  }
+
+  function savedMatchPlayedTime(row){
+    const date = new Date(getSavedMatchPlayedAt(row) || row?.created_at || 0);
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime();
+  }
+
+  function formatSavedDate(value){
+    if(!value) return '—';
+    const date = new Date(value);
+    if(Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleString('fr-CH', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  }
+
+  function dateFromFileName(name=''){
+    const raw = String(name || '');
+    const iso = raw.match(/(20\d{2})[-_ .]?(\d{2})[-_ .]?(\d{2})(?:[-_ T.]?(\d{2})[-_ .]?(\d{2})(?:[-_ .]?(\d{2}))?)?/);
+    if(!iso) return null;
+    const [, y, mo, d, h='00', mi='00', se='00'] = iso;
+    const date = new Date(`${y}-${mo}-${d}T${h}:${mi}:${se}`);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  function detectReplayPlayedAt(data={}, file={}){
+    const direct = firstValidDate([
+      data.playedAt, data.played_at, data.startedAt, data.started_at, data.createdAt, data.created_at,
+      data.completedAt, data.completed_at, data.timestamp, data.date,
+      data.match?.playedAt, data.match?.startedAt, data.match?.createdAt,
+      data.metadata?.playedAt, data.metadata?.startedAt, data.metadata?.createdAt,
+      data.baseSnapshot?.createdAt, data.baseSnapshot?.startedAt,
+      file?.playedAt || null, dateFromFileName(file?.name || file?.parentName || '')
+    ]);
+    if(direct) return direct;
+    return firstDateFromObject(data);
+  }
+
+  function detectPlayedAt(m){
+    return firstValidDate([
+      m?.playedAt,
+      m?.first?.playedAt,
+      m?.sessions?.[0]?.playedAt,
+      m?.matchMeta?.playedAt,
+      m?.matchMeta?.startedAt,
+      m?.matchMeta?.createdAt,
+      m?.matchMeta?.created_at,
+      m?.matchMeta?.started_at
+    ]);
+  }
+
+  function firstValidDate(values=[]){
+    for(const value of values){
+      if(!value) continue;
+      const date = new Date(value);
+      if(!Number.isNaN(date.getTime())) return date.toISOString();
+    }
+    return null;
+  }
+
+  function firstDateFromObject(obj, depth=0){
+    if(!obj || typeof obj !== 'object' || depth > 3) return null;
+    for(const [key,value] of Object.entries(obj)){
+      if(/(played|started|created|date|time|timestamp)/i.test(key)){
+        const found = firstValidDate([value]);
+        if(found) return found;
+      }
+      if(value && typeof value === 'object'){
+        const nested = firstDateFromObject(value, depth + 1);
+        if(nested) return nested;
+      }
+    }
+    return null;
+  }
+
+  function syncViewModeVisibility(){
+    const global = isGlobalView();
+    document.body.classList.toggle('bo3-global', global);
+    document.body.classList.toggle('bo3-game', state.isBO3 && !global);
+  }
+
+  function renderBo3Selector(){
+    if(!els.bo3Selector) return;
+    if(!state.isBO3){
+      els.bo3Selector.hidden = true;
+      els.bo3Selector.innerHTML = '';
+      return;
+    }
+    els.bo3Selector.hidden = false;
+    const globalActive = state.viewMode === 'global';
+    const gameButtons = state.sessions.map((session, index) => {
+      const active = Number(state.viewMode) === index;
+      const resultClass = session.isWin ? 'win' : 'loss';
+      const resultLabel = session.isWin ? 'Victoire' : 'Défaite';
+      return `<button type="button" class="bo3-pill ${active ? 'active' : ''}" data-bo3-view="${index}" aria-pressed="${active ? 'true' : 'false'}"><span class="result-dot ${resultClass}" aria-label="${resultLabel}"></span>Game ${n(session.gameNumber || index + 1)}</button>`;
+    }).join('');
+    els.bo3Selector.innerHTML = `<button type="button" class="bo3-pill global ${globalActive ? 'active' : ''}" data-bo3-view="global" aria-pressed="${globalActive ? 'true' : 'false'}"> Résumé BO3</button>${gameButtons}`;
+    els.bo3Selector.querySelectorAll('[data-bo3-view]').forEach(btn => {
+      btn.onclick = () => {
+        const view = btn.dataset.bo3View;
+        state.viewMode = view === 'global' ? 'global' : Number(view);
+        state.mulliganResolved = false;
+        if(isGlobalView() && state.activeTab === 'timeline') setTab('overview');
+        renderAll();
+      };
+    });
+  }
+
+  function renderBulkQueue(){
+    if(!els.bulkImportPanel || !els.bulkImportList) return;
+    const queue = state.bulkQueue || [];
+    els.bulkImportPanel.hidden = !queue.length;
+    if(!queue.length){
+      if(els.bulkDeckTools) els.bulkDeckTools.innerHTML = '';
+      els.bulkImportList.innerHTML = '<div class="empty-line">Aucun lot en attente.</div>';
+      if(els.bulkImportStatus) els.bulkImportStatus.textContent = 'Déposez plusieurs replays pour préparer une sauvegarde par lot.';
+      if(els.bulkSaveAllButton) els.bulkSaveAllButton.disabled = true;
+      return;
+    }
+    const valid = queue.filter(item => item.merged && ['ready','warning'].includes(item.status)).length;
+    const saved = queue.filter(item => item.status === 'saved').length;
+    const duplicates = queue.filter(item => item.status === 'duplicate').length;
+    const errors = queue.filter(item => item.status === 'error').length;
+    if(els.bulkImportStatus && !state.bulkSaving){
+      els.bulkImportStatus.textContent = `${queue.length} fichier(s) dans la file · ${valid} prêt(s) · ${saved} sauvegardé(s) · ${duplicates} doublon(s) · ${errors} erreur(s)`;
+    }
+    if(els.bulkSaveAllButton){
+      els.bulkSaveAllButton.disabled = state.bulkSaving || !valid || !state.currentUser;
+      els.bulkSaveAllButton.textContent = state.bulkSaving ? 'Sauvegarde en cours…' : (state.currentUser ? `Sauvegarder ${valid} analyse(s) valide(s)` : 'Connexion requise pour sauvegarder');
+    }
+    renderBulkDeckTools();
+    els.bulkImportList.innerHTML = queue.map((item, index) => bulkQueueRowHtml(item, index)).join('');
+    els.bulkImportList.querySelectorAll('[data-bulk-open]').forEach(button => {
+      button.onclick = () => activateBulkItem(Number(button.dataset.bulkOpen));
+    });
+  }
+
+  function bulkQueueRowHtml(item, index){
+    const m = item.merged;
+    const active = state.activeBulkIndex === index;
+    const statusLabel = bulkStatusLabel(item.status);
+    const statusClass = `bulk-status-${escAttr(item.status || 'idle')}`;
+    if(!m){
+      return `<article class="bulk-import-row ${statusClass} ${active ? 'active' : ''}">
+        <div class="bulk-status-dot"></div>
+        <div class="bulk-row-main"><strong>${esc(compactReplayFileName(item.fileName || `Replay ${index+1}`))}</strong><small>${esc(item.message || 'Lecture en attente.')}</small></div>
+        <span class="bulk-row-badge">${esc(statusLabel)}</span>
+      </article>`;
+    }
+    const global = !!m.isBO3;
+    const format = global ? 'BO3' : 'BO1';
+    const result = n(m.wins) > n(m.losses) ? 'Victoire' : 'Défaite';
+    const score = global ? `${n(m.wins)}-${n(m.losses)}` : `${n(m.finalMineLore)}-${n(m.finalOppLore)}`;
+    const opponent = m.opponentName || 'Adversaire';
+    const matchup = m.matchupLabel || formatMatchupLabel(m.inkProfiles || buildInkProfiles(m));
+    const played = detectPlayedAt(m) ? formatSavedDate(detectPlayedAt(m)) : 'Date non détectée';
+    const deckLabel = bulkItemDeckLabel(item);
+    return `<article class="bulk-import-row ${statusClass} ${active ? 'active' : ''}">
+      <div class="bulk-status-dot"></div>
+      <button type="button" class="bulk-row-main" data-bulk-open="${index}">
+        <strong>${esc(format)} · ${esc(result)} ${esc(score)} <em>vs ${esc(opponent)}</em></strong>
+        <small>${esc(matchup)} · ${esc(played)}</small>
+        <span>${esc(item.message || statusLabel)}</span>
+        <span class="bulk-row-deck ${item.assignedDeck ? 'assigned' : ''}">${esc(deckLabel)}</span>
+      </button>
+      <div class="bulk-row-side">
+        <span class="bulk-row-badge">${esc(statusLabel)}</span>
+        ${item.status === 'saved' ? '' : `<button type="button" class="bulk-row-remove" data-bulk-remove="${index}" aria-label="Retirer ce replay de la file">Retirer</button>`}
+      </div>
+    </article>`;
+  }
+
+  function bulkStatusLabel(status){
+    return ({ reading:'Lecture', ready:'Prêt', warning:'À vérifier', duplicate:'Doublon', saving:'Sauvegarde', saved:'Sauvegardé', error:'Erreur' })[status] || 'En attente';
+  }
+
+  function cssEscape(value){
+    if(window.CSS?.escape) return CSS.escape(String(value || ''));
+    return String(value || '').replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+  }
+
+  function bulkItemDeckLabel(item){
+    if(item?.assignedDeck?.name) return `Deck : ${item.assignedDeck.name}`;
+    return 'Deck à nommer plus tard';
+  }
+
+  function bulkGroupKeyForItem(item){
+    const colors = detectedMineColorsFromMatch(item?.merged).filter(Boolean).slice(0,2);
+    return colorFilterKey(colors) || 'unknown';
+  }
+
+  function bulkGroupLabel(key){
+    if(!key || key === 'unknown') return 'Bicolorité non détectée';
+    return key.split(/[|\-]/).map(inkLabel).join(' / ');
+  }
+
+  function bulkGroupColors(key){
+    if(!key || key === 'unknown') return [];
+    return key.split(/[|\-]/).map(inkKey).filter(Boolean).slice(0,2);
+  }
+
+  function bulkAssignableItems(){
+    return (state.bulkQueue || []).filter(item => item?.merged && ['ready','warning','saving','saved'].includes(item.status));
+  }
+
+  function renderBulkDeckTools(){
+    if(!els.bulkDeckTools) return;
+    const items = bulkAssignableItems().filter(item => item.status !== 'saving');
+    if(!items.length){
+      els.bulkDeckTools.innerHTML = '';
+      return;
+    }
+
+    const groups = new Map();
+    items.forEach(item => {
+      const key = bulkGroupKeyForItem(item);
+      const group = groups.get(key) || { key, items:[] };
+      group.items.push(item);
+      groups.set(key, group);
+    });
+
+    const profiles = namedDeckProfiles();
+    els.bulkDeckTools.innerHTML = [...groups.values()].map(group => {
+      const colors = bulkGroupColors(group.key);
+      const matchingProfiles = profiles.filter(profile => profileMatchesColorKey(profile, group.key));
+      const assignedNames = [...new Set(group.items.map(item => item.assignedDeck?.name).filter(Boolean))];
+      const assignedLabel = assignedNames.length ? assignedNames.join(' · ') : 'Aucun deck choisi';
+      const optionsHtml = matchingProfiles.length
+        ? matchingProfiles.map(profile => `<button type="button" class="bulk-deck-pill" data-bulk-assign-existing="${escAttr(group.key)}" data-deck-id="${escAttr(profile.id)}">${inkDotsHtml(profileColors(profile))}<span>${esc(profile.name)}</span></button>`).join('')
+        : '<span class="bulk-deck-empty">Aucune version existante pour cette bicolorité.</span>';
+      return `<article class="bulk-deck-group" data-bulk-group="${escAttr(group.key)}">
+        <div class="bulk-deck-group-head">
+          <div>
+            <strong>${esc(bulkGroupLabel(group.key))}</strong>
+            <small>${group.items.length} analyse(s) · ${esc(assignedLabel)}</small>
+          </div>
+          <button type="button" class="bulk-deck-clear" data-bulk-clear-deck="${escAttr(group.key)}">Nommer plus tard</button>
+        </div>
+        <div class="bulk-deck-pills">${optionsHtml}</div>
+        <div class="bulk-deck-new">
+          <input type="text" data-bulk-new-deck-name="${escAttr(group.key)}" placeholder="Créer une version, ex. ${escAttr(bulkGroupLabel(group.key))} Control" maxlength="80">
+          <button type="button" class="bulk-deck-create" data-bulk-assign-new="${escAttr(group.key)}">Appliquer au lot</button>
+        </div>
+      </article>`;
+    }).join('');
+  }
+
+  function handleBulkQueueClick(event){
+    const remove = event.target.closest('[data-bulk-remove]');
+    if(remove){
+      const index = Number(remove.dataset.bulkRemove);
+      if(Number.isInteger(index)){
+        state.bulkQueue.splice(index, 1);
+        if(state.activeBulkIndex === index) state.activeBulkIndex = null;
+        else if(Number.isInteger(state.activeBulkIndex) && state.activeBulkIndex > index) state.activeBulkIndex -= 1;
+        renderBulkQueue();
+      }
+      return;
+    }
+
+    const existing = event.target.closest('[data-bulk-assign-existing]');
+    if(existing){
+      const groupKey = existing.dataset.bulkAssignExisting;
+      const profile = (state.deckProfiles || []).find(item => String(item.id) === String(existing.dataset.deckId));
+      if(profile){
+        assignDeckToBulkGroup(groupKey, { id:profile.id, name:profile.name, colors:profileColors(profile), isNew:false });
+      }
+      return;
+    }
+
+    const clear = event.target.closest('[data-bulk-clear-deck]');
+    if(clear){
+      assignDeckToBulkGroup(clear.dataset.bulkClearDeck, null);
+      return;
+    }
+
+    const create = event.target.closest('[data-bulk-assign-new]');
+    if(create){
+      const groupKey = create.dataset.bulkAssignNew;
+      const input = document.querySelector(`[data-bulk-new-deck-name="${cssEscape(groupKey)}"]`);
+      const name = String(input?.value || '').trim();
+      if(!name){
+        if(els.bulkImportStatus) els.bulkImportStatus.textContent = 'Entrez un nom de deck avant de l’appliquer au lot.';
+        return;
+      }
+      assignDeckToBulkGroup(groupKey, { id:null, name, colors:bulkGroupColors(groupKey), isNew:true });
+      return;
+    }
+  }
+
+  function assignDeckToBulkGroup(groupKey, deck){
+    (state.bulkQueue || []).forEach(item => {
+      if(!item?.merged) return;
+      if(!['ready','warning','saved'].includes(item.status)) return;
+      if(bulkGroupKeyForItem(item) !== groupKey) return;
+      item.assignedDeck = deck ? { ...deck } : null;
+      if(item.status === 'ready' || item.status === 'warning'){
+        item.message = deck?.name ? `Prêt à sauvegarder avec le deck “${deck.name}”.` : 'Prêt à sauvegarder. Deck à nommer plus tard depuis l’historique.';
+      }
+    });
+    renderBulkQueue();
+  }
+
+  async function resolveBulkDeckForItem(item){
+    const assigned = item?.assignedDeck;
+    if(!assigned?.name) return { id:null, name:null };
+    if(assigned.id) return { id:assigned.id, name:assigned.name };
+    const profile = await upsertDeckProfile({ name:assigned.name, colors:assigned.colors || detectedMineColorsFromMatch(item.merged) });
+    item.assignedDeck = { id:profile?.id || null, name:profile?.name || assigned.name, colors:profileColors(profile || assigned), isNew:false };
+    await refreshDeckProfiles({ force:true, silent:true });
+    return { id:profile?.id || null, name:profile?.name || assigned.name };
+  }
+
+  function renderFiles(){
+    if(!state.replays.length){
+      els.statusText.textContent='Aucun replay chargé pour le moment.';
+      els.fileList.innerHTML='<div class="empty-line">La liste des replays apparaîtra ici.</div>';
+      return;
+    }
+    els.statusText.textContent = state.isBO3 ? `${state.sessions.length} game(s) BO3 prêtes à analyser.` : `Replay chargé. Analyse prête.`;
+    els.fileList.innerHTML = state.replays.map((r,i)=>{
+      const parent = r.file.parentName ? `<small class="file-row-parent">Archive : ${esc(r.file.parentName)}</small>` : '';
+      const result = r.session.isWin ? 'Victoire' : 'Défaite';
+      const shortName = compactReplayFileName(r.file.name || `Replay ${i+1}`);
+      return `<div class="file-row compact-file-row"><span class="${r.session.isWin ? 'file-win' : 'file-loss'}"></span><div class="file-row-copy"><strong title="${escAttr(r.file.name || '')}">${esc(shortName)}</strong><small>${formatBytes(r.file.size)} · ${n(r.session.actions?.length)} actions · ${result}</small>${parent}</div><small class="file-index">#${i+1}</small></div>`;
+    }).join('');
+  }
+
+  function compactReplayFileName(name){
+    const raw = String(name || '').trim();
+    if(!raw) return 'Replay importé';
+    const cleaned = raw.replace(/\.match-replay\.zip$/i,'.zip').replace(/\.replay\.gz$/i,'.replay').replace(/^[0-9a-f]{8,}[-_]/i,'');
+    if(cleaned.length <= 34) return cleaned;
+    const ext = (cleaned.match(/(\.zip|\.replay|\.json|\.gz)$/i) || [''])[0];
+    const base = ext ? cleaned.slice(0, -ext.length) : cleaned;
+    return `${base.slice(0, 18)}…${base.slice(-8)}${ext}`;
+  }
+
+  function renderDetected(){
+    const m = state.merged;
+    els.detectedPlayer.textContent = m?.myName || '—';
+    els.detectedOpponent.textContent = m?.opponentName || '—';
+    els.detectedTurns.textContent = m ? (state.isBO3 ? `${state.sessions.length} games · ${round1(m.avgTurns)} moy.` : round1(m.avgTurns)) : '—';
+    els.detectedActions.textContent = m ? m.actions.length : '—';
+  }
+
+  function renderOverview(){
+    const m = getWorkingData();
+    if(!m){
+      els.sessionRecord.textContent='—'; els.sessionOpponent.textContent='Importez un replay.'; els.sessionTurns.textContent='—'; els.sessionPlayDraw.textContent='—'; els.sessionLore.textContent='—'; if(els.sessionMatchup) els.sessionMatchup.textContent='—';
+      if(els.coachTitle) els.coachTitle.textContent='Importez un replay pour lancer l’analyse.';
+      if(els.coachText) els.coachText.textContent='Le résumé du match apparaîtra ici une fois le replay chargé.';
+      if(els.coachConfidence) els.coachConfidence.textContent='En attente';
+      if(els.matchPills) els.matchPills.innerHTML=''; if(els.resultHero) els.resultHero.innerHTML=''; renderKeyMoments(null); if(els.nextAction) els.nextAction.innerHTML=''; renderMulligan(null);
+      renderLoreChart([]); renderActionChart([]); updateChartSummary('loreChartSummary','Résumé du graphique lore disponible après import.'); updateChartSummary('actionChartSummary','Résumé du graphique actions disponible après import.'); return;
+    }
+    const total = m.wins + m.losses;
+    const global = isGlobalView();
+    els.sessionRecord.textContent = `${m.wins}V / ${m.losses}D`;
+    els.sessionOpponent.textContent = global ? `${total} manches contre ${m.opponentName}` : `${m.first.isWin ? 'Victoire' : 'Défaite'} vs ${m.opponentName}`;
+    els.sessionTurns.textContent = global ? `${total} games · ${round1(m.avgTurns)} tours moy.` : `${round1(m.avgTurns)} tours`;
+    if(global){
+      const opening = bo3OpeningStatus(m);
+      els.sessionPlayDraw.textContent = opening.code;
+    }else{
+      els.sessionPlayDraw.textContent = m.first.firstTurnPlayer === m.first.myPlayerNumber ? 'OTP' : 'OTD';
+    }
+    els.sessionLore.textContent = global ? `${m.wins} / ${m.losses}` : `${m.finalMineLore} / ${m.finalOppLore}`;
+    if(els.sessionMatchup) els.sessionMatchup.textContent = m.matchupLabel || formatMatchupLabel(m.inkProfiles);
+
+    const fallbackNarrative = buildMatchNarrative(m);
+    requestCoachCommentary(m, fallbackNarrative);
+    if(els.matchPills) els.matchPills.innerHTML = global ? buildBo3Pills(m) : '';
+    renderResultHero(m);
+    renderKeyMoments(m);
+    if(els.nextAction) els.nextAction.innerHTML = '';
+    renderMulligan(global ? null : m.first?.mulligan);
+    if(global){
+      renderLoreChart([]);
+      renderActionChart([]);
+      updateChartSummary('loreChartSummary','Les graphiques tour par tour sont masqués dans le résumé BO3.');
+      updateChartSummary('actionChartSummary','Les graphiques tour par tour sont masqués dans le résumé BO3.');
+    }else{
+      renderLoreChart(m.loreSeries); renderActionChart(m.actionSeries);
+      syncChartsWithTheme(state.scope);
+      updateChartSummary('loreChartSummary', summarizeLore(m.loreSeries));
+      updateChartSummary('actionChartSummary', summarizeActions(m.actionSeries));
+    }
+  }
+
+  function buildBo3Pills(m){
+    // V44: the BO3 macro data is now carried by the large result cards.
+    // Keep this hook empty to avoid repeating score, format, or play/draw status.
+    return '';
+  }
+
+  function bo3OpeningStatus(m){
+    const firstGame = Array.isArray(m?.sessions) && m.sessions.length ? m.sessions[0] : m?.first;
+    const myStarted = firstGame && firstGame.firstTurnPlayer === firstGame.myPlayerNumber;
+    const opponentStarted = firstGame && firstGame.firstTurnPlayer === firstGame.opponentNumber;
+    if(myStarted){
+      return { code:'OTP', helper:'Vous avez commencé la Game 1.', detail:'On The Play' };
+    }
+    if(opponentStarted){
+      return { code:'OTD', helper:'Votre adversaire a commencé la Game 1.', detail:'On The Draw' };
+    }
+    return { code:'—', helper:'Joueur qui commence non détecté.', detail:'Départ inconnu' };
+  }
+
+  function gameOpeningStatus(m){
+    const game = m?.first || m?.sessions?.[0] || m;
+    const myStarted = game && game.firstTurnPlayer === game.myPlayerNumber;
+    const opponentStarted = game && game.firstTurnPlayer === game.opponentNumber;
+    if(myStarted) return { code:'OTP', label:'Vous commencez', helper:'Vous avez commencé cette partie.' };
+    if(opponentStarted) return { code:'OTD', label:'Vous jouez second', helper:'Votre adversaire a commencé cette partie.' };
+    return { code:'—', label:'Départ inconnu', helper:'Joueur qui commence non détecté.' };
+  }
+
+  function stablePick(items, seed=''){
+    const list = Array.isArray(items) ? items.filter(Boolean) : [];
+    if(!list.length) return '';
+    let hash = 0;
+    String(seed || '').split('').forEach(ch => { hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0; });
+    return list[Math.abs(hash) % list.length];
+  }
+
+  function isLocationCard(card){
+    const type = `${typeLabel(card?.type || card?.cardType || '')} ${card?.type || ''} ${card?.cardType || ''}`.toLowerCase();
+    return type.includes('lieu') || type.includes('location');
+  }
+
+  function countMulliganChangesForSession(session){
+    const mulligan = session?.mulligan || {};
+    try{
+      const split = splitMulliganInitialCards(mulligan);
+      if(split?.thrownCards?.length) return n(split.thrownCards.length);
+    }catch(e){ /* fallback below */ }
+    return n(arrayify(mulligan.replaced).length || arrayify(mulligan.thrown).length || arrayify(mulligan.mulliganed).length);
+  }
+
+  function extractMatchReadMetrics(m){
+    const first = m?.first || m?.sessions?.[0] || {};
+    const rows = Array.isArray(m?.loreSeries) ? m.loreSeries : [];
+    const cards = cardsForScope(m, 'mine');
+    const mineScore = n(m?.finalMineLore ?? first?.finalMineLore ?? rows.at(-1)?.mine);
+    const opponentScore = n(m?.finalOppLore ?? first?.finalOppLore ?? rows.at(-1)?.opponent);
+    const isWin = !!(m?.wins > m?.losses || first?.isWin || mineScore >= 20 && mineScore > opponentScore);
+    const turnCount = Math.max(1, Math.round(n(m?.turnCount || first?.turnCount || m?.avgTurns || rows.at(-1)?.turn || 0)));
+    const metrics = m?.proMetrics || first?.proMetrics || {};
+    const inkFloat = round1(n(metrics.totalInkFloat));
+    const topDeckTurns = n(metrics.topDeckTurns);
+    const mulliganChanges = countMulliganChangesForSession(first);
+    const topLoreCard = loreEngineCards(cards).sort(compareLoreEngines)[0] || null;
+    const topQuester = topLoreCard ? fullName(topLoreCard) : 'votre meilleur moteur de lore';
+    const loreFromLocations = cards.filter(isLocationCard).reduce((acc, card)=>acc+n(card.lore), 0);
+    const otp = first?.firstTurnPlayer && first?.myPlayerNumber ? first.firstTurnPlayer === first.myPlayerNumber : null;
+    const archetypeSpeed = turnCount <= 6 ? 'Aggro' : turnCount <= 11 ? 'Midrange' : 'Control';
+    return {
+      mineScore, opponentScore, isWin, turnCount, inkFloat, topDeckTurns, mulliganChanges,
+      topLoreCard, topQuester, loreFromLocations, otp, archetypeSpeed, scoreGap:Math.abs(mineScore - opponentScore)
+    };
+  }
+
+  function fillMatchReadTemplate(template, vars){
+    return String(template || '').replace(/\{(monScore|scoreJoueur|mine|scoreAdverse|opp|nbTours|turn|toursTopDeck|inkFloat|nbMulligan|topQuester|loreFromLocations|OTP|archetype)\}/g, (_, key) => ({
+      monScore:vars.mineScore, scoreJoueur:vars.mineScore, mine:vars.mineScore,
+      scoreAdverse:vars.opponentScore, opp:vars.opponentScore,
+      nbTours:vars.turnCount, turn:vars.turnCount,
+      toursTopDeck:vars.topDeckTurns, inkFloat:vars.inkFloat, nbMulligan:vars.mulliganChanges,
+      topQuester:vars.topQuester, loreFromLocations:vars.loreFromLocations,
+      OTP:vars.otp ? 'On The Play' : 'On The Draw', archetype:vars.archetypeSpeed
+    }[key] ?? ''));
+  }
+
+
+  function getMatchReadTitleEl(){
+    return document.getElementById('matchReadTitle') || els.coachTitle || null;
+  }
+
+  function getMatchReadCopyEl(){
+    return document.getElementById('matchReadCopy') || els.coachText || null;
+  }
+
+  function setMatchReadDom({ title, description, text, badge }){
+    const titleEl = getMatchReadTitleEl();
+    const copyEl = getMatchReadCopyEl();
+    if(titleEl) titleEl.textContent = title || 'Lecture du match';
+    if(copyEl) copyEl.textContent = description || text || 'Analyse indisponible pour ce match.';
+    if(els.coachConfidence) els.coachConfidence.textContent = badge || 'Coach';
+  }
+
+  function bestCardBy(cards, getter){
+    return [...(cards || [])]
+      .filter(card => card && fullName(card))
+      .sort((a,b) => n(getter(b)) - n(getter(a)) || fullName(a).localeCompare(fullName(b), 'fr'))[0] || null;
+  }
+
+  function matchReadRequestKey(m){
+    const first = m?.first || m?.sessions?.[0] || {};
+    return [
+      m?.replay_fingerprint || m?.fingerprint || first?.fileName || m?.title || 'live',
+      n(m?.finalMineLore ?? first?.finalMineLore),
+      n(m?.finalOppLore ?? first?.finalOppLore),
+      n(m?.turnCount || first?.turnCount || m?.avgTurns),
+      m?.opponentName || first?.opponentName || '',
+      m?.deck_name || m?.deckName || ''
+    ].join('|');
+  }
+
+  function buildCoachCommentaryPayload(m){
+    const metrics = extractMatchReadMetrics(m);
+    const first = m?.first || m?.sessions?.[0] || {};
+    const cards = cardsForScope(m, 'mine');
+    const topInked = bestCardBy(cards, card => card.inked);
+    const topPlayed = bestCardBy(cards, card => card.played);
+    const topLore = metrics.topLoreCard || bestCardBy(loreEngineCards(cards), card => card.lore);
+    const actionRows = Array.isArray(m?.actionSeries) ? m.actionSeries : (Array.isArray(first?.actionSeries) ? first.actionSeries : []);
+    const actionTotals = actionRows.reduce((acc, row) => {
+      acc.inked += n(row.ink);
+      acc.played += n(row.play);
+      acc.quests += n(row.quest);
+      acc.challenges += n(row.challenge || row.mineChallenge);
+      return acc;
+    }, { inked:0, played:0, quests:0, challenges:0 });
+    const opponentName = m?.opponentName || first?.opponentName || 'adversaire anonyme';
+    const otp = metrics.otp === null ? 'inconnu' : (metrics.otp ? 'OTP' : 'OTD');
+
+    return {
+      monScore:metrics.mineScore,
+      scoreAdverse:metrics.opponentScore,
+      inkFloat:metrics.inkFloat,
+      nbTours:metrics.turnCount,
+      topQuester:metrics.topQuester,
+      topLoreSource:topLore ? fullName(topLore) : metrics.topQuester,
+      opponentName,
+      toursTopDeck:metrics.topDeckTurns,
+      loreFromLocations:metrics.loreFromLocations,
+      isWin:metrics.isWin,
+      scoreGap:metrics.scoreGap,
+      nbMulligan:metrics.mulliganChanges,
+      mulliganChanges:metrics.mulliganChanges,
+      archetypeSpeed:metrics.archetypeSpeed,
+      otp,
+      matchupLabel:m?.matchupLabel || first?.matchupLabel || '',
+      format:(m?.isBO3 || (Array.isArray(m?.sessions) && m.sessions.length > 1)) ? 'BO3' : 'BO1',
+      deckName:m?.deck_name || m?.deckName || '',
+      topInkedCard:topInked ? fullName(topInked) : '',
+      topInkedCount:topInked ? n(topInked.inked) : 0,
+      topPlayedCard:topPlayed ? fullName(topPlayed) : '',
+      topPlayedCount:topPlayed ? n(topPlayed.played) : 0,
+      actionTotals
+    };
+  }
+
+  async function requestCoachCommentary(m, fallbackNarrative){
+    const key = matchReadRequestKey(m);
+    if(state.coachCommentaryCache?.has(key)){
+      setMatchReadDom(state.coachCommentaryCache.get(key));
+      return;
+    }
+    if(state.coachCommentaryPendingKey === key) return;
+
+    const seq = (state.coachCommentarySeq || 0) + 1;
+    state.coachCommentarySeq = seq;
+    state.coachCommentaryPendingKey = key;
+
+    setMatchReadDom({
+      title:'Le Coach analyse votre niveau...',
+      description:'Veuillez patienter, l’IA calcule votre Card Advantage...',
+      badge:'IA en cours'
+    });
+
+    try{
+      const response = await fetch('/.netlify/functions/getCoachCommentary', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify(buildCoachCommentaryPayload(m))
+      });
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if(state.coachCommentarySeq !== seq || state.coachCommentaryPendingKey !== key) return;
+      const commentary = {
+        title:String(data?.title || '').trim() || fallbackNarrative?.title || 'Lecture du match',
+        description:String(data?.description || data?.text || '').trim() || fallbackNarrative?.description || fallbackNarrative?.text || 'Analyse indisponible pour ce match.',
+        badge:data?.source === 'local' ? 'Coach local' : 'Coach IA'
+      };
+      state.coachCommentaryCache?.set(key, commentary);
+      setMatchReadDom(commentary);
+    }catch(error){
+      console.warn('Coach commentary unavailable:', error);
+      if(state.coachCommentarySeq !== seq || state.coachCommentaryPendingKey !== key) return;
+      const fallback = {
+        title:fallbackNarrative?.title || 'Diagnostic local.',
+        description:fallbackNarrative?.description || fallbackNarrative?.text || 'Le coach IA est indisponible, mais le diagnostic local reste actif pour ce match.',
+        badge:fallbackNarrative?.badge || 'Coach local'
+      };
+      state.coachCommentaryCache?.set(key, fallback);
+      setMatchReadDom(fallback);
+    }finally{
+      if(state.coachCommentarySeq === seq && state.coachCommentaryPendingKey === key) state.coachCommentaryPendingKey = '';
+    }
+  }
+
+  function generateMatchRead(sessionData){
+    const v = extractMatchReadMetrics(sessionData);
+    const seed = `${v.mineScore}-${v.opponentScore}-${v.turnCount}-${v.topDeckTurns}-${v.inkFloat}-${v.topQuester}`;
+    const scenarios = {
+      perfectWin:{ badge:'Perfect', titles:['Un vrai {monScore}-0 des familles.', 'Intouchable.', 'L’adversaire a désinstallé le jeu.'], descriptions:[
+        'Une sortie chirurgicale : {topQuester} a converti le plan pendant que l’adversaire restait bloqué à zéro. Card, Ink et Lore Advantage verrouillés.',
+        'Score parfait et tempo sans bavure. Vous avez confisqué le board, la main et la clock avant que la partie ne commence vraiment.'
+      ] },
+      stompWin:{ badge:'No match', titles:['Un {monScore}-{scoreAdverse} des familles.', 'Ink et Lore Advantage.', 'No match.'], descriptions:[
+        'Une sortie millimétrée après un mulligan de {nbMulligan} carte(s). Vous avez confisqué le board direct et {topQuester} a sécurisé le lethal tour {nbTours}.',
+        'L’adversaire a subi sur les 3 axes : Card, Ink et Lore Advantage. Victoire {monScore}–{scoreAdverse}, zéro respect.'
+      ] },
+      perfectLoss:{ badge:'0 pointé', titles:['0 pointé.', 'Rien n’est passé.', 'Oublie vite cette game.'], descriptions:[
+        'Aucune traction au score : l’adversaire prend le Lore Advantage instantanément et vous n’avez jamais pu revenir.',
+        'Game à archiver mentalement. Le plan ne s’est jamais installé et la clock adverse a tourné sans opposition réelle.'
+      ] },
+      brick:{ badge:'Brick', titles:['T’as brick ?', 'Sortie de route.', 'Le fameux mulligan à {nbMulligan}...'], descriptions:[
+        'Matchup cauchemar ou main injouable ? L’adversaire a pris le Lore Advantage instantanément et vous n’avez jamais pu revenir.',
+        'Avec {inkFloat} encre(s) flottée(s), votre curve a déraillé dès l’ouverture. Il vous a ramp dessus sans pitié jusqu’à {scoreAdverse}.'
+      ] },
+      passiveLore:{ badge:'Lore passif', titles:['L’immobilier paie toujours.', 'Lore passif destructeur.'], descriptions:[
+        'Une masterclass de gestion. Pendant que l’adversaire s’épuisait sur vos personnages, vos Lieux ont généré {loreFromLocations} lore passif irrattrapable.',
+        'L’adversaire a oublié d’attaquer vos Lieux. {loreFromLocations} points gratuits au start-of-turn ont rendu le lethal mathématiquement inévitable.'
+      ] },
+      closeWin:{ badge:'Photo-finish', titles:['La course au Lore.', 'Photo-finish.', 'Le top deck de la victoire.'], descriptions:[
+        'Une game ultra tendue terminée au tour {nbTours}. Ça s’est joué à la course au Lore : {monScore} à {scoreAdverse}. Un trade mal calculé pouvait tout faire basculer.',
+        'Victoire au millimètre. Vous avez trouvé la dernière fenêtre de lethal avant que l’adversaire ne ferme la porte.'
+      ] },
+      closeLoss:{ badge:'Défaite courte', titles:['Si proche du but...', 'À un poil de Lore près.', 'La prochaine c’est la bonne.'], descriptions:[
+        'Défaite sur le fil : {monScore} à {scoreAdverse} au tour {nbTours}. La VOD doit surtout identifier le tour où la course au Lore bascule.',
+        'Vous étiez dans la game jusqu’au bout, mais l’adversaire a trouvé le dernier point de pression avant vous.'
+      ] },
+      topDeck:{ badge:'Card Advantage perdu', titles:['Syndrome de la page blanche.', 'Asphyxie totale.', 'Top deck mode.'], descriptions:[
+        'Vous avez brûlé toutes vos cartouches. Avec {toursTopDeck} tours passés à jouer le top deck et une perte flagrante de Card Advantage, le tempo était intenable.',
+        'Le moteur de pioche a calé. {inkFloat} encre(s) flottée(s) parce que la main était vide face à un board adverse bien trop large.'
+      ] },
+      control:{ badge:'Attrition', titles:['Bataille de tranchées.', 'La guerre d’usure.', 'Festival de Board Wipes.'], descriptions:[
+        '{nbTours} tours de gestion pure. La partie s’est jouée sur le contrôle des ressources et l’attrition. Le pic de Lore décisif arrive en fin de partie.',
+        'Un vrai match Control. Vous étiez {OTP}, mais la gestion du Card Advantage sur la longueur a dicté le vainqueur.'
+      ] },
+      inkLeak:{ badge:'Tempo perdu', titles:['Fuite d’encre.', 'Où est le Tempo ?'], descriptions:[
+        'Vous avez accumulé {inkFloat} encre(s) inutilisée(s). À Lorcana, ne pas curver proprement donne souvent le board et la clock à l’adversaire.',
+        'La réserve d’encre était là, mais pas la conversion. Le problème n’est pas la ressource : c’est le tempo.'
+      ] },
+      defaultWin:{ badge:'Victoire', titles:['Victoire solide.', 'Plan exécuté.', 'Travail propre.'], descriptions:[
+        'Victoire {monScore}–{scoreAdverse} en {nbTours} tours. Le plan {archetype} a suffisamment tenu pour convertir les ressources en lethal.',
+        '{topQuester} ressort comme la meilleure condition de victoire, avec une progression régulière vers les 20 lore.'
+      ] },
+      defaultLoss:{ badge:'Défaite', titles:['Défaite à décortiquer.', 'La course s’arrête là.', 'Il faudra revoir la VOD.'], descriptions:[
+        'Défaite {monScore}–{scoreAdverse}. Le journal devrait aider à retrouver le tour où le tempo décroche.',
+        'L’adversaire prend progressivement l’ascendant et vous force à courir après le score. Priorité : identifier le premier tour de retard.'
+      ] }
+    };
+
+    let scenario;
+    if(v.isWin && v.mineScore >= 20 && v.opponentScore === 0) scenario = scenarios.perfectWin;
+    else if(!v.isWin && v.mineScore === 0 && v.opponentScore >= 20) scenario = scenarios.perfectLoss;
+    else if(v.isWin && v.mineScore >= 20 && v.opponentScore <= 5) scenario = scenarios.stompWin;
+    else if(!v.isWin && v.mineScore <= 6 && v.opponentScore >= 20) scenario = scenarios.brick;
+    else if(v.isWin && v.loreFromLocations >= 4) scenario = scenarios.passiveLore;
+    else if(v.scoreGap <= 3 && v.mineScore >= 18 && v.opponentScore >= 18) scenario = v.isWin ? scenarios.closeWin : scenarios.closeLoss;
+    else if(v.topDeckTurns >= 4) scenario = scenarios.topDeck;
+    else if(v.turnCount >= 13) scenario = scenarios.control;
+    else if(v.inkFloat > 15) scenario = scenarios.inkLeak;
+    else scenario = v.isWin ? scenarios.defaultWin : scenarios.defaultLoss;
+
+    const title = fillMatchReadTemplate(stablePick(scenario.titles, seed), v);
+    const description = fillMatchReadTemplate(stablePick(scenario.descriptions, `${seed}-desc`), v);
+    return { title, description, text:description, summary:description, badge:scenario.badge, metrics:v };
+  }
+
+  function buildMatchNarrative(m){
+    return generateMatchNarrative(m);
+  }
+
+  function generateBo3Narrative(m){
+    const wins = n(m.wins);
+    const losses = n(m.losses);
+    const games = Math.max(1, wins + losses || (m.sessions?.length || 0));
+    const win = wins > losses;
+    const score = `${wins}-${losses}`;
+    const avgTurns = round1(m.avgTurns || 0);
+    const totalTurns = n(m.totalTurns || sum(m.sessions || [], 'turnCount'));
+    const metrics = m.proMetrics || {};
+    const oppMetrics = m.opponentProMetrics || {};
+    const quests = n(metrics.questCount);
+    const challenges = n(metrics.challengeCount);
+    const topDeck = n(metrics.topDeckTurns);
+    const oppTopDeck = n(oppMetrics.topDeckTurns);
+    const questRatio = pct(quests, quests + challenges);
+    const myCards = cardsForScope(m, 'mine');
+    const topQuester = loreEngineCards(myCards).sort(compareLoreEngines)[0];
+    const mostInked = [...myCards].sort((a,b)=>(b.inked||0)-(a.inked||0) || fullName(a).localeCompare(fullName(b)))[0];
+
+    const dictionary = {
+      cleanWin: {
+        badge:'BO3 clean',
+        titles:['Sortez les balais', 'Deux games, merci bonsoir', 'Net et sans bavure', 'Le plan de match était clair', 'BO3 sous contrôle'],
+        phrases:[
+          'Victoire {score} sans passer par la case Game 3. Vous avez gardé le cap sur {games} manches et l’adversaire n’a jamais vraiment trouvé le bouton pause.',
+          'Un BO3 propre : {score}, {totalTurns} tours cumulés, et une série fermée avant que le doute ne s’installe.',
+          'Pas besoin de drama inutile : deux manches, un plan stable, et une victoire {score} qui sent le travail bien fait.'
+        ]
+      },
+      clutchWin: {
+        badge:'BO3 clutch',
+        titles:['Arraché avec les dents', 'Le BO3 de la sueur', 'Mental de finisher', 'Au bout du suspense', 'Cardio à 200'],
+        phrases:[
+          'Victoire {score} après {games} manches. Il a fallu s’adapter, respirer un grand coup, puis fermer la série au moment où ça comptait.',
+          'Un vrai BO3 de tournoi : {score}, {totalTurns} tours cumulés, et assez de tension pour justifier une pause café après la dernière manche.',
+          'La série va au bout, mais vous gardez le dernier mot. C’est le genre de victoire qui se gagne autant au mulligan qu’au mental.'
+        ]
+      },
+      cleanLoss: {
+        badge:'BO3 difficile',
+        titles:['La douche froide', 'Retour au lobby', 'Leçon d’humilité.', 'La marche était haute', 'Matchup compliqué'],
+        phrases:[
+          'Défaite {score}. L’adversaire a imposé son plan sur les deux manches et vous n’avez pas trouvé l’ajustement de rythme pour casser sa trajectoire.',
+          'BO3 compliqué : {score}, peu de fenêtres exploitables, et un adversaire qui a déroulé son plan trop proprement.',
+          'Série sèche : deux manches pour comprendre que le matchup demandait probablement un mulligan ou un tempo beaucoup plus tranché.'
+        ]
+      },
+      closeLoss: {
+        badge:'BO3 serré',
+        titles:['Le seum du Game 3', 'Ça passe pas loin', 'Cruelle troisième manche', 'À un détail près', 'Presque le hold-up'],
+        phrases:[
+          'Défaite {score} après {games} manches. Vous avez trouvé des réponses, mais pas assez pour retourner complètement le matchup.',
+          'Le match va au bout, mais l’adversaire ferme la série {score}. C’est typiquement le BO3 où une décision de mulligan peut peser très lourd.',
+          'Vous n’étiez pas loin du braquage, mais la série échappe sur la dernière ligne droite.'
+        ]
+      },
+      speedWin: {
+        badge:'Tempo rapide',
+        titles:['Mode TGV activé', 'Pas le temps d’niaiser', 'Départ canon', 'Curve parfaite'],
+        phrases:[
+          'Victoire {score} à haute vitesse : {avgTurns} tours de moyenne, une pression installée tôt, et très peu de temps laissé au late-game adverse.',
+          'Le BO3 s’est joué en accéléré. Votre deck a mis la clock assez vite pour forcer l’adversaire à courir derrière le score.'
+        ]
+      },
+      boardWin: {
+        badge:'Board control',
+        titles:['Bataille de tranchées', 'Nettoyage de board', 'Contrôle total', 'Ça s’est joué sur le plateau'],
+        phrases:[
+          'La victoire s’est construite dans l’arène avec {challenges} défis cumulés. Vous avez transformé les trades en fenêtres de lore.',
+          'BO3 très orienté plateau : beaucoup de décisions de trade, et assez de contrôle pour finir par convertir la série.'
+        ]
+      },
+      boardLoss: {
+        badge:'Board contesté',
+        titles:['Guerre d’usure perdue', 'Board sous tension', 'Ça tape fort, mais ça ne lore pas', 'Trades non-stop'],
+        phrases:[
+          'Vous avez beaucoup combattu avec {challenges} défis, mais ces trades n’ont pas suffi à freiner la clock adverse sur l’ensemble de la série.',
+          'La série a demandé du contrôle de board, mais l’adversaire a mieux converti ses ressources en points de lore.'
+        ]
+      },
+      resourceLoss: {
+        badge:'Ressources faibles',
+        titles:['La panne sèche', 'Le moteur a calé', 'Top deck simulator', 'À court de gaz'],
+        phrases:[
+          'Vos ressources se sont trop souvent vidées : {topDeck} tours en main quasi vide sur la série, difficile de tenir un plan flexible dans ces conditions.',
+          'Le BO3 a fini par ressembler à une prière à la pioche. Avec {topDeck} tours à 0 ou 1 carte, le tempo devenait très dur à maintenir.'
+        ]
+      },
+      loreRaceWin: {
+        badge:'Race lore',
+        titles:['Course au lore validée', 'Tout droit vers les 20', 'Plan lore assumé', 'La ligne droite'],
+        phrases:[
+          'Vous avez assumé la course au lore avec {quests} quête(s) pour {challenges} défi(s), et le plan a tenu sur l’ensemble du BO3.',
+          'Peu de détours, beaucoup de lore : votre plan a forcé l’adversaire à courir derrière le score.'
+        ]
+      },
+      loreRaceLoss: {
+        badge:'Race lore perdue',
+        titles:['Course perdue au sprint', 'Le sprint n’a pas suffi', 'La clock adverse', 'Trop droit devant ?'],
+        phrases:[
+          'Votre plan était très orienté lore avec {quests} quête(s), mais l’adversaire a gagné la course sur la série.',
+          'Vous avez couru vers les 20, mais l’adversaire avait une meilleure clock au moment de fermer les manches.'
+        ]
+      }
+    };
+
+    const pick = list => list[Math.floor(Math.random() * list.length)] || '';
+    const fill = template => String(template || '').replace(/\{(score|games|avgTurns|totalTurns|quests|challenges|topDeck|oppTopDeck|mostInked|topQuester)\}/g, (_, key) => ({
+      score, games, avgTurns, totalTurns, quests, challenges, topDeck, oppTopDeck,
+      mostInked:mostInked ? fullName(mostInked) : '—',
+      topQuester:topQuester ? fullName(topQuester) : '—'
+    }[key]));
+
+    let scenario;
+    // Priorité : résultat de série, vitesse, ressources uniquement si elles expliquent une défaite, puis style de jeu.
+    if(win && losses === 0 && avgTurns <= 7) scenario = dictionary.speedWin;
+    else if(win && losses === 0) scenario = dictionary.cleanWin;
+    else if(win) scenario = dictionary.clutchWin;
+    else if(!win && topDeck >= 5) scenario = dictionary.resourceLoss;
+    else if(!win && wins === 0) scenario = dictionary.cleanLoss;
+    else scenario = dictionary.closeLoss;
+
+    if(win && challenges > quests && challenges >= 8) scenario = dictionary.boardWin;
+    else if(!win && challenges > quests && challenges >= 8) scenario = dictionary.boardLoss;
+    else if(questRatio >= 85 && quests >= 8) scenario = win ? dictionary.loreRaceWin : dictionary.loreRaceLoss;
+
+    let text = fill(pick(scenario.phrases));
+    if(topQuester?.lore >= 4) text += ` Votre meilleur moteur de lore sur la série : ${fullName(topQuester)}.`;
+    if(mostInked?.inked >= 3) text += ` À surveiller côté deckbuilding : ${fullName(mostInked)} finit souvent en encre (${mostInked.inked}x) dans ce matchup.`;
+
+    return { title:fill(pick(scenario.titles)), text, summary:text, badge:scenario.badge };
+  }
+
+  function generateBo3ScopedNarrative(m, scope='mine'){
+    const mineScope = scope !== 'opponent';
+    const metrics = mineScope ? (m.proMetrics || {}) : (m.opponentProMetrics || {});
+    const cards = cardsForScope(m, mineScope ? 'mine' : 'opponent');
+    const wins = mineScope ? n(m.wins) : n(m.losses);
+    const losses = mineScope ? n(m.losses) : n(m.wins);
+    const win = wins > losses;
+    const score = `${wins}-${losses}`;
+    const quests = n(metrics.questCount);
+    const challenges = n(metrics.challengeCount);
+    const topDeck = n(metrics.topDeckTurns);
+    const questRatio = pct(quests, quests + challenges);
+    const topQuester = loreEngineCards(cards).sort(compareLoreEngines)[0];
+    const mostInked = [...cards].sort((a,b)=>(b.inked||0)-(a.inked||0) || fullName(a).localeCompare(fullName(b)))[0];
+
+    let title = mineScope ? (win ? 'Votre plan tient la route' : 'Votre série à décortiquer') : (win ? 'Plan adverse gagnant' : 'Adversaire sous pression');
+    let summary = mineScope
+      ? (win ? `Votre série se termine sur un ${score}. Le plan global a suffisamment tenu pour fermer le match.` : `Votre série se termine sur un ${score}. Les ajustements de mulligan et de rythme seront les premiers points à revoir.`)
+      : (win ? `Côté adverse, le plan a converti la série ${score} de son point de vue.` : `Côté adverse, la série se termine sur un ${score} de son point de vue : votre pression a fini par l’emporter.`);
+
+    if(topDeck >= 5){
+      title = mineScope ? 'Votre main a souvent tiré la langue' : 'La panne sècheadverse';
+      summary = mineScope
+        ? `${topDeck} tours en main quasi vide sur la série : c’est le signal principal à surveiller côté ressources.`
+        : `${topDeck} tours adverses à 0 ou 1 carte : l’adversaire a souvent vécu au top deck.`;
+    }else if(challenges > quests && challenges >= 8){
+      title = mineScope ? 'Votre série se joue sur le board' : 'Board control adverse';
+      summary = mineScope
+        ? `${challenges} défis cumulés : vous avez beaucoup investi dans le contrôle du plateau.`
+        : `${challenges} défis adverses cumulés : son plan passait beaucoup par les trades.`;
+    }else if(questRatio >= 85 && quests >= 8){
+      title = mineScope ? 'Plan lore très assumé' : 'Course au lore adverse';
+      summary = mineScope
+        ? `${quests} quêtes pour ${challenges} défis : vous avez clairement choisi la race au lore.`
+        : `${quests} quêtes adverses pour ${challenges} défis : l’adversaire a surtout essayé de gagner à la clock.`;
+    }else if(topQuester?.lore >= 4){
+      title = mineScope ? 'Win condition identifiée' : 'Menace adverse identifiée';
+      summary = mineScope
+        ? `${fullName(topQuester)} est votre principal moteur de lore sur la série avec ${n(topQuester.lore)} lore.`
+        : `${fullName(topQuester)} est le moteur de lore adverse le plus important avec ${n(topQuester.lore)} lore.`;
+    }
+
+    if(mostInked?.inked >= 3){
+      summary += mineScope
+        ? ` ${fullName(mostInked)} est aussi une carte souvent transformée en encre (${n(mostInked.inked)}x).`
+        : ` ${fullName(mostInked)} est la carte adverse la plus souvent encrée (${n(mostInked.inked)}x).`;
+    }
+
+    return { title, summary, badge:mineScope ? 'Mes stats' : 'Stats adverses' };
+  }
+
+  function generateMatchNarrative(m){
+    if(m?.isBO3 || (Array.isArray(m?.sessions) && m.sessions.length > 1)){
+      return generateBo3Narrative(m);
+    }
+    return generateMatchRead(m);
+  }
+
+  function countLeadChanges(rows){
+    let prev = 0;
+    let changes = 0;
+    rows.forEach(r => {
+      const sign = r.lead > 0 ? 1 : r.lead < 0 ? -1 : 0;
+      if(sign && prev && sign !== prev) changes += 1;
+      if(sign) prev = sign;
+    });
+    return changes;
+  }
+
+  function lateLoreGain(rows, owner){
+    if(!rows.length) return 0;
+    const key = owner === 'opponent' ? 'opponent' : 'mine';
+    const end = rows[rows.length - 1];
+    const start = rows[Math.max(0, rows.length - 4)] || rows[0];
+    return Math.max(0, n(end[key]) - n(start[key]));
+  }
+
+
+  function renderResultHero(m){
+    if(!els.resultHero) return;
+    if(!m){ els.resultHero.innerHTML=''; return; }
+    const global = m.isBO3 || isGlobalView();
+    const win = m.wins > m.losses;
+    const cls = win ? 'win' : 'loss';
+    const profiles = m.inkProfiles || buildInkProfiles(m);
+    const narrative = generateMatchNarrative(m);
+    const opponentName = cleanCardName(m.opponentName || m.first?.opponentName || 'Adversaire');
+
+    if(global){
+      const resultLabel = win ? 'Victoire' : 'Défaite';
+      const score = `${m.wins} – ${m.losses}`;
+      const games = m.sessions?.length || (m.wins + m.losses);
+      const opening = bo3OpeningStatus(m);
+      els.resultHero.innerHTML = `
+        <div class="result-stamp ${cls}" title="${escAttr(narrative.badge || resultLabel)}"><span>Résultat</span><strong>${esc(resultLabel)}</strong></div>
+        <div class="result-score result-format"><span>Format</span><strong>BO3</strong><small>${esc(games)} manche(s) analysée(s)</small></div>
+        <div class="result-score"><span>Score du match</span><strong>${esc(score)}</strong><small>${esc(resultLabel)} ${esc(score.replace(' – ', '-'))}</small></div>
+        <div class="result-score result-playdraw"><span>Départ G1</span><strong>${esc(opening.code)}</strong><small>${esc(opening.helper)}</small></div>
+        <div class="result-score result-opponent"><span>Adversaire</span><strong>${esc(opponentName)}</strong><small>Joueur opposé détecté</small></div>
+        <div class="result-matchup"><span>Match-up</span><div class="matchup-line">${inkPairHtml(profiles.mine)}<em>vs</em>${inkPairHtml(profiles.opponent)}</div></div>`;
+      return;
+    }
+
+    const label = win ? 'Victoire' : 'Défaite';
+    const score = `${m.finalMineLore} – ${m.finalOppLore}`;
+    const winner = win ? (m.myName || 'Vous') : opponentName;
+    const opening = gameOpeningStatus(m);
+    els.resultHero.innerHTML = `
+      <div class="result-stamp ${cls}" title="${escAttr(narrative.badge || label)}"><span>Résultat</span><strong>${esc(label)}</strong></div>
+      <div class="result-score"><span>Score final</span><strong>${esc(score)}</strong><small>${esc(winner)} gagne la partie</small></div>
+      <div class="result-score result-playdraw"><span>Départ</span><strong>${esc(opening.code)}</strong><small>${esc(opening.helper)}</small></div>
+      <div class="result-score result-opponent"><span>Adversaire</span><strong>${esc(opponentName)}</strong><small>${esc(opening.label)}</small></div>
+      <div class="result-matchup"><span>Match-up</span><div class="matchup-line">${inkPairHtml(profiles.mine)}<em>vs</em>${inkPairHtml(profiles.opponent)}</div></div>`;
+  }
+
+  function renderMulligan(mulligan){
+    if(!els.mulliganPanel || !els.mulliganCards) return;
+    if(!mulligan || !mulligan.visible){
+      els.mulliganPanel.hidden = true;
+      els.mulliganCards.innerHTML = '';
+      return;
+    }
+    els.mulliganPanel.hidden = false;
+    const showResolved = !!state.mulliganResolved;
+    const cards = showResolved ? (mulligan.resolved || []) : (mulligan.initial || []);
+    if(els.mulliganSubtitle) els.mulliganSubtitle.textContent = showResolved ? `${n(mulligan.replaced?.length)} carte(s) remplacée(s) après mulligan.` : 'Les 7 cartes initiales avant résolution du mulligan.';
+    if(els.mulliganButton) els.mulliganButton.textContent = showResolved ? 'Voir la main initiale' : 'Résoudre le Mulligan';
+    els.mulliganCards.classList.remove('mulligan-animate');
+    void els.mulliganCards.offsetWidth;
+    els.mulliganCards.classList.add('mulligan-animate');
+    els.mulliganCards.innerHTML = cards.map(card => {
+      const isNew = showResolved && !new Set((mulligan.initial || []).map(cardIdentity)).has(cardIdentity(card));
+      return `<button type="button" class="mulligan-card ${isNew ? 'is-new' : ''}" data-card-key="${esc(cardKey(card))}">${cardThumbHtml(card, 'mulligan-thumb')}<span>${esc(fullName(card))}</span>${isNew ? '<em>Mulligan</em>' : ''}</button>`;
+    }).join('');
+    bindCardButtons();
+  }
+
+  function toggleMulliganResolution(){
+    state.mulliganResolved = !state.mulliganResolved;
+    renderMulligan(getWorkingData()?.first?.mulligan);
+  }
+
+  function renderStats(){
+    const m = getWorkingData();
+    if(!m){ renderEmptyStats(); return; }
+    const global = isGlobalView();
+    const metrics = state.scope === 'mine' ? m.proMetrics : m.opponentProMetrics;
+    els.statsScopeSubtitle.textContent = global ? 'Résumé macro du BO3 : moteurs de lore, cartes mortes et tendances cumulées.' : (state.scope === 'mine' ? 'Lecture de votre tempo, de votre main et de vos décisions.' : 'Lecture du rythme adverse, de sa pression et de ses fenêtres de tempo.');
+    els.inkChartSubtitle.textContent = global ? 'Masqué dans le résumé BO3 : ouvrez une Game pour lire l’économie tour par tour.' : (state.scope === 'mine' ? 'Encre dépensée vs inutilisée pour vous.' : 'Encre dépensée vs inutilisée côté adversaire.');
+    els.inkFloatTotal.textContent = round1(metrics.totalInkFloat);
+    els.inkFloatAverage.textContent = `${round1(metrics.totalInkFloat)} encre non convertie en pression.`;
+    const totalActions = metrics.questCount + metrics.challengeCount;
+    const questPct = pct(metrics.questCount, totalActions);
+    els.actionRatioKpi.textContent = totalActions ? `${questPct}%` : '—';
+    els.actionRatioLabel.textContent = `${metrics.questCount} quête(s) · ${metrics.challengeCount} défi(s)`;
+    els.topDeckTurns.textContent = metrics.handKnown ? metrics.topDeckTurns : '—';
+    els.topDeckBadge.textContent = metrics.handKnown ? (metrics.topDeckTurns >= 3 ? 'Attention : la main s’épuise souvent.' : 'Tours critiques en fin de tour.') : 'Main non visible.';
+    document.querySelector('#topDeckTurns')?.closest('.pro-card')?.classList.toggle('risk', metrics.topDeckTurns >= 3);
+    if(els.topQuestersTitle) els.topQuestersTitle.textContent = global ? 'Moteurs de Victoire du BO3' : 'Moteurs de Victoire';
+    if(els.topQuestersHelp) els.topQuestersHelp.textContent = global ? 'Les cartes qui ont fait avancer le score sur l’ensemble de la série.' : 'Les cartes qui rapprochent vraiment des 20 lore.';
+    if(els.mostInkedTitle) els.mostInkedTitle.textContent = global ? 'Dead Weights du matchup' : 'Cartes les plus encrées';
+    if(els.mostInkedHelp) els.mostInkedHelp.textContent = global ? 'Cartes souvent sacrifiées : utile pour repérer ce qui performe mal dans ce matchup.' : 'Les cartes sacrifiées pour construire l’encrier.';
+    if(els.playTimingTitle) els.playTimingTitle.textContent = global ? 'Séquence de jeu du BO3' : 'Séquence de jeu';
+    if(els.playTimingHelp) els.playTimingHelp.textContent = global ? 'Les cartes jouées dans l’ordre, game par game, sans mélanger les courbes.' : 'Les cartes jouées dans l’ordre. Affichage compact, avec déroulé si besoin.';
+    renderQuickInsights(m, metrics);
+    renderInkChart(metrics.inkByTurn); renderQuestChart(metrics.questCount, metrics.challengeCount); renderHandChart(metrics.handByTurn);
+    syncChartsWithTheme(state.scope);
+    updateChartSummary('inkChartSummary', summarizeInk(metrics.inkByTurn));
+    updateChartSummary('questChartSummary', summarizeQuest(metrics.questCount, metrics.challengeCount));
+    updateChartSummary('handChartSummary', summarizeHand(metrics.handByTurn));
+    renderStatTables(m);
+  }
+
+  function renderEmptyStats(){
+    ['inkFloatTotal','actionRatioKpi','topDeckTurns','questChallengeCenter'].forEach(id => { if(els[id]) els[id].textContent='—'; });
+    ['topQuestersTable','mostInkedTable','playTimingTable','challengeTable'].forEach(id => els[id].innerHTML='<div class="empty-line">Importez un replay.</div>');
+    if(els.quickInsights) els.quickInsights.innerHTML='';
+    renderInkChart([]); renderQuestChart(0,0); renderHandChart([]);
+    updateChartSummary('inkChartSummary','Résumé du graphique économie d’encre disponible après import.');
+    updateChartSummary('questChartSummary','Résumé du graphique quête défi disponible après import.');
+    updateChartSummary('handChartSummary','Résumé du graphique de main disponible après import.');
+  }
+
+  function renderQuickInsights(m, metrics){
+    if(!els.quickInsights) return;
+    const cards = cardsForScope(m, state.scope);
+    const isOpponent = state.scope === 'opponent';
+
+    if(isGlobalView()){
+      const scopedCards = cardsForScope(m, state.scope);
+      const topQuester = loreEngineCards(scopedCards).sort(compareLoreEngines)[0];
+      const mostInked = [...scopedCards].sort((a,b)=>(b.inked||0)-(a.inked||0) || fullName(a).localeCompare(fullName(b)))[0];
+      const scopedNarrative = generateBo3ScopedNarrative(m, state.scope);
+      const items = [
+        {
+          label:isOpponent ? 'Résumé adverse' : 'Votre résumé de série',
+          value:scopedNarrative.title,
+          helper:scopedNarrative.summary,
+          card:''
+        },
+        {
+          label:isOpponent ? 'Moteur de lore adverse' : 'Votre moteur de lore',
+          value:topQuester ? fullName(topQuester) : 'Non détecté',
+          helper:topQuester ? `${n(topQuester.lore)} lore cumulé sur la série.` : 'Aucune carte lore identifiée dans ce scope.',
+          card:topQuester ? cardKey(topQuester) : ''
+        },
+        {
+          label:isOpponent ? 'Carte adverse la plus encrée' : 'Dead weight possible',
+          value:mostInked ? `${fullName(mostInked)} · ${n(mostInked.inked)}x` : 'Non détecté',
+          helper:isOpponent ? 'Carte adverse le plus souvent transformée en encre.' : 'Carte de votre deck souvent transformée en encre dans ce matchup.',
+          card:mostInked ? cardKey(mostInked) : ''
+        }
+      ];
+      els.quickInsights.innerHTML = items.map(item => {
+        const attrs = item.card ? `data-card-key="${esc(item.card)}"` : '';
+        return `<button type="button" class="quick-insight bo3-scope-summary" ${attrs}><span>${esc(item.label)}</span><strong>${esc(item.value)}</strong><small>${esc(item.helper)}</small></button>`;
+      }).join('');
+      bindCardButtons();
+      return;
+    }
+
+    const maxFloat = [...(metrics.inkByTurn || [])].sort((a,b)=>b.float-a.float)[0];
+    const topQuester = loreEngineCards(cards).sort(compareLoreEngines)[0];
+    const mostInked = [...cards].sort((a,b)=>(b.inked||0)-(a.inked||0))[0];
+    const topDeckTurn = [...(metrics.handByTurn || [])].filter(r => r.handCount <= 1)[0];
+    const items = [
+      {
+        label:isOpponent ? 'Fenêtre de tempo adverse' : 'Top erreur de tempo',
+        value:maxFloat?.turn ? `T${maxFloat.turn} · ${round1(maxFloat.float)} encre non convertie` : 'Non détecté',
+        helper:isOpponent ? 'Moment où l’adversaire a le moins converti son encre.' : 'Le tour où votre encre a été le moins bien convertie.',
+        target:'#inkFloatChart'
+      },
+      {
+        label:isOpponent ? 'Win condition adverse' : 'Win condition principale',
+        value:topQuester ? fullName(topQuester) : 'Non détectée',
+        helper:isOpponent ? 'La carte qui a le plus accéléré son score.' : 'La carte qui a le plus fait avancer votre lore.',
+        card:topQuester ? cardKey(topQuester) : ''
+      },
+      {
+        label:isOpponent ? 'Carte adverse sacrifiée' : 'Carte la plus sacrifiée',
+        value:mostInked ? `${fullName(mostInked)} · ${n(mostInked.inked)}x` : 'Non détectée',
+        helper:'Carte le plus souvent utilisée comme encre.',
+        card:mostInked ? cardKey(mostInked) : ''
+      },
+      {
+        label:isOpponent ? 'Main adverse critique' : 'Main critique',
+        value:topDeckTurn ? `T${topDeckTurn.turn} · ${topDeckTurn.handCount} carte` : 'Non détectée',
+        helper:isOpponent ? 'Tour adverse terminé avec 0 ou 1 carte en main.' : 'Tour terminé avec 0 ou 1 carte en main.',
+        target:'#handCurveChart'
+      }
+    ];
+    els.quickInsights.innerHTML = items.map(item => {
+      const attrs = item.card ? `data-card-key="${esc(item.card)}"` : item.target ? `data-focus-target="${esc(item.target)}"` : '';
+      return `<button type="button" class="quick-insight" ${attrs}><span>${esc(item.label)}</span><strong>${esc(item.value)}</strong><small>${esc(item.helper)}</small></button>`;
+    }).join('');
+    bindQuickInsights();
+    bindCardButtons();
+  }
+
+  function bindQuickInsights(){
+    document.querySelectorAll('[data-focus-target]').forEach(btn => btn.onclick = () => {
+      const target = document.querySelector(btn.dataset.focusTarget);
+      if(!target) return;
+      const panel = target.closest('.chart-panel, .stat-panel, .match-read') || target;
+      panel.scrollIntoView({ behavior:'smooth', block:'center' });
+      panel.classList.remove('focus-pulse');
+      void panel.offsetWidth;
+      panel.classList.add('focus-pulse');
+    });
+  }
+
+
+  function renderStatTables(m){
+    const cards = cardsForScope(m, state.scope);
+    const topQuesters = loreEngineCards(cards).sort(compareLoreEngines)
+      .map(c => ({
+        card:c,
+        meta:[typeLabel(c.type), c.cost !== null && c.cost !== undefined ? `Coût ${c.cost}` : '', inkLabel(c.colors?.[0])].filter(Boolean).join(' · '),
+        chips:[`${n(c.lore)} lore`, loreActivityChip(c), `${n(c.played)} jouée${n(c.played) > 1 ? 's' : ''}`]
+      }));
+
+    const mostInked = sortCards(cards.filter(c=>c.inked), els.mostInkedSort?.value || 'count_desc', 'inked')
+      .map(c => ({
+        card:c,
+        meta:[typeLabel(c.type), c.cost !== null && c.cost !== undefined ? `Coût ${c.cost}` : '', inkLabel(c.colors?.[0])].filter(Boolean).join(' · '),
+        chips:[`${n(c.inked)} encrée${n(c.inked) > 1 ? 's' : ''}`, `${n(c.played)} jouée${n(c.played) > 1 ? 's' : ''}`, typeLabel(c.type)]
+      }));
+
+    const challenges = sortCards(cards.filter(c=>c.challenge), els.challengeSort?.value || 'wins_desc', 'challenge')
+      .map(c => ({
+        card:c,
+        meta:[typeLabel(c.type), c.cost !== null && c.cost !== undefined ? `Coût ${c.cost}` : '', inkLabel(c.colors?.[0])].filter(Boolean).join(' · '),
+        chips:[`${n(c.challenge)} défi${n(c.challenge) > 1 ? 's' : ''}`, `${n(c.lore)} lore`, 'Bilan à vérifier']
+      }));
+
+    renderStatCardList('topQuesters', els.topQuestersTable, topQuesters, {
+      empty:'Aucun moteur de lore détecté.',
+      collapsedLabel:'Voir toutes les cartes',
+      expandedLabel:'Réduire la liste'
+    });
+    renderStatCardList('mostInked', els.mostInkedTable, mostInked, {
+      empty:'Aucune carte encrée détectée.',
+      collapsedLabel:'Voir toutes les cartes',
+      expandedLabel:'Réduire la liste'
+    });
+    renderPlayedSequenceTable(m);
+    renderStatCardList('challenges', els.challengeTable, challenges, {
+      empty:'Aucun défi détecté.',
+      collapsedLabel:'Voir tous les défis',
+      expandedLabel:'Réduire la liste'
+    });
+    bindStatListToggles();
+    bindCardButtons();
+  }
+
+  function renderPlayedSequenceTable(m){
+    if(!els.playTimingTable) return;
+    const owner = state.scope === 'opponent' ? 'opponent' : 'mine';
+    const global = isGlobalView();
+    const rows = (m.timeline || [])
+      .filter(r => r.owner === owner && r.type === 'play')
+      .map((r, index) => {
+        const card = r.card ? hydrateCard(r.card) : null;
+        const cardMeta = card ? [typeLabel(card.type), card.cost !== null && card.cost !== undefined ? `Coût ${card.cost}` : '', inkLabel(card.colors?.[0])].filter(Boolean).join(' · ') : 'Carte détectée dans le journal';
+        return {
+          card,
+          title:card ? fullName(card) : cleanCardName(r.cardName || r.title),
+          meta:global ? `Game ${r.gameNumber || (n(r.gameIndex)+1) || '?'} · Tour ${r.turn} · ${cardMeta}` : `Tour ${r.turn} · ${cardMeta}`,
+          chips:[`#${index + 1}`, global ? `Game ${r.gameNumber || (n(r.gameIndex)+1) || '?'}` : `Tour ${r.turn}`, card ? typeLabel(card.type) : actionTypeLabel(r.type)]
+        };
+      });
+    renderStatCardList('playedSequence', els.playTimingTable, rows, {
+      empty:'Aucune carte jouée détectée dans ce scope.',
+      collapsedLabel:'Voir toute la chronologie',
+      expandedLabel:'Réduire la chronologie',
+      ordered:true
+    });
+  }
+
+  function statListKey(id){
+    return `${String(state.viewMode)}:${state.scope}:${id}`;
+  }
+
+  function renderStatCardList(id, container, items, options={}){
+    if(!container) return;
+    const rows = Array.isArray(items) ? items : [];
+    const panel = container.closest?.('.stat-panel');
+    if(!rows.length){
+      if(options.hideWhenEmpty !== false && panel) panel.hidden = true;
+      container.innerHTML = `<div class="empty-line">${esc(options.empty || 'Aucune donnée détectée.')}</div>`;
+      return;
+    }
+    if(panel) panel.hidden = false;
+    const key = statListKey(id);
+    const expanded = !!state.statExpandedLists?.[key];
+    const limit = Number.isFinite(options.limit) ? options.limit : 3;
+    const visible = expanded ? rows : rows.slice(0, limit);
+    const total = rows.length;
+    const listHtml = `<div class="match-card-list-v81 ${options.ordered ? 'is-sequence' : ''}">${visible.map((item, index) => statCardTileHtml(item, index, options)).join('')}</div>`;
+    const toggleHtml = total > limit ? `<button type="button" class="stat-list-toggle v81-toggle" data-stat-list-toggle="${escAttr(key)}" aria-expanded="${expanded ? 'true' : 'false'}"><span>${expanded ? esc(options.expandedLabel || 'Réduire la liste') : esc(options.collapsedLabel || 'Voir toute la liste')}</span><strong>${expanded ? '−' : total}</strong></button>` : '';
+    container.innerHTML = `${listHtml}${toggleHtml}`;
+  }
+
+  function statCardTileHtml(item, index, options={}){
+    const card = item.card || null;
+    const key = card ? cardKey(card) : '';
+    const title = item.title || (card ? fullName(card) : 'Carte inconnue');
+    const meta = item.meta || (card ? [typeLabel(card.type), card.cost !== null && card.cost !== undefined ? `Coût ${card.cost}` : '', inkLabel(card.colors?.[0])].filter(Boolean).join(' · ') : '—');
+    const chips = arrayify(item.chips).filter(Boolean).slice(0, 3);
+    const thumb = card ? cardThumbHtml(card, 'match-card-thumb-v81') : `<span class="match-card-thumb-v81 thumb-placeholder">${esc(title.slice(0,2).toUpperCase())}</span>`;
+    const rankLabel = options.ordered ? `#${index + 1}` : String(index + 1).padStart(2,'0');
+    const body = `<span class="match-card-rank-v81">${esc(rankLabel)}</span><div class="match-card-art-v81">${thumb}</div><div class="match-card-body-v81"><h3>${esc(title)}</h3><p>${esc(meta || '—')}</p><div class="match-card-chips-v81">${chips.map(chip => `<span>${esc(chip)}</span>`).join('')}</div></div>`;
+    if(key) return `<button type="button" class="match-card-row-v81" data-card-key="${esc(key)}">${body}</button>`;
+    return `<article class="match-card-row-v81 is-static">${body}</article>`;
+  }
+
+  function bindStatListToggles(){
+    document.querySelectorAll('[data-stat-list-toggle]').forEach(btn => {
+      btn.onclick = () => {
+        const key = btn.dataset.statListToggle;
+        state.statExpandedLists[key] = !state.statExpandedLists[key];
+        renderStats();
+      };
+    });
+  }
+
+  function numericCardMetric(card, mode, fallback=''){
+    const key = String(mode || fallback || '').replace(/_desc$/,'');
+    if(key === 'lore') return n(card.lore);
+    if(key === 'inked' || fallback === 'inked') return n(card.inked);
+    if(key === 'quest' || fallback === 'quest') return n(card.quest);
+    if(key === 'played' || fallback === 'played') return n(card.played);
+    if(key === 'challenge' || fallback === 'challenge') return n(card.challenge);
+    if(key === 'wins' && fallback === 'challenge') return n(card.challenge);
+    if(key === 'count'){
+      if(fallback === 'inked') return n(card.inked);
+      if(fallback === 'quest') return n(card.quest);
+      if(fallback === 'challenge') return n(card.challenge);
+      if(fallback && card[fallback] !== undefined) return n(card[fallback]);
+      return n(card.seen) + n(card.played) + n(card.inked) + n(card.quest) + n(card.challenge);
+    }
+    if(fallback && card[fallback] !== undefined) return n(card[fallback]);
+    return 0;
+  }
+
+  function compareCardNames(a,b){ return fullName(a).localeCompare(fullName(b), undefined, { sensitivity:'base' }); }
+
+  function sortCards(cards, mode, fallback){
+    return [...cards].sort((a,b)=>{
+      if(mode === 'name_asc') return compareCardNames(a,b);
+      if(mode === 'type_asc') return typeLabel(a.type).localeCompare(typeLabel(b.type), undefined, { sensitivity:'base' }) || compareCardNames(a,b);
+      if(mode === 'turn_asc') return (n(a.avgTurn) || 99) - (n(b.avgTurn) || 99) || compareCardNames(a,b);
+      if(mode === 'turn_desc') return (n(b.avgTurn) || 0) - (n(a.avgTurn) || 0) || compareCardNames(a,b);
+      const primary = numericCardMetric(b, mode, fallback) - numericCardMetric(a, mode, fallback);
+      if(primary) return primary;
+      // Stable, readable tie-breakers: the chosen metric first, then useful volume signals.
+      const volume = (n(b.seen)-n(a.seen)) || (n(b.played)-n(a.played)) || (n(b.quest)-n(a.quest)) || (n(b.inked)-n(a.inked));
+      return volume || compareCardNames(a,b);
+    });
+  }
+
+  function renderTable(container, rows, headers, map){
+    if(!rows.length){ container.innerHTML='<div class="empty-line">Aucune donnée détectée.</div>'; return; }
+    const desktop = `<table class="data-table desktop-table"><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${map(r).map(v=>`<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    const mobile = `<div class="mobile-row">${rows.map(r=>{
+      const values = map(r);
+      const first = values[0] || '—';
+      const rest = values.slice(1).map((v,i)=>`<div><dt>${esc(headers[i+1] || '')}</dt><dd>${v}</dd></div>`).join('');
+      return `<div class="mobile-stat-card"><div class="mobile-stat-main">${first}</div><dl>${rest}</dl></div>`;
+    }).join('')}</div>`;
+    container.innerHTML = desktop + mobile;
+  }
+
+  function cardButton(c){ return `<button type="button" class="card-link" data-card-key="${esc(cardKey(c))}">${cardThumbHtml(c, 'thumb')}<span>${esc(fullName(c))}</span></button>`; }
+
+  function renderCards(){
+    const m = getWorkingData();
+    if(!m){ els.cardsSubtitle.textContent='Importez un replay pour afficher les cartes détectées.'; els.cardsGrid.innerHTML='<div class="empty-line">Aucune carte détectée pour le moment.</div>'; return; }
+    const global = isGlobalView();
+    let cards = state.cardFilter === 'all' ? m.cards : cardsForScope(m, state.cardFilter);
+    cards = cards.sort((a,b)=>(b.seen||0)-(a.seen||0) || fullName(a).localeCompare(fullName(b))).slice(0,160);
+    const scopeLabel = state.cardFilter === 'opponent' ? 'adverse(s)' : state.cardFilter === 'mine' ? 'de votre deck' : 'détectée(s)';
+    els.cardsSubtitle.textContent = global ? `${cards.length} carte(s) ${scopeLabel} sur l’ensemble du BO3.` : `${cards.length} carte(s) détectée(s).`;
+    els.cardsGrid.innerHTML = cards.map(c => {
+      const mainMeta = [rarityLabel(c.rarity), shortSetLabel(c), `#${c.number || '—'}`].filter(Boolean).join(' · ');
+      return `<button type="button" class="card-mini card-mini-v81" data-card-key="${esc(cardKey(c))}">${cardThumbHtml(c, 'card-mini-thumb')}<div class="card-mini-copy"><h3>${esc(fullName(c))}</h3><p>${esc(mainMeta)}</p><div class="mini-meta"><span class="meta-chip">Vue ${n(c.seen)}</span><span class="meta-chip">Jouée ${n(c.played)}</span><span class="meta-chip">Encrée ${n(c.inked)}</span></div></div></button>`;
+    }).join('');
+    bindCardButtons();
+  }
+
+  function normalizeTimelineRows(m){
+    if(!m) return [];
+
+    const normalizeOne = (a, index=0, fallbackGameIndex=null, fallbackGameNumber=null) => ({
+      owner:a.owner || a.actor || 'mine',
+      type:a.type || a.actionType || a.entryType || 'ability',
+      turn:a.turn || a.turnNumber || a.globalTurn || 1,
+      icon:a.icon || '•',
+      title:a.title || cleanCardName(a.cardName || a.name || `Action ${index + 1}`),
+      detail:a.detail || a.description || '',
+      rawType:a.rawType || a.actionType || a.type || '',
+      cardName:a.cardName || a.name || '',
+      cardKey:a.cardKey || (a.card ? cardKey(a.card) : ''),
+      card:a.card || null,
+      handCount:a.handCount,
+      gameIndex:a.gameIndex ?? fallbackGameIndex ?? '',
+      gameNumber:a.gameNumber ?? fallbackGameNumber ?? ''
+    });
+
+    if(Array.isArray(m.timeline) && m.timeline.length) return m.timeline.map((a,i) => normalizeOne(a,i,a.gameIndex,a.gameNumber));
+
+    if(Array.isArray(m.sessions) && m.sessions.length){
+      const fromSessions = m.sessions.flatMap((session, sessionIndex) => {
+        const gameNumber = n(session?.gameNumber || sessionIndex + 1);
+        return arrayify(session?.timeline).map((row, rowIndex) => normalizeOne(row, rowIndex, sessionIndex, gameNumber));
+      });
+      if(fromSessions.length) return fromSessions;
+    }
+
+    const source = Array.isArray(m.actions) ? m.actions : [];
+    return source.map((a, index) => normalizeOne(a, index, a.gameIndex, a.gameNumber));
+  }
+
+  function timelineRowsForCurrentView(){
+    const m = getWorkingData();
+    if(!m) return [];
+    return normalizeTimelineRows(m);
+  }
+
+  function renderTimeline(){
+    if(!els.timelineList) return;
+    const section = document.getElementById('tab-timeline');
+    const m = getWorkingData();
+    if(!m){
+      els.timelineList.innerHTML='<div class="empty-line">Le journal apparaîtra après import.</div>';
+      return;
+    }
+
+    let filter = els.timelineFilter?.value || 'all';
+    let rows = timelineRowsForCurrentView();
+    let filtered = rows;
+    if(filter === 'mine' || filter === 'opponent') filtered = rows.filter(r => r.owner === filter);
+    else if(filter !== 'all') filtered = rows.filter(r => r.type === filter || (filter === 'challenge' && r.type === 'challenge'));
+
+    // Sécurité UX : si un ancien filtre ne renvoie rien, on revient automatiquement au journal complet.
+    if(!filtered.length && rows.length && filter !== 'all'){
+      if(els.timelineFilter) els.timelineFilter.value = 'all';
+      filter = 'all';
+      filtered = rows;
+    }
+
+    const visibleRows = filtered.slice(0,260);
+    const header = rows.length
+      ? `<div class="timeline-count">${esc(visibleRows.length)} action(s) affichée(s)${rows.length > visibleRows.length ? ` sur ${esc(rows.length)}` : ''}</div>`
+      : '';
+    els.timelineList.innerHTML = visibleRows.length
+      ? header + visibleRows.map((r,i) => timelineRowHtml(r,i)).join('')
+      : '<div class="empty-line">Aucune action détectée dans ce journal. Si la séquence de jeu existe, ouvrez une Game spécifique puis revenez sur Journal.</div>';
+
+    // Force l'affichage si le navigateur garde un état hidden/transition incohérent.
+    if(section?.classList.contains('active')){
+      section.hidden = false;
+      section.style.display = 'block';
+    }
+    bindCardButtons();
+  }
+
+  function timelineRowHtml(r, index){
+    const c = r.card ? hydrateCard(r.card) : null;
+    const hasCard = c && cardKey(c) && (c.image || c.imageSmall || fullName(c) !== 'Carte inconnue');
+    const thumb = hasCard ? cardThumbHtml(c, 'timeline-thumb') : `<span class="timeline-thumb thumb-placeholder">${esc(r.icon || '•')}</span>`;
+    const cardKeyAttr = hasCard ? `data-card-key="${esc(cardKey(c))}"` : '';
+    const ownerLabel = r.owner === 'mine' ? 'Moi' : 'Adversaire';
+    const gameLabel = r.gameNumber || (Number.isFinite(n(r.gameIndex)) && n(r.gameIndex) >= 0 ? n(r.gameIndex) + 1 : '');
+    const gameMeta = gameLabel ? `<span>Game ${esc(gameLabel)}</span>` : '';
+    return `<article class="timeline-row story-row" data-turn="${esc(r.turn)}" data-owner="${esc(r.owner)}" style="--delay:${Math.min(index,18)}"><button type="button" class="timeline-art" ${cardKeyAttr} aria-label="${hasCard ? `Ouvrir la carte ${esc(fullName(c))}` : 'Action sans carte identifiée'}">${thumb}</button><div class="timeline-copy"><div class="timeline-line"><span class="timeline-turn">Tour ${esc(r.turn)}</span><h3>${esc(r.title)}</h3></div><p>${esc(r.detail)}</p><div class="timeline-meta">${gameMeta}<span>${ownerLabel}</span><span>${esc(actionTypeLabel(r.type))}</span></div></div><div class="timeline-impact"><span>${esc(r.icon)}</span></div></article>`;
+  }
+
+
+
+
+  function cleanCardName(value){
+    return String(value || '').replace(/\s+/g, ' ').trim() || 'Carte inconnue';
+  }
+  function actionTypeLabel(type){
+    return ({ ink:'Encre', play:'Carte jouée', quest:'Quête', challenge:'Défi', move:'Déplacement', ability:'Capacité', end:'Fin de tour' })[type] || type;
+  }
+
+  function bindCardButtons(){
+    document.querySelectorAll('[data-card-key]').forEach(btn => btn.onclick = () => {
+      const working = getWorkingData();
+      const card = working?.cards.find(c => cardKey(c) === btn.dataset.cardKey) || state.merged?.cards.find(c => cardKey(c) === btn.dataset.cardKey);
+      if(card) openCardModal(card, btn);
+    });
+  }
+
+  function openCardModal(card, trigger){
+    state.lastFocused = trigger || document.activeElement;
+    const c = hydrateCard(card);
+    els.modalBody.innerHTML = cardDetailHtml(c);
+    els.cardModal.classList.add('active'); els.cardModal.setAttribute('aria-hidden','false');
+    setTimeout(() => { els.cardModal.querySelector('.modal-card')?.focus(); }, 0);
+  }
+  function closeCardModal(){
+    els.cardModal.classList.remove('active'); els.cardModal.setAttribute('aria-hidden','true'); els.modalBody.innerHTML='';
+    if(state.lastFocused?.focus) state.lastFocused.focus();
+  }
+
+  function cardDetailHtml(c){
+    const color = inkKey(c.colors?.[0] || c.color);
+    const text = formatCardText(c.text || abilityText(c));
+    const detailImage = c.image || c.imageSmall;
+    const imageHtml = detailImage ? `<img src="${esc(detailImage)}" alt="${esc(fullName(c))}" loading="lazy">` : `<div class="card-art-placeholder"><strong>${esc(initials(fullName(c)))}</strong><span>${esc(fullName(c))}</span><small>Image indisponible</small></div>`;
+    const universe = cardUniverse(c);
+    const artists = cardArtists(c);
+    return `<div class="card-detail"><div class="card-image">${imageHtml}</div><div class="card-detail-main"><section class="detail-panel"><div class="kicker">Carte</div><h2 class="detail-title"><span class="ink-dot ink-${color}"></span>${esc(fullName(c))}</h2><div class="chip-row"><span class="chip">${esc(setLabel(c) || 'Chapitre inconnu')}</span><span class="chip">${esc(rarityLabel(c.rarity) || 'Rareté —')}</span><span class="chip">#${esc(c.number || '—')}</span><span class="chip">${esc(inkLabel(c.colors?.[0]) || 'Encre —')}</span></div><div class="detail-grid" style="margin-top:1rem">${field('Type', typeLabel(c.type))}${field('Coût', c.cost ?? '—')}${field('Encrable', c.inkable === true ? 'Oui' : c.inkable === false ? 'Non' : '—')}${field('Rareté', rarityLabel(c.rarity) || '—')}${field('Force', c.strength ?? '—')}${field('Volonté', c.willpower ?? '—')}${field('Lore', c.lore ?? '—')}</div></section><section class="detail-panel detail-panel-info"><div class="kicker">Informations</div><div class="detail-grid">${field('Chapitre', setLabel(c) || '—')}${field('Univers', universe)}${field('Artiste(s)', artists)}</div></section>${text ? `<section class="detail-panel"><div class="kicker">Texte de carte</div><div class="card-text">${text}</div></section>` : ''}<section class="detail-panel"><div class="kicker">Classifications</div><div class="chip-row">${(c.classifications || []).length ? c.classifications.map(x=>`<span class="chip">${esc(x)}</span>`).join('') : '<span class="chip">—</span>'}</div></section></div></div>`;
+  }
+  function metadataFallbackCard(c){
+    const keys = new Set(cardReferenceKeys(c));
+    if(c?.id?.includes('-')){
+      const [setNum, number] = String(c.id).split('-');
+      const code = SET_NUM_TO_CODE[setNum] || setNum;
+      keys.add(`${setNum}-${strip0(number)}`);
+      keys.add(slug(`${code}-${strip0(number)}`));
+      keys.add(slug(`${code} ${strip0(number)}`));
+    }
+    for(const key of keys){
+      const local = state.index.get(key);
+      if(local) return local;
+    }
+    return null;
+  }
+  function cardUniverse(c){
+    const fallback = metadataFallbackCard(c);
+    return c?.franchise || c?.story || c?.universe || c?.raw?.franchise || c?.raw?.story || c?.raw?.universe || fallback?.franchise || fallback?.story || fallback?.universe || fallback?.raw?.franchise || fallback?.raw?.story || fallback?.raw?.universe || '—';
+  }
+  function cardArtists(c){
+    const fallback = metadataFallbackCard(c);
+    const values = [c?.artists, c?.illustrators, c?.illustrator, c?.artist, c?.raw?.illustrators, c?.raw?.artists, c?.raw?.artist, fallback?.artists, fallback?.illustrators, fallback?.illustrator, fallback?.artist, fallback?.raw?.illustrators, fallback?.raw?.artists, fallback?.raw?.artist]
+      .flatMap(v => arrayify(v));
+    return values.length ? [...new Set(values)].join(' / ') : '—';
+  }
+  function field(label, value){ return `<div class="detail-field"><small>${esc(label)}</small><strong>${esc(value)}</strong></div>`; }
+  function initials(name){ return String(name || '?').split(/\s+|-+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?'; }
+  function cardThumbHtml(c, cls='thumb'){ const img = c.imageSmall || c.image; const label = fullName(c) || 'Carte Lorcana'; return img ? `<img class="${esc(cls)}" src="${esc(img)}" alt="${escAttr(label)}" loading="lazy">` : `<span class="${esc(cls)} thumb-placeholder" aria-label="Image indisponible pour ${escAttr(label)}">${esc(initials(label))}</span>`; }
+
+  function cssThemeColors(){
+    const styles = getComputedStyle(document.documentElement);
+    const first = styles.getPropertyValue('--theme-color-1').trim() || getThemeColors(state.scope)[0];
+    const second = styles.getPropertyValue('--theme-color-2').trim() || getThemeColors(state.scope)[1];
+    return [first, second];
+  }
+
+  function chartColorsForScope(scope){
+    return document.documentElement.dataset.themeScope === scope ? cssThemeColors() : getThemeColors(scope);
+  }
+
+
+  function chartHighlightPalette(kind='moment'){
+    const styles = getComputedStyle(document.documentElement);
+    const warn = styles.getPropertyValue('--warn').trim() || '#f6c54d';
+    const bad = styles.getPropertyValue('--bad').trim() || '#fb7185';
+    const good = styles.getPropertyValue('--good').trim() || '#34d399';
+    const accent = styles.getPropertyValue('--theme-color-2').trim() || warn;
+    if(kind === 'refill') return good;
+    if(kind === 'overtake') return accent;
+    if(kind === 'board') return bad;
+    return warn;
+  }
+
+  function makeHighlightMessages(length, highlights){
+    const messages = Array.from({ length }, () => '');
+    (highlights || []).forEach(h => {
+      if(Number.isInteger(h.index) && h.index >= 0 && h.index < length){
+        const message = h.message || h.summary || '';
+        messages[h.index] = messages[h.index] ? `${messages[h.index]} · ${message}` : message;
+      }
+    });
+    return messages;
+  }
+
+  function makeHighlightKinds(length, highlights){
+    const kinds = Array.from({ length }, () => '');
+    (highlights || []).forEach(h => {
+      if(Number.isInteger(h.index) && h.index >= 0 && h.index < length){
+        kinds[h.index] = h.kind || kinds[h.index] || 'moment';
+      }
+    });
+    return kinds;
+  }
+
+  function stylePointHighlights(dataset, normalBg, normalBorder, kind='moment'){
+    const messages = Array.isArray(dataset.highlightMessages) ? dataset.highlightMessages : [];
+    const kinds = Array.isArray(dataset.highlightKinds) ? dataset.highlightKinds : [];
+    const len = dataset.data?.length || messages.length || 0;
+    // Sleep Cycle style: the line stays pure. Points appear only on interaction.
+    dataset.pointRadius = Array.from({ length:len }, () => 0);
+    dataset.pointHoverRadius = Array.from({ length:len }, () => 0);
+    dataset.pointHitRadius = Array.from({ length:len }, () => 18);
+    dataset.pointBackgroundColor = Array.from({ length:len }, (_, i) => messages[i] ? chartHighlightPalette(kinds[i] || kind) : normalBg);
+    dataset.pointBorderColor = Array.from({ length:len }, () => normalBorder);
+    dataset.pointBorderWidth = Array.from({ length:len }, () => 0);
+    dataset._highlightKind = kind;
+    dataset._normalPointBg = normalBg;
+    dataset._normalPointBorder = normalBorder;
+    return dataset;
+  }
+
+  function styleBarHighlights(dataset, normalBg, normalBorder, kind='float'){
+    const messages = Array.isArray(dataset.highlightMessages) ? dataset.highlightMessages : [];
+    const alert = chartHighlightPalette(kind);
+    const len = dataset.data?.length || messages.length || 0;
+    dataset.backgroundColor = Array.from({ length:len }, (_, i) => messages[i] ? hexToRgba(alert, .86) : normalBg);
+    dataset.borderColor = 'transparent';
+    dataset.borderWidth = 0;
+    dataset.borderRadius = 0;
+    dataset.maxBarThickness = 24;
+    dataset._highlightKind = kind;
+    dataset._normalBarBg = normalBg;
+    dataset._normalBarBorder = normalBorder;
+    return dataset;
+  }
+
+  function restyleDatasetHighlights(dataset){
+    if(!dataset || !Array.isArray(dataset.highlightMessages) || !dataset.highlightMessages.some(Boolean)) return false;
+    if(dataset._normalBarBg !== undefined){
+      styleBarHighlights(dataset, dataset._normalBarBg, dataset._normalBarBorder || dataset._normalBarBg, dataset._highlightKind || 'float');
+      return true;
+    }
+    stylePointHighlights(dataset, dataset._normalPointBg || dataset.borderColor || '#fff', dataset._normalPointBorder || dataset.borderColor || '#fff', dataset._highlightKind || 'moment');
+    return true;
+  }
+
+  function detectLoreHighlights(rows){
+    const out = { mine:[], opponent:[] };
+    (rows || []).forEach((row, index) => {
+      if(index <= 0) return;
+      const prev = rows[index - 1] || {};
+      ['mine','opponent'].forEach(owner => {
+        const other = owner === 'mine' ? 'opponent' : 'mine';
+        const previousMine = n(prev?.[owner]);
+        const previousOther = n(prev?.[other]);
+        const currentMine = n(row?.[owner]);
+        const currentOther = n(row?.[other]);
+        const delta = currentMine - previousMine;
+
+        if(delta >= 5){
+          const label = owner === 'mine' ? 'vous gagnez' : 'l’adversaire gagne';
+          out[owner].push({
+            kind:'sprint', owner, index, turn:n(row.turn), delta,
+            message:` Accélération : ${label} +${delta} lore !`,
+            summary:`Tour ${n(row.turn)} : accélération de lore ${owner === 'mine' ? 'pour vous' : 'adverse'} (+${delta} lore)`
+          });
+        }
+
+        if(previousMine < previousOther && currentMine > currentOther){
+          out[owner].push({
+            kind:'overtake', owner, index, turn:n(row.turn), delta:currentMine - currentOther,
+            message:' Overtake : reprise de l’avantage au score !',
+            summary:`Tour ${n(row.turn)} : ${owner === 'mine' ? 'vous passez devant au score' : 'l’adversaire reprend l’avantage au score'}`
+          });
+        }
+      });
+    });
+    return out;
+  }
+
+  function detectHandHighlights(rows, owner='mine'){
+    return (rows || []).map((row, index) => {
+      if(index <= 0) return null;
+      const prev = rows[index - 1] || {};
+      const delta = n(row?.handCount) - n(prev?.handCount);
+      if(delta < 3) return null;
+      return {
+        kind:'refill', owner, index, turn:n(row.turn), delta,
+        message:` Second Souffle : main rechargée de +${delta} cartes !`,
+        summary:`Tour ${n(row.turn)} : second souffle ${owner === 'mine' ? 'pour vous' : 'côté adversaire'} (+${delta} cartes)`
+      };
+    }).filter(Boolean);
+  }
+
+  function detectBoardControlHighlights(rows){
+    return (rows || []).map((row, index) => {
+      const mineChallenges = n(row?.mineChallenge);
+      const opponentChallenges = n(row?.opponentChallenge);
+      const totalChallenges = n(row?.challenge);
+      const bestOwner = mineChallenges >= opponentChallenges ? 'mine' : 'opponent';
+      const bestValue = Math.max(mineChallenges, opponentChallenges, totalChallenges);
+      if(bestValue < 3) return null;
+      const owner = Math.max(mineChallenges, opponentChallenges) >= 3 ? bestOwner : 'both';
+      const ownerLabel = owner === 'mine' ? 'vous' : owner === 'opponent' ? 'l’adversaire' : 'la table';
+      return {
+        kind:'board', owner, index, turn:n(row.turn), delta:bestValue,
+        message:` Nettoyage de board : ${bestValue} défis ce tour !`,
+        summary:`Tour ${n(row.turn)} : nettoyage de board par ${ownerLabel} (${bestValue} défis)`
+      };
+    }).filter(Boolean);
+  }
+
+  function actionContextForMoment(m, owner, turn, kind){
+    const source = Array.isArray(m?.timeline) ? m.timeline : (Array.isArray(m?.actions) ? m.actions : []);
+    const rows = source.filter(a => (owner === 'both' || a?.owner === owner) && n(a.turn) === n(turn));
+    let candidates = [];
+    if(kind === 'sprint' || kind === 'overtake') candidates = rows.filter(a => a.type === 'quest');
+    else if(kind === 'refill') candidates = rows.filter(a => a.type === 'play' || a.type === 'ability');
+    else if(kind === 'board') candidates = rows.filter(a => a.type === 'challenge');
+    else candidates = rows.filter(a => a.type === 'play' || a.type === 'ability');
+    const names = [...new Set(candidates.map(a => cleanCardName(a.cardName || a.title || '')).filter(name => name && name !== 'Carte inconnue' && !/^Résout un effet$/i.test(name)))];
+    if(!names.length) return '';
+    return ` · ${esc(names.slice(0, 2).join(' / '))}`;
+  }
+
+  function collectKeyMoments(m){
+    if(!m || isGlobalView()) return [];
+
+    // UX curation: the charts keep every highlight (sprint, refill, overtake, board),
+    // but the hero recap only keeps rare, narrative moments.
+    // No card names here: this block should be readable at a glance.
+    const lore = detectLoreHighlights(m.loreSeries || []);
+    const overtakes = [...(lore.mine || []), ...(lore.opponent || [])].filter(item => item.kind === 'overtake');
+    const refills = [
+      ...detectHandHighlights(m.proMetrics?.handByTurn || [], 'mine'),
+      ...detectHandHighlights(m.opponentProMetrics?.handByTurn || [], 'opponent')
+    ];
+
+    return [...overtakes, ...refills]
+      .sort((a,b) => n(a.turn) - n(b.turn) || ({ overtake:0, refill:1 }[a.kind] ?? 9) - ({ overtake:0, refill:1 }[b.kind] ?? 9))
+      .slice(0, 5);
+  }
+
+  function keyMomentText(moment){
+    const turn = `T${n(moment?.turn)}`;
+    const owner = moment?.owner;
+    if(moment?.kind === 'overtake'){
+      return owner === 'mine'
+        ? `${turn} · Vous reprenez l’avantage au score`
+        : `${turn} · L’adversaire reprend l’avantage`;
+    }
+    if(moment?.kind === 'refill'){
+      const delta = n(moment?.delta);
+      return owner === 'mine'
+        ? `${turn} · Main rechargée (+${delta} cartes)`
+        : `${turn} · Main adverse rechargée (+${delta} cartes)`;
+    }
+    return `${turn} · Moment clé détecté`;
+  }
+
+  function renderKeyMoments(m){
+    if(!els.keyMoments) return;
+    const moments = collectKeyMoments(m);
+    if(!moments.length){
+      els.keyMoments.hidden = true;
+      els.keyMoments.innerHTML = '';
+      return;
+    }
+    els.keyMoments.hidden = false;
+    els.keyMoments.innerHTML = `<div class="key-moments-title">Moments clés</div><div class="key-moment-list">${moments.map(moment => `<span class="key-moment key-moment-${escAttr(moment.kind)}">${esc(keyMomentText(moment))}</span>`).join('')}</div>`;
+  }
+
+
+  function normalizeChartDatasets(type, data){
+    if(!data || !Array.isArray(data.datasets)) return data;
+    data.datasets.forEach(dataset => {
+      if(type === 'line'){
+        const len = Array.isArray(dataset.data) ? dataset.data.length : 0;
+        dataset.pointRadius = len ? Array.from({ length:len }, () => 0) : 0;
+        dataset.radius = 0;
+        dataset.pointHoverRadius = len ? Array.from({ length:len }, () => 0) : 0;
+        dataset.hoverRadius = 0;
+        dataset.pointHitRadius = len ? Array.from({ length:len }, () => 18) : 18;
+        dataset.pointBorderWidth = len ? Array.from({ length:len }, () => 0) : 0;
+        dataset.pointStyle = 'circle';
+        dataset.spanGaps = dataset.spanGaps ?? true;
+      }
+      if(type === 'bar'){
+        dataset.borderRadius = 0;
+        dataset.borderSkipped = false;
+        dataset.borderWidth = 0;
+        dataset.maxBarThickness = dataset.maxBarThickness || 24;
+        dataset.categoryPercentage = dataset.categoryPercentage || .68;
+        dataset.barPercentage = dataset.barPercentage || .72;
+      }
+    });
+    return data;
+  }
+
+  function chartColorAt(value, index){
+    return Array.isArray(value) ? (value[index] || value.find(Boolean) || '#fff') : (value || '#fff');
+  }
+
+  function setChartReadoutDefault(canvasId, html){
+    const canvas = $(canvasId);
+    const card = canvas?.closest?.('.performance-chart-card, .chart-panel');
+    const slot = card?.querySelector?.(`[data-chart-readout-for="${canvasId}"]`);
+    if(!slot) return;
+    slot.innerHTML = html || '';
+    slot.dataset.defaultHtml = html || '';
+    slot.classList.remove('visible');
+  }
+
+  function summarizeDefaultLoreReadout(rows){
+    if(!Array.isArray(rows) || !rows.length){
+      return '<span>Lecture rapide</span><strong>Replay en attente</strong><small>La course au lore apparaîtra après import.</small>';
+    }
+    const end = rows[rows.length - 1] || {};
+    const mine = n(end.mine);
+    const opp = n(end.opponent);
+    const turn = n(end.turn);
+    const myLate = lateLoreGain(rows, 'mine');
+    const oppLate = lateLoreGain(rows, 'opponent');
+    const lead = mine - opp;
+    const stateLabel = mine >= 20 ? 'Lethal atteint' : opp >= 20 ? 'Lethal adverse' : lead >= 0 ? 'Avantage score' : 'Course à refaire';
+    let detail = `${mine}–${opp} au T${turn}`;
+    if(myLate > oppLate + 2) detail += ` · accélération finale +${myLate}`;
+    else if(oppLate > myLate + 2) detail += ` · sprint adverse +${oppLate}`;
+    else if(Math.abs(lead) <= 3) detail += ' · finish serré';
+    return `<span>Lecture rapide</span><strong>${esc(stateLabel)}</strong><small>${esc(detail)}</small>`;
+  }
+
+  function summarizeDefaultActionReadout(rows){
+    if(!Array.isArray(rows) || !rows.length){
+      return '<span>Plan de jeu</span><strong>Aucune action détectée</strong><small>Les actions principales apparaîtront après import.</small>';
+    }
+    const totals = rows.reduce((acc, r) => {
+      acc.ink += n(r.ink); acc.play += n(r.play); acc.quest += n(r.quest); acc.challenge += n(r.challenge);
+      const total = n(r.ink) + n(r.play) + n(r.quest) + n(r.challenge);
+      if(total > acc.peakTotal) acc.peak = { turn:n(r.turn), total };
+      acc.peakTotal = Math.max(acc.peakTotal, total);
+      return acc;
+    }, { ink:0, play:0, quest:0, challenge:0, peak:null, peakTotal:0 });
+    const mainAxis = [
+      ['Tempo', totals.play],
+      ['Lore', totals.quest],
+      ['Board', totals.challenge],
+      ['Encrage', totals.ink]
+    ].sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Plan';
+    const peak = totals.peak ? `pic T${totals.peak.turn} · ${totals.peak.total} action(s)` : 'rythme régulier';
+    return `<span>Plan de jeu</span><strong>${esc(mainAxis)} dominant</strong><small>${esc(`${peak} · ${totals.play} jouées · ${totals.quest} quêtes · ${totals.challenge} défis`)}</small>`;
+  }
+
+  function summarizeDefaultInkReadout(rows){
+    if(!Array.isArray(rows) || !rows.length){
+      return '<span>Économie d’encre</span><strong>Replay en attente</strong><small>La conversion de l’encre apparaîtra après import.</small>';
+    }
+    const spent = rows.reduce((acc, r)=>acc+n(r.spent),0);
+    const floating = rows.reduce((acc, r)=>acc+n(r.float),0);
+    const avgFloat = rows.length ? round1(floating / rows.length) : 0;
+    const label = avgFloat <= 1 ? 'Curve propre' : avgFloat <= 2.5 ? 'Tempo correct' : 'Fuite d’encre';
+    return `<span>Économie d’encre</span><strong>${esc(label)}</strong><small>${esc(`${round1(spent)} dépensées · ${round1(floating)} flottées · ${avgFloat}/tour`)}</small>`;
+  }
+
+  function summarizeDefaultHandReadout(rows){
+    if(!Array.isArray(rows) || !rows.length){
+      return '<span>Réserve de main</span><strong>Replay en attente</strong><small>La taille de main apparaîtra après import.</small>';
+    }
+    const values = rows.map(r=>n(r.handCount));
+    const minHand = Math.min(...values);
+    const avgHand = round1(values.reduce((a,b)=>a+b,0) / Math.max(1, values.length));
+    const emptyTurns = values.filter(v=>v <= 1).length;
+    const label = emptyTurns >= 3 ? 'Top deck mode' : minHand <= 1 ? 'Main fragile' : 'Main stable';
+    return `<span>Réserve de main</span><strong>${esc(label)}</strong><small>${esc(`moyenne ${avgHand} carte(s) · minimum ${minHand} · ${emptyTurns} tour(s) critique(s)`)}</small>`;
+  }
+
+  function renderLoreChart(rows){
+    setChartReadoutDefault('loreChart', summarizeDefaultLoreReadout(rows));
+    const labels = rows.map(r=>`T${r.turn}`);
+    const mine = chartColorsForScope('mine');
+    const opponent = chartColorsForScope('opponent');
+    const highlights = detectLoreHighlights(rows);
+    const mineDataset = { label:'Vous', data:rows.map(r=>r.mine), tension:.48, borderWidth:2.75, pointRadius:0, pointHoverRadius:5, borderColor:mine[0], backgroundColor:hexToRgba(mine[0], .13), highlightMessages:makeHighlightMessages(rows.length, highlights.mine), highlightKinds:makeHighlightKinds(rows.length, highlights.mine), fill:false };
+    const opponentDataset = { label:'Adversaire', data:rows.map(r=>r.opponent), tension:.48, borderWidth:2.75, pointRadius:0, pointHoverRadius:5, borderColor:opponent[0], backgroundColor:hexToRgba(opponent[0], .11), highlightMessages:makeHighlightMessages(rows.length, highlights.opponent), highlightKinds:makeHighlightKinds(rows.length, highlights.opponent), fill:false };
+    stylePointHighlights(mineDataset, mine[0], mine[0], 'sprint');
+    stylePointHighlights(opponentDataset, opponent[0], opponent[0], 'sprint');
+    const datasets = [
+      mineDataset,
+      opponentDataset,
+      { label:'Ligne de victoire · 20 lore', data:rows.map(()=>20), borderColor:'rgba(255,255,255,.24)', borderDash:[5,6], borderWidth:1, pointRadius:0, pointHoverRadius:0, fill:false, tension:0, noGlow:true, tooltipSkip:true }
+    ];
+    charts.lore = chart(charts.lore, 'loreChart', 'line', { labels, datasets }, { scales:{ y:{ beginAtZero:true, suggestedMax:21 } } });
+    updateChartDataTable('loreChart', labels, datasets, 'Données du graphique de lore');
+  }
+  function renderActionChart(rows){
+    setChartReadoutDefault('actionChart', summarizeDefaultActionReadout(rows));
+    const labels = rows.map(r=>`T${r.turn}`);
+    const theme = cssThemeColors();
+    const boardHighlights = detectBoardControlHighlights(rows);
+    const challengeDataset = { label:'Défis', data:rows.map(r=>r.challenge), backgroundColor:hexToRgba(theme[1], .78), borderColor:hexToRgba(theme[1], .78), borderWidth:1, highlightMessages:makeHighlightMessages(rows.length, boardHighlights), maxBarThickness:24, borderWidth:0, borderRadius:0 };
+    styleBarHighlights(challengeDataset, hexToRgba(theme[1], .78), hexToRgba(theme[1], .78), 'board');
+    const datasets = [
+      { label:'Encrées', data:rows.map(r=>r.ink), backgroundColor:theme[1], maxBarThickness:24, borderWidth:0, borderRadius:0 },
+      { label:'Jouées', data:rows.map(r=>r.play), backgroundColor:theme[0], maxBarThickness:24, borderWidth:0, borderRadius:0 },
+      { label:'Quêtes', data:rows.map(r=>r.quest), backgroundColor:hexToRgba(theme[0], .78), maxBarThickness:24, borderWidth:0, borderRadius:0 },
+      challengeDataset
+    ];
+    charts.action = chart(charts.action, 'actionChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } } });
+    updateChartDataTable('actionChart', labels, datasets, 'Données du graphique des actions par tour');
+  }
+  function renderInkChart(rows){
+    setChartReadoutDefault('inkFloatChart', summarizeDefaultInkReadout(rows));
+    const labels = rows.map(r=>`T${r.turn}`);
+    const theme = cssThemeColors();
+    const datasets = [
+      { label:'Encre dépensée', data:rows.map(r=>r.spent), backgroundColor:theme[0], borderColor:theme[0], borderWidth:1, maxBarThickness:24, borderWidth:0, borderRadius:0 },
+      { label:'Encre inutilisée', data:rows.map(r=>r.float), backgroundColor:theme[1], borderColor:theme[1], borderWidth:1, maxBarThickness:24, borderWidth:0, borderRadius:0 }
+    ];
+    charts.ink = chart(charts.ink, 'inkFloatChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 } } } });
+    updateChartDataTable('inkFloatChart', labels, datasets, 'Données du graphique d’économie d’encre');
+  }
+  function renderQuestChart(quest, challenge){
+    const total = n(quest) + n(challenge);
+    if(els.questChallengeCenter) els.questChallengeCenter.textContent = total ? `${pct(quest,total)}%` : '—';
+    const theme = cssThemeColors();
+    const labels = ['Quête','Défi'];
+    const datasets = [{ data:[n(quest), n(challenge)], backgroundColor:[theme[0], theme[1]], borderColor:['rgba(255,255,255,.18)','rgba(255,255,255,.18)'], borderWidth:1, hoverOffset:8 }];
+    charts.matrix = chart(charts.matrix, 'questChallengeChart', 'doughnut', { labels, datasets }, { cutout:'72%' });
+    updateChartDataTable('questChallengeChart', labels, datasets, 'Données du graphique quête contre défi');
+  }
+  function renderHandChart(rows){
+    setChartReadoutDefault('handCurveChart', summarizeDefaultHandReadout(rows));
+    const labels = rows.map(r=>`T${r.turn}`);
+    const theme = cssThemeColors();
+    const highlights = detectHandHighlights(rows, state.scope);
+    const handDataset = { label:'Cartes en main', data:rows.map(r=>r.handCount), tension:.48, borderWidth:2.75, pointRadius:0, pointHoverRadius:5, borderColor:theme[0], backgroundColor:'transparent', highlightMessages:makeHighlightMessages(rows.length, highlights), fill:false };
+    stylePointHighlights(handDataset, theme[1], theme[0], 'refill');
+    const datasets = [handDataset];
+    charts.hand = chart(charts.hand, 'handCurveChart', 'line', { labels, datasets }, { scales:{ y:{ beginAtZero:true, suggestedMax:8, ticks:{ precision:0 } } } });
+    updateChartDataTable('handCurveChart', labels, datasets, 'Données du graphique de réserve de main');
+  }
+
+  function chart(existing, id, type, data, options={}){
+    if(existing) existing.destroy();
+    const canvas = $(id); if(!canvas) return null;
+    const mobileChart = window.matchMedia?.('(max-width:820px)')?.matches === true;
+    const defaults = {
+      responsive:true,
+      maintainAspectRatio:false,
+      layout:{ padding: mobileChart ? { top:12, right:8, bottom:8, left:4 } : { top:22, right:28, bottom:18, left:18 } },
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position: mobileChart ? 'bottom' : 'top', labels:{ color:'#ececf0', usePointStyle:true, padding:mobileChart ? 10 : 18, font:{ size:mobileChart ? 11 : 12, weight:'700' } } },
+        tooltip:{ enabled:false, external:externalTooltipHandler }
+      },
+      scales:{
+        x:{ ticks:{ color: mobileChart ? 'rgba(255,255,255,.62)' : '#c9cad3', padding:8, font:{ size:mobileChart ? 11 : 12, weight:'700' } }, grid:{ display:false, color:'rgba(255,255,255,.065)' }, border:{ display:false } },
+        y:{ ticks:{ color: mobileChart ? 'rgba(255,255,255,.62)' : '#c9cad3', padding:8, font:{ size:mobileChart ? 11 : 12, weight:'700' } }, grid:{ display:false, color:'rgba(255,255,255,.065)' }, border:{ display:false }, grace:'8%' }
+      },
+      elements:{
+        line:{ borderCapStyle:'round', borderJoinStyle:'round' },
+        point:{ radius:0, hoverRadius:mobileChart ? 5 : 6, hitRadius:16 },
+        bar:{ borderRadius:0, borderSkipped:false }
+      },
+      datasets:{
+        bar:{ maxBarThickness:mobileChart ? 26 : 38, categoryPercentage:.90, barPercentage:.86, borderWidth:0, borderRadius:0 }
+      }
+    };
+    if(type === 'doughnut'){ delete defaults.scales; defaults.layout = { padding:{ top:10, right:10, bottom:10, left:10 } }; defaults.interaction = { mode:'nearest', intersect:true }; }
+    normalizeChartDatasets(type, data);
+    const neonLinePlugin = {
+      id:'inkSightNeonLine',
+      beforeDatasetDraw(chart, args){
+        if(chart.config.type !== 'line') return;
+        const ctx = chart.ctx;
+        const meta = chart.getDatasetMeta(args.index);
+        const dataset = chart.data.datasets?.[args.index] || {};
+        if(!meta?.dataset || dataset.noGlow || String(dataset.borderColor || '').includes('255,255,255')) return;
+        const color = chartColorAt(dataset.borderColor, 0) || '#fff';
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+      },
+      afterDatasetDraw(chart){
+        if(chart.config.type !== 'line') return;
+        chart.ctx.restore();
+      }
+    };
+    const activeAxisPlugin = {
+      id:'inkSightActiveAxis',
+      afterDraw(chart){
+        if(chart.config.type !== 'line') return;
+        const active = chart.tooltip?.getActiveElements?.() || [];
+        if(!active.length) return;
+        const index = active[0].index;
+        const area = chart.chartArea;
+        const xScale = chart.scales.x;
+        if(!area || !xScale) return;
+        const x = xScale.getPixelForValue(index);
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, area.top);
+        ctx.lineTo(x, area.bottom);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,.16)';
+        ctx.setLineDash([4,6]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        chart.data.datasets.forEach((dataset, datasetIndex) => {
+          if(dataset.noGlow) return;
+          const meta = chart.getDatasetMeta(datasetIndex);
+          if(meta.hidden) return;
+          const point = meta.data?.[index];
+          if(!point) return;
+          const y = point.y;
+          const color = chartColorAt(dataset.borderColor || dataset.backgroundColor, index) || '#fff';
+          ctx.beginPath();
+          ctx.arc(x, y, mobileChart ? 3.2 : 3.8, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+          ctx.lineWidth = 1.25;
+          ctx.strokeStyle = 'rgba(255,255,255,.72)';
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+    };
+    return new Chart(canvas, { type, data, options:deepMerge(defaults, options), plugins:[neonLinePlugin, activeAxisPlugin] });
+  }
+
+  function externalTooltipHandler(context){
+    const { chart, tooltip } = context;
+    const canvasId = chart.canvas?.id || '';
+    const card = chart.canvas.closest?.('.performance-chart-card, .chart-panel');
+    const slot = card?.querySelector?.(`[data-chart-readout-for="${canvasId}"]`);
+    const parent = chart.canvas.parentNode;
+    let el = slot || parent.querySelector('.chart-tooltip');
+    if(!el){
+      el = document.createElement('div');
+      el.className = 'chart-tooltip chart-readout';
+      parent.insertBefore(el, chart.canvas);
+    }
+    if(slot && !slot.dataset.defaultHtml) slot.dataset.defaultHtml = slot.innerHTML;
+    if(tooltip.opacity === 0){
+      el.classList.remove('visible');
+      if(slot) el.innerHTML = slot.dataset.defaultHtml || '';
+      else el.innerHTML = '';
+      return;
+    }
+    const title = tooltip.title?.[0] || '';
+    const points = (tooltip.dataPoints || []).filter(item => {
+      const dataset = item?.dataset || {};
+      const label = String(dataset.label || '').toLowerCase();
+      return !dataset.tooltipSkip && !dataset.noTooltip && !label.includes('objectif') && !label.includes('ligne de victoire');
+    });
+    const rows = points.map(item => {
+      const bg = item?.dataset?.backgroundColor;
+      const color = chartColorAt(item?.dataset?.borderColor, item?.dataIndex) || chartColorAt(bg, item?.dataIndex) || '#fff';
+      const label = item?.dataset?.label || 'Valeur';
+      const value = typeof item?.formattedValue === 'string' ? item.formattedValue : item?.raw;
+      return `<div class="chart-tooltip-row"><span style="background:${escAttr(color)}"></span>${esc(label)}: ${esc(value ?? '—')}</div>`;
+    }).join('') || '';
+    const highlightRows = points.map(item => item?.dataset?.highlightMessages?.[item.dataIndex]).filter(Boolean).map(message => `<div class="chart-tooltip-row chart-tooltip-highlight"><span></span>${esc(message)}</div>`).join('');
+    if(slot){
+      const cleanTitle = title || 'Tour';
+      el.innerHTML = `<span>${esc(cleanTitle)}</span><div class="chart-tooltip-grid">${rows}</div>${highlightRows ? `<small>${highlightRows.replace(/<[^>]*span[^>]*><\/span>/g,'')}</small>` : ''}`;
+    }else{
+      el.innerHTML = `<div class="chart-tooltip-title">${esc(title)}</div><div class="chart-tooltip-grid">${rows}</div>${highlightRows ? `<div class="chart-tooltip-notes">${highlightRows}</div>` : ''}`;
+    }
+    el.classList.add('visible');
+  }
+
+  function updateChartDataTable(canvasId, labels, datasets, caption){
+    const canvas = $(canvasId); if(!canvas) return;
+    const old = canvas.parentNode.querySelector(`table[data-chart-table="${canvasId}"]`);
+    if(old) old.remove();
+    const table = document.createElement('table');
+    table.className = 'sr-only';
+    table.setAttribute('data-chart-table', canvasId);
+    table.setAttribute('aria-label', caption);
+    table.innerHTML = `<caption>${esc(caption)}</caption><thead><tr><th>Tour</th>${datasets.map(d=>`<th>${esc(d.label || 'Série')}</th>`).join('')}</tr></thead><tbody>${labels.map((label, i)=>`<tr><th>${esc(label)}</th>${datasets.map(d=>`<td>${esc(d.data?.[i] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody>`;
+    canvas.insertAdjacentElement('afterend', table);
+  }
+
+  function destroyCharts(){ Object.keys(charts).forEach(k => { if(charts[k]) charts[k].destroy(); charts[k]=null; }); }
+
+  function setTab(tab){
+    state.activeTab = tab;
+
+    // Important : on évite startViewTransition ici. Sur certains navigateurs,
+    // le contenu du journal était injecté pendant que le panneau restait hidden,
+    // ce qui donnait une page scrollable mais visuellement vide.
+    document.querySelectorAll('#analysisTabs [role="tab"]').forEach(btn => {
+      const active = btn.dataset.tab === tab;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+      btn.tabIndex = active ? 0 : -1;
+    });
+    document.querySelectorAll('#tab-overview, #tab-stats, #tab-cards, #tab-timeline').forEach(sec => {
+      const active = sec.id === `tab-${tab}`;
+      sec.classList.toggle('active', active);
+      sec.hidden = !active;
+      sec.style.display = active ? 'block' : '';
+    });
+
+    if(tab === 'timeline'){
+      renderTimeline();
+      requestAnimationFrame(() => renderTimeline());
+    }
+  }
+
+  function handleTabsKeydown(e){
+    const tabs = [...document.querySelectorAll('#analysisTabs [role="tab"]')].filter(tab => tab.offsetParent !== null && !tab.hidden);
+    const index = tabs.indexOf(document.activeElement);
+    if(index < 0) return;
+    let next = index;
+    if(e.key === 'ArrowRight') next = (index + 1) % tabs.length;
+    else if(e.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+    else if(e.key === 'Home') next = 0;
+    else if(e.key === 'End') next = tabs.length - 1;
+    else return;
+    e.preventDefault();
+    tabs[next].focus();
+    setTab(tabs[next].dataset.tab);
+  }
+  function setScope(scope){
+    state.scope = scope;
+    document.querySelectorAll('[data-scope]').forEach(b=>b.classList.toggle('active', b.dataset.scope === scope));
+    updateDynamicTheme(getWorkingData() || state.merged, scope);
+    renderStats();
+    syncChartsWithTheme(scope);
+  }
+  function setCardFilter(filter){ state.cardFilter = filter; document.querySelectorAll('[data-card-filter]').forEach(b=>b.classList.toggle('active', b.dataset.cardFilter === filter)); renderCards(); }
+
+  function handleModalKeydown(e){
+    if(!els.cardModal?.classList.contains('active')) return;
+    if(e.key === 'Escape'){ e.preventDefault(); closeCardModal(); return; }
+    if(e.key !== 'Tab') return;
+    const focusable = [...els.cardModal.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(el => !el.disabled && el.offsetParent !== null);
+    if(!focusable.length) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }
+
+  function buildInkProfiles(m){
+    return { mine:detectInkProfile(m, 'mine'), opponent:detectInkProfile(m, 'opponent') };
+  }
+
+  function detectInkProfile(m, scope){
+    const counts = {};
+    const cards = cardsForScope(m, scope);
+    cards.forEach(c => {
+      const colors = arrayify(c.colors?.length ? c.colors : c.color || c.ink || c.inkColor);
+      const stats = normalizeOwnerStats(c.ownerStats)[scope];
+      const weight = Math.max(1, n(stats.seen || c.seen) + n(stats.played || c.played) + n(stats.inked || c.inked) + n(stats.quest || c.quest));
+      (colors.length ? colors : ['inkless']).forEach(raw => {
+        const key = inkKey(raw);
+        if(key && key !== 'inkless') counts[key] = (counts[key] || 0) + weight;
+      });
+    });
+    const inks = Object.entries(counts)
+      .sort((a,b) => b[1] - a[1] || inkLabel(a[0]).localeCompare(inkLabel(b[0]), 'fr'))
+      .slice(0, 2)
+      .map(([key]) => key);
+    return { inks, label:inkPairLabel(inks), colors:inks.map(key => INK_COLORS[key] || INK_COLORS.inkless), counts };
+  }
+
+  function inkPairLabel(inks){
+    return inks?.length ? inks.map(inkLabel).join(' / ') : 'Encres non détectées';
+  }
+
+  function formatMatchupLabel(profiles){
+    return `${profiles?.mine?.label || 'Encres non détectées'} vs ${profiles?.opponent?.label || 'Encres non détectées'}`;
+  }
+
+  function inkPairHtml(profile){
+    const inks = profile?.inks?.length ? profile.inks : ['inkless'];
+    const dots = inks.map(key => `<i class="ink-dot ink-${escAttr(key)}"></i>`).join('');
+    return `<b class="ink-pair">${dots}<span>${esc(profile?.label || 'Encres non détectées')}</span></b>`;
+  }
+
+  function updateDynamicTheme(m, scope='mine'){
+    if(m){
+      state.themes.mine = detectInkTheme(m, 'mine');
+      state.themes.opponent = detectInkTheme(m, 'opponent');
+    }
+    const colors = getThemeColors(scope);
+    const root = document.documentElement;
+    root.style.setProperty('--theme-color-1', colors[0]);
+    root.style.setProperty('--theme-color-2', colors[1]);
+    root.style.setProperty('--aura-one', colors[0]);
+    root.style.setProperty('--aura-two', colors[1]);
+    root.style.setProperty('--blue', colors[0]);
+    root.style.setProperty('--warn', colors[1]);
+    root.dataset.themeScope = scope;
+  }
+
+  function detectInkTheme(m, scope){
+    const profile = detectInkProfile(m, scope);
+    const dominant = profile.inks || [];
+    const first = INK_COLORS[dominant[0]] || (scope === 'opponent' ? INK_COLORS.ruby : INK_COLORS.sapphire);
+    const second = dominant[1] ? INK_COLORS[dominant[1]] : (dominant[0] ? INK_COLORS.inkless : (scope === 'opponent' ? INK_COLORS.amethyst : INK_COLORS.amber));
+    return [first, second];
+  }
+
+  function getThemeColors(scope=state.scope){
+    const pair = state.themes?.[scope] || state.themes?.mine || [INK_COLORS.sapphire, INK_COLORS.amber];
+    return [pair[0] || INK_COLORS.sapphire, pair[1] || pair[0] || INK_COLORS.amber];
+  }
+
+  function syncChartsWithTheme(scope=state.scope){
+    const theme = cssThemeColors();
+    if(charts.lore){
+      const mine = chartColorsForScope('mine');
+      const opponent = chartColorsForScope('opponent');
+      const ds = charts.lore.data.datasets || [];
+      if(ds[0]){ ds[0].borderColor = mine[0]; ds[0].backgroundColor = hexToRgba(mine[0], .13); }
+      if(ds[1]){ ds[1].borderColor = opponent[0]; ds[1].backgroundColor = hexToRgba(opponent[0], .11); }
+      charts.lore.update('active');
+    }
+    if(charts.action){
+      const ds = charts.action.data.datasets || [];
+      if(ds[0]) ds[0].backgroundColor = theme[1];
+      if(ds[1]) ds[1].backgroundColor = theme[0];
+      if(ds[2]) ds[2].backgroundColor = hexToRgba(theme[0], .78);
+      if(ds[3]) ds[3].backgroundColor = hexToRgba(theme[1], .78);
+      charts.action.update('active');
+    }
+    if(charts.ink){
+      const ds = charts.ink.data.datasets || [];
+      if(ds[0]){ ds[0].backgroundColor = theme[0]; ds[0].borderColor = theme[0]; }
+      if(ds[1]){
+        ds[1]._normalBarBg = theme[1];
+        ds[1]._normalBarBorder = theme[1];
+        if(!restyleDatasetHighlights(ds[1])){ ds[1].backgroundColor = theme[1]; ds[1].borderColor = theme[1]; }
+      }
+      charts.ink.update('active');
+    }
+    if(charts.matrix){
+      const ds = charts.matrix.data.datasets?.[0];
+      if(ds) ds.backgroundColor = [theme[0], theme[1]];
+      charts.matrix.update('active');
+    }
+    if(charts.hand){
+      const ds = charts.hand.data.datasets?.[0];
+      if(ds){
+        ds.borderColor = theme[0];
+        ds.backgroundColor = hexToRgba(theme[0], .16);
+        ds._normalPointBg = theme[1];
+        ds._normalPointBorder = theme[0];
+        if(!restyleDatasetHighlights(ds)){
+          ds.pointBackgroundColor = theme[1];
+          ds.pointBorderColor = theme[0];
+        }
+      }
+      charts.hand.update('active');
+    }
+  }
+
+  function updateChartSummary(id, text){ const el = $(id); if(el) el.textContent = text; }
+  function summarizeLore(rows){
+    if(!rows?.length) return 'Aucune donnée de lore à afficher.';
+    const last = rows[rows.length-1];
+    const highlights = detectLoreHighlights(rows);
+    const all = [...highlights.mine, ...highlights.opponent];
+    const overtake = all.find(h => h.kind === 'overtake' && h.owner === 'mine') || all.find(h => h.kind === 'overtake');
+    const sprint = all.filter(h => h.kind === 'sprint').sort((a,b)=>b.delta-a.delta)[0];
+    const suffix = overtake ? ` Overtake détecté au tour ${overtake.turn}.` : sprint ? ` Accélération détectée au tour ${sprint.turn} : +${sprint.delta} lore ${sprint.owner === 'mine' ? 'pour vous' : 'adverse'}.` : '';
+    return `Résumé du graphique : vous terminez à ${n(last.mine)} lore contre ${n(last.opponent)} pour l’adversaire au tour ${last.turn}.${suffix}`;
+  }
+  function summarizeActions(rows){
+    if(!rows?.length) return 'Aucune action à afficher.';
+    const board = detectBoardControlHighlights(rows).sort((a,b)=>b.delta-a.delta)[0];
+    const suffix = board ? ` Nettoyage de board détecté au tour ${board.turn} (${board.delta} défis).` : '';
+    return `Résumé du graphique : ${sum(rows,'ink')} carte(s) encrée(s), ${sum(rows,'play')} carte(s) jouée(s), ${sum(rows,'quest')} quête(s) et ${sum(rows,'challenge')} défi(s).${suffix}`;
+  }
+  function summarizeInk(rows){
+    if(!rows?.length) return 'Aucune donnée d’économie d’encre à afficher.';
+    const peak = [...rows].sort((a,b)=>b.float-a.float)[0];
+    return peak ? `Résumé du graphique : ${round1(sum(rows,'float'))} encre inutilisée au total, pic au tour ${peak.turn} avec ${round1(peak.float)}.` : 'Aucune encre inutilisée détectée.';
+  }
+  function summarizeQuest(quest, challenge){ const total = n(quest)+n(challenge); return total ? `Résumé du graphique : ${pct(quest,total)}% quête, avec ${quest} quête(s) et ${challenge} défi(s).` : 'Aucune quête ou défi détecté.'; }
+  function summarizeHand(rows){
+    if(!rows?.length) return 'Aucune donnée de main à afficher.';
+    const critical = rows.filter(r=>n(r.handCount)<=1).length;
+    const refill = detectHandHighlights(rows, state.scope).sort((a,b)=>b.delta-a.delta)[0];
+    const suffix = refill ? ` Second souffle détecté au tour ${refill.turn} : +${refill.delta} cartes en main.` : '';
+    return `Résumé du graphique : ${critical} tour(s) critique(s) terminés avec 0 ou 1 carte en main.${suffix}`;
+  }
+
+  function applyPatch(obj, patch){
+    const parts = pointerParts(patch.path); if(!parts.length) return;
+    let parent = obj;
+    for(let i=0;i<parts.length-1;i++){ const k=parts[i]; if(parent[k] === undefined) parent[k] = /^\d+$/.test(parts[i+1]) ? [] : {}; parent = parent[k]; if(parent == null) return; }
+    const key = parts[parts.length-1];
+    if(Array.isArray(parent)){
+      const idx = key === '-' ? parent.length : Number(key);
+      if(patch.op === 'add') parent.splice(idx, 0, patch.value);
+      else if(patch.op === 'remove') parent.splice(idx, 1);
+      else if(patch.op === 'replace') parent[idx] = patch.value;
+    }else{
+      if(patch.op === 'remove') delete parent[key];
+      else parent[key] = patch.value;
+    }
+  }
+  function pointerParts(path){ return String(path||'').split('/').slice(1).map(p => p.replace(/~1/g,'/').replace(/~0/g,'~')); }
+  function zoneStats(snapshot, zoneKey){
+    const z = snapshot?.[zoneKey] || {};
+    const hand = Array.isArray(z.hand) ? z.hand.length : n(z.handCount);
+    const inkArr = Array.isArray(z.inkwell) ? z.inkwell : [];
+    const ink = inkArr.length || n(z.inkwellCount);
+    const exerted = inkArr.reduce((count, card) => count + ((card?.exerted || card?.card?.exerted) ? 1 : 0), 0);
+    return { hand, ink, exerted, lore:n(z.lore) };
+  }
+  function buildActionSeries(map){ return [...map.values()].sort((a,b)=>a.turn-b.turn); }
+
+  function isUsableImageUrl(value){
+    return typeof value === 'string' && /^https?:\/\//i.test(value.trim());
+  }
+
+  function firstImageUrl(values){
+    for(const value of values.flat(Infinity)){
+      if(isUsableImageUrl(value)) return value.trim();
+    }
+    return '';
+  }
+
+  function getCardImage(rawInput, preferred='normal'){
+    const raw = rawInput?.card && typeof rawInput.card === 'object' ? { ...rawInput.card, ...rawInput } : (rawInput || {});
+    const fr = raw.translations?.fr || {};
+    const en = raw.translations?.en || {};
+    const direct = preferred === 'small'
+      ? [raw.imageSmallUrl, raw.image_small, raw.imageSmall, raw.smallImageUrl, raw.thumbnailUrl, raw.thumbnail, raw.imageUrl, raw.image, fr.imageSmallUrl, fr.imageUrl, en.imageSmallUrl, en.imageUrl]
+      : [raw.imageLargeUrl, raw.imageNormalUrl, raw.imageUrl, raw.image, raw.imageFullUrl, raw.fullImageUrl, fr.imageUrl, en.imageUrl, raw.imageSmallUrl, raw.imageSmall];
+    const uris = raw.image_uris || raw.imageUris || raw.images || raw.imageUrls || {};
+    const digital = uris.digital || uris.digital_image || uris.digitalImages || raw.digital || {};
+    const faces = Array.isArray(raw.card_faces) ? raw.card_faces : [];
+    const preferredUris = preferred === 'small'
+      ? [digital.small, uris.small, digital.normal, uris.normal, digital.large, uris.large, digital.full, uris.full]
+      : [digital.normal, uris.normal, digital.large, uris.large, digital.full, uris.full, digital.small, uris.small];
+    return firstImageUrl([direct, preferredUris, faces.map(face => getCardImage(face, preferred))]);
+  }
+
+  function formatCardText(text){
+    const source = cleanSymbols(text || '');
+    return source.split(/\n+/).map(line => {
+      let html = esc(line.trim());
+      html = html.replace(/^([A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆ0-9'’\- ]{3,})(?=\s+(?:[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆ][a-zà-ÿ]|[a-zà-ÿ]))/u, '<span class="ability-name">$1</span>');
+      html = html.replace(/\b(Shift|Evasive|Challenger|Resist|Rush|Ward|Support|Bodyguard|Singer|Vanish|Reckless|Sing Together)\b/gi, '<span class="keyword-badge">$1</span>');
+      return `<p>${html}</p>`;
+    }).join('');
+  }
+  function cleanSymbols(t){ return String(t).replace(/\[INKCOST\]|\{I\}/g,'⬡').replace(/\[EXERT\]|\{E\}/g,'↷').replace(/\[STRENGTH\]/g,'¤').replace(/\s{2,}/g,' '); }
+  function abilityText(c){ return (c.specialAbilities || []).map(a => `${a.name || ''} ${a.effect || ''}`).join('\n'); }
+  function fullName(c){ return c.fullName || [c.name, c.version].filter(Boolean).join(' - ') || c.cardName || 'Carte inconnue'; }
+  function cardKey(c){ return slug(c.id || fullName(c)); }
+  function slug(v){ return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’']/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+  function esc(v){ return String(v ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+  function escAttr(v){ return String(v ?? '').replace(/["'<>]/g, ''); }
+  function n(v){ const x=Number(v); return Number.isFinite(x) ? x : 0; }
+  function nullable(v){ const x=Number(v); return Number.isFinite(x) ? x : null; }
+  function boolValue(v){ if(v === true || v === false) return v; if(String(v).toLowerCase() === 'true') return true; if(String(v).toLowerCase() === 'false') return false; return null; }
+  function arrayify(v){ if(Array.isArray(v)) return v.filter(x=>x!==null&&x!==undefined&&String(x).trim()!==''); if(v===undefined||v===null||v==='') return []; return String(v).split(/\s*[,/·]\s*/).filter(Boolean); }
+  function strip0(v){ return String(v ?? '').trim().replace(/^0+/, '') || String(v ?? '').trim(); }
+  function normalizeSetCode(v){ const raw=String(v||'').trim().toUpperCase(); return raw ? ({ FC:'TFC', SHS:'SSK', WITW:'WHW', WIS:'WIN', WUN:'WIL' }[raw] || raw) : ''; }
+  function setLabel(c){ const code = c.setCode || c.setCodes?.[0] || ''; return code ? `${code} — ${SET_LABELS[code] || code}` : ''; }
+  function shortSetLabel(c){ return c?.setCode || c?.setCodes?.[0] || ''; }
+  function inkLabel(v){ return INK_FR[v] || v || ''; }
+  function rarityLabel(v){ const raw=String(v||''); return RARITY_FR[raw] || RARITY_FR[raw.toLowerCase()] || raw; }
+  function typeLabel(v){ if(Array.isArray(v)) return v.map(typeLabel).join(' · '); return TYPE_FR[v] || TYPE_FR[String(v||'').toLowerCase()] || v || '—'; }
+  function inkKey(v){
+    const raw=String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if(raw.includes('amber') || raw.includes('ambre')) return 'amber';
+    if(raw.includes('amethyst') || raw.includes('amet')) return 'amethyst';
+    if(raw.includes('emerald') || raw.includes('emeraude')) return 'emerald';
+    if(raw.includes('ruby') || raw.includes('rubis')) return 'ruby';
+    if(raw.includes('sapphire') || raw.includes('saphir')) return 'sapphire';
+    if(raw.includes('steel') || raw.includes('acier')) return 'steel';
+    return 'inkless';
+  }
+  function sum(arr, key){ return arr.reduce((s,x)=>s+n(x[key]),0); }
+  function mean(arr){ const a=arr.map(n).filter(Number.isFinite); return a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0; }
+  function pct(a,b){ return b ? Math.round(n(a)/n(b)*100) : 0; }
+  function round1(v){ const x=n(v); return Math.round(x*10)/10; }
+  function hexToRgba(hex, alpha=.16){
+    const clean = String(hex || '').trim().replace('#','');
+    const full = clean.length === 3 ? clean.split('').map(ch => ch + ch).join('') : clean;
+    const value = /^([0-9a-f]{6})$/i.test(full) ? full : '2f8bd9';
+    const r = parseInt(value.slice(0,2), 16);
+    const g = parseInt(value.slice(2,4), 16);
+    const b = parseInt(value.slice(4,6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  function formatBytes(bytes){ const units=['B','KB','MB']; let v=n(bytes), i=0; while(v>=1024&&i<units.length-1){v/=1024;i++;} return `${v.toFixed(v>=10||i===0?0:1)} ${units[i]}`; }
+  function deepClone(obj){ return JSON.parse(JSON.stringify(obj || {})); }
+  function deepMerge(a,b){ const out={...a}; for(const [k,v] of Object.entries(b||{})){ out[k] = v && typeof v==='object' && !Array.isArray(v) ? deepMerge(out[k]||{}, v) : v; } return out; }
+})();
+// =========================================================
+// Auth UI · Supabase
+// Version intégrée, sans fermeture accidentelle au clic extérieur
+// =========================================================
+
+function initAuthUI() {
+  const authToggle = document.getElementById('authToggle');
+  const authClose = document.getElementById('authClose');
+  const authPanel = document.getElementById('authPanel');
+
+  const authLoggedOut = document.getElementById('authLoggedOut');
+  const authLoggedIn = document.getElementById('authLoggedIn');
+
+  const authPillLabel = document.getElementById('authPillLabel');
+  const authPillState = document.getElementById('authPillState');
+
+  const emailInput = document.getElementById('authEmail');
+  const passwordInput = document.getElementById('authPassword');
+
+  const btnDiscordLogin = document.getElementById('btnDiscordLogin');
+  const btnLogin = document.getElementById('btnLogin');
+  const btnSignup = document.getElementById('btnSignup');
+  const btnLogout = document.getElementById('btnLogout');
+
+  const userDisplay = document.getElementById('userDisplay');
+  const authMessage = document.getElementById('authMessage');
+
+  if (!authPanel) return;
+
+  function openPanel() {
+    authPanel.classList.remove('auth-hidden');
+    authPanel.setAttribute('aria-hidden', 'false');
+    authToggle?.setAttribute('aria-expanded', 'true');
+  }
+
+  function closePanel() {
+    if(authPanel.classList.contains('account-auth-card')) return;
+    authPanel.classList.add('auth-hidden');
+    authPanel.setAttribute('aria-hidden', 'true');
+    authToggle?.setAttribute('aria-expanded', 'false');
+  }
+
+  function togglePanel() {
+    if(authPanel.classList.contains('account-auth-card')) return;
+    if (authPanel.classList.contains('auth-hidden')) openPanel();
+    else closePanel();
+  }
+
+  function setMessage(text = '', type = '') {
+    if (!authMessage) return;
+
+    authMessage.textContent = text;
+    authMessage.classList.remove('is-error', 'is-success');
+
+    if (type === 'error') authMessage.classList.add('is-error');
+    if (type === 'success') authMessage.classList.add('is-success');
+  }
+
+  function setLoading(isLoading) {
+    [btnDiscordLogin, btnLogin, btnSignup, btnLogout].forEach((button) => {
+      if (!button) return;
+      button.disabled = isLoading;
+      button.style.opacity = isLoading ? '0.65' : '';
+      button.style.cursor = isLoading ? 'wait' : '';
+    });
+  }
+
+  function getUserLabel(user) {
+    const meta = user?.user_metadata || {};
+    return (
+      meta.full_name ||
+      meta.global_name ||
+      meta.name ||
+      meta.user_name ||
+      meta.preferred_username ||
+      meta.custom_claims?.global_name ||
+      user?.email ||
+      'Compte connecté'
+    );
+  }
+
+  function getLoginProviderLabel(user) {
+    const provider = user?.app_metadata?.provider;
+    if (provider === 'discord') return 'Connecté avec Discord';
+    if (provider === 'email') return 'Connecté par email';
+    return 'Compte connecté';
+  }
+
+  function updateAuthUI(user) {
+    const isLoggedIn = Boolean(user);
+    const accountProfileTitle = document.getElementById('accountProfileTitle');
+    const accountProfileText = document.getElementById('accountProfileText');
+
+    authLoggedOut?.classList.toggle('auth-hidden', isLoggedIn);
+    authLoggedIn?.classList.toggle('auth-hidden', !isLoggedIn);
+
+    authToggle?.classList.toggle('is-online', isLoggedIn);
+
+    if (authPillLabel) {
+      authPillLabel.textContent = isLoggedIn ? 'Compte' : 'Connexion';
+    }
+
+    if (authPillState) {
+      authPillState.textContent = isLoggedIn ? 'Connecté' : 'Compte';
+    }
+
+    if (userDisplay) {
+      userDisplay.textContent = getUserLabel(user);
+    }
+
+    if (accountProfileTitle) {
+      accountProfileTitle.textContent = isLoggedIn ? 'Compte connecté' : 'Non connecté';
+    }
+
+    if (accountProfileText) {
+      accountProfileText.textContent = isLoggedIn
+        ? `${getLoginProviderLabel(user)} · ${getUserLabel(user)}.`
+        : 'Connectez-vous pour associer vos analyses à un compte.';
+    }
+
+    if(authPanel.classList.contains('account-auth-card')) openPanel();
+
+    if (isLoggedIn && emailInput && passwordInput) {
+      emailInput.value = '';
+      passwordInput.value = '';
+    }
+  }
+
+  async function handleDiscordLogin() {
+    try {
+      setLoading(true);
+      setMessage('Redirection vers Discord…');
+      await signInWithDiscord();
+    } catch (err) {
+      setMessage(`Connexion indisponible : ${err.message || 'Supabase semble bloqué sur ce réseau.'}`, 'error');
+      setLoading(false);
+    }
+  }
+
+  async function handleSignup() {
+    const email = emailInput?.value.trim();
+    const password = passwordInput?.value;
+
+    if (!email || !password) {
+      setMessage('Veuillez remplir les deux champs.', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage('Création du compte…');
+
+      await signUpUser(email, password);
+
+      setMessage(
+        'Compte créé. Vérifiez votre email pour confirmer votre accès.',
+        'success'
+      );
+    } catch (err) {
+      setMessage(`Erreur d’inscription : ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleLogin() {
+    const email = emailInput?.value.trim();
+    const password = passwordInput?.value;
+
+    if (!email || !password) {
+      setMessage('Veuillez remplir les deux champs.', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage('Connexion en cours…');
+
+      const data = await signInUser(email, password);
+
+      updateAuthUI(data.user);
+      setMessage('');
+      closePanel();
+    } catch (err) {
+      setMessage(`Connexion indisponible : ${err.message || 'Supabase semble bloqué sur ce réseau.'}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleLogout() {
+    try {
+      setLoading(true);
+      await signOutUser();
+
+      updateAuthUI(null);
+      setMessage('');
+      closePanel();
+    } catch (err) {
+      setMessage(`Erreur : ${err.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  authToggle?.addEventListener('click', togglePanel);
+  authClose?.addEventListener('click', closePanel);
+
+  btnDiscordLogin?.addEventListener('click', handleDiscordLogin);
+  btnSignup?.addEventListener('click', handleSignup);
+  btnLogin?.addEventListener('click', handleLogin);
+  btnLogout?.addEventListener('click', handleLogout);
+
+  [emailInput, passwordInput].forEach((input) => {
+    input?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') handleLogin();
+      if (event.key === 'Escape') closePanel();
+    });
+  });
+
+  getCurrentUser()
+    .then(updateAuthUI)
+    .catch(() => updateAuthUI(null));
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    updateAuthUI(session?.user ?? null);
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAuthUI);
+} else {
+  initAuthUI();
+}
+
+
+// =========================================================
+// App Shell · Navigation Analyse / Performances / Compte
+// =========================================================
+
+function initAppShell() {
+  const viewButtons = [...document.querySelectorAll('[data-app-view]')];
+  const appPanels = [...document.querySelectorAll('[data-app-panel]')];
+  const perfButtons = [...document.querySelectorAll('[data-performance-view]')];
+  const perfPanels = [...document.querySelectorAll('[data-performance-panel]')];
+  const authPanel = document.getElementById('authPanel');
+  const authToggle = document.getElementById('authToggle');
+
+  function closeAuthPanel() {
+    if (!authPanel || authPanel.classList.contains('account-auth-card')) return;
+    authPanel.classList.add('auth-hidden');
+    authPanel.setAttribute('aria-hidden', 'true');
+    authToggle?.setAttribute('aria-expanded', 'false');
+  }
+
+  function updateMobileBottomNav(appView = document.body.dataset.appView || 'analysis', perfView = null) {
+    const activePerf = perfView || document.body.dataset.performanceView || 'stats';
+    document.querySelectorAll('.mobile-bottom-tab').forEach((button) => {
+      const targetApp = button.dataset.appView || 'analysis';
+      const targetPerf = button.dataset.perfView || button.dataset.performanceView || '';
+      const active = targetApp === appView && (targetApp !== 'performances' || !targetPerf || targetPerf === activePerf);
+      button.classList.toggle('active', active);
+      if(active) button.setAttribute('aria-current','page');
+      else button.removeAttribute('aria-current');
+    });
+  }
+
+  function setPerformanceView(view = 'stats') {
+    const next = view === 'history' ? 'history' : 'stats';
+    document.body.dataset.performanceView = next;
+
+    perfButtons.forEach((button) => {
+      const active = button.dataset.performanceView === next;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+
+    perfPanels.forEach((panel) => {
+      const active = panel.dataset.performancePanel === next;
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+    updateMobileBottomNav(document.body.dataset.appView || 'analysis', next);
+  }
+
+  function setAppView(view = 'analysis', options = {}) {
+    const next = ['analysis', 'performances', 'account'].includes(view) ? view : 'analysis';
+
+    appPanels.forEach((panel) => {
+      const active = panel.dataset.appPanel === next;
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+
+    document.querySelectorAll('.app-nav-button[data-app-view]').forEach((button) => {
+      const active = button.dataset.appView === next;
+      button.classList.toggle('active', active);
+      if (active) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+
+    document.body.dataset.appView = next;
+
+    if (next === 'performances') {
+      setPerformanceView(options.perfView || 'stats');
+    }else{
+      updateMobileBottomNav(next, document.body.dataset.performanceView || 'stats');
+    }
+
+    if (!options.silent) {
+      closeAuthPanel();
+      if(window.matchMedia?.('(max-width:820px)')?.matches){
+        document.body.scrollTo?.({ top:0, behavior:'auto' });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      }else{
+        window.scrollTo({ top:0, behavior:'smooth' });
+      }
+    }
+  }
+
+  viewButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setAppView(button.dataset.appView, {
+        perfView: button.dataset.perfView || button.dataset.performanceView || 'stats',
+      });
+    });
+  });
+
+  perfButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      setPerformanceView(button.dataset.performanceView);
+      if(button.dataset.performanceView === 'history'){
+        refreshSavedMatches({ silent:true });
+      }
+    });
+  });
+
+  setAppView('analysis', { silent: true });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAppShell);
+} else {
+  initAppShell();
+}
+
+// =========================================================
+// V75 · Micro-interactions UI polish
+// =========================================================
+function initUiPolishV75(){
+  document.body.classList.add('ui-ready-v75');
+  const revealSelectors = [
+    '.metric-card', '.pro-card', '.chart-panel', '.stat-panel', '.cards-panel', '.timeline-panel',
+    '.performance-coach-card', '.performance-card-tile', '.mulligan-visual-card', '.matchup-breakdown-card',
+    '.deck-manager-card', '.data-quality-item', '.history-card', '.quick-insight'
+  ].join(',');
+  // V116.1 stable: no global MutationObserver and no click ripple DOM injection.
+  document.querySelectorAll(revealSelectors).forEach(el => {
+    el.dataset.uiRevealBound = '1';
+    el.classList.add('ui-reveal','is-visible');
+    el.style.transitionDelay = '';
+  });
+}
+
+
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', initUiPolishV75, { once:true });
+}else{
+  initUiPolishV75();
+}
