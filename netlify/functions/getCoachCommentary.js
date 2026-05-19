@@ -285,14 +285,22 @@ async function callGemini(model, prompt) {
           temperature: 0.75,
           topP: 0.9,
           maxOutputTokens: 220,
+          responseMimeType: "application/json",
         },
+        safetySettings: [
+          { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+        ]
       }),
     }
   );
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(`${model}: ${data?.error?.message || `HTTP ${response.status}`}`);
+    console.error(`ERREUR GEMINI BRUTE (${model}):`, JSON.stringify(data));
+    throw new Error(`${model}: ${data?.error?.message || \`HTTP ${response.status}\`}`);
   }
 
   const rawText =
