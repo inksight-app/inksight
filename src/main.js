@@ -6444,7 +6444,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     });
 
     try{
-      const response = await fetch('/.netlify/functions/getCoachCommentary', {
+      const response = await fetch('/api/getCoachCommentary', {
         method:'POST',
         headers:{ 'Content-Type':'application/json' },
         body:JSON.stringify(buildCoachCommentaryPayload(m))
