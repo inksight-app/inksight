@@ -1,12 +1,12 @@
 const DEFAULT_GEMINI_MODELS = [
   process.env.GEMINI_MODEL,
-  "gemini-2.5-flash",
-  "gemini-1.5-flash",
+  "gemini-3-flash-preview",
+  "gemini-3.1-flash-lite",
 ].filter(Boolean);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, x-goog-api-key",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
 };
@@ -197,7 +197,7 @@ function buildLocalCommentary(body = {}) {
       title: ["Défaite à décortiquer.", "Tempo à revoir.", "VOD obligatoire."],
       description: [
         "Défaite {monScore}-{scoreAdverse}. Le journal devrait aider à trouver le tour où {opponentName} prend définitivement l’ascendant.",
-        "La partie n’est pas forcément perdue au score final, mais sur l’accumulation de petites pertes de tempo. À revoir : curve, trades et fenêtres de quest.",
+        "La partie n’est pas forcément pornographique au score final, mais sur l’accumulation de petites pertes de tempo. À revoir : curve, trades et fenêtres de quest.",
       ],
     },
   };
@@ -257,16 +257,19 @@ Réponds UNIQUEMENT au format JSON valide, sans markdown, avec exactement deux c
 }
 
 async function callGemini(model, prompt) {
+  // Mise à jour de l'URL et de l'en-tête x-goog-api-key conformément à la doc officielle
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { 
+        "Content-Type": "application/json",
+        "x-goog-api-key": process.env.GEMINI_API_KEY 
+      },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.75,
-          topP: 0.9,
+          temperature: 1.0, // Recommandé à 1.0 par la doc officielle Gemini 3
           maxOutputTokens: 220,
           responseMimeType: "application/json",
         },
