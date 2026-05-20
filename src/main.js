@@ -81,6 +81,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.analysisTabs?.addEventListener('keydown', handleTabsKeydown);
     document.querySelectorAll('[data-scope]').forEach(btn => btn.addEventListener('click', () => setScope(btn.dataset.scope)));
     document.querySelectorAll('[data-card-filter]').forEach(btn => btn.addEventListener('click', () => setCardFilter(btn.dataset.cardFilter)));
+    document.addEventListener('click', handleOpponentDeckExportClick);
     [els.topQuestersSort, els.mostInkedSort, els.playTimingSort, els.challengeSort, els.timelineFilter].forEach(el => el?.addEventListener('change', renderAll));
     els.closeModal?.addEventListener('click', closeCardModal);
     els.mulliganButton?.addEventListener('click', toggleMulliganResolution);
@@ -440,6 +441,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const timeline = [];
     const loreByTurn = new Map();
     const actionByTurn = new Map();
+    const opponentDeckTracker = new Map();
 
     const frames = [...(data.frames || [])].sort((a,b) => n(a.seq) - n(b.seq));
 
@@ -515,6 +517,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     };
     recordLore(1, zoneStats(working,'myPlayer').lore, zoneStats(working,'opponent').lore);
     scanVisibleCardsForStats(working, seenCards, passiveSeenOnce);
+    scanOpponentVisibleInstances(working, opponentDeckTracker, { turn:1, zone:'initial' });
 
     for(const frame of frames){
       const actionType = frame.actionType;
@@ -528,11 +531,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         updateTurnRow(beforeOwner, working);
       }
 
-      updateActionStatsFromFrame(frame, actorOwner, seenCards, timeline, actionByTurn, actorOwner ? currentRows[actorOwner] : null, working, deckOwners, replayCardIndex);
+      updateActionStatsFromFrame(frame, actorOwner, seenCards, timeline, actionByTurn, actorOwner ? currentRows[actorOwner] : null, working, deckOwners, replayCardIndex, opponentDeckTracker);
       creditNonQuestLoreSources(frame, actorOwner, seenCards, working, deckOwners, replayCardIndex);
 
       for(const patch of frame.patch || []) applyPatch(working, patch);
       scanVisibleCardsForStats(working, seenCards, passiveSeenOnce);
+      scanOpponentVisibleInstances(working, opponentDeckTracker, { turn:n(frame.turnNumber || working.turnNumber || 1), zone:'visible' });
 
       if(isGame && [1,2].includes(beforeCurrent)){
         updateTurnRow(beforeOwner, working);
@@ -558,11 +562,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const opponentProMetrics = computeMetrics(rows.opponent, actions.filter(a => a.owner === 'opponent'));
     const inkProfiles = buildInkProfiles({ cards });
     const matchupLabel = formatMatchupLabel(inkProfiles);
+    const opponentDeckEstimate = finalizeOpponentDeckEstimate(opponentDeckTracker);
 
-    return { fileName:file.name, fileSize:file.size, data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel };
+    return { fileName:file.name, fileSize:file.size, data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate };
   }
 
-  function updateActionStatsFromFrame(frame, owner, seenCards, timeline, actionByTurn, row, snapshot, deckOwners, replayCardIndex){
+  function updateActionStatsFromFrame(frame, owner, seenCards, timeline, actionByTurn, row, snapshot, deckOwners, replayCardIndex, opponentDeckTracker=null){
     if(owner !== 'mine' && owner !== 'opponent') return;
     const taken = frame.takenAction || {};
     const type = frame.actionType;
@@ -623,12 +628,207 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }
     }
     actionByTurn.set(turn, agg);
+    if(owner === 'opponent' && timelineCard && opponentDeckTracker){
+      recordOpponentDeckInstance(opponentDeckTracker, timelineCard, { turn, zone:entryType });
+    }
     if(entryType){
       timeline.push({
         owner, type:entryType, turn, icon, title, detail, rawType:type, cardName:sourceName,
         cardKey:timelineCard ? cardKey(timelineCard) : '', card:timelineCard,
         handCount:zoneStats(snapshot, owner === 'mine' ? 'myPlayer' : 'opponent').hand
       });
+    }
+  }
+
+
+  function scanOpponentVisibleInstances(snapshot, tracker, context={}){
+    if(!tracker || !snapshot?.opponent) return;
+    const source = snapshot.opponent;
+    const visibleZones = ['field','characters','locations','items','discard','revealedCards','play','banished','banish','exile','inkwell'];
+    visibleZones.forEach(zoneKey => {
+      const value = source?.[zoneKey];
+      if(!value) return;
+      extractCards(value, []).forEach(card => recordOpponentDeckInstance(tracker, card, { ...context, zone:zoneKey }));
+    });
+  }
+
+  function cardCopyInstanceId(cardLike){
+    const normalized = normalizeCardReference(cardLike || {});
+    const raw = cardLike || {};
+    return firstString([
+      normalized.instanceId,
+      normalized.cardInstanceId,
+      raw.instanceId,
+      raw.cardInstanceId,
+      raw.card?.instanceId,
+      raw.card?.cardInstanceId,
+      raw.raw?.instanceId,
+      raw.raw?.cardInstanceId
+    ]);
+  }
+
+  function recordOpponentDeckInstance(tracker, cardLike, context={}){
+    if(!tracker || !cardLike || isPlaceholderCard(cardLike)) return;
+    const hydrated = hydrateCard(cardLike);
+    const key = statCardKey(hydrated) || cardKey(hydrated);
+    const name = cleanCardName(fullName(hydrated));
+    if(!key || !name || name === 'Carte inconnue') return;
+    const instanceId = cardCopyInstanceId(hydrated) || cardCopyInstanceId(cardLike) || `fallback:${key}`;
+    const existing = tracker.get(key) || {
+      key,
+      cardKey:key,
+      card:{ ...hydrated },
+      cardName:name,
+      subtitle:cardSubtitle(hydrated),
+      instanceIds:new Set(),
+      fallbackOnly:true,
+      zones:new Set(),
+      firstSeenTurn:null
+    };
+    existing.card = mergeCard(existing.card || {}, hydrated);
+    existing.cardName = cleanCardName(fullName(existing.card)) || name;
+    existing.subtitle = cardSubtitle(existing.card);
+    existing.instanceIds.add(String(instanceId));
+    if(!String(instanceId).startsWith('fallback:')) existing.fallbackOnly = false;
+    if(context.zone) existing.zones.add(String(context.zone));
+    const turn = n(context.turn);
+    if(turn && (!existing.firstSeenTurn || turn < existing.firstSeenTurn)) existing.firstSeenTurn = turn;
+    tracker.set(key, existing);
+  }
+
+  function cardSubtitle(card){
+    const name = cleanCardName(card?.name || '');
+    const version = cleanCardName(card?.version || card?.subtitle || card?.title || '');
+    const full = cleanCardName(fullName(card || {}));
+    if(version) return version;
+    if(name && full.startsWith(`${name} - `)) return full.slice(name.length + 3).trim();
+    return '';
+  }
+
+  function finalizeOpponentDeckEstimate(tracker){
+    const rows = [...(tracker || new Map()).values()].map(item => {
+      const instanceIds = [...(item.instanceIds || [])].filter(Boolean);
+      const uniqueCopies = instanceIds.length || 1;
+      const estimatedCopies = Math.max(1, Math.min(4, uniqueCopies));
+      const card = item.card || {};
+      const displayName = cleanCardName(fullName(card) || item.cardName || 'Carte inconnue');
+      return {
+        key:item.key,
+        cardKey:item.key,
+        card,
+        cardName:displayName,
+        subtitle:cardSubtitle(card),
+        estimatedCopies,
+        uniqueCopies,
+        instanceIds,
+        fallbackOnly:!!item.fallbackOnly,
+        seenZones:[...(item.zones || [])],
+        firstSeenTurn:item.firstSeenTurn || null,
+        type:card.type || card.cardType || '',
+        colors:card.colors || [],
+        image:card.image || '',
+        imageSmall:card.imageSmall || ''
+      };
+    }).filter(row => row.cardName && row.cardName !== 'Carte inconnue');
+    rows.sort((a,b) => (n(b.estimatedCopies) - n(a.estimatedCopies)) || (n(a.firstSeenTurn || 999) - n(b.firstSeenTurn || 999)) || a.cardName.localeCompare(b.cardName));
+    return { cards:rows, totalConfirmedCards:sum(rows, 'estimatedCopies'), exportText:buildOpponentDeckExportText(rows) };
+  }
+
+  function mergeOpponentDeckEstimates(estimates){
+    const byKey = new Map();
+    (estimates || []).forEach((estimate, gameIndex) => {
+      (estimate?.cards || []).forEach(row => {
+        const key = row.cardKey || row.key || statCardKey(row.card) || slug(row.cardName || '');
+        if(!key) return;
+        const existing = byKey.get(key) || {
+          key,
+          cardKey:key,
+          card:row.card || { fullName:row.cardName || '' },
+          cardName:row.cardName || cleanCardName(fullName(row.card || {})),
+          subtitle:row.subtitle || cardSubtitle(row.card || {}),
+          estimatedCopies:0,
+          uniqueCopies:0,
+          instanceIds:[],
+          fallbackOnly:true,
+          seenZones:new Set(),
+          firstSeenTurn:null,
+          type:row.type || row.card?.type || '',
+          colors:row.colors || row.card?.colors || [],
+          image:row.image || row.card?.image || '',
+          imageSmall:row.imageSmall || row.card?.imageSmall || ''
+        };
+        existing.card = mergeCard(existing.card || {}, row.card || {});
+        existing.cardName = row.cardName || cleanCardName(fullName(existing.card));
+        existing.subtitle = row.subtitle || cardSubtitle(existing.card);
+        existing.estimatedCopies = Math.max(n(existing.estimatedCopies), n(row.estimatedCopies));
+        existing.uniqueCopies = Math.max(n(existing.uniqueCopies), n(row.uniqueCopies || row.estimatedCopies));
+        const ids = Array.isArray(row.instanceIds) && row.instanceIds.length ? row.instanceIds : [`fallback:${key}`];
+        ids.forEach(id => {
+          const text = String(id || '').trim();
+          if(text) existing.instanceIds.push(`g${gameIndex + 1}:${text}`);
+          if(text && !text.startsWith('fallback:')) existing.fallbackOnly = false;
+        });
+        (row.seenZones || []).forEach(zone => existing.seenZones.add(zone));
+        const turn = n(row.firstSeenTurn);
+        if(turn && (!existing.firstSeenTurn || turn < existing.firstSeenTurn)) existing.firstSeenTurn = turn;
+        byKey.set(key, existing);
+      });
+    });
+    const rows = [...byKey.values()].map(row => ({
+      ...row,
+      estimatedCopies:Math.max(1, Math.min(4, n(row.estimatedCopies))),
+      uniqueCopies:Math.max(1, n(row.uniqueCopies)),
+      seenZones:[...row.seenZones],
+      fallbackOnly:!!row.fallbackOnly
+    })).sort((a,b) => (n(b.estimatedCopies) - n(a.estimatedCopies)) || (n(a.firstSeenTurn || 999) - n(b.firstSeenTurn || 999)) || a.cardName.localeCompare(b.cardName));
+    return { cards:rows, totalConfirmedCards:sum(rows, 'estimatedCopies'), exportText:buildOpponentDeckExportText(rows) };
+  }
+
+  function buildOpponentDeckExportText(cards){
+    return (cards || [])
+      .filter(card => n(card.estimatedCopies) > 0 && card.cardName && card.cardName !== 'Carte inconnue')
+      .map(card => `${Math.min(4, n(card.estimatedCopies))} ${cleanCardName(card.cardName)}`)
+      .join('\n');
+  }
+
+  async function copyTextToClipboard(text){
+    if(navigator.clipboard?.writeText){
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  }
+
+  async function handleOpponentDeckExportClick(event){
+    const button = event.target?.closest?.('[data-export-opponent-deck]');
+    if(!button) return;
+    const estimate = getWorkingData()?.opponentDeckEstimate;
+    const text = estimate?.exportText || buildOpponentDeckExportText(estimate?.cards || []);
+    if(!text.trim()) return;
+    const original = button.textContent;
+    button.disabled = true;
+    try{
+      await copyTextToClipboard(text);
+      button.textContent = `Decklist copiée · ${n(estimate?.totalConfirmedCards)} cartes`;
+      button.classList.add('copied');
+    }catch(err){
+      console.warn(err);
+      button.textContent = 'Copie impossible';
+    }finally{
+      window.setTimeout(() => {
+        button.disabled = false;
+        button.textContent = original || 'Copier la decklist partielle';
+        button.classList.remove('copied');
+      }, 1800);
     }
   }
 
@@ -1505,6 +1705,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const cards = [...allCards.values()];
     const inkProfiles = buildInkProfiles({ cards });
     const matchupLabel = formatMatchupLabel(inkProfiles);
+    const opponentDeckEstimate = mergeOpponentDeckEstimates(sessions.map(s => s.opponentDeckEstimate));
     const wins = sessions.filter(s=>s.isWin).length;
     const losses = sessions.length - wins;
     const otpStats = computePlayDrawStats(sessions);
@@ -1532,6 +1733,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       actionSeries:first.actionSeries,
       inkProfiles,
       matchupLabel,
+      opponentDeckEstimate,
       first,
       last,
       matchMeta:state.matchMeta
@@ -1578,6 +1780,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       actionSeries:session.actionSeries,
       inkProfiles,
       matchupLabel:session.matchupLabel || formatMatchupLabel(inkProfiles),
+      opponentDeckEstimate:session.opponentDeckEstimate || finalizeOpponentDeckEstimate(new Map()),
       first:session,
       last:session
     };
@@ -7157,17 +7360,55 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderCards(){
     const m = getWorkingData();
-    if(!m){ els.cardsSubtitle.textContent='Importez un replay pour afficher les cartes détectées.'; els.cardsGrid.innerHTML='<div class="empty-line">Aucune carte détectée pour le moment.</div>'; return; }
+    if(!m){
+      els.cardsSubtitle.textContent='Importez un replay pour afficher les cartes détectées.';
+      els.cardsGrid.innerHTML='<div class="empty-line">Aucune carte détectée pour le moment.</div>';
+      return;
+    }
     const global = isGlobalView();
+    const isOpponent = state.cardFilter === 'opponent';
+    const estimate = m.opponentDeckEstimate || finalizeOpponentDeckEstimate(new Map());
+    const estimateByKey = new Map((estimate.cards || []).map(row => [row.cardKey || row.key, row]));
     let cards = state.cardFilter === 'all' ? m.cards : cardsForScope(m, state.cardFilter);
-    cards = cards.sort((a,b)=>(b.seen||0)-(a.seen||0) || fullName(a).localeCompare(fullName(b))).slice(0,160);
-    const scopeLabel = state.cardFilter === 'opponent' ? 'adverse(s)' : state.cardFilter === 'mine' ? 'de votre deck' : 'détectée(s)';
-    els.cardsSubtitle.textContent = global ? `${cards.length} carte(s) ${scopeLabel} sur l’ensemble du BO3.` : `${cards.length} carte(s) détectée(s).`;
-    els.cardsGrid.innerHTML = cards.map(c => {
+    cards = cards.sort((a,b)=>{
+      if(isOpponent){
+        const ea = estimateByKey.get(statCardKey(a) || cardKey(a));
+        const eb = estimateByKey.get(statCardKey(b) || cardKey(b));
+        return (n(eb?.estimatedCopies) - n(ea?.estimatedCopies)) || (n(b.seen) - n(a.seen)) || fullName(a).localeCompare(fullName(b));
+      }
+      return (b.seen||0)-(a.seen||0) || fullName(a).localeCompare(fullName(b));
+    }).slice(0,160);
+    const scopeLabel = isOpponent ? 'adverse(s)' : state.cardFilter === 'mine' ? 'de votre deck' : 'détectée(s)';
+    if(isOpponent && estimate.cards?.length){
+      els.cardsSubtitle.textContent = `${cards.length} carte(s) adverse(s) vue(s) · ${n(estimate.totalConfirmedCards)} copie(s) confirmée(s) minimum.`;
+    }else{
+      els.cardsSubtitle.textContent = global ? `${cards.length} carte(s) ${scopeLabel} sur l’ensemble du BO3.` : `${cards.length} carte(s) détectée(s).`;
+    }
+    const exportPanel = isOpponent && estimate.cards?.length ? `
+      <div class="opponent-deck-export">
+        <div>
+          <strong>Decklist adverse partielle</strong>
+          <span>${esc(n(estimate.totalConfirmedCards))} carte(s) confirmée(s) minimum · basée sur les exemplaires visibles.</span>
+        </div>
+        <button type="button" class="ghost-button opponent-export-button" data-export-opponent-deck>Copier la decklist partielle</button>
+      </div>` : '';
+    const cardHtml = cards.map(c => {
+      const key = statCardKey(c) || cardKey(c);
+      const estimateRow = isOpponent ? estimateByKey.get(key) : null;
       const mainMeta = [rarityLabel(c.rarity), shortSetLabel(c), `#${c.number || '—'}`].filter(Boolean).join(' · ');
-      return `<button type="button" class="card-mini card-mini-v81" data-card-key="${esc(cardKey(c))}">${cardThumbHtml(c, 'card-mini-thumb')}<div class="card-mini-copy"><h3>${esc(fullName(c))}</h3><p>${esc(mainMeta)}</p><div class="mini-meta"><span class="meta-chip">Vue ${n(c.seen)}</span><span class="meta-chip">Jouée ${n(c.played)}</span><span class="meta-chip">Encrée ${n(c.inked)}</span></div></div></button>`;
+      const estimatedChip = estimateRow ? `<span class="meta-chip meta-chip-estimate">Estimé ${esc(estimateRow.estimatedCopies)}${estimateRow.fallbackOnly ? '+' : ''}</span>` : '';
+      const zoneChip = estimateRow?.seenZones?.length ? `<span class="meta-chip">Vu ${esc(formatSeenZones(estimateRow.seenZones).slice(0, 24))}</span>` : '';
+      return `<button type="button" class="card-mini card-mini-v81" data-card-key="${esc(cardKey(c))}">${cardThumbHtml(c, 'card-mini-thumb')}<div class="card-mini-copy"><h3>${esc(fullName(c))}</h3><p>${esc(mainMeta)}</p><div class="mini-meta">${estimatedChip}<span class="meta-chip">Vue ${n(c.seen)}</span><span class="meta-chip">Jouée ${n(c.played)}</span><span class="meta-chip">Encrée ${n(c.inked)}</span>${zoneChip}</div></div></button>`;
     }).join('');
+    els.cardsGrid.innerHTML = exportPanel + cardHtml;
     bindCardButtons();
+  }
+
+  function formatSeenZones(zones){
+    const labels = {
+      field:'board', characters:'board', locations:'lieu', items:'objet', discard:'défausse', revealedCards:'révélée', play:'jouée', banished:'bannie', banish:'bannie', exile:'exilée', inkwell:'encre', ink:'encre', initial:'vue', visible:'vue', play:'jouée', quest:'quête', challenge:'défi', ability:'capacité', move:'déplacement'
+    };
+    return [...new Set((zones || []).map(z => labels[z] || z).filter(Boolean))].join(', ');
   }
 
   function normalizeTimelineRows(m){
