@@ -41,8 +41,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.documentElement.style.setProperty('--my', '18%');
     const pointerAura = { x: 50, y: 18, tx: 50, ty: 18, raf: 0 };
     const applyPointerAura = () => {
-      pointerAura.x += (pointerAura.tx - pointerAura.x) * 0.14;
-      pointerAura.y += (pointerAura.ty - pointerAura.y) * 0.14;
+      pointerAura.x += (pointerAura.tx - pointerAura.x) * 0.09;
+      pointerAura.y += (pointerAura.ty - pointerAura.y) * 0.09;
       document.documentElement.style.setProperty('--mx', `${pointerAura.x.toFixed(2)}%`);
       document.documentElement.style.setProperty('--my', `${pointerAura.y.toFixed(2)}%`);
       if(Math.abs(pointerAura.tx - pointerAura.x) > 0.05 || Math.abs(pointerAura.ty - pointerAura.y) > 0.05){
@@ -6370,11 +6370,30 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return document.getElementById('matchReadCopy') || els.coachText || null;
   }
 
-  function setMatchReadDom({ title, description, text, badge }){
+  function getMatchReadSourceEl(){
+    const copyEl = getMatchReadCopyEl();
+    if(!copyEl) return null;
+    let sourceEl = document.getElementById('matchReadSource');
+    if(!sourceEl){
+      sourceEl = document.createElement('small');
+      sourceEl.id = 'matchReadSource';
+      sourceEl.className = 'match-read-source';
+      copyEl.insertAdjacentElement('afterend', sourceEl);
+    }
+    return sourceEl;
+  }
+
+  function setMatchReadDom({ title, description, text, badge, sourceLine }){
     const titleEl = getMatchReadTitleEl();
     const copyEl = getMatchReadCopyEl();
+    const sourceEl = getMatchReadSourceEl();
     if(titleEl) titleEl.textContent = title || 'Lecture du match';
     if(copyEl) copyEl.textContent = description || text || 'Analyse indisponible pour ce match.';
+    if(sourceEl){
+      const ref = String(sourceLine || '').trim();
+      sourceEl.textContent = ref;
+      sourceEl.hidden = !ref;
+    }
     if(els.coachConfidence) els.coachConfidence.textContent = badge || 'Coach';
   }
 
@@ -6468,10 +6487,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if(state.coachCommentarySeq !== seq || state.coachCommentaryPendingKey !== key) return;
+      const sourceLabel = String(data?.source || '').trim();
       const commentary = {
         title:String(data?.title || '').trim() || fallbackNarrative?.title || 'Lecture du match',
         description:String(data?.description || data?.text || '').trim() || fallbackNarrative?.description || fallbackNarrative?.text || 'Analyse indisponible pour ce match.',
-        badge:data?.source === 'local' ? 'Coach local' : 'Coach IA'
+        sourceLine:String(data?.sourceLine || '').trim(),
+        badge:String(data?.badge || '').trim() || (sourceLabel ? (sourceLabel.includes('Coach DB') ? 'Coach DB' : sourceLabel) : 'Coach')
       };
       state.coachCommentaryCache?.set(key, commentary);
       setMatchReadDom(commentary);
@@ -6480,7 +6501,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(state.coachCommentarySeq !== seq || state.coachCommentaryPendingKey !== key) return;
       const fallback = {
         title:fallbackNarrative?.title || 'Diagnostic local.',
-        description:fallbackNarrative?.description || fallbackNarrative?.text || 'Le coach IA est indisponible, mais le diagnostic local reste actif pour ce match.',
+        description:fallbackNarrative?.description || fallbackNarrative?.text || 'Le coach est indisponible, mais le diagnostic local reste actif pour ce match.',
+        sourceLine:fallbackNarrative?.sourceLine || '',
         badge:fallbackNarrative?.badge || 'Coach local'
       };
       state.coachCommentaryCache?.set(key, fallback);
