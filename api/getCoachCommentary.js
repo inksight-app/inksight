@@ -80,54 +80,55 @@ function buildLocalCommentary(body = {}) {
   const v = getBodyContext(body);
   const seed = [v.monScore, v.scoreAdverse, v.nbTours, v.inkFloat, v.toursTopDeck, v.loreFromLocations, v.topQuester, v.opponentName].join("|");
 
+  // Fallbacks mis à jour avec un ton plus agressif/commentateur
   const pools = {
     perfectWin: {
-      title: ["Intouchable.", "No match.", "Board verrouillé."],
-      description: ["Un vrai {monScore}-0 des familles. {opponentName} a regardé votre board partir en aventure sans jamais trouver le bouton pause.", "Card, Ink et Lore Advantage verrouillés. Même pas besoin de top deck : la game était pliée tour {nbTours}."]
+      title: ["CLIMATISATION TOTALE !", "UNE MASTERCLASS ABSOLUE.", "FERMETURE DE LA BOUTIQUE."],
+      description: ["C'est un {monScore}-0 clinique ! {opponentName} a regardé le match depuis les tribunes pendant que tu roulais sur le board. Une boucherie tactique en {nbTours} tours, emballez c'est pesé !"]
     },
     stompWin: {
-      title: ["Promenade de santé.", "Ink et Lore Advantage.", "Scoop mental."],
-      description: ["Victoire {monScore}-{scoreAdverse} en {nbTours} tours. {topQuester} a porté la clock pendant que {opponentName} cherchait encore son plan de jeu."]
+      title: ["PROMENADE DE SANTÉ.", "CASSAGE DE REINS EN RÈGLE.", "SCOOP MENTAL."],
+      description: ["Victoire écrasante {monScore}-{scoreAdverse}. {topQuester} a porté l'équipe pendant que {opponentName} cherchait encore comment jouer. Il va falloir de la glace pour ces chevilles !"]
     },
     cleanWin: {
-      title: ["Victoire solide.", "Plan exécuté.", "Travail propre."],
-      description: ["Victoire {monScore}-{scoreAdverse}. Le plan {pace} a tenu : tu as converti tes ressources en lore sans laisser trop de fenêtres à {opponentName}."]
+      title: ["TRAVAIL DE PRO.", "PROPRE, NET ET SANS BAVURE.", "LE PLAN S'EST DÉROULÉ SANS ACCROC."],
+      description: ["Une belle victoire {monScore}-{scoreAdverse}. Tu as imposé ton rythme {pace} et {opponentName} n'a jamais pu respirer. Les ressources ont été converties en caviar de lore !"]
     },
     concedeWin: {
-      title: ["Scoop détecté.", "Game écourtée.", "Il a lâché."],
-      description: ["Victoire avant les 20 lore : le score finit à {monScore}-{scoreAdverse}, mais le replay indique que la partie est gagnée. Probable scoop ou état de board devenu ingérable."]
+      title: ["ABANDON DANS LA DOULEUR !", "IL A JETÉ L'ÉPONGE.", "SCOOP DÉTECTÉ."],
+      description: ["Victoire par K.O. technique avant les 20 lore. Le score s'arrête à {monScore}-{scoreAdverse}, {opponentName} a préféré fuir le carnage plutôt que de subir le lethal."]
     },
     closeWin: {
-      title: ["Photo-finish.", "Lethal sur le fil.", "La course au Lore."],
-      description: ["Victoire {monScore}-{scoreAdverse} au tour {nbTours}. Une vraie course au lethal : un mauvais trade et la game pouvait basculer."]
+      title: ["SUR LE FIL DU RASOIR !", "PHOTO-FINISH CARDIAQUE !", "QUEL SPRINT FINAL !"],
+      description: ["Victoire à l'arrachée {monScore}-{scoreAdverse} ! Une vraie course au lethal au tour {nbTours}. Tu as fait transpirer le stade, mais le mental a tenu bon !"]
     },
     closeLoss: {
-      title: ["Si proche du but...", "À un lore près.", "Le seum du lethal."],
-      description: ["Défaite {monScore}-{scoreAdverse}. Il manquait presque rien : la VOD doit surtout retrouver le tour où la course au lore bascule."]
+      title: ["LE SEUM EST TOTAL.", "À UN CHEVEU DE LA GLOIRE.", "CRUEL, SI CRUEL..."],
+      description: ["Défaite amère {monScore}-{scoreAdverse}. Il s'en est fallu de rien, juste d'un mauvais trade ou d'une mauvaise pioche. La VOD va être douloureuse à regarder !"]
     },
     stompLoss: {
-      title: ["Sortie de route.", "Aïe, le rouleau compresseur.", "Brick suspect."],
-      description: ["Défaite {monScore}-{scoreAdverse}. {opponentName} a pris le Lore Advantage instantanément et tu n’as jamais vraiment récupéré le board."]
+      title: ["UNE VRAIE BOUCHERIE...", "SORTIE DE ROUTE MONUMENTALE.", "LE ROULEAU COMPRESSEUR."],
+      description: ["Défaite {monScore}-{scoreAdverse}. On ne va pas se mentir, tu t'es fait ouvrir en deux. {opponentName} a pris le contrôle direct et tu es resté dans les cordes tout le match."]
     },
     topDeck: {
-      title: ["Top deck mode.", "Asphyxie totale.", "Page blanche."],
-      description: ["Tu as passé {toursTopDeck} tours en main vide ou quasi vide. Perdre le Card Advantage comme ça transforme chaque pioche en prière."]
+      title: ["LE DÉSERT TACTIQUE.", "PRIÈRE ET TOP DECK.", "PLUS UNE GOUTTE D'ENCRE."],
+      description: ["Passer {toursTopDeck} tours la main vide, c'est du suicide ! Perdre l'avantage des cartes t'a transformé en spectateur de ta propre défaite."]
     },
     inkLeak: {
-      title: ["Fuite d’encre.", "Tempo perdu.", "Curve en grève."],
-      description: ["{inkFloat} encres flottées, c’est beaucoup trop de ressources non converties. À Lorcana, l’Ink Advantage ne sert à rien si la curve ne suit pas."]
+      title: ["LA FUITE D'ENCRE.", "TEMPÊTE DANS UN VERRE D'EAU.", "GASPILLAGE TOTAL."],
+      description: ["{inkFloat} encres flottées ! C'est inadmissible à ce niveau. L'adversaire doit bien rigoler face à autant de ressources jetées par la fenêtre."]
     },
     passiveLore: {
-      title: ["L’immobilier paie.", "Lore passif destructeur.", "Start-of-turn rentable."],
-      description: ["Tes lieux ont généré {loreFromLocations} lore passif. Pendant que l’adversaire gérait les personnages, l’immobilier faisait avancer le lethal tout seul."]
+      title: ["LA RENTE IMMOBILIÈRE !", "LORE PASSIF, DÉGÂTS ACTIFS.", "L'INSPECTEUR DES IMPÔTS."],
+      description: ["Tes lieux ont rapporté {loreFromLocations} lore sans rien faire ! Pendant que {opponentName} s'excitait sur tes personnages, la rente tombait toute seule. Brillant !"]
     },
     control: {
-      title: ["Bataille de tranchées.", "Guerre d’usure.", "Attrition totale."],
-      description: ["{nbTours} tours, ça sent le match Control. La partie s’est jouée sur l’attrition, le Card Advantage et la capacité à trouver le dernier moteur de lore."]
+      title: ["DANS LES TRANCHÉES.", "GUERRE D'USURE.", "UN MARATHON MENTAL."],
+      description: ["{nbTours} tours de pure souffrance mentale ! Un match ultra lent où chaque décision comptait. Le genre de partie qui finit sous aspirine."]
     },
     defaultLoss: {
-      title: ["Défaite à décortiquer.", "Tempo à revoir.", "VOD obligatoire."],
-      description: ["Défaite {monScore}-{scoreAdverse}. Le journal devrait aider à trouver le tour où {opponentName} prend définitivement l’ascendant."]
+      title: ["RÉVEIL DOULOUREUX.", "RETOUR À L'ENTRAÎNEMENT.", "CIRCULEZ, Y'A RIEN À VOIR."],
+      description: ["Défaite {monScore}-{scoreAdverse}. Il va falloir analyser la VOD parce que là, {opponentName} t'a clairement donné une leçon de rythme."]
     },
   };
 
@@ -155,35 +156,33 @@ function buildLocalCommentary(body = {}) {
 function buildPrompt(body = {}) {
   const v = getBodyContext(body);
   return `
-Tu es un coach eSport Lorcana sarcastique, piquant, mais très expert.
-Tu maîtrises la théorie des ressources : Card Advantage, Ink Advantage, Tempo, Curve, Lethal, Top deck, Lore passif, Attrition.
+Tu es un commentateur d'e-sport et de sport légendaire, connu pour tes punchlines incroyables, ton sarcasme, tes hyperboles et ton style très direct (façon commentateur de football très excité).
+Tu dois analyser un match du jeu de cartes Lorcana en te basant sur les statistiques ci-dessous.
 
-Analyse ce match :
+RÈGLES STRICTES DE GÉNÉRATION :
+1. TITRE ("title") : Donne un titre au match. Il DOIT être agressif, hyper accrocheur. Soit ultra-flatteur et second degré si j'ai dominé, soit piquant, sarcastique et moqueur si j'ai perdu ou mal joué. (1 ligne max).
+2. ANALYSE ("description") : Un résumé ultra nerveux. Va droit au but. Utilise du vocabulaire de commentateur sportif (ex: 'masterclass', 'il a fermé la boutique', 'clim', 'cassé les reins', 'caviar', 'boucherie', 'dans les cordes'). Fais une remarque sur mon adversaire (${v.opponentName}).
+3. LONGUEUR : Le champ "description" NE DOIT JAMAIS faire plus de 3 ou 4 phrases courtes. Ne coupe pas tes phrases.
+4. FORMAT : Réponds UNIQUEMENT au format JSON valide. N'ajoute AUCUN texte avant ou après le JSON. Utilise exactement les clés "title" et "description".
+
+DONNÉES DU MATCH À COMMENTER :
+- Mon Résultat : ${v.isWin ? "Victoire" : "Défaite"} (${v.monScore} à ${v.scoreAdverse})
 - Adversaire : ${v.opponentName}
-- Format : ${v.format}
-- Deck : ${v.deckName}
-- Matchup : ${v.matchupLabel}
+- Format : ${v.format}, Deck : ${v.deckName}, Matchup : ${v.matchupLabel}
 - Départ : ${v.otp}
-- Score : ${v.monScore} à ${v.scoreAdverse}
-- Résultat : ${v.isWin ? "victoire" : "défaite"}
-- Durée : ${v.nbTours} tours
-- Rythme probable : ${v.pace}
-- Cartes mulliganées : ${v.nbMulligan}
-- Encre flottée : ${v.inkFloat}
-- Tours en main vide : ${v.toursTopDeck}
-- Carte MVP : ${v.topQuester}
-- Carte la plus encrée : ${v.topInkedCard} (${v.topInkedCount}x)
-- Carte la plus jouée : ${v.topPlayedCard} (${v.topPlayedCount}x)
-- Lore passif des Lieux : ${v.loreFromLocations}
-
-Consigne de ton :
-Fais une vanne piquante mais pas insultante sur le pseudo de l'adversaire ou sur mes erreurs. Reste constructif et pro TCG.
-Réponds UNIQUEMENT au format JSON valide, sans markdown, avec exactement deux clés: "title" et "description".
+- Durée : ${v.nbTours} tours (Rythme probable : ${v.pace})
+- Cartes mulliganées au départ : ${v.nbMulligan}
+- Encre gaspillée (flottée) : ${v.inkFloat}
+- Tours passés avec la main vide (Top deck) : ${v.toursTopDeck}
+- Ma carte MVP : ${v.topQuester}
+- Ma carte la plus encrée : ${v.topInkedCard} (${v.topInkedCount}x)
+- Ma carte la plus jouée : ${v.topPlayedCard} (${v.topPlayedCount}x)
+- Lore passif généré par mes Lieux : ${v.loreFromLocations}
 `.trim();
 }
 
 async function callGroq(prompt) {
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  const response = await fetch("[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
@@ -192,7 +191,7 @@ async function callGroq(prompt) {
     body: JSON.stringify({
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
+      temperature: 0.8, // Température un peu plus haute pour plus de "folie" et créativité dans le commentaire
       response_format: { type: "json_object" }
     })
   });
@@ -205,11 +204,12 @@ async function callGroq(prompt) {
 
   const rawText = data?.choices?.[0]?.message?.content || "";
   if (!rawText) throw new Error("Empty Groq response.");
+  
   const parsed = extractFirstJsonObject(rawText);
 
   return {
-    title: clampText(parsed.title, "Lecture du match", 60),
-    description: clampText(parsed.description, "Analyse indisponible.", 420),
+    title: clampText(parsed.title, "Analyse du match", 100), // Limite augmentée pour laisser de la place aux titres excentriques
+    description: clampText(parsed.description, "Analyse indisponible.", 400), // La limite en dur est maintenue en filet de sécurité
     source: "Groq Llama 3",
   };
 }
