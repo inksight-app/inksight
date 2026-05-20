@@ -198,7 +198,6 @@ function buildLocalCommentary(body = {}) {
     }
   };
 
-  // Logique de triage hyper détaillée selon les variables
   let scenario = pools.defaultWin;
 
   if (v.isWin) {
@@ -216,7 +215,6 @@ function buildLocalCommentary(body = {}) {
     else scenario = pools.defaultLoss;
   }
 
-  // Override Control flavor pour les games très longues
   if (v.nbTours >= 13 && Math.random() > 0.6) {
     scenario = pools.control;
   }
@@ -230,48 +228,42 @@ function buildLocalCommentary(body = {}) {
   };
 }
 
-function buildPrompt(body = {}) {
-  const v = getBodyContext(body);
-  return `
-Tu es un coach eSport Lorcana sarcastique, piquant, mais très expert.
-Tu maîtrises la théorie des ressources : Card Advantage, Ink Advantage, Tempo, Curve, Lethal, Top deck, Lore passif, Attrition.
-
-Analyse ce match :
-- Adversaire : ${v.opponentName}
-- Format : ${v.format}
-- Deck : ${v.deckName}
-- Matchup : ${v.matchupLabel}
-- Départ : ${v.otp}
-- Score : ${v.monScore} à ${v.scoreAdverse}
-- Résultat : ${v.isWin ? "victoire" : "défaite"}
-- Durée : ${v.nbTours} tours
-- Rythme probable : ${v.pace}
-- Cartes mulliganées : ${v.nbMulligan}
-- Encre flottée : ${v.inkFloat}
-- Tours en main vide : ${v.toursTopDeck}
-- Carte MVP : ${v.topQuester}
-- Carte la plus encrée : ${v.topInkedCard} (${v.topInkedCount}x)
-- Carte la plus jouée : ${v.topPlayedCard} (${v.topPlayedCount}x)
-- Lore passif des Lieux : ${v.loreFromLocations}
-
-Consigne de ton :
-Fais une vanne piquante mais pas insultante sur le pseudo de l'adversaire ou sur mes erreurs. Reste constructif et pro TCG.
-Réponds UNIQUEMENT au format JSON valide, sans markdown, avec exactement deux clés: "title" et "description".
-`.trim();
+function buildSystemPrompt() {
+  return `Tu es un commentateur eSport Lorcana légendaire et trash-talker.
+RÈGLES STRICTES ET ABSOLUES :
+1. FORMAT : Renvoie UNIQUEMENT un objet JSON valide : {"title": "...", "description": "..."}.
+2. TITLE : Une punchline agressive de 3 à 5 mots MAXIMUM, TOUT EN MAJUSCULES (ex: "CLIMATISATION TOTALE", "LE ROULEAU COMPRESSEUR", "CASSAGE DE REINS").
+3. DESCRIPTION : MAXIMUM 2 PHRASES (moins de 150 caractères au total). Va droit au but ! L'interface bug si c'est trop long.
+4. TON : Sarcasme pur, jargon TCG (Card Advantage, Tempo, Top Deck, Lethal). INTERDICTION formelle d'être poli (jamais de "Félicitations", "Cependant", ou "Bien joué"). Sois brutal, drôle et sans pitié.`;
 }
 
-async function callGroq(prompt) {
- // CE QU'IL FAUT METTRE (LA CORRECTION) :
+function buildUserPrompt(body = {}) {
+  const v = getBodyContext(body);
+  return `Analyse ce match de Lorcana et génère le JSON :
+- Résultat : ${v.isWin ? "Victoire" : "Défaite"} ${v.monScore} à ${v.scoreAdverse} contre ${v.opponentName}.
+- Durée : ${v.nbTours} tours. Rythme : ${v.pace}.
+- Ma carte MVP : ${v.topQuester}.
+- Stats notables : ${v.nbMulligan} cartes mulliganées, ${v.inkFloat} encre gaspillée (flottée), ${v.loreFromLocations} lore passif des lieux.`;
+}
+
+async function callGroq(body) {
+  const systemContent = buildSystemPrompt();
+  const userContent = buildUserPrompt(body);
+  // CE QU'IL FAUT METTRE (LA CORRECTION) :
 const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
+
+   method: "POST",
     headers: {
       "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
       model: "llama-3.3-70b-versatile",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
+      messages: [
+        { role: "system", content: systemContent },
+        { role: "user", content: userContent }
+      ],
+      temperature: 0.6,
       response_format: { type: "json_object" }
     })
   });
@@ -288,8 +280,8 @@ const response = await fetch("https://api.groq.com/openai/v1/chat/completions", 
 
   return {
     title: clampText(parsed.title, "Lecture du match", 60),
-    description: clampText(parsed.description, "Analyse indisponible.", 420),
-    source: "Groq Llama 3",
+    description: clampText(parsed.description, "Analyse indisponible.", 250),
+    source: "Coach IA",
   };
 }
 
@@ -313,10 +305,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ ...localFallback, reason: "missing_key" });
   }
 
-  const prompt = buildPrompt(body);
-
   try {
-    const commentary = await callGroq(prompt);
+    const commentary = await callGroq(body);
     return res.status(200).json(commentary);
   } catch (error) {
     console.warn("Groq failure, fallback to local:", error.message);
