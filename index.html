@@ -291,12 +291,12 @@
       </nav>
 
       <section id="performance-stats" class="performance-panel active" data-performance-panel="stats">
-        <article class="glass performance-filter-bar performance-filter-bar-viz" aria-label="Filtres statistiques">
+        <article class="glass performance-filter-bar performance-filter-bar-viz filters-open" aria-label="Filtres statistiques">
           <div class="filter-header-copy">
             <div class="kicker">Filtres</div>
             <p>Choisissez un deck pour activer les statistiques cartes et mulligan vraiment exploitables.</p>
           </div>
-          <button type="button" class="filter-toggle" data-filter-toggle="performance" aria-expanded="false">Modifier les filtres</button>
+          <button type="button" class="filter-toggle" data-filter-toggle="performance" aria-expanded="true">Masquer les filtres</button>
           <div class="performance-filter-controls performance-filter-controls-viz">
             <select id="performanceColorFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par bicolorité">
               <option value="all">Toutes les bicolorités</option>
@@ -322,31 +322,31 @@
               <option value="win">Victoires</option>
               <option value="loss">Défaites</option>
             </select>
-            <div class="filter-pill-block">
+            <div class="filter-pill-block filter-wide">
               <span>Bicolorité</span>
               <div id="performanceColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div>
             </div>
-            <div id="performanceVersionBlock" class="filter-pill-block">
+            <div id="performanceVersionBlock" class="filter-pill-block filter-wide">
               <span>Version du deck</span>
               <div id="performanceDeckPills" class="filter-pill-row" aria-label="Choisir une version de deck"></div>
             </div>
-            <div class="filter-pill-block compact">
+            <div class="filter-pill-block compact filter-matchups">
               <span>Matchup adverse</span>
               <div id="performanceOpponentColorPills" class="filter-pill-row compact-matchup-pills" aria-label="Choisir une bicolorité adverse"></div>
             </div>
-            <div class="filter-pill-block compact">
+            <div class="filter-pill-block compact filter-mini">
               <span>Format</span>
               <div id="performanceFormatPills" class="filter-pill-row" aria-label="Choisir un format"></div>
             </div>
-            <div class="filter-pill-block compact">
+            <div class="filter-pill-block compact filter-mini">
               <span>Départ</span>
               <div id="performanceTempoPills" class="filter-pill-row" aria-label="Choisir OTP ou OTD"></div>
             </div>
-            <div class="filter-pill-block compact">
+            <div class="filter-pill-block compact filter-mini">
               <span>Résultat</span>
               <div id="performanceResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div>
             </div>
-            <div class="filter-pill-block compact filter-reset-block">
+            <div class="filter-pill-block compact filter-reset-block filter-action">
               <span>Action</span>
               <button id="performanceResetFilters" type="button" class="ghost-button compact">Réinitialiser</button>
             </div>

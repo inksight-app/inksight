@@ -18,7 +18,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const $ = id => document.getElementById(id);
   const els = {};
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, performanceLore:null, performanceAction:null };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0 };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0 };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -3409,20 +3409,83 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     btn.textContent = open ? 'Masquer les filtres' : (target === 'history' ? 'Filtres avancés' : 'Modifier les filtres');
   }
 
+  function multiFilterIds(){
+    return new Set([
+      'performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter',
+      'historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyFormatFilter','historyTempoFilter','historyResultFilter'
+    ]);
+  }
+
+  function isMultiFilterId(id){
+    return multiFilterIds().has(String(id || ''));
+  }
+
+  function selectedFilterValues(id){
+    const values = state.filterSelections?.[id];
+    return Array.isArray(values) ? values.map(String).filter(value => value && value !== 'all') : [];
+  }
+
+  function setSelectedFilterValues(id, values){
+    if(!isMultiFilterId(id)) return;
+    const clean = [...new Set(arrayify(values).map(value => String(value || '')).filter(value => value && value !== 'all'))];
+    state.filterSelections = { ...(state.filterSelections || {}), [id]:clean };
+    if(els[id]) els[id].value = 'all';
+  }
+
+  function clearSelectedFilterValues(id){
+    if(!isMultiFilterId(id)) return;
+    setSelectedFilterValues(id, []);
+  }
+
+  function optionValuesForFilter(id){
+    return [...document.querySelectorAll('[data-perf-filter][data-value]')].filter(btn => btn.dataset.perfFilter === String(id))
+      .map(btn => String(btn.dataset.value || ''))
+      .filter(value => value && value !== 'all');
+  }
+
+  function toggleMultiFilterValue(id, value){
+    const cleanValue = String(value || '');
+    if(!cleanValue || cleanValue === 'all'){
+      clearSelectedFilterValues(id);
+      return;
+    }
+    const current = new Set(selectedFilterValues(id));
+    if(current.has(cleanValue)) current.delete(cleanValue);
+    else current.add(cleanValue);
+
+    const available = optionValuesForFilter(id);
+    const next = [...current].filter(value => !available.length || available.includes(value));
+    if(available.length > 1 && next.length >= available.length){
+      clearSelectedFilterValues(id);
+    }else{
+      setSelectedFilterValues(id, next);
+    }
+  }
+
   function handlePerformanceFilterClick(event){
     const btn = event.target.closest('[data-perf-filter][data-value]');
     if(!btn) return;
     const targetId = btn.dataset.perfFilter;
     const target = els[targetId];
     if(!target) return;
-    target.value = btn.dataset.value ?? 'all';
-    if(targetId === 'performanceColorFilter' && els.performanceDeckFilter) els.performanceDeckFilter.value = 'all';
-    if(targetId === 'historyColorFilter' && els.historyDeckFilter) els.historyDeckFilter.value = 'all';
+
     if(targetId === 'saveDeckSelect'){
       if(els.saveDeckSelect) els.saveDeckSelect.value = btn.dataset.value || '';
       renderPillGroup(els.saveDeckPills, 'saveDeckSelect', saveDeckOptionsForCurrentMatch(), els.saveDeckSelect?.value || '');
       syncSaveButton();
+      target.dispatchEvent(new Event('input', { bubbles:true }));
+      return;
     }
+
+    if(isMultiFilterId(targetId)){
+      toggleMultiFilterValue(targetId, btn.dataset.value);
+      if(targetId === 'performanceColorFilter') clearSelectedFilterValues('performanceDeckFilter');
+      if(targetId === 'historyColorFilter') clearSelectedFilterValues('historyDeckFilter');
+      renderPerformanceData();
+      return;
+    }
+
+    target.value = btn.dataset.value ?? 'all';
     target.dispatchEvent(new Event('input', { bubbles:true }));
   }
 
@@ -3430,6 +3493,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function resetPerformanceFilters(){
     ['performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter'].forEach(id => {
       if(els[id]) els[id].value = 'all';
+      clearSelectedFilterValues(id);
     });
     state.performanceMulliganMatchupFilter = 'all';
     state.performanceMulliganPlayFilter = 'all';
@@ -3441,6 +3505,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function resetHistoryFilters(){
     ['historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyFormatFilter','historyTempoFilter','historyResultFilter'].forEach(id => {
       if(els[id]) els[id].value = 'all';
+      clearSelectedFilterValues(id);
     });
     if(els.historySearchInput) els.historySearchInput.value = '';
     renderPerformanceData();
@@ -3522,7 +3587,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     const deckOptions = deckFilterOptionsForPills('performance');
     syncSelectOptions(els.performanceDeckFilter, deckOptions, 'all');
-    const showDeckVersions = shouldShowDeckVersionFilter(deckOptions, els.performanceColorFilter?.value || 'all');
+    const showDeckVersions = shouldShowDeckVersionFilter(deckOptions, null, 'performance');
     if(els.performanceVersionBlock) els.performanceVersionBlock.hidden = !showDeckVersions;
     renderPillGroup(els.performanceDeckPills, 'performanceDeckFilter', deckOptions, els.performanceDeckFilter?.value || 'all');
 
@@ -3547,7 +3612,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderPillGroup(els.historyOpponentColorPills, 'historyOpponentColorFilter', opponentColorOptions, els.historyOpponentColorFilter?.value || 'all');
     const historyDeckOptions = deckFilterOptionsForPills('history');
     syncSelectOptions(els.historyDeckFilter, historyDeckOptions, 'all');
-    const showHistoryVersions = shouldShowDeckVersionFilter(historyDeckOptions, els.historyColorFilter?.value || 'all');
+    const showHistoryVersions = shouldShowDeckVersionFilter(historyDeckOptions, null, 'history');
     if(els.historyVersionBlock) els.historyVersionBlock.hidden = !showHistoryVersions;
     renderPillGroup(els.historyDeckPills, 'historyDeckFilter', historyDeckOptions, els.historyDeckFilter?.value || 'all');
     renderPillGroup(els.historyFormatPills, 'historyFormatFilter', [
@@ -3565,7 +3630,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!select) return;
     const previous = select.value || fallback;
     select.innerHTML = options.map(option => `<option value="${escAttr(option.value)}">${esc(option.label)}</option>`).join('');
-    select.value = options.some(option => String(option.value) === String(previous)) ? previous : fallback;
+    if(isMultiFilterId(select.id)){
+      const valid = new Set((options || []).map(option => String(option.value)));
+      setSelectedFilterValues(select.id, selectedFilterValues(select.id).filter(value => valid.has(value)));
+      select.value = fallback;
+    }else{
+      select.value = options.some(option => String(option.value) === String(previous)) ? previous : fallback;
+    }
   }
 
   function performanceColorOptionsForPills(){
@@ -3585,8 +3656,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function opponentColorOptionsForPills(mode='history'){
+    const sourceRows = mode === 'stats' ? filteredSavedMatchesWithout(['performanceOpponentColorFilter']) : state.savedMatches || [];
     const map = new Map();
-    (state.savedMatches || []).forEach(row => {
+    (sourceRows || []).forEach(row => {
       const colors = rowOpponentColors(row);
       const key = colorFilterKey(colors);
       if(!key) return;
@@ -3594,13 +3666,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       item.count += 1;
       map.set(key, item);
     });
-    const allLabel = mode === 'stats' ? 'Tous matchups' : 'Tous les adversaires';
     return [
-      { value:'all', label:allLabel },
+      { value:'all', label: mode === 'stats' ? 'Tous matchups' : 'Tous les adversaires' },
       ...[...map.values()].sort((a,b)=>b.count-a.count || a.label.localeCompare(b.label)).map(item => ({
         ...item,
-        label:`vs ${item.label} · ${item.count}`,
-        shortLabel:`vs · ${item.count}`,
+        label:`${item.count}`,
+        shortLabel:`${item.count}`,
         ariaLabel:`vs ${item.label} · ${item.count} match${item.count > 1 ? 's' : ''}`,
         compact:true
       }))
@@ -3608,16 +3679,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function deckFilterOptionsForPills(mode='performance'){
-    const colorSelect = mode === 'history' ? els.historyColorFilter : els.performanceColorFilter;
-    const selectedColor = String(colorSelect?.value || 'all');
-    const rows = (state.savedMatches || []).filter(row => selectedColor === 'all' || colorFilterKey(rowMineColors(row)) === selectedColor);
+    const colorFilterId = mode === 'history' ? 'historyColorFilter' : 'performanceColorFilter';
+    const selectedColors = selectedFilterValues(colorFilterId);
+    const rows = (state.savedMatches || []).filter(row => !selectedColors.length || selectedColors.includes(colorFilterKey(rowMineColors(row))));
     const counts = new Map();
     rows.forEach(row => {
       const id = row.deck_profile_id || '';
       if(!id) return;
       const profile = state.deckProfiles.find(item => item.id === id);
       if(!profile || !isNamedDeckProfile(profile)) return;
-      if(selectedColor !== 'all' && !profileMatchesColorKey(profile, selectedColor)) return;
+      if(selectedColors.length && !selectedColors.some(colorKey => profileMatchesColorKey(profile, colorKey))) return;
       counts.set(id, n(counts.get(id)) + 1);
     });
     const profiles = [...counts.keys()]
@@ -3630,9 +3701,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     ];
   }
 
-  function shouldShowDeckVersionFilter(options, selectedColorValue){
-    const selectedColor = String(selectedColorValue || 'all');
-    if(selectedColor === 'all') return false;
+  function shouldShowDeckVersionFilter(options, selectedColorValue, mode='performance'){
+    const filterId = mode === 'history' ? 'historyColorFilter' : 'performanceColorFilter';
+    const selectedColors = selectedFilterValues(filterId);
+    if(selectedColors.length !== 1) return false;
     return (options || []).filter(option => option.value !== 'all').length > 1;
   }
 
@@ -3652,8 +3724,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderPillGroup(target, selectId, options, activeValue){
     if(!target) return;
-    target.innerHTML = options.map(option => {
-      const active = String(option.value) === String(activeValue);
+    const isMulti = isMultiFilterId(selectId);
+    const activeValues = isMulti ? selectedFilterValues(selectId) : [String(activeValue || '')];
+    const visibleOptions = isMulti ? (options || []).filter(option => String(option.value) !== 'all') : (options || []);
+    target.innerHTML = visibleOptions.map(option => {
+      const active = activeValues.includes(String(option.value));
       const dots = inkDotsHtml(option.colors || []);
       const label = option.shortLabel || option.label;
       const aria = option.ariaLabel || option.label || label;
@@ -3812,21 +3887,45 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     safe('compte', renderAccountPage);
   }
 
+  function selectedValuesForMode(mode, key){
+    const prefix = mode === 'stats' ? 'performance' : 'history';
+    const map = {
+      color:`${prefix}ColorFilter`,
+      opponentColor:`${prefix}OpponentColorFilter`,
+      deck:`${prefix}DeckFilter`,
+      result:`${prefix}ResultFilter`,
+      format:`${prefix}FormatFilter`,
+      tempo:`${prefix}TempoFilter`
+    };
+    return selectedFilterValues(map[key]);
+  }
+
+  function filteredSavedMatchesWithout(excludedIds=[]){
+    const backup = {};
+    excludedIds.forEach(id => {
+      backup[id] = selectedFilterValues(id);
+      clearSelectedFilterValues(id);
+    });
+    const rows = filteredSavedMatches('stats');
+    Object.entries(backup).forEach(([id, values]) => setSelectedFilterValues(id, values));
+    return rows;
+  }
+
   function filteredSavedMatches(mode='history'){
     let rows = [...(state.savedMatches || [])].sort((a,b) => savedMatchPlayedTime(b) - savedMatchPlayedTime(a));
-    const deck = mode === 'stats' ? (els.performanceDeckFilter?.value || 'all') : (els.historyDeckFilter?.value || 'all');
-    const color = mode === 'stats' ? (els.performanceColorFilter?.value || 'all') : (els.historyColorFilter?.value || 'all');
-    const opponentColor = mode === 'stats' ? (els.performanceOpponentColorFilter?.value || 'all') : (els.historyOpponentColorFilter?.value || 'all');
-    const tempo = mode === 'stats' ? (els.performanceTempoFilter?.value || 'all') : (els.historyTempoFilter?.value || 'all');
-    const result = mode === 'stats' ? (els.performanceResultFilter?.value || 'all') : (els.historyResultFilter?.value || 'all');
-    const format = mode === 'stats' ? (els.performanceFormatFilter?.value || 'all') : (els.historyFormatFilter?.value || 'all');
+    const decks = selectedValuesForMode(mode, 'deck');
+    const colors = selectedValuesForMode(mode, 'color');
+    const opponentColors = selectedValuesForMode(mode, 'opponentColor');
+    const tempos = selectedValuesForMode(mode, 'tempo');
+    const results = selectedValuesForMode(mode, 'result');
+    const formats = selectedValuesForMode(mode, 'format');
     const query = mode === 'history' ? String(els.historySearchInput?.value || '').trim().toLowerCase() : '';
-    if(color && color !== 'all') rows = rows.filter(row => colorFilterKey(rowMineColors(row)) === color);
-    if(opponentColor && opponentColor !== 'all') rows = rows.filter(row => colorFilterKey(rowOpponentColors(row)) === opponentColor);
-    if(deck && deck !== 'all') rows = rows.filter(row => row.deck_profile_id === deck || row.deck_name === deck);
-    if(result !== 'all') rows = rows.filter(row => row.result === result);
-    if(format !== 'all') rows = rows.filter(row => String(row.format || '').toUpperCase() === format);
-    if(tempo && tempo !== 'all') rows = rows.filter(row => rowMatchesTempo(row, tempo));
+    if(colors.length) rows = rows.filter(row => colors.includes(colorFilterKey(rowMineColors(row))));
+    if(opponentColors.length) rows = rows.filter(row => opponentColors.includes(colorFilterKey(rowOpponentColors(row))));
+    if(decks.length) rows = rows.filter(row => decks.includes(String(row.deck_profile_id || '')) || decks.includes(String(row.deck_name || '')));
+    if(results.length) rows = rows.filter(row => results.includes(row.result));
+    if(formats.length) rows = rows.filter(row => formats.includes(String(row.format || '').toUpperCase()));
+    if(tempos.length) rows = rows.filter(row => rowMatchesTempo(row, tempos));
     if(query){
       rows = rows.filter(row => [row.title, row.matchup_label, row.opponent_name, row.deck_name, row.score_label]
         .filter(Boolean)
@@ -3849,37 +3948,43 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function rowMatchesTempo(row, tempo){
-    if(!tempo || tempo === 'all') return true;
-    return rowTempoValues(row).includes(tempo);
+    const values = arrayify(tempo).map(String).filter(value => value && value !== 'all');
+    if(!values.length) return true;
+    const rowValues = rowTempoValues(row);
+    return values.some(value => rowValues.includes(value));
   }
 
   function selectedPerformanceTempo(){
-    const value = String(els.performanceTempoFilter?.value || 'all');
-    return ['otp','otd'].includes(value) ? value : 'all';
+    return selectedFilterValues('performanceTempoFilter').filter(value => ['otp','otd'].includes(value));
   }
 
   function gameMatchesSelectedTempo(game, tempo=selectedPerformanceTempo()){
-    if(!tempo || tempo === 'all') return true;
-    if(tempo === 'otp') return game?.otp === true;
-    if(tempo === 'otd') return game?.otp === false;
-    return true;
+    const values = arrayify(tempo).map(String).filter(value => ['otp','otd'].includes(value));
+    if(!values.length) return true;
+    if(values.includes('otp') && game?.otp === true) return true;
+    if(values.includes('otd') && game?.otp === false) return true;
+    return false;
+  }
+
+  function labelFromColorKey(key){
+    return String(key || '').split('|').map(inkKey).filter(Boolean).map(inkLabel).join(' / ');
   }
 
   function activePerformanceContextLabel(){
     const parts = [];
-    const color = String(els.performanceColorFilter?.value || 'all');
-    const opponent = String(els.performanceOpponentColorFilter?.value || 'all');
-    const format = String(els.performanceFormatFilter?.value || 'all');
-    const tempo = String(els.performanceTempoFilter?.value || 'all');
-    const result = String(els.performanceResultFilter?.value || 'all');
-    if(color !== 'all') parts.push(color.split('|').map(inkKey).map(inkLabel).join(' / '));
+    const colors = selectedFilterValues('performanceColorFilter');
+    const opponents = selectedFilterValues('performanceOpponentColorFilter');
+    const formats = selectedFilterValues('performanceFormatFilter');
+    const tempos = selectedFilterValues('performanceTempoFilter');
+    const results = selectedFilterValues('performanceResultFilter');
+    if(colors.length) parts.push(colors.map(labelFromColorKey).join(' + '));
     else parts.push('Toutes bicolorités');
-    if(opponent !== 'all') parts.push(`vs ${opponent.split('|').map(inkKey).map(inkLabel).join(' / ')}`);
-    if(format !== 'all') parts.push(format);
-    if(tempo === 'otp') parts.push('OTP');
-    if(tempo === 'otd') parts.push('OTD');
-    if(result === 'win') parts.push('Victoires');
-    if(result === 'loss') parts.push('Défaites');
+    if(opponents.length) parts.push(`vs ${opponents.map(labelFromColorKey).join(' + ')}`);
+    if(formats.length) parts.push(formats.join(' + '));
+    if(tempos.includes('otp')) parts.push('OTP');
+    if(tempos.includes('otd')) parts.push('OTD');
+    if(results.includes('win')) parts.push('Victoires');
+    if(results.includes('loss')) parts.push('Défaites');
     return parts.join(' · ');
   }
 
@@ -3975,19 +4080,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function isPerformanceDataScoped(){
-    const color = String(els.performanceColorFilter?.value || 'all');
-    const deck = String(els.performanceDeckFilter?.value || 'all');
-    return (color && color !== 'all') || (deck && deck !== 'all');
+    return selectedFilterValues('performanceColorFilter').length > 0 || selectedFilterValues('performanceDeckFilter').length > 0;
   }
 
   function selectedPerformanceColors(){
-    const deckId = String(els.performanceDeckFilter?.value || 'all');
-    if(deckId && deckId !== 'all'){
-      const profile = state.deckProfiles.find(item => item.id === deckId);
+    const deckIds = selectedFilterValues('performanceDeckFilter');
+    if(deckIds.length === 1){
+      const profile = state.deckProfiles.find(item => item.id === deckIds[0]);
       if(profile) return arrayify(profile.colors).map(inkKey).filter(Boolean);
     }
-    const color = String(els.performanceColorFilter?.value || 'all');
-    if(color && color !== 'all') return color.split('|').map(inkKey).filter(Boolean);
+    const colorKeys = selectedFilterValues('performanceColorFilter');
+    if(colorKeys.length === 1) return colorKeys[0].split('|').map(inkKey).filter(Boolean);
     return [];
   }
 
@@ -5985,27 +6088,27 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function historyFilterStateKey(){
     return [
-      els.historyColorFilter?.value || 'all',
-      els.historyDeckFilter?.value || 'all',
-      els.historyOpponentColorFilter?.value || 'all',
-      els.historyResultFilter?.value || 'all',
-      els.historyFormatFilter?.value || 'all',
-      els.historyTempoFilter?.value || 'all',
+      selectedFilterValues('historyColorFilter').join('|'),
+      selectedFilterValues('historyDeckFilter').join('|'),
+      selectedFilterValues('historyOpponentColorFilter').join('|'),
+      selectedFilterValues('historyResultFilter').join('|'),
+      selectedFilterValues('historyFormatFilter').join('|'),
+      selectedFilterValues('historyTempoFilter').join('|'),
       String(els.historySearchInput?.value || '').trim().toLowerCase()
     ].join('::');
   }
 
   function historyActiveFilterBadges(){
     const badges = [];
-    const add = (label, value, all='all') => {
-      if(value && value !== all) badges.push(`<span class="history-filter-badge">${esc(label)}</span>`);
+    const add = (label, values) => {
+      if(values.length) badges.push(`<span class="history-filter-badge">${esc(label)} · ${values.length}</span>`);
     };
-    add('Bicolorité', els.historyColorFilter?.value || 'all');
-    add('Deck', els.historyDeckFilter?.value || 'all');
-    add('Adversaire', els.historyOpponentColorFilter?.value || 'all');
-    add('Résultat', els.historyResultFilter?.value || 'all');
-    add('Format', els.historyFormatFilter?.value || 'all');
-    add('Départ', els.historyTempoFilter?.value || 'all');
+    add('Bicolorité', selectedFilterValues('historyColorFilter'));
+    add('Deck', selectedFilterValues('historyDeckFilter'));
+    add('Adversaire', selectedFilterValues('historyOpponentColorFilter'));
+    add('Résultat', selectedFilterValues('historyResultFilter'));
+    add('Format', selectedFilterValues('historyFormatFilter'));
+    add('Départ', selectedFilterValues('historyTempoFilter'));
     if(String(els.historySearchInput?.value || '').trim()) badges.push('<span class="history-filter-badge">Recherche</span>');
     return badges.length ? badges.join('') : '<span class="history-filter-badge muted">Aucun filtre actif</span>';
   }
