@@ -261,7 +261,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     await ensureLocalCardsLoaded();
     const accepted = files.slice(0, MAX_FILES);
     if(accepted.length > 1 || state.bulkQueue.length){
-      await handleBulkFiles(accepted, { append:!!state.bulkQueue.length });
+      try{
+        await handleBulkFiles(accepted, { append:!!state.bulkQueue.length });
+      }finally{
+        if(els.fileInput) els.fileInput.value = '';
+      }
       return;
     }
     try{
@@ -270,6 +274,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }catch(err){
       console.error(err);
       alert(`Impossible de lire ${accepted[0]?.name || 'ce fichier'}: ${err.message}`);
+    }finally{
+      // Important mobile/Safari: reset even on error so the same replay can be selected again.
+      if(els.fileInput) els.fileInput.value = '';
     }
   }
 
@@ -8021,7 +8028,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
 
   function handRetentionForScope(m){
-    return state.scope === 'opponent' ? arrayify(m?.opponentHandRetention) : arrayify(m?.handRetention);
+    // La main adverse est majoritairement privée dans Duel.ink : on ne l'analyse pas comme une donnée fiable.
+    return state.scope === 'opponent' ? [] : arrayify(m?.handRetention);
   }
 
   function renderDeadWeight(m){
@@ -8029,13 +8037,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const rows = handRetentionForScope(m)
       .filter(row => n(row.maxHeldTurns) > 0 || n(row.averageHeldTurns) > 0)
       .sort((a,b) => n(b.maxHeldTurns) - n(a.maxHeldTurns) || n(b.averageHeldTurns) - n(a.averageHeldTurns));
-    if(els.deadWeightTitle) els.deadWeightTitle.textContent = state.scope === 'opponent' ? 'Cartes restées en main adverse' : 'Cartes restées en main';
+    if(els.deadWeightTitle) els.deadWeightTitle.textContent = state.scope === 'opponent' ? 'Main adverse non exploitable' : 'Cartes restées en main';
     if(els.deadWeightHelp) els.deadWeightHelp.textContent = state.scope === 'opponent'
-      ? 'Cartes adverses visibles qui sont restées en main plusieurs tours. Donnée partielle si la main est cachée.'
+      ? 'La main adverse est une zone privée : InkSight ne peut pas suivre précisément les cartes cachées.'
       : 'Les cartes qui ont occupé votre main le plus longtemps avant d’être jouées, encrées ou conservées.';
     const items = rows.map(row => deadWeightListItem(row));
     renderStatCardList('deadWeight', els.deadWeightTable, items, {
-      empty:state.scope === 'opponent' ? 'Main adverse non exploitable dans ce replay.' : 'Aucune carte bloquée en main détectée.',
+      empty:state.scope === 'opponent' ? 'Main adverse privée : donnée non calculée.' : 'Aucune carte bloquée en main détectée.',
       collapsedLabel:'Voir toutes les cartes',
       expandedLabel:'Réduire la liste'
     });
@@ -8059,9 +8067,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       title:row.cardName || fullName(card),
       meta:metaBits.filter(Boolean).join(' · ') || 'Carte suivie en main',
       chips:[
-        `${turns} tour${turns > 1 ? 's' : ''} max`,
-        avg ? `${avg} moy.` : range,
-        handExitLabel(exit)
+        `Max ${turns} tour${turns > 1 ? 's' : ''}`,
+        avg ? `Moy. ${avg}` : range,
+        `Sortie : ${handExitLabel(exit)}`
       ].filter(Boolean)
     };
   }
@@ -8087,16 +8095,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function inkwellSourceChips(card){
     const chips = [];
-    if(n(card.inkedFromHand)) chips.push({ label:`${n(card.inkedFromHand)} main`, className:'ink-source-chip ink-source-hand' });
-    if(n(card.inkedFromDiscard)) chips.push({ label:`${n(card.inkedFromDiscard)} défausse`, className:'ink-source-chip ink-source-discard' });
-    if(n(card.inkedFromBoard)) chips.push({ label:`${n(card.inkedFromBoard)} board`, className:'ink-source-chip ink-source-board' });
-    if(n(card.inkedFromDeck)) chips.push({ label:`${n(card.inkedFromDeck)} deck`, className:'ink-source-chip ink-source-deck' });
-    if(n(card.inkedFromUnknown)) chips.push({ label:`${n(card.inkedFromUnknown)} inconnu`, className:'ink-source-chip ink-source-unknown' });
+    if(n(card.inkedFromHand)) chips.push({ label:`${n(card.inkedFromHand)} depuis main`, className:'ink-source-chip ink-source-hand' });
+    if(n(card.inkedFromDiscard)) chips.push({ label:`${n(card.inkedFromDiscard)} depuis défausse`, className:'ink-source-chip ink-source-discard' });
+    if(n(card.inkedFromBoard)) chips.push({ label:`${n(card.inkedFromBoard)} depuis board`, className:'ink-source-chip ink-source-board' });
+    if(n(card.inkedFromDeck)) chips.push({ label:`${n(card.inkedFromDeck)} depuis deck`, className:'ink-source-chip ink-source-deck' });
+    if(n(card.inkedFromUnknown)) chips.push({ label:`${n(card.inkedFromUnknown)} source inconnue`, className:'ink-source-chip ink-source-unknown' });
     if(!chips.length) chips.push(`${n(card.inked)} encrée${n(card.inked) > 1 ? 's' : ''}`);
     return chips.slice(0, 3);
   }
 
   function renderStatTables(m){
+    if(els.mostInkedHelp) els.mostInkedHelp.textContent = 'Main = carte sacrifiée depuis la main. Défausse/board = ajout à l’encrier par effet.';
     const cards = cardsForScope(m, state.scope);
     const topQuesters = loreEngineCards(cards).sort(compareLoreEngines)
       .map(c => ({
@@ -8836,7 +8845,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!Array.isArray(rows) || !rows.length) return 'Aucune donnée de board disponible.';
     const maxPotential = Math.max(...rows.map(row => n(row.lorePotential)));
     const maxChars = Math.max(...rows.map(row => n(row.characters)));
-    return `Présence sur board : pic à ${maxChars} personnage(s), ${maxPotential} lore potentiel en fin de tour.`;
+    return `Présence sur board : pic à ${maxChars} personnage(s), ${maxPotential} lore potentiel à la fin des tours du joueur affiché.`;
   }
 
   function renderBoardChart(rows=[], comparisonRows=[]){
@@ -8970,11 +8979,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       pointRadius:0,
       pointHoverRadius:5,
       borderColor:viewedColors[0] || theme[0],
-      backgroundColor:'transparent',
+      backgroundColor:viewedColors[0] || theme[0],
+      pointBackgroundColor:viewedColors[0] || theme[0],
+      pointBorderColor:viewedColors[0] || theme[0],
       highlightMessages:makeHighlightMessages(turnValues.length, remapHighlightsToTurns(highlights, turnValues)),
       fill:false
     };
-    stylePointHighlights(handDataset, viewedColors[1] || theme[1], viewedColors[0] || theme[0], 'refill');
+    stylePointHighlights(handDataset, viewedColors[0] || theme[0], viewedColors[0] || theme[0], 'refill');
     const comparisonHighlights = detectHandHighlights(comparisonRows, viewedIsOpponent ? 'mine' : 'opponent');
     const comparisonDataset = {
       label:comparisonLabel,
@@ -8984,11 +8995,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       pointRadius:0,
       pointHoverRadius:5,
       borderColor:comparisonColors[0] || theme[1],
-      backgroundColor:'transparent',
+      backgroundColor:comparisonColors[0] || theme[1],
+      pointBackgroundColor:comparisonColors[0] || theme[1],
+      pointBorderColor:comparisonColors[0] || theme[1],
       highlightMessages:makeHighlightMessages(turnValues.length, remapHighlightsToTurns(comparisonHighlights, turnValues)),
       fill:false
     };
-    stylePointHighlights(comparisonDataset, comparisonColors[1] || theme[0], comparisonColors[0] || theme[1], 'refill');
+    stylePointHighlights(comparisonDataset, comparisonColors[0] || theme[1], comparisonColors[0] || theme[1], 'refill');
     const datasets = [handDataset];
     if(comparisonRows?.length) datasets.push(comparisonDataset);
     charts.hand = chart(charts.hand, 'handCurveChart', 'line', { labels, datasets }, { scales:{ y:{ beginAtZero:true, suggestedMax:8, ticks:{ precision:0 } } } });
@@ -9317,21 +9330,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const ds = charts.hand.data.datasets || [];
       if(ds[0]){
         ds[0].borderColor = viewedColors[0];
-        ds[0].backgroundColor = 'transparent';
-        ds[0]._normalPointBg = viewedColors[1];
+        ds[0].backgroundColor = viewedColors[0];
+        ds[0]._normalPointBg = viewedColors[0];
         ds[0]._normalPointBorder = viewedColors[0];
         if(!restyleDatasetHighlights(ds[0])){
-          ds[0].pointBackgroundColor = viewedColors[1];
+          ds[0].pointBackgroundColor = viewedColors[0];
           ds[0].pointBorderColor = viewedColors[0];
         }
       }
       if(ds[1]){
         ds[1].borderColor = comparisonColors[0];
-        ds[1].backgroundColor = 'transparent';
-        ds[1]._normalPointBg = comparisonColors[1];
+        ds[1].backgroundColor = comparisonColors[0];
+        ds[1]._normalPointBg = comparisonColors[0];
         ds[1]._normalPointBorder = comparisonColors[0];
         if(!restyleDatasetHighlights(ds[1])){
-          ds[1].pointBackgroundColor = comparisonColors[1];
+          ds[1].pointBackgroundColor = comparisonColors[0];
           ds[1].pointBorderColor = comparisonColors[0];
         }
       }
