@@ -261,8 +261,8 @@ Réponds UNIQUEMENT au format JSON valide, sans markdown, avec exactement deux c
 }
 
 async function callGroq(prompt) {
-  // L'URL ici est désormais une string propre, sans Markdown
-  const response = await fetch("[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)", {
+ // CE QU'IL FAUT METTRE (LA CORRECTION) :
+const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
