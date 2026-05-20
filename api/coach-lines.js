@@ -1,6 +1,6 @@
 export const COACH_LINE_LIBRARY = {
-  "version": "coach-lines-v126",
-  "description": "Bibliothèque déterministe de punchlines courtes pour InkSight. Les textes visent la situation de jeu, pas le joueur.",
+  "version": "coach-lines-v127",
+  "description": "Bibliothèque déterministe de punchlines InkSight enrichie avec références sportives, Disney/Pixar, pop culture, TCG et eSport.",
   "rules": {
     "titleMaxChars": 46,
     "descriptionMaxChars": 185,
@@ -203,6 +203,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Le public a eu froid, {opponentName} aussi. Zéro lore, zéro menace, zéro suspense.",
           "tone": "sport",
           "intensity": 3
+        },
+        {
+          "id": "perfect_win_021",
+          "title": "MOURIR TRANQUILLE",
+          "description": "Après ce {monScore}-{scoreAdverse}, même Thierry aurait rangé le micro. Board, tempo, lore : tout était sous clé.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_022",
+          "title": "PAS DE PHOTO",
+          "description": "{opponentName} n'a pas marqué un lore. La feuille de match ressemble à une démonstration privée.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_023",
+          "title": "LONGUE VIE AU ROI",
+          "description": "{topQuester} a pris le trône, et {opponentName} a juste regardé la couronne tomber.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_024",
+          "title": "HAKUNA MATATA",
+          "description": "Zéro stress, zéro lore concédé. Tu as joué la game comme si l'adversaire était en mode tutoriel.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_025",
+          "title": "VERS L'INFINI",
+          "description": "Ton score est parti très loin, celui de {opponentName} est resté au quai. Ramp ou non, c'était spatial.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_026",
+          "title": "CLINIQUE ET CHIRURGICAL",
+          "description": "Chaque tour avait son ordonnance. {topQuester} a signé le diagnostic, l'adversaire a signé la sortie.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_027",
+          "title": "ROI DU MONDE",
+          "description": "Tu as joué debout sur le pont pendant que {opponentName} coulait sans ouvrir le compteur.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_028",
+          "title": "BIBBIDI BOBBIDI BOOM",
+          "description": "La magie a opéré vite. {opponentName} a disparu du match avant même de comprendre la transformation.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_029",
+          "title": "CE RÊVE BLEU",
+          "description": "La partie avait des couleurs de conte. En face, aucun lore, aucune fenêtre, aucun tapis volant.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_030",
+          "title": "ON PEUT MOURIR TRANQUILLE",
+          "description": "Un clean sheet pareil, c'est du patrimoine. Même le board adverse demande une plaque commémorative.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_031",
+          "title": "LE STADE N'EN REVIENT PAS",
+          "description": "{opponentName} a fini muet. Tu as transformé chaque ressource en avance, puis en humiliation statistique.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_032",
+          "title": "TOUT ÉTAIT ÉCRIT",
+          "description": "La game a suivi ton script du mulligan au lethal. {topQuester} avait le rôle principal.",
+          "tone": "cinematic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_033",
+          "title": "INTÉRIEUR NUIT, ADVERSAIRE KO",
+          "description": "Ce n'était pas un match, c'était une scène coupée. {opponentName} n'a jamais obtenu son dialogue.",
+          "tone": "cinematic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_034",
+          "title": "PAS TOUCHE AU TEMPO",
+          "description": "Tu as gardé le rythme de l'empereur. {opponentName} n'a jamais posé la main sur la partie.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_035",
+          "title": "AUCUN DÉBAT",
+          "description": "Les chiffres sont secs : {monScore}-{scoreAdverse}. La courbe a parlé plus fort que le chat.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_036",
+          "title": "FERMETURE ADMINISTRATIVE",
+          "description": "Le board était conforme, l'adversaire non. Inspection terminée, {topQuester} garde les clés.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_037",
+          "title": "SCÉNARIO DE LÉGENDE",
+          "description": "Score vierge en face, tempo parfait chez toi. Ce replay mérite sa musique de générique.",
+          "tone": "cinematic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_038",
+          "title": "MATCH SANS OXYGÈNE",
+          "description": "{opponentName} n'a jamais respiré. Tu as aspiré le card advantage, puis le reste de la pièce.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_039",
+          "title": "TOUT POUR LE ROI",
+          "description": "{topQuester} a questé comme héritier officiel. {opponentName} a découvert la monarchie absolue.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_win_040",
+          "title": "LA TOTALE",
+          "description": "Card Advantage, Ink Advantage, Lore Advantage : la triple couronne. Rien n'a échappé au contrôle.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -359,6 +559,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Pas un massacre bruyant, juste une lente extinction adverse. Le score a fait le commentaire.",
           "tone": "sport",
           "intensity": 2
+        },
+        {
+          "id": "stomp_win_021",
+          "title": "ROULEAU COMPRESSEUR",
+          "description": "Le match a traversé {opponentName} sans ralentir. {topQuester} a mis les warnings trop tard.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_022",
+          "title": "IL N'Y A PAS EU PHOTO",
+          "description": "Victoire {monScore}-{scoreAdverse}. Même la VAR aurait validé l'écart de tempo.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_023",
+          "title": "LONGUE VIE AU ROI",
+          "description": "{topQuester} a pris le trône tôt, et le royaume adverse a plié sans révolution.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_024",
+          "title": "SECOND POTEAU",
+          "description": "{topQuester} a surgi au bon moment. {opponentName} cherchait le ballon, toi tu avais déjà le lethal.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_025",
+          "title": "BOOM BÉBÉ",
+          "description": "La partie a explosé côté {opponentName}. Ton board a dansé, son tempo a quitté la salle.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_026",
+          "title": "ÊTES-VOUS DIVERTIS",
+          "description": "Le public oui, {opponentName} moins. Tu as transformé le match en arène à sens unique.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_027",
+          "title": "C'EST CLINIQUE",
+          "description": "Chaque ressource a trouvé sa cible. Le score {monScore}-{scoreAdverse} ne laisse pas beaucoup de place au débat.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_028",
+          "title": "PROMENADE DE SANTÉ",
+          "description": "{nbTours} tours, un rythme propre, et {opponentName} en visite guidée dans ton plan de jeu.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_029",
+          "title": "KACHOW",
+          "description": "Départ rapide, virage propre, arrivée sans trafic. {opponentName} a vu passer les phares.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_030",
+          "title": "LE BREAK EST FAIT",
+          "description": "L'avantage a été pris tôt et jamais rendu. {topQuester} a gardé la balle au pied.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_031",
+          "title": "PAVARD DANS LE COIN",
+          "description": "Le play décisif est arrivé sans prévenir. {opponentName} a juste entendu le stade crier.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_032",
+          "title": "PAS DE CAPE",
+          "description": "Pas besoin d'artifice. Ton plan était assez solide pour voler sans se prendre dans le décor.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_033",
+          "title": "LA SANCTION IMMÉDIATE",
+          "description": "Chaque erreur adverse a été convertie en lore. {opponentName} a payé cash, sans échéancier.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_034",
+          "title": "TON BOARD A PARLÉ",
+          "description": "Les cartes ont fait le discours. {opponentName} n'a répondu qu'avec du silence et du retard.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_035",
+          "title": "TAPIS ROUGE",
+          "description": "{topQuester} a déroulé la route jusqu'au lethal. {opponentName} marchait derrière avec les valises.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_036",
+          "title": "LE FILM ÉTAIT COURT",
+          "description": "Peu de suspense, beaucoup de dégâts. Le montage final tient en {nbTours} tours.",
+          "tone": "cinematic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_037",
+          "title": "MATCH DE PATRON",
+          "description": "Tu as pris le bureau, la chaise et les clés. {opponentName} a signé le reçu.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_038",
+          "title": "CAVIAR DE TEMPO",
+          "description": "La sortie était servie sur plateau. {topQuester} n'avait plus qu'à pousser au fond.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_039",
+          "title": "L'ADVERSAIRE A SCOOP MENTAL",
+          "description": "Même sans abandon visible, le board racontait déjà une fin très pénible pour {opponentName}.",
+          "tone": "esport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_win_040",
+          "title": "SANS TREMBLER",
+          "description": "Tu as conclu proprement. La victoire {monScore}-{scoreAdverse} a plus de maîtrise que de bruit.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -513,6 +913,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "La partie ne s'est pas gagnée sur un miracle. Elle s'est gagnée sur une bonne conversion des ressources.",
           "tone": "tactical",
           "intensity": 1
+        },
+        {
+          "id": "clean_win_021",
+          "title": "PLAN RESPECTÉ",
+          "description": "Le plan de jeu est passé à la lettre. Pas spectaculaire, juste propre et très difficile à contester.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_022",
+          "title": "VICTOIRE AU MÉTIER",
+          "description": "Tu as sorti le bleu de chauffe. {topQuester} a travaillé, le tempo a suivi.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_023",
+          "title": "C'EST PROPRE",
+          "description": "Ressources converties, lore sécurisé, board sous contrôle. Une victoire qui sent la feuille de route validée.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_024",
+          "title": "TOUT DROIT",
+          "description": "Tu n'as pas cherché le cinéma. Une ligne claire, des quêtes efficaces, une win bien emballée.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_025",
+          "title": "SANS BAVURE",
+          "description": "Le score {monScore}-{scoreAdverse} raconte une partie maîtrisée, sans panique ni surjeu.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_026",
+          "title": "IL N'A PAS TREMBLÉ",
+          "description": "Le lethal est arrivé sans drame. Tu as joué les derniers tours avec la main froide.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_027",
+          "title": "C'EST CHIRURGICAL",
+          "description": "Pas une démonstration bruyante, mais une opération propre. {opponentName} a perdu ressource après ressource.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_028",
+          "title": "HAKUNA CURVE",
+          "description": "Pas de problème visible. La curve a chanté juste, et {topQuester} a gardé le rythme.",
+          "tone": "disney_hint",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_029",
+          "title": "BONNE SITUATION",
+          "description": "Oui, c'est une bonne situation, ce board. Les ressources ont fait leur travail sans demander d'applaudissements.",
+          "tone": "pop_fr",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_030",
+          "title": "LE DOSSIER EST CLASSÉ",
+          "description": "Début solide, milieu stable, fin sans trembler. Le match n'avait plus grand-chose à plaider.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_031",
+          "title": "IL A FAIT LE BOULOT",
+          "description": "{topQuester} n'a pas forcé le destin. Il a juste converti ce qu'il fallait, quand il fallait.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_032",
+          "title": "C'EST UNE BELLE SOIRÉE",
+          "description": "Victoire sérieuse, courbe stable, pression constante. Pas besoin de feu d'artifice pour gagner.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_033",
+          "title": "LE RYTHME EST BON",
+          "description": "Chaque tour a apporté sa pierre. {opponentName} n'a jamais trouvé assez de tempo pour revenir.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_034",
+          "title": "PRESQUE ADMINISTRATIF",
+          "description": "Tu as rempli le formulaire victoire : encre, board, lore, signature en bas de page.",
+          "tone": "sarcastic",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_035",
+          "title": "COMME UN HOMME",
+          "description": "La ligne était disciplinée. Pas de panique, pas de détour, juste une exécution solide.",
+          "tone": "disney_hint",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_036",
+          "title": "BIEN CADRÉ",
+          "description": "Les choix étaient propres. La victoire vient surtout d'une gestion sobre, pas d'un miracle.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_037",
+          "title": "MATCH VERROUILLÉ",
+          "description": "Tu as ouvert l'avance, puis fermé la porte. {opponentName} est resté dehors avec ses réponses.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_038",
+          "title": "SIMPLE ET EFFICACE",
+          "description": "Le deck a fait ce qu'il promettait. {topQuester} a mené, le reste a suivi.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_039",
+          "title": "PAS DE MAUVAIS LEVIER",
+          "description": "Chaque activation est partie dans le bon sens. Kronk peut garder son poste.",
+          "tone": "disney_hint",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "clean_win_040",
+          "title": "LA VALUE EN SILENCE",
+          "description": "Pas de coup de tonnerre, juste une accumulation propre. La partie s'est gagnée par petits écarts.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -669,6 +1269,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "La marge était fine. {topQuester} a transformé une fenêtre minuscule en point final.",
           "tone": "tactical",
           "intensity": 2
+        },
+        {
+          "id": "close_win_021",
+          "title": "SECOND POTEAU",
+          "description": "{topQuester} a surgi au money time. {opponentName} avait le regard du défenseur battu.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_022",
+          "title": "IL N'A PAS TREMBLÉ",
+          "description": "Au moment de conclure, tu as gardé la main froide. Le lethal a trouvé le chemin.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_023",
+          "title": "PHOTO-FINISH",
+          "description": "Victoire {monScore}-{scoreAdverse}. Le replay mérite une ligne d'arrivée et trois ralentis.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_024",
+          "title": "LA VIE TROUVE UN CHEMIN",
+          "description": "Le match semblait fermé, puis une ligne de jeu a ouvert la porte au dernier moment.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_025",
+          "title": "LE STADE A EXPLOSÉ",
+          "description": "Dernier virage, dernier lore, dernier souffle. {opponentName} était à une carte de te climatiser.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_026",
+          "title": "CLUTCH À LA PAVARD",
+          "description": "Ce n'était pas le play attendu, mais c'était le bon. Le lethal est arrivé en pleine lucarne.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_027",
+          "title": "PAS AUJOURD'HUI",
+          "description": "{opponentName} a cru tenir la fin. Tu as refusé le scénario au dernier tour.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_028",
+          "title": "BRAQUAGE PROPRE",
+          "description": "Tu n'as pas volé la game, tu l'as prise avec panache. Nuance importante.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_029",
+          "title": "LE TOP DECK SOURIT",
+          "description": "La partie a tremblé, puis le deck a choisi son héros. {topQuester} valide le dernier acte.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_030",
+          "title": "TOUT S'EST JOUÉ LÀ",
+          "description": "Un tour, une décision, un lore. Le genre de fin qui fatigue plus qu'un BO3 complet.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_031",
+          "title": "TENSION PALPABLE",
+          "description": "La course au lore était irrespirable. Tu as trouvé la sortie avant que le plafond tombe.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_032",
+          "title": "UN CHEVEU DE LORE",
+          "description": "Victoire au millimètre. {opponentName} a presque touché la ligne, mais presque ne score pas.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_033",
+          "title": "LE DERNIER MOT",
+          "description": "La game a parlé longtemps. Tu as gardé la meilleure réplique pour la dernière scène.",
+          "tone": "cinematic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_034",
+          "title": "MOMENT GLADIATEUR",
+          "description": "Êtes-vous divertis ? Parce que ce finish {monScore}-{scoreAdverse} a coûté quelques pulsations.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_035",
+          "title": "NAGE DROIT DEVANT",
+          "description": "Tu as tenu quand ça tanguait. La ligne droite au lore a fini par payer.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_036",
+          "title": "LE HOLD-UP DU SOIR",
+          "description": "Ce n'était pas gratuit, mais c'était cruel. {opponentName} a vu la lumière s'éteindre tard.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_037",
+          "title": "LA FLEUR DANS L'ADVERSITÉ",
+          "description": "Départ compliqué, fin magnifique. Le match a récompensé la patience et la lecture du tempo.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_038",
+          "title": "ÇA L'EST MAINTENANT",
+          "description": "Ils croyaient que c'était fini. Ton dernier tour a corrigé le panneau d'affichage.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_039",
+          "title": "LE DESTIN EN MAIN",
+          "description": "Tu as trouvé le bon play dans le bruit. La game a basculé sur une décision propre.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_win_040",
+          "title": "CAVIAR AU BUZZER",
+          "description": "Le dernier tour était servi parfaitement. {topQuester} n'avait plus qu'à finir l'action.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -824,6 +1624,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "{opponentName} a quitté la scène pendant que ton board prenait les applaudissements.",
           "tone": "sport",
           "intensity": 2
+        },
+        {
+          "id": "concede_win_021",
+          "title": "À VOUS LES STUDIOS",
+          "description": "{opponentName} a quitté le plateau avant le générique. Le board annonçait déjà la météo du lethal.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_022",
+          "title": "SCOOP TÉLÉVISÉ",
+          "description": "Pas besoin d'aller au bout. Le match était déjà commenté, rejoué et classé.",
+          "tone": "esport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_023",
+          "title": "FIN DU PROGRAMME",
+          "description": "Le score s'arrête à {monScore}-{scoreAdverse}, mais le tempo avait déjà rendu son verdict.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_024",
+          "title": "RIDEAU BAISSÉ",
+          "description": "{opponentName} a vu la fin arriver et a préféré couper avant la scène douloureuse.",
+          "tone": "cinematic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_025",
+          "title": "ABANDON STRATÉGIQUE",
+          "description": "Quand le board commence à écrire le scénario tout seul, parfois le meilleur play reste le menu principal.",
+          "tone": "esport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_026",
+          "title": "IL A VU LE FILM",
+          "description": "{opponentName} connaissait déjà la fin. {topQuester} avait pris trop de place à l'écran.",
+          "tone": "cinematic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_027",
+          "title": "CLIM ANTICIPÉE",
+          "description": "La partie n'était pas finie, mais la température était déjà négative côté adverse.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_028",
+          "title": "SORTIE DE SECOURS",
+          "description": "{opponentName} a trouvé une porte avant que le lethal ne trouve son adresse.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_029",
+          "title": "PAS LA PEINE",
+          "description": "Le board parlait assez fort. Continuer aurait juste ajouté des témoins.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_030",
+          "title": "LETHAL EN APPROCHE",
+          "description": "{opponentName} a entendu les sirènes du dernier tour et a rangé les cartes.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_031",
+          "title": "LE MATCH ÉTAIT PLIÉ",
+          "description": "Le panneau n'affiche pas 20, mais la game avait déjà pris la direction du parking.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_032",
+          "title": "TROP DE TEMPO",
+          "description": "Ton avance a fait plus peur que le score. {opponentName} a respecté la menace.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_033",
+          "title": "LE GÉNÉRIQUE ARRIVE",
+          "description": "La scène finale se préparait. {opponentName} a quitté la salle avant les crédits.",
+          "tone": "cinematic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_034",
+          "title": "SCOOP SANS DÉBAT",
+          "description": "Ce n'était pas une panique, c'était de la lucidité. Le board ne proposait plus d'issue.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_035",
+          "title": "FERMETURE PRÉCOCE",
+          "description": "La boutique n'était pas encore à 20, mais l'enseigne indiquait déjà complet.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_036",
+          "title": "PAS DE PROLONGATION",
+          "description": "{opponentName} a refusé le temps additionnel. Le match avait déjà son vainqueur.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_037",
+          "title": "VICTOIRE PAR ÉVIDENCE",
+          "description": "Parfois, les chiffres ne vont pas au bout parce que le board les devance.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_038",
+          "title": "L'ADVERSAIRE A COMPRIS",
+          "description": "Il a lu la table, vu le lethal, puis choisi la dignité statistique.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_039",
+          "title": "SANS FINIR L'ASSIETTE",
+          "description": "Tu avais déjà trop servi. {opponentName} a quitté le repas avant le dessert.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "concede_win_040",
+          "title": "LE STADE SE VIDE",
+          "description": "Le match n'était pas officiellement mort, mais tout le monde connaissait le score moral.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -980,6 +1980,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Quand les lieux marquent autant, le match devient une affaire de géographie plus que de baston.",
           "tone": "sarcastic",
           "intensity": 2
+        },
+        {
+          "id": "passive_lore_win_021",
+          "title": "L'IMMOBILIER PAIE",
+          "description": "{loreFromLocations} lore passif. Les lieux ont encaissé pendant que le board faisait diversion.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_022",
+          "title": "CASA MADRIGAL FC",
+          "description": "La victoire est venue du cadastre. {opponentName} a oublié de visiter les lieux.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_023",
+          "title": "RENTE ROYALE",
+          "description": "Longue vie au loyer. Tes lieux ont gagné sans même demander un challenge.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_024",
+          "title": "LÀ-HAUT, ÇA SCORE",
+          "description": "Les points tombaient d'en haut. {loreFromLocations} lore passif, et {opponentName} regardait le ciel.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_025",
+          "title": "CADASTRE LÉTAL",
+          "description": "Ce n'était pas un board, c'était une copropriété. Chaque start-of-turn ajoutait la facture.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_026",
+          "title": "PROPRIÉTAIRE DU MATCH",
+          "description": "Pendant que {opponentName} cherchait des trades, tes lieux signaient le bail de la victoire.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_027",
+          "title": "RENDEMENT PASSIF",
+          "description": "{loreFromLocations} lore sans forcer. Le deck a découvert les intérêts composés.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_028",
+          "title": "LE MONOPOLY CONTINUE",
+          "description": "Tu n'as pas acheté la rue, tu as acheté le match. {opponentName} a payé le loyer en retard.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_029",
+          "title": "BOUTIQUE IMMOBILIÈRE",
+          "description": "Le combat était ailleurs. Tes lieux ont tenu la caisse pendant que le board occupait le regard.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_030",
+          "title": "VIE PROVINCIALE, NON",
+          "description": "Les lieux voulaient beaucoup plus qu'une vie provinciale : ils voulaient tes {monScore} lore.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_031",
+          "title": "START-OF-TURN FATAL",
+          "description": "Chaque tour commençait avec une mauvaise nouvelle pour {opponentName}. {loreFromLocations} lore gratuits, ça pique.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_032",
+          "title": "L'ADVERSAIRE A OUBLIÉ L'ADRESSE",
+          "description": "Les lieux étaient là, visibles, rentables. {opponentName} a choisi de regarder ailleurs.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_033",
+          "title": "CASA A FAIT LE CAFÉ",
+          "description": "Le board s'agitait, mais les lieux ont fait le vrai travail de fond.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_034",
+          "title": "LA RENTE DU LORE",
+          "description": "Pas besoin de courir partout. Les lieux ont marqué pendant que les personnages jouaient les gardiens.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_035",
+          "title": "CADASTRE CONTRE BOARD",
+          "description": "Le board était bruyant, le cadastre était efficace. Devine lequel a gagné.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_036",
+          "title": "LE LOYER TOMBE",
+          "description": "À chaque tour, la facture arrivait. {opponentName} a sous-estimé le passif.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_037",
+          "title": "CHANTIER RENTABLE",
+          "description": "Tu as construit tôt, puis récolté tard. Belle gestion de l'espace et du tempo.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_038",
+          "title": "PAS DE COMBAT, DU LOYER",
+          "description": "La partie ne s'est pas gagnée au poing. Elle s'est gagnée à l'emplacement.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_039",
+          "title": "WALLABY WAY CADASTRE",
+          "description": "Plan compliqué ? Non, adresse claire : lieux actifs, lore passif, adversaire en retard.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "passive_lore_win_040",
+          "title": "TERRAIN ACQUIS",
+          "description": "{opponentName} a perdu le sol avant de perdre la partie. Les lieux avaient déjà planté le drapeau.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -1136,6 +2336,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Le match a pris la voie rapide. {opponentName} est resté au péage.",
           "tone": "sarcastic",
           "intensity": 3
+        },
+        {
+          "id": "aggro_win_021",
+          "title": "JE SUIS LA VITESSE",
+          "description": "{nbTours} tours et déjà la ligne d'arrivée. {opponentName} n'a vu que la poussière.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_022",
+          "title": "KACHOW",
+          "description": "La game a démarré en trombe. Ton plan aggro n'a pas demandé la permission.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_023",
+          "title": "SPEEDRUN HOMOLOGUÉ",
+          "description": "{nbTours} tours, peu de questions, beaucoup de lore. Le chrono valide.",
+          "tone": "esport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_024",
+          "title": "DÉPART CANON",
+          "description": "Tu as gagné la première foulée, puis toutes les autres. {opponentName} a raté le départ.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_025",
+          "title": "PAS DE LATE GAME",
+          "description": "Le late game est resté dans les vestiaires. La partie avait déjà pris fin.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_026",
+          "title": "AGGRO ÉCLAIR",
+          "description": "La pression est arrivée avant les réponses. {topQuester} a allumé les panneaux.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_027",
+          "title": "TOUT DROIT AU BUT",
+          "description": "Pas de détour, pas de poésie. Tu as pris l'axe central et frappé fort.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_028",
+          "title": "LE BREAK D'ENTRÉE",
+          "description": "Avantage pris trop tôt, reprise impossible. {opponentName} a couru derrière le bus.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_029",
+          "title": "PAVARD AU TOUR {nbTours}",
+          "description": "La frappe est partie tôt et propre. {opponentName} n'a pas eu le temps de cadrer.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_030",
+          "title": "VERS L'INFINI",
+          "description": "Le score a décollé avant que l'adversaire ne trouve la piste.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_031",
+          "title": "TAPIS VOLANT EXPRESS",
+          "description": "La game a survolé le board. {opponentName} est resté au sol.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_032",
+          "title": "BOSS RUSH",
+          "description": "Tu as enchaîné les tours comme un speedrun. Le dernier boss n'avait pas de phase deux.",
+          "tone": "gaming",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_033",
+          "title": "LE TEMPO EN FUSÉE",
+          "description": "L'encre a suivi, le board aussi, le lore encore plus. Départ parfait.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_034",
+          "title": "SANS FREIN",
+          "description": "Quand le deck part comme ça, le bouton pause devrait être interdit.",
+          "tone": "gaming",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_035",
+          "title": "OURAGAN DE LORE",
+          "description": "La pression a tout emporté. {opponentName} cherchait un parapluie, pas une réponse.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_036",
+          "title": "LA COURSE EST FINIE",
+          "description": "Tu as sprinté vers {monScore}. En face, la défense était encore au rond central.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_037",
+          "title": "DANS LE RÉTRO",
+          "description": "{opponentName} n'a jamais été devant. Tu as joué toute la game avec les feux verts.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_038",
+          "title": "LE TEMPO A KLAXONNÉ",
+          "description": "La curve était prioritaire. Tout le monde s'est écarté, même le board adverse.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_039",
+          "title": "TROP VITE, TROP FORT",
+          "description": "Le match n'a pas respiré. Ton deck a transformé chaque tour en accélération.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "aggro_win_040",
+          "title": "FIN AVANT L'ENTRACTE",
+          "description": "Le scénario n'a pas atteint le deuxième acte. La win était déjà assise au premier rang.",
+          "tone": "cinematic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -1292,6 +2692,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "L'adversaire a tenu longtemps. Puis le contrôle a fait son travail : une fenêtre, un lethal.",
           "tone": "tactical",
           "intensity": 2
+        },
+        {
+          "id": "control_win_021",
+          "title": "TU NE PASSERAS PAS",
+          "description": "{nbTours} tours de verrouillage. {opponentName} a trouvé des portes, jamais la clé.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_022",
+          "title": "GUERRE D'USURE",
+          "description": "Chaque ressource adverse a fondu. Lent, froid, pénible, et exactement comme prévu.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_023",
+          "title": "NAGE DROIT DEVANT",
+          "description": "Tu as traversé la tempête sans paniquer. Le contrôle a gagné à l'endurance.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_024",
+          "title": "ILS ONT LAISSÉ PASSER L'ORAGE",
+          "description": "Tu as encaissé le début, puis repris le match par la value.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_025",
+          "title": "MATCH DE PURISTE",
+          "description": "{nbTours} tours de patience. Pas de flash inutile, juste du Card Advantage bien rangé.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_026",
+          "title": "FESTIVAL DE VERROUS",
+          "description": "{opponentName} a frappé à chaque porte. Ton deck avait changé les serrures.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_027",
+          "title": "JUSTE UN TOUR DE PLUS",
+          "description": "La partie longue t'a souri. Plus le match durait, plus ta value devenait lourde.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_028",
+          "title": "ÉCHECS SUR ENCRIER",
+          "description": "Ce n'était plus Lorcana, c'était une partie d'échecs avec des lore à la fin.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_029",
+          "title": "PATIENCE ROYALE",
+          "description": "Tu as refusé le chaos. Chaque trade a préparé la fin comme une longue cuisson.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_030",
+          "title": "LE CONTRÔLE A PARLÉ",
+          "description": "{opponentName} jouait des cartes. Toi, tu jouais les ressources.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_031",
+          "title": "ATTRITION TOTALE",
+          "description": "Le board adverse s'est usé sur tes réponses. Au bout, il ne restait que ton plan.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_032",
+          "title": "PAS DE CAPE, QUE DES RÉPONSES",
+          "description": "Le contrôle n'avait pas besoin de voler. Il avait juste réponse à tout.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_033",
+          "title": "LA PORTE AVALÉE",
+          "description": "Tu as verrouillé la porte, puis avalé la clé. {opponentName} a joué dans le couloir.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_034",
+          "title": "LONG MATCH, MAIN FROIDE",
+          "description": "{nbTours} tours sans perdre le fil. C'est la marque d'un vrai plan contrôle.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_035",
+          "title": "LA VALUE AU MÉTIER",
+          "description": "Rien de spectaculaire à chaque tour, mais l'ensemble a fini par étouffer le match.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_036",
+          "title": "PROLONGATION MAÎTRISÉE",
+          "description": "Dans le temps additionnel, tu avais encore des réponses. {opponentName} avait surtout des regrets.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_037",
+          "title": "LE BOARD SOUS SURVEILLANCE",
+          "description": "Chaque menace a été contrôlée avant de devenir un problème de lore.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_038",
+          "title": "JUST KEEP SWIMMING",
+          "description": "Long, tendu, mais jamais perdu. Tu as continué jusqu'à user la partie.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_039",
+          "title": "GUICHET FERMÉ",
+          "description": "Les menaces adverses prenaient un ticket. Aucune n'a été appelée à temps.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_win_040",
+          "title": "LA FINANCE DU LATE GAME",
+          "description": "Tu as investi tôt en réponses, puis encaissé la value quand le match s'est allongé.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -1447,6 +3047,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Le moteur a toussé, mais il n'a pas calé avant la ligne d'arrivée.",
           "tone": "sport",
           "intensity": 2
+        },
+        {
+          "id": "topdeck_win_021",
+          "title": "LA VIE TROUVE UN CHEMIN",
+          "description": "{toursTopDeck} tours presque à sec, mais le deck a gardé un plan de secours.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_022",
+          "title": "SECOND POTEAU TOP DECK",
+          "description": "La carte est arrivée de nulle part. {opponentName} a juste eu le temps de regarder la lucarne.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_023",
+          "title": "L'AGRIPPE",
+          "description": "Une seule pioche, la bonne. Le deck a sorti le grappin au moment exact.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_024",
+          "title": "PRIÈRE ACCEPTÉE",
+          "description": "Le top deck n'était pas propre, mais il était légal. Et surtout, il était létal.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_025",
+          "title": "MAIN VIDE, MIRACLE PLEIN",
+          "description": "Tu n'avais presque plus rien, sauf assez de destin pour finir.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_026",
+          "title": "RNG AVEC COSTUME",
+          "description": "La variance est entrée en scène, très bien habillée, et t'a offert la sortie.",
+          "tone": "gaming",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_027",
+          "title": "ÇA L'EST MAINTENANT",
+          "description": "{opponentName} croyait que c'était fini. Ta pioche a corrigé le commentaire.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_028",
+          "title": "SUR UN MALENTENDU",
+          "description": "À force de top deck, ça pouvait marcher. Spoiler : ça a marché.",
+          "tone": "pop_fr",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_029",
+          "title": "LE DESTIN AU DESSUS",
+          "description": "Tu as joué léger en main, lourd en culot. La pioche a validé.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_030",
+          "title": "CAVIAR DE PIOCHE",
+          "description": "Le deck t'a servi la carte parfaite. Il ne restait qu'à pousser au fond.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_031",
+          "title": "PAS TRÈS PROPRE, MAIS PRO",
+          "description": "{toursTopDeck} tours à sec, et pourtant la win. La méthode est discutable, le résultat non.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_032",
+          "title": "TOP DECK DE LUXE",
+          "description": "Quand la main est vide, chaque pioche a une caméra sur elle. Celle-ci a pris la lumière.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_033",
+          "title": "LA BOÎTE DE CHOCOLATS",
+          "description": "On ne savait pas ce que tu allais piocher. Heureusement, c'était comestible.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_034",
+          "title": "LE DECK A RÉPONDU",
+          "description": "Au pire moment pour {opponentName}, ton deck a enfin décroché le téléphone.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_035",
+          "title": "BRAVO LA VARIANCE",
+          "description": "Ce n'était pas un plan A. C'était le plan RNG, mais il compte pareil.",
+          "tone": "gaming",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_036",
+          "title": "LA CARTE QUI SAUVE",
+          "description": "Une seule option, une seule fenêtre, et assez de lore pour fermer la partie.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_037",
+          "title": "MON PRÉCIEUX TOP DECK",
+          "description": "Tu as trouvé la bonne carte et tu ne l'as pas lâchée. {opponentName} a senti le froid.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_038",
+          "title": "LE STADE N'EN REVIENT PAS",
+          "description": "La pioche a fait basculer le match. Même le board a demandé un replay.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_039",
+          "title": "MIRACLE CONTRÔLÉ",
+          "description": "Ce n'était pas entièrement prévu, mais tu avais préparé la table pour que le miracle compte.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_win_040",
+          "title": "TOMBER AVEC PANACHE",
+          "description": "La ligne était bancale, mais la chute a produit une victoire. On note le style.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -1603,6 +3403,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "{scoreAdverse} en face, {monScore} chez toi. Même le coach local tousse avant de commenter.",
           "tone": "sarcastic",
           "intensity": 3
+        },
+        {
+          "id": "perfect_loss_021",
+          "title": "PAS ÇA",
+          "description": "Pas aujourd'hui, pas maintenant. La game a commencé sans toi et fini sans lore.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_022",
+          "title": "HOUSTON, PROBLÈME",
+          "description": "Score vierge, board compliqué, plan introuvable. Le centre de contrôle demande une enquête.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_023",
+          "title": "LE PASSÉ FAIT MAL",
+          "description": "Ce replay va piquer. Mais il montre très bien où le plan s'est effondré.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_024",
+          "title": "ZÉRO AU TABLEAU",
+          "description": "{opponentName} a joué un match. Toi, tu as regardé une bande-annonce très triste.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_025",
+          "title": "IL N'Y A PAS EU PHOTO",
+          "description": "Le score {monScore}-{scoreAdverse} est brutal, mais pas spécialement menteur.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_026",
+          "title": "MAUVAIS LEVIER",
+          "description": "Tout est parti du mauvais côté. Kronk aurait demandé une pause technique.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_027",
+          "title": "LA LUMIÈRE S'EST ÉTEINTE",
+          "description": "Aucun lore, aucune traction. Le stade a compris avant le joueur.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_028",
+          "title": "DÉSHONNEUR SUR LA CURVE",
+          "description": "Le deck n'a jamais trouvé son rythme. La honte reste statistique, pas personnelle.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_029",
+          "title": "SORTIE DE ROUTE",
+          "description": "Pas un virage pris correctement. La partie a fini dans le décor avant le milieu de match.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_030",
+          "title": "RIEN À SIGNALER",
+          "description": "Côté lore, le rapport est simple : aucune activité détectée.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_031",
+          "title": "TOURNER LA PAGE",
+          "description": "C'est une soirée à oublier, mais un replay à disséquer. La douleur a des données.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_032",
+          "title": "LE MATCH A DISPARU",
+          "description": "Ton plan de jeu avait une cape d'invisibilité. Problème : même toi tu ne l'as pas vu.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_033",
+          "title": "ON NE PASSE PAS",
+          "description": "{opponentName} a monté le mur, et tu n'as jamais trouvé la porte.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_034",
+          "title": "PAS DE PALAIS",
+          "description": "Pas de curve, pas de board. Pas de board, pas de lore. Pas de lore, pas de palais.",
+          "tone": "pop_fr",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_035",
+          "title": "SILENCE RADIO",
+          "description": "Le deck n'a pas répondu. Même E.T. aurait eu une meilleure connexion maison.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_036",
+          "title": "LE TUTORIEL ADVERSE",
+          "description": "{opponentName} a pu dérouler sans interruption. Ça ressemblait plus à un test qu'à un match.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_037",
+          "title": "SOIRÉE SANS BALLON",
+          "description": "Tu as couru derrière tout, sans jamais toucher la partie.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_038",
+          "title": "BANC DE TOUCHE",
+          "description": "Le match a été joué, mais ton plan est resté assis avec la veste.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_039",
+          "title": "ZÉRO PRESSION",
+          "description": "Aucun lore pour menacer, aucun tempo pour inquiéter. {opponentName} a respiré trop librement.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "perfect_loss_040",
+          "title": "APPELLE RAFIKI",
+          "description": "Le passé peut faire mal. Là, il va surtout servir de support de coaching.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -1758,6 +3758,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Trop de menaces, pas assez de réponses. La partie a été jouée dans ton rétroviseur.",
           "tone": "tactical",
           "intensity": 2
+        },
+        {
+          "id": "stomp_loss_021",
+          "title": "PAS ÇA ZINÉDINE",
+          "description": "Défaite {monScore}-{scoreAdverse}. Le match avait encore une dignité, puis la curve a pris rouge.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_022",
+          "title": "HOUSTON, GROS PROBLÈME",
+          "description": "{opponentName} a installé le board pendant que ton tempo cherchait une prise.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_023",
+          "title": "IL N'Y A PAS EU PHOTO",
+          "description": "Le score est lourd, et malheureusement il raconte assez bien le match.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_024",
+          "title": "LE ROULEAU EN FACE",
+          "description": "{opponentName} a pris l'axe central et tout écrasé. Ton board a servi de ralentisseur.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_025",
+          "title": "SOIRÉE À OUBLIER",
+          "description": "Le replay, lui, ne t'oubliera pas. Il a gardé chaque retard de tempo.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_026",
+          "title": "LE PLAN A EXPLOSÉ",
+          "description": "Belle idée sur le papier. Sur le board, ça a pris l'eau dès les premiers tours.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_027",
+          "title": "DÉFENSE EN CARTON",
+          "description": "La pression adverse est passée trop facilement. Le lore a coulé comme une fuite non réparée.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_028",
+          "title": "MAUVAIS LEVIER",
+          "description": "La mauvaise décision a lancé le chaos, puis le chaos a pris le volant.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_029",
+          "title": "LE CHÂTEAU S'ÉCROULE",
+          "description": "À force de subir, la structure a lâché. {opponentName} n'a plus eu qu'à pousser.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_030",
+          "title": "MATCH SANS LUMIÈRE",
+          "description": "Le tournant est arrivé tôt, puis personne n'a retrouvé l'interrupteur.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_031",
+          "title": "RETOUR AU LOBBY",
+          "description": "La game a été brutale. Pas de honte, mais beaucoup de matière pour la VOD.",
+          "tone": "esport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_032",
+          "title": "OUTPLAY COMPLET",
+          "description": "{opponentName} a mieux lu le tempo, mieux converti les ressources, mieux fermé la partie.",
+          "tone": "esport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_033",
+          "title": "IL A PAYÉ CASH",
+          "description": "Chaque retard a coûté du lore. La sanction est arrivée sans délai de livraison.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_034",
+          "title": "SEUM MAIS DONNÉES",
+          "description": "Ça pique, mais au moins les stats parlent. Le tempo a été perdu trop tôt.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_035",
+          "title": "TU NE PASSERAS PAS",
+          "description": "Le mur adverse était là. Ton plan a frappé dessus jusqu'à la fin.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_036",
+          "title": "LA COURBE AU VESTIAIRE",
+          "description": "La curve n'est jamais entrée sur le terrain. {opponentName}, lui, jouait déjà.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_037",
+          "title": "BOARD CONFISQUÉ",
+          "description": "Tu as tenté d'exister, mais le plateau avait déjà choisi son propriétaire.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_038",
+          "title": "LE TEMPO A FUJI",
+          "description": "Le rythme est parti très loin, sans laisser d'adresse de retour.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_039",
+          "title": "DÉFAITE ADMINISTRATIVE",
+          "description": "Dossier incomplet : pas assez de board, pas assez de lore, trop de retard.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "stomp_loss_040",
+          "title": "RÊVE BLEU, ÉCRAN NOIR",
+          "description": "Le plan pouvait être beau. La partie, elle, a surtout affiché un écran noir.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -1914,6 +4114,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "C'est la défaite qui donne envie de relancer direct. Pas pour tilt, pour comprendre.",
           "tone": "sport",
           "intensity": 2
+        },
+        {
+          "id": "close_loss_021",
+          "title": "PAS AUJOURD'HUI",
+          "description": "Défaite {monScore}-{scoreAdverse}. C'était proche, donc forcément plus cruel.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_022",
+          "title": "PAS MAINTENANT",
+          "description": "Le lethal était presque là. Le match a choisi la tragédie au dernier moment.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_023",
+          "title": "CRUEL, SI CRUEL",
+          "description": "Un lore, un trade, une pioche. La défaite a pris le chemin le plus douloureux.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_024",
+          "title": "PHOTO-FINISH PERDU",
+          "description": "La ligne était là, mais {opponentName} a passé le nez devant au pire instant.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_025",
+          "title": "LE TOP DECK ADVERSE",
+          "description": "Tu avais presque fermé la porte. La pioche adverse a trouvé le double des clés.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_026",
+          "title": "À UN POIL",
+          "description": "Il manquait presque rien. Ce qui, statistiquement, est la manière la plus vexante de perdre.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_027",
+          "title": "LA CLIM FINALE",
+          "description": "Le stade y croyait, puis le dernier tour a coupé le chauffage.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_028",
+          "title": "LETHAL MANQUÉ",
+          "description": "Il était quelque part sur la table. Apparemment, il portait une cape d'invisibilité.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_029",
+          "title": "OH NON, PAS ÇA",
+          "description": "La game ne devait pas finir comme ça. Mais la curve adverse avait le dernier mot.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_030",
+          "title": "REMBOURSEMENT ÉMOTIONNEL",
+          "description": "Une défaite aussi proche devrait venir avec un formulaire de réclamation.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_031",
+          "title": "LE FIL A CASSÉ",
+          "description": "Tu as tenu la corde longtemps. Elle a lâché au dernier mètre.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_032",
+          "title": "LA VIE TROUVE UN CHEMIN",
+          "description": "Malheureusement, cette fois, c'était surtout la vie du board adverse.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_033",
+          "title": "HOLD-UP SUBI",
+          "description": "La partie était prenable, puis {opponentName} est reparti avec le sac.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_034",
+          "title": "LE BUZZER EN FACE",
+          "description": "Le money time a parlé, mais pas avec ta voix. Cruel et très éducatif.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_035",
+          "title": "PRESQUE HÉROS",
+          "description": "Le comeback avait mis la cape. Il a trébuché avant le plan final.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_036",
+          "title": "UN DÉTAIL, UNE DOULEUR",
+          "description": "Tout s'est joué sur un détail. Traduction : ça va rester dans la tête.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_037",
+          "title": "C'EST PAS FAUX",
+          "description": "Dire que c'était jouable n'aide pas. Mais oui, c'était vraiment jouable.",
+          "tone": "pop_fr",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_038",
+          "title": "LA PORTE OUVERTE",
+          "description": "Tu as laissé une fenêtre, {opponentName} est entré avec les chaussures sales.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_039",
+          "title": "FIN À LA GILARDI",
+          "description": "Pas ça, pas après tout ce travail. Le dernier tour a fait très mal.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "close_loss_040",
+          "title": "DERNIER VIRAGE RATÉ",
+          "description": "La trajectoire était bonne, puis le match a glissé sur la dernière action.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -2070,6 +4470,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Tu as joué trop longtemps sans réserve. Face à une clock active, ça pardonne rarement.",
           "tone": "tactical",
           "intensity": 2
+        },
+        {
+          "id": "topdeck_loss_021",
+          "title": "PRIÈRE ET DÉFAITE",
+          "description": "{toursTopDeck} tours à attendre la bonne carte. Le deck a répondu trop tard.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_022",
+          "title": "PAGE BLANCHE",
+          "description": "La main était vide, le plan aussi. {opponentName} n'avait plus qu'à lire la fin.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_023",
+          "title": "DÉSERT TACTIQUE",
+          "description": "Le Card Advantage est parti sans laisser d'eau. Tu as joué la soif.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_024",
+          "title": "LA BOÎTE ÉTAIT VIDE",
+          "description": "La vie c'est comme une pioche. Là, elle avait surtout laissé les chocolats en face.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_025",
+          "title": "TOP DECK MODE",
+          "description": "{toursTopDeck} tours en mode loterie. À ce niveau, même la RNG demande une pause.",
+          "tone": "gaming",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_026",
+          "title": "L'AGRIPPE A RATÉ",
+          "description": "Tu cherchais la carte de secours. Le grappin a attrapé du vide.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_027",
+          "title": "LE DECK AU SILENCE",
+          "description": "Tu appelais des réponses, mais la pioche avait mis son téléphone en avion.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_028",
+          "title": "PAS DE MUNITIONS",
+          "description": "On ne gagne pas une guerre d'attrition avec une main en brochure touristique.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_029",
+          "title": "MON PRÉCIEUX INTROUVABLE",
+          "description": "La carte clé était quelque part dans le deck. Malheureusement, la partie aussi.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_030",
+          "title": "HOUSTON, MAIN VIDE",
+          "description": "{toursTopDeck} tours avec trop peu d'options. Le centre de contrôle a perdu le signal.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_031",
+          "title": "LE DESTIN EN PANNE",
+          "description": "Le match demandait une réponse. La pioche a envoyé un accusé de réception.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_032",
+          "title": "TROP PEU, TROP TARD",
+          "description": "La bonne carte pouvait exister. Elle a surtout existé après l'urgence.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_033",
+          "title": "SPECTATEUR DE TA PIOCHE",
+          "description": "Quand la main tombe à sec, le joueur devient commentateur de son propre malheur.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_034",
+          "title": "PLUS DE CARTES, PLUS DE PLAN",
+          "description": "Le board adverse a grandi pendant que ton deck cherchait la prochaine phrase.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_035",
+          "title": "NAGE DROIT DANS LE VIDE",
+          "description": "Tu as continué, mais sans main, chaque tour ressemblait à un couloir trop long.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_036",
+          "title": "CASINO LORCANA",
+          "description": "Une pioche par tour, une prière par tour. Le croupier n'a pas été généreux.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_037",
+          "title": "LE STOCK ÉTAIT FINI",
+          "description": "Le magasin des réponses était fermé. {opponentName} a profité des soldes.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_038",
+          "title": "RNG CÔTÉ FROID",
+          "description": "La variance a pris le micro, puis a annoncé une mauvaise nouvelle.",
+          "tone": "gaming",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_039",
+          "title": "LE MOTEUR A CALÉ",
+          "description": "Sans pioche, ton deck a perdu sa respiration. Le tempo adverse a pris toute la route.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "topdeck_loss_040",
+          "title": "MAIN VIDE, STADE VIDE",
+          "description": "Même le public a senti que la prochaine pioche portait trop de pression.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -2226,6 +4826,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Tu avais les moyens, pas la dépense. {opponentName} a pris le marché.",
           "tone": "sarcastic",
           "intensity": 2
+        },
+        {
+          "id": "ink_leak_loss_021",
+          "title": "MAUVAIS LEVIER",
+          "description": "{inkFloat} encres flottées. Tu as tiré le levier du tempo, mais pas dans le bon sens.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_022",
+          "title": "HOUSTON, ENCRE AU SOL",
+          "description": "Tu avais les ressources. Elles sont restées au sol pendant que {opponentName} construisait le match.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_023",
+          "title": "L'ENCRE DÉCORATIVE",
+          "description": "{inkFloat} encres inutilisées. À ce stade, l'encrier servait surtout de mobilier.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_024",
+          "title": "IL FALLAIT TUER LE MATCH",
+          "description": "Tu avais de quoi agir, mais le tempo a été laissé vivant. Il s'est vengé.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_025",
+          "title": "LA SANCTION IMMÉDIATE",
+          "description": "Chaque encre non convertie a ouvert une fenêtre. {opponentName} est entré par toutes.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_026",
+          "title": "TEMPÊTE DANS L'ENCRIER",
+          "description": "Beaucoup d'eau, peu de mouvement. Le board adverse a surfé sur ton inertie.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_027",
+          "title": "PAS DE CONSTRUCTION",
+          "description": "Pas d'action, pas de tempo. Pas de tempo, pas de palais.",
+          "tone": "pop_fr",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_028",
+          "title": "LE TEMPO AU PARKING",
+          "description": "{inkFloat} encres garées dehors. Pendant ce temps, le match roulait sans toi.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_029",
+          "title": "TRÉSOR INUTILISÉ",
+          "description": "Mon précieux encrier ne gagne pas seul. Il fallait convertir ces ressources en pression.",
+          "tone": "pop",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_030",
+          "title": "LA CURVE A RATÉ LE TRAIN",
+          "description": "L'encre était là, le tour aussi. L'action principale, elle, est restée sur le quai.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_031",
+          "title": "RENDEMENT NÉGATIF",
+          "description": "Tu as économisé des encres comme si elles rapportaient des intérêts. Mauvaise banque.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_032",
+          "title": "OÙ EST LE TEMPO",
+          "description": "Le problème n'était pas le manque d'encre. C'était l'absence d'impact avec cette encre.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_033",
+          "title": "FUITES MULTIPLES",
+          "description": "{inkFloat} encres flottées, ça ne coule plus, ça inonde. Le board adverse a pris le bateau.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_034",
+          "title": "PAS DE CAPE POUR LA CURVE",
+          "description": "La curve ne s'est pas sauvée toute seule. Il fallait jouer les cartes, pas les contempler.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_035",
+          "title": "LE BUDGET ÉTAIT LÀ",
+          "description": "Tu avais les moyens, mais pas les dépenses. {opponentName} a remporté le marché.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_036",
+          "title": "ENCRE EN VACANCES",
+          "description": "{inkFloat} ressources disponibles et trop peu converties. Le tempo a posé ses congés.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_037",
+          "title": "LE PLAN RESTE AU PAPIER",
+          "description": "Belle réserve, peu d'action. La partie ne récompense pas les encres non dépensées.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_038",
+          "title": "TROP D'EAU, PAS DE MOULIN",
+          "description": "Les ressources étaient là, mais aucune pression n'en est sortie à temps.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_039",
+          "title": "L'ÉCONOMIE S'ENDORT",
+          "description": "Ink Advantage potentiel, tempo réel absent. Le match a puni l'écart entre les deux.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "ink_leak_loss_040",
+          "title": "LA FACTURE DU TEMPO",
+          "description": "L'encre non utilisée revient toujours. Cette fois, elle est revenue avec des intérêts.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -2383,6 +5183,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Le replay commence comme une alerte météo. La tempête est arrivée tour {nbTours}.",
           "tone": "sarcastic",
           "intensity": 2
+        },
+        {
+          "id": "mulligan_brick_loss_021",
+          "title": "MAUVAIS LEVIER",
+          "description": "{nbMulligan} cartes renvoyées, et le chaos quand même. Kronk compatit.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_022",
+          "title": "DÉSHONNEUR SUR LA MAIN",
+          "description": "Le mulligan devait réparer. Il a livré une brique avec emballage cadeau.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_023",
+          "title": "BRIQUE AU COUP D'ENVOI",
+          "description": "La partie a commencé, ton plan cherchait encore ses chaussures.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_024",
+          "title": "SUR UN MALENTENDU",
+          "description": "Le keep pouvait marcher. Malheureusement, le malentendu a surtout marché pour {opponentName}.",
+          "tone": "pop_fr",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_025",
+          "title": "OUBLIE QUE T'AS UNE CURVE",
+          "description": "{nbMulligan} cartes bougées, zéro fluidité. La main avait déjà signé la souffrance.",
+          "tone": "pop_fr",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_026",
+          "title": "HOUSTON, OPENING MAIN",
+          "description": "La main de départ envoyait des signaux inquiétants. Le centre de contrôle confirme le crash.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_027",
+          "title": "PAS DE PIERRE",
+          "description": "Pas de T1, pas de T2. Pas de curve, pas de palais.",
+          "tone": "pop_fr",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_028",
+          "title": "LE PLAN SUR LE PAPIER",
+          "description": "Sur le papier, c'était jouable. Puis la main de départ a pris le papier.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_029",
+          "title": "LE MULLIGAN A MENTI",
+          "description": "Il a promis une solution, puis est revenu avec une liste de problèmes.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_030",
+          "title": "BRICK CITY",
+          "description": "La main ressemblait à un chantier. Beaucoup de matériaux, aucune route vers le tempo.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_031",
+          "title": "LA RNG AU MICRO",
+          "description": "La variance a annoncé la composition de départ. Le stade a compris avant toi.",
+          "tone": "gaming",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_032",
+          "title": "PAS AUJOURD'HUI",
+          "description": "Pas maintenant, pas avec cette main. Le match a senti le sang très tôt.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_033",
+          "title": "CURVE ABSENTE",
+          "description": "Elle n'était pas mauvaise. Elle n'était juste pas là.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_034",
+          "title": "OPENING EN PANNE",
+          "description": "Le moteur n'a pas démarré. {opponentName} était déjà en troisième vitesse.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_035",
+          "title": "TROP LOURD, TROP TÔT",
+          "description": "La main voulait jouer le late game avant de survivre au début. Mauvais ordre.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_036",
+          "title": "L'ENCRIER A PLEURÉ",
+          "description": "Même les cartes en main semblaient ne pas savoir lesquelles sauver.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_037",
+          "title": "MULLIGAN DE FILM D'HORREUR",
+          "description": "Tu as ouvert la porte, et derrière il y avait encore la cave.",
+          "tone": "cinematic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_038",
+          "title": "LE DECK A CHOISI LE DRAME",
+          "description": "Tu cherchais de la stabilité. Le deck a préféré le théâtre.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_039",
+          "title": "MAIN EN DÉMÉNAGEMENT",
+          "description": "Beaucoup de cartons, aucun plan clair. {opponentName} a profité du désordre.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "mulligan_brick_loss_040",
+          "title": "APPELLE LE SCRIBE",
+          "description": "Il va falloir noter cette main, puis l'enterrer dans les archives.",
+          "tone": "pop_fr",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -2539,6 +5539,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Tu arrives au bout, mais sans le sprint final. Le late game ne pardonne pas.",
           "tone": "sport",
           "intensity": 2
+        },
+        {
+          "id": "control_loss_021",
+          "title": "GUERRE D'USURE PERDUE",
+          "description": "{nbTours} tours dans les tranchées, mais {opponentName} avait la dernière ration de value.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_022",
+          "title": "JUST KEEP LOSING",
+          "description": "Tu as tenu longtemps, mais nager droit devant ne suffit pas quand le courant est adverse.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_023",
+          "title": "LA CLÉ EN FACE",
+          "description": "Tu as verrouillé beaucoup de portes. {opponentName} avait celle de la fin.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_024",
+          "title": "MATCH D'ÉCHECS PERDU",
+          "description": "Chaque échange comptait. Au dernier calcul, il manquait une ressource de trop.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_025",
+          "title": "LE LATE GAME T'A EU",
+          "description": "Tu voulais une partie longue. Elle l'a été, puis elle t'a présenté la facture.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_026",
+          "title": "ATTRITION FROIDE",
+          "description": "Ce n'était pas spectaculaire. C'était pire : lentement défavorable.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_027",
+          "title": "LE TEMPS ADDITIONNEL FAIT MAL",
+          "description": "Dans les prolongations, {opponentName} a trouvé plus de value et moins de regrets.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_028",
+          "title": "PAS DE RÉPONSE FINALE",
+          "description": "Tu avais tenu le board, mais pas le dernier swing de lore.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_029",
+          "title": "LA FATIGUE A PARLÉ",
+          "description": "{nbTours} tours, beaucoup de décisions. Une seule de trop a ouvert la fin.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_030",
+          "title": "CONTROL MIRROR, MIROIR CRUEL",
+          "description": "Le plan était lent, mais le reflet adverse avait une meilleure main.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_031",
+          "title": "LA VALUE S'ÉCHAPPE",
+          "description": "La partie longue devait t'avantager. Elle a surtout donné plus de temps à {opponentName}.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_032",
+          "title": "BATAILLE DE TRANCHÉES",
+          "description": "Tu as survécu aux assauts, puis perdu sur les réserves.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_033",
+          "title": "PATIENCE PUNIE",
+          "description": "Attendre était correct. Attendre sans assez convertir l'était moins.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_034",
+          "title": "LE MARATHON EN FACE",
+          "description": "{opponentName} a mieux géré le souffle. Le sprint final n'était pas pour toi.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_035",
+          "title": "ÉCONOMIE FRAGILE",
+          "description": "Sur une partie aussi longue, chaque ressource perdue revient en facture.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_036",
+          "title": "LE BOARD A TENU, PAS LE SCORE",
+          "description": "Tu as contesté longtemps, mais la course au lore a fini par s'échapper.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_037",
+          "title": "TROP LONG, TROP LOIN",
+          "description": "Le match a dépassé ta fenêtre de contrôle. {opponentName} a trouvé le late game utile.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_038",
+          "title": "LE TEMPO S'ÉRODE",
+          "description": "Rien n'a explosé. Tout s'est simplement usé, jusqu'à ce que l'écart devienne réel.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_039",
+          "title": "PAS DE FIN HEUREUSE",
+          "description": "Le conte était long, mais le dernier chapitre appartenait à {opponentName}.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "control_loss_040",
+          "title": "ON APPREND DU PASSÉ",
+          "description": "Rafiki validerait la leçon. Cette défaite longue montre exactement où la value s'est perdue.",
+          "tone": "disney_hint",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -2695,6 +5895,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Le plateau a parlé en premier, le score a confirmé ensuite.",
           "tone": "sport",
           "intensity": 1
+        },
+        {
+          "id": "board_grind_win_021",
+          "title": "TU NE PASSERAS PAS",
+          "description": "{challengeCount} défis et un board verrouillé. {opponentName} a frappé le mur trop longtemps.",
+          "tone": "pop",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_022",
+          "title": "IL A ÉTEINT L'INCENDIE",
+          "description": "Chaque défi a retiré une menace. Le feu adverse n'a jamais pris la maison.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_023",
+          "title": "JE VAIS TOUT CASSER",
+          "description": "Le board a été démonté pièce par pièce. {opponentName} a perdu l'atelier.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_024",
+          "title": "TRADES RENTABLES",
+          "description": "Tu as transformé les défis en value. Le board adverse a payé chaque échange trop cher.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_025",
+          "title": "NETTOYAGE AU MÉTIER",
+          "description": "Pas de grand discours. Juste des challenges propres et une table plus respirable.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_026",
+          "title": "BOARD SOUS CADENAS",
+          "description": "Le plateau a été verrouillé avant que la course au lore ne devienne dangereuse.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_027",
+          "title": "SANCTION IMMÉDIATE",
+          "description": "Chaque personnage exposé a été puni. {opponentName} a appris la géographie du board.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_028",
+          "title": "LUNDI MATIN SUR LE PLATEAU",
+          "description": "Il y avait foule, puis plus grand-monde. Le nettoyage a fait son travail.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_029",
+          "title": "C'EST CHIRURGICAL",
+          "description": "Les défis ont coupé juste où il fallait. Aucun échange gratuit pour {opponentName}.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_030",
+          "title": "PAS TOUCHE AU BOARD",
+          "description": "Tu as gardé le rythme et le terrain. L'adversaire n'a jamais installé sa scène.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_031",
+          "title": "LE BREAK PAR LE PLATEAU",
+          "description": "Ce n'est pas le lore qui a parlé en premier. C'est la domination du board.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_032",
+          "title": "DÉFENSE DE FER",
+          "description": "Tu as fait le dos rond, puis rendu chaque défi rentable.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_033",
+          "title": "LA TABLE A CHANGÉ DE CAMP",
+          "description": "Au fil des échanges, le board est devenu ton adresse officielle.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_034",
+          "title": "CLEANUP CREW",
+          "description": "L'équipe de nettoyage est passée. Les menaces adverses ont fini en souvenirs.",
+          "tone": "gaming",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_035",
+          "title": "BOARD WIPE HUMAIN",
+          "description": "Pas besoin d'un sort massif. Tes challenges ont fait le ménage eux-mêmes.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_036",
+          "title": "L'ORAGE EST PASSÉ",
+          "description": "Tu as tenu la pression, puis nettoyé ce qui restait.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_037",
+          "title": "BATAILLE GAGNÉE AU SOL",
+          "description": "{challengeCount} défis, et chaque mètre du board a été disputé correctement.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_038",
+          "title": "ADVERSAIRE EN RECUL",
+          "description": "Les trades ont forcé {opponentName} à défendre au lieu de scorer.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_039",
+          "title": "VALUE AU CONTACT",
+          "description": "Tu n'as pas seulement tapé. Tu as gagné des ressources à chaque échange.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_win_040",
+          "title": "PAS DE SURVIVANTS INUTILES",
+          "description": "Le board adverse a cherché un refuge. Mauvaise carte, mauvais quartier.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -2851,6 +6251,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Même contesté, le plateau n'a jamais vraiment basculé. Et le score a continué.",
           "tone": "tactical",
           "intensity": 1
+        },
+        {
+          "id": "board_grind_loss_021",
+          "title": "ÇA TAPE, MAIS ÇA LORE PAS",
+          "description": "{challengeCount} défis, beaucoup de bruit, pas assez de score. Le board a gagné la mauvaise bataille.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_022",
+          "title": "BAGARRE PERDUE",
+          "description": "Tu as combattu, mais {opponentName} a mieux converti ses cartes en lore.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_023",
+          "title": "LE FEU RESTE OUVERT",
+          "description": "Tu as tenté d'éteindre l'incendie. Il restait trop de braises sur le board.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_024",
+          "title": "TRADES TROP CHERS",
+          "description": "Chaque défi coûtait plus qu'il ne rapportait. La value est partie côté adverse.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_025",
+          "title": "BOARD SANS PRIME",
+          "description": "Gagner des combats ne suffit pas si le compteur de lore file ailleurs.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_026",
+          "title": "JE VAIS TOUT CASSER, PRESQUE",
+          "description": "Tu as cassé des choses, mais pas le plan adverse. Mauvaise démolition.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_027",
+          "title": "TROP DE CONTACT",
+          "description": "À force de défier, tu as oublié que la ligne d'arrivée était à 20 lore.",
+          "tone": "sarcastic",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_028",
+          "title": "DÉFENSE EN RETARD",
+          "description": "Les challenges arrivaient après le problème. {opponentName} avait déjà encaissé le lore.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_029",
+          "title": "LE BOARD TE PIÈGE",
+          "description": "Tu as répondu au plateau, pas à la clock. La clock a gagné.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_030",
+          "title": "BATAILLE MAL PAYÉE",
+          "description": "Beaucoup d'efforts, peu de conversion. Le score ne rémunère pas les intentions.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_031",
+          "title": "IL FALLAIT CHOISIR",
+          "description": "Défier ou quêter : le match a puni les tours où tu n'as pas tranché.",
+          "tone": "tactical",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_032",
+          "title": "LE PLATEAU A MENTI",
+          "description": "Il semblait important, mais la course au lore se jouait ailleurs.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_033",
+          "title": "TRANCHÉES INUTILES",
+          "description": "{challengeCount} défis dans la boue, mais {opponentName} a gagné sur la route sèche.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_034",
+          "title": "MUR TROP TARDIF",
+          "description": "La défense s'est montée après l'inondation. Courageux, mais pas rentable.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_035",
+          "title": "PAS DE PHOTO AU SCORE",
+          "description": "Le board était disputé, mais le résultat a choisi le camp le plus efficace.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_036",
+          "title": "NETTOYAGE SANS FIN",
+          "description": "Chaque menace retirée en cachait une autre. Le tempo n'a jamais vraiment tourné.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_037",
+          "title": "LA VALUE S'ÉCHAPPE",
+          "description": "Les échanges ne t'ont pas donné assez de cartes, d'encre ou de lore.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_038",
+          "title": "BAGARRE DE TROP",
+          "description": "Un défi de plus, une quête de moins. {opponentName} a profité de l'arithmétique.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_039",
+          "title": "PAS LE BON COMBAT",
+          "description": "Tu as gagné certaines tables du board, mais perdu le match sur l'économie globale.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "board_grind_loss_040",
+          "title": "LE SCORE NE MENT PAS",
+          "description": "Le plateau pouvait sembler vivant. Le compteur, lui, racontait une autre histoire.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -3007,6 +6607,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Le score adverse n'avait pas le temps de respirer. La clock a fait le travail.",
           "tone": "sport",
           "intensity": 2
+        },
+        {
+          "id": "lore_race_win_021",
+          "title": "TOUT DROIT AU BUT",
+          "description": "{questRatio}% orienté quête. Tu as vu la ligne, puis tu as sprinté.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_022",
+          "title": "COURSE VALIDÉE",
+          "description": "Peu de détours, beaucoup de lore. {opponentName} n'a jamais rattrapé la clock.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_023",
+          "title": "JE SUIS LA VITESSE",
+          "description": "La stratégie était simple : quêter, accélérer, conclure. Et ça a suffi.",
+          "tone": "disney_hint",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_024",
+          "title": "SECOND POTEAU LORE",
+          "description": "{topQuester} a mis les points au bon endroit. Le score a suivi.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_025",
+          "title": "LETHAL EN LIGNE DROITE",
+          "description": "Pas besoin de contrôler tout le board quand la ligne d'arrivée est ouverte.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_026",
+          "title": "LA CLOCK EST À TOI",
+          "description": "Tu as imposé le tempo du compteur. {opponentName} répondait à la mauvaise question.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_027",
+          "title": "PAS DE DÉTOUR",
+          "description": "La meilleure route vers 20 était devant toi. Tu l'as prise sans GPS inutile.",
+          "tone": "sarcastic",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_028",
+          "title": "LORE AVANT TOUT",
+          "description": "Chaque tour a posé la même question. {opponentName} n'avait pas assez de réponses.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_029",
+          "title": "LA PHOTO-FINISH ÉVITÉE",
+          "description": "Tu as creusé assez tôt pour ne pas laisser la fin devenir un casino.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_030",
+          "title": "CAVIAR DE QUÊTES",
+          "description": "Le board a servi la course. {topQuester} a converti sans trembler.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_031",
+          "title": "VERS LES 20",
+          "description": "Le score a décollé proprement. Pas besoin de détourner l'avion.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_032",
+          "title": "LE STADE A SUIVI",
+          "description": "Quand le compteur monte aussi vite, même les trades deviennent secondaires.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_033",
+          "title": "COURSE AU LORE GAGNÉE",
+          "description": "Tu as accepté le sprint et gagné sur la cadence, pas sur le spectacle.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_034",
+          "title": "TOUJOURS DEVANT",
+          "description": "{opponentName} n'a pas trouvé le frein. Ta clock dictait le rythme.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_035",
+          "title": "LA LIGNE EST FRANCHIE",
+          "description": "Course maîtrisée. Les quêtes ont fait plus que les combats.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_036",
+          "title": "L'AVENTURE EST LÀ-BAS",
+          "description": "Et tu y es allé sans hésiter. Le lore était la seule destination.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_037",
+          "title": "PAS DE VAR, PAS DE DOUTE",
+          "description": "Le compteur a monté, tour après tour. La victoire est entrée sans débat.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_038",
+          "title": "QUÊTES EN RAFALE",
+          "description": "{questCount} quêtes cumulées, et assez de pression pour fermer le match.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_039",
+          "title": "LE PLAN LE PLUS COURT",
+          "description": "Parfois, la meilleure réponse au board adverse, c'est juste de finir avant lui.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_win_040",
+          "title": "LÉTHAL AU COMPTEUR",
+          "description": "Tu as joué la clock comme une ressource. {opponentName} l'a compris trop tard.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -3163,6 +6963,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Beaucoup de points, zéro victoire. Le replay doit dire où la clock s'est perdue.",
           "tone": "tactical",
           "intensity": 2
+        },
+        {
+          "id": "lore_race_loss_021",
+          "title": "SPRINT PERDU",
+          "description": "{questRatio}% orienté quête, mais {opponentName} avait une meilleure clock.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_022",
+          "title": "COURSE MAL PAYÉE",
+          "description": "Tu as couru vers les 20, mais pas assez vite pour sortir du trafic.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_023",
+          "title": "IL N'A PAS TREMBLÉ",
+          "description": "Malheureusement, c'est {opponentName} qui a conclu au bon moment.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_024",
+          "title": "PHOTO-FINISH RATÉ",
+          "description": "La ligne était visible. Elle était juste un tour trop loin.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_025",
+          "title": "LETHAL EN FACE",
+          "description": "Tu regardais le compteur, {opponentName} regardait la victoire.",
+          "tone": "tcg",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_026",
+          "title": "PAS ASSEZ DE LORE",
+          "description": "La ligne droite ne pardonne pas. Quelques points manquants coûtent tout le match.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_027",
+          "title": "LA CLOCK T'A DOUBLÉ",
+          "description": "Tu as sprinté, mais {opponentName} avait une foulée d'avance.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_028",
+          "title": "SECOND POTEAU ADVERSE",
+          "description": "La carte décisive n'est pas venue de ton côté. Le stade a changé de couleur.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_029",
+          "title": "SI PROCHE",
+          "description": "À ce niveau, presque finir, c'est surtout perdre avec vue sur la ligne.",
+          "tone": "sarcastic",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_030",
+          "title": "LE SCORE A FUI",
+          "description": "Tu as choisi la course, mais l'écart n'a jamais vraiment fermé.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_031",
+          "title": "MALHEUREUSEMENT PAS KACHOW",
+          "description": "Le moteur était lancé, mais pas assez vite pour passer devant.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_032",
+          "title": "LA DERNIÈRE QUÊTE MANQUE",
+          "description": "Il fallait un tour de plus. Le match n'avait pas prévu les prolongations.",
+          "tone": "tcg",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_033",
+          "title": "LE COMPTEUR EN RETARD",
+          "description": "{questCount} quêtes, mais une cadence insuffisante. La clock adverse a gagné.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_034",
+          "title": "LA LIGNE S'ÉLOIGNE",
+          "description": "Chaque tour semblait rapprocher les 20, mais {opponentName} y arrivait plus vite.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_035",
+          "title": "COURSE SANS DÉFENSE",
+          "description": "À force de courir, tu as laissé trop d'espace au compteur adverse.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_036",
+          "title": "PAS DE HOLD-UP",
+          "description": "Tu as tenté la ligne droite. Cette fois, personne n'a ouvert la porte arrière.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_037",
+          "title": "LA CLIM DU COMPTEUR",
+          "description": "Tu étais dans la course, puis le dernier lore adverse a coupé le chauffage.",
+          "tone": "sport",
+          "intensity": 3,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_038",
+          "title": "UN VIRAGE DE TROP",
+          "description": "La trajectoire était ambitieuse, mais la fin de course a manqué de grip.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_039",
+          "title": "DESTINATION MANQUÉE",
+          "description": "L'aventure était là-bas, mais le score adverse est arrivé avant.",
+          "tone": "disney_hint",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "lore_race_loss_040",
+          "title": "COMPTEUR CRUEL",
+          "description": "La stratégie était lisible, mais pas assez rapide. Le lore n'a pas de compassion.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     },
@@ -3317,6 +7317,206 @@ export const COACH_LINE_LIBRARY = {
           "description": "Ce n'est pas un drame. C'est une liste de micro-décisions à nettoyer.",
           "tone": "tactical",
           "intensity": 1
+        },
+        {
+          "id": "default_loss_021",
+          "title": "RÉVEIL DOULOUREUX",
+          "description": "Défaite {monScore}-{scoreAdverse}. Le replay dira si le crime vient du mulligan, de la curve ou des trades.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_022",
+          "title": "LE TEMPO PERDU",
+          "description": "La partie n'a pas explosé d'un coup. Elle s'est éloignée tour après tour.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_023",
+          "title": "ON APPREND DU PASSÉ",
+          "description": "Rafiki avait raison : ça pique, mais cette VOD peut servir.",
+          "tone": "disney_hint",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_024",
+          "title": "SOIRÉE À OUBLIER",
+          "description": "Pas la plus belle page du deck. Mais les stats ont gardé les passages importants.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_025",
+          "title": "C'EST PAS FAUX",
+          "description": "Dire que le plan a coincé est poli. Dire où il a coincé sera plus utile.",
+          "tone": "pop_fr",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_026",
+          "title": "PLAN EN CHANTIER",
+          "description": "Il y avait des idées, mais elles ne se sont pas assez connectées au board.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_027",
+          "title": "PAS DE DRAME, DES DONNÉES",
+          "description": "La défaite est là. Le vrai intérêt, c'est ce que le replay révèle.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_028",
+          "title": "LE BOARD A CHOISI",
+          "description": "{opponentName} a mieux transformé ses ressources. Pas forcément plus flashy, juste plus rentable.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_029",
+          "title": "MATCH À DISSÉQUER",
+          "description": "Le score fait mal, mais il contient sûrement une erreur répétable à corriger.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_030",
+          "title": "LA CURVE QUESTIONNE",
+          "description": "La partie a manqué de fluidité. Le replay devrait montrer où le tempo s'est cassé.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_031",
+          "title": "PETIT PASSAGE À VIDE",
+          "description": "Pas une catastrophe culturelle, mais assez de retard pour laisser filer {opponentName}.",
+          "tone": "sarcastic",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_032",
+          "title": "TROP DE FENÊTRES",
+          "description": "Tu as laissé des ouvertures, {opponentName} les a prises sans enlever ses chaussures.",
+          "tone": "sport",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_033",
+          "title": "MATCH SOUS ANALYSE",
+          "description": "La défaite n'est pas forcément un naufrage. Mais elle mérite un contrôle technique.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_034",
+          "title": "LA VALUE EN FACE",
+          "description": "{opponentName} a mieux rentabilisé ses cartes clés. Le reste est une conséquence.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_035",
+          "title": "PAS LE BON FILM",
+          "description": "Le scénario prévu n'est pas sorti. Le replay montre le montage réel.",
+          "tone": "cinematic",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_036",
+          "title": "UN TOUR DE TROP",
+          "description": "La partie est restée jouable assez longtemps pour devenir frustrante.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_037",
+          "title": "LA PORTE EST RESTÉE OUVERTE",
+          "description": "Une fenêtre adverse a suffi. À ce niveau, même une petite ouverture coûte cher.",
+          "tone": "tactical",
+          "intensity": 2,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_038",
+          "title": "RETOUR À L'ENTRAÎNEMENT",
+          "description": "Pas pour punir, pour comprendre. La prochaine game commence dans ce replay.",
+          "tone": "sport",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_039",
+          "title": "LE MATCH A PARLÉ",
+          "description": "Il n'a pas crié, mais il a montré un retard de tempo assez net.",
+          "tone": "tactical",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
+        },
+        {
+          "id": "default_loss_040",
+          "title": "PAS DE FIN DISNEY",
+          "description": "Cette fois, le dernier chapitre appartient à {opponentName}. On corrige le scénario.",
+          "tone": "disney_hint",
+          "intensity": 1,
+          "tags": [
+            "cultural_pack"
+          ]
         }
       ]
     }
