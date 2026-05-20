@@ -69,11 +69,31 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     initMobileViewportNav();
 
-    const openReplayFilePicker = () => { if(!els.fileInput) return; els.fileInput.value = ''; setTimeout(() => els.fileInput.click(), 0); };
-    els.browseButton?.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openReplayFilePicker(); });
-    els.dropzone?.addEventListener('click', e => { if(e.target !== els.browseButton) openReplayFilePicker(); });
+    const resetReplayFileInput = () => { if(els.fileInput) els.fileInput.value = ''; };
+    const openReplayFilePicker = () => {
+      if(!els.fileInput) return;
+      resetReplayFileInput();
+      // Important iOS/Safari: keep the click in the same user gesture.
+      // A setTimeout here can open the picker, then return without a change event.
+      els.fileInput.click();
+    };
+    ['pointerdown','touchstart'].forEach(type => els.browseButton?.addEventListener(type, resetReplayFileInput, { passive:true }));
+    els.browseButton?.addEventListener('keydown', e => {
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        openReplayFilePicker();
+      }
+    });
+    els.dropzone?.addEventListener('click', e => {
+      if(e.target?.closest?.('#browseButton') || e.target === els.fileInput) return;
+      openReplayFilePicker();
+    });
     els.dropzone?.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openReplayFilePicker(); } });
-    els.fileInput?.addEventListener('change', e => handleFiles([...e.target.files]));
+    els.fileInput?.addEventListener('click', resetReplayFileInput);
+    els.fileInput?.addEventListener('change', e => {
+      const files = Array.from(e.target.files || []);
+      if(files.length) handleFiles(files);
+    });
     ['dragenter','dragover'].forEach(type => els.dropzone?.addEventListener(type, e => { e.preventDefault(); els.dropzone.classList.add('dragover'); }));
     ['dragleave','drop'].forEach(type => els.dropzone?.addEventListener(type, e => { e.preventDefault(); els.dropzone.classList.remove('dragover'); }));
     els.dropzone?.addEventListener('drop', e => handleFiles([...e.dataTransfer.files]));
@@ -477,7 +497,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     setTab('overview');
     if(els.fileInput){
       els.fileInput.value = '';
-      setTimeout(() => els.fileInput.click(), 0);
+      els.fileInput.click();
     }
   }
 
@@ -7926,6 +7946,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     updateChartSummary('boardChartSummary', summarizeBoard(metrics.boardByTurn || [], comparisonMetrics?.boardByTurn || []));
     renderStatTables(m);
     renderDeadWeight(m);
+    bindStatListToggles();
+    bindCardButtons();
   }
 
   function renderEmptyStats(){
@@ -8050,6 +8072,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       collapsedLabel:'Voir toutes les cartes',
       expandedLabel:'Réduire la liste'
     });
+    bindStatListToggles();
+    bindCardButtons();
   }
 
   function deadWeightListItem(row){
@@ -8065,14 +8089,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     else if(inkable === true) metaBits.push('Encrable');
     if(n(row.episodes) > 1) metaBits.push(`${n(row.episodes)} passages en main`);
     const range = rep.entryTurn ? `T${n(rep.entryTurn)} → ${rep.stillInHand ? 'fin' : `T${n(rep.exitTurn)}`}` : `${n(row.episodes)} passage(s)`;
+    const exitChip = exit === 'unknown' ? '' : `Fin : ${handExitLabel(exit)}`;
     return {
       card,
       title:row.cardName || fullName(card),
       meta:metaBits.filter(Boolean).join(' · ') || 'Carte suivie en main',
       chips:[
-        `Max ${turns} tour${turns > 1 ? 's' : ''}`,
-        avg ? `Moy. ${avg}` : range,
-        `Sortie : ${handExitLabel(exit)}`
+        `${turns} tour${turns > 1 ? 's' : ''} max`,
+        avg ? `${avg} tour${avg > 1 ? 's' : ''} moy.` : range,
+        exitChip
       ].filter(Boolean)
     };
   }
@@ -8098,10 +8123,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function inkwellSourceChips(card){
     const chips = [];
-    if(n(card.inkedFromHand)) chips.push({ label:`${n(card.inkedFromHand)} depuis main`, className:'ink-source-chip ink-source-hand' });
-    if(n(card.inkedFromDiscard)) chips.push({ label:`${n(card.inkedFromDiscard)} depuis défausse`, className:'ink-source-chip ink-source-discard' });
-    if(n(card.inkedFromBoard)) chips.push({ label:`${n(card.inkedFromBoard)} depuis board`, className:'ink-source-chip ink-source-board' });
-    if(n(card.inkedFromDeck)) chips.push({ label:`${n(card.inkedFromDeck)} depuis deck`, className:'ink-source-chip ink-source-deck' });
+    if(n(card.inkedFromHand)) chips.push({ label:`${n(card.inkedFromHand)} main`, className:'ink-source-chip ink-source-hand' });
+    if(n(card.inkedFromDiscard)) chips.push({ label:`${n(card.inkedFromDiscard)} défausse`, className:'ink-source-chip ink-source-discard' });
+    if(n(card.inkedFromBoard)) chips.push({ label:`${n(card.inkedFromBoard)} board`, className:'ink-source-chip ink-source-board' });
+    if(n(card.inkedFromDeck)) chips.push({ label:`${n(card.inkedFromDeck)} deck`, className:'ink-source-chip ink-source-deck' });
     if(n(card.inkedFromUnknown)) chips.push({ label:`${n(card.inkedFromUnknown)} source inconnue`, className:'ink-source-chip ink-source-unknown' });
     if(!chips.length) chips.push(`${n(card.inked)} encrée${n(card.inked) > 1 ? 's' : ''}`);
     return chips.slice(0, 3);
@@ -8852,7 +8877,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const oppLast = comparisonMap.get(n(last.turn));
     const swing = oppLast ? n(last.characters) - n(oppLast.characters) : null;
     const swingText = swing === null ? '' : swing > 0 ? `+${swing} persos au T${n(last.turn)}` : swing < 0 ? `-${Math.abs(swing)} persos au T${n(last.turn)}` : `égalité au T${n(last.turn)}`;
-    return `<span>Board en fin de tour</span><strong>${esc(`${n(peak.characters)} persos · ${n(peak.lorePotential)} lore · T${n(peak.turn)}`)}</strong><small>${esc(`moy. ${avgChars} persos${swingText ? ` · ${swingText}` : ''}`)}</small>`;
+    return `<span>Board en fin de tour</span><strong>${esc(`${n(peak.characters)} persos · ${n(peak.lorePotential)} lore · T${n(peak.turn)}`)}</strong><small>${esc(swingText || `moy. ${avgChars} persos`)}</small>`;
   }
 
   function summarizeBoard(rows=[], comparisonRows=[]){
@@ -8879,7 +8904,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const loreLabel = viewedIsOpponent ? 'Lore potentiel adverse' : 'Votre lore potentiel';
     const viewedColor = viewedColors[0] || theme[0];
     const comparisonColor = comparisonColors[0] || theme[1];
-    const loreColor = viewedColors[1] || '#facc15';
+    const loreColor = getComputedStyle(document.documentElement).getPropertyValue('--warn').trim() || '#facc15';
     const datasets = [
       {
         label:viewedLabel,
@@ -8917,8 +8942,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       borderWidth:2,
       pointRadius:0,
       pointHoverRadius:5,
-      borderColor:hexToRgba(loreColor, .78),
-      backgroundColor:hexToRgba(loreColor, .08),
+      borderColor:loreColor,
+      backgroundColor:loreColor,
       pointBackgroundColor:loreColor,
       pointBorderColor:loreColor,
       borderDash:[5,6],
