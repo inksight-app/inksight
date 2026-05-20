@@ -73,7 +73,7 @@
     <section id="upload" class="upload-grid">
       <article class="glass upload-card">
         <div id="dropzone" class="dropzone" role="region" aria-label="Zone d’import de replay Duel.ink" aria-describedby="dropzoneHelp dropzoneStatus">
-          <input id="fileInput" type="file" class="hidden" accept=".replay,.json,.gz,.zip,application/json,application/zip" multiple />
+          <input id="fileInput" type="file" class="file-input-native" multiple />
           <div class="drop-top">
             <span>Jusqu’à 20 replays</span>
             <small>.replay · .replay.gz · .match-replay.zip</small>
@@ -84,7 +84,7 @@
             <p id="dropzoneHelp">Importez votre replay. InkSight isole les séquences qui ont vraiment fait basculer la partie.</p>
             <p id="dropzoneStatus" class="sr-only" aria-live="polite">Aucun replay chargé.</p>
           </div>
-          <button id="browseButton" type="button" class="primary-button">Choisir un fichier</button>
+          <label id="browseButton" class="primary-button" for="fileInput" role="button" tabindex="0">Choisir un fichier</label>
         </div>
       </article>
 
