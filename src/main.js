@@ -34,15 +34,31 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function bindUI(){
+    // V129.1 — halo souris conservé, mais lissé.
+    // On garde l'effet premium de halo qui suit la souris, sans utiliser de calque bluré
+    // susceptible de produire un rectangle visible en haut de page.
+    document.documentElement.style.setProperty('--mx', '50%');
+    document.documentElement.style.setProperty('--my', '18%');
+    const pointerAura = { x: 50, y: 18, tx: 50, ty: 18, raf: 0 };
+    const applyPointerAura = () => {
+      pointerAura.x += (pointerAura.tx - pointerAura.x) * 0.14;
+      pointerAura.y += (pointerAura.ty - pointerAura.y) * 0.14;
+      document.documentElement.style.setProperty('--mx', `${pointerAura.x.toFixed(2)}%`);
+      document.documentElement.style.setProperty('--my', `${pointerAura.y.toFixed(2)}%`);
+      if(Math.abs(pointerAura.tx - pointerAura.x) > 0.05 || Math.abs(pointerAura.ty - pointerAura.y) > 0.05){
+        pointerAura.raf = requestAnimationFrame(applyPointerAura);
+      } else {
+        pointerAura.raf = 0;
+      }
+    };
     const updatePointerAura = e => {
-      const x = Math.max(0, Math.min(100, (e.clientX / Math.max(1, window.innerWidth)) * 100));
-      const y = Math.max(0, Math.min(100, (e.clientY / Math.max(1, window.innerHeight)) * 100));
-      document.documentElement.style.setProperty('--mx', `${x.toFixed(2)}%`);
-      document.documentElement.style.setProperty('--my', `${y.toFixed(2)}%`);
+      pointerAura.tx = Math.max(0, Math.min(100, (e.clientX / Math.max(1, window.innerWidth)) * 100));
+      pointerAura.ty = Math.max(0, Math.min(100, (e.clientY / Math.max(1, window.innerHeight)) * 100));
+      if(!pointerAura.raf) pointerAura.raf = requestAnimationFrame(applyPointerAura);
     };
     const finePointer = window.matchMedia?.('(pointer:fine)')?.matches !== false;
-    if(finePointer){
-      document.addEventListener('mousemove', updatePointerAura, { passive:true });
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+    if(finePointer && !reduceMotion){
       document.addEventListener('pointermove', event => {
         if(event.pointerType && event.pointerType !== 'mouse' && event.pointerType !== 'pen') return;
         updatePointerAura(event);
@@ -6395,12 +6411,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       acc.challenges += n(row.challenge || row.mineChallenge);
       return acc;
     }, { inked:0, played:0, quests:0, challenges:0 });
-    const inkRows = Array.isArray(metrics.inkByTurn) ? metrics.inkByTurn : [];
-    const maxFloatRow = inkRows.reduce((best, row) => n(row.float) > n(best?.float) ? row : best, null);
-    const questActionTotal = actionTotals.quests + actionTotals.challenges;
-    const questRatio = questActionTotal > 0 ? Math.round((actionTotals.quests / questActionTotal) * 100) : 0;
-    const opponentMetrics = m?.opponentProMetrics || first?.opponentProMetrics || {};
-    const opponentTopDeckTurns = n(opponentMetrics.topDeckTurns);
     const opponentName = m?.opponentName || first?.opponentName || 'adversaire anonyme';
     const otp = metrics.otp === null ? 'inconnu' : (metrics.otp ? 'OTP' : 'OTD');
 
@@ -6427,14 +6437,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       topInkedCount:topInked ? n(topInked.inked) : 0,
       topPlayedCard:topPlayed ? fullName(topPlayed) : '',
       topPlayedCount:topPlayed ? n(topPlayed.played) : 0,
-      questCount:actionTotals.quests,
-      challengeCount:actionTotals.challenges,
-      questRatio,
-      cardsPlayedTotal:actionTotals.played,
-      inkedTotal:actionTotals.inked,
-      maxFloatTurn:maxFloatRow ? n(maxFloatRow.turn) : 0,
-      maxFloatAmount:maxFloatRow ? round1(n(maxFloatRow.float)) : 0,
-      opponentTopDeckTurns,
       actionTotals
     };
   }
@@ -6469,7 +6471,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const commentary = {
         title:String(data?.title || '').trim() || fallbackNarrative?.title || 'Lecture du match',
         description:String(data?.description || data?.text || '').trim() || fallbackNarrative?.description || fallbackNarrative?.text || 'Analyse indisponible pour ce match.',
-        badge:data?.badge || (String(data?.source || '').startsWith('local') ? 'Coach local' : 'Coach IA')
+        badge:data?.source === 'local' ? 'Coach local' : 'Coach IA'
       };
       state.coachCommentaryCache?.set(key, commentary);
       setMatchReadDom(commentary);
