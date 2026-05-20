@@ -80,69 +80,146 @@ function buildLocalCommentary(body = {}) {
   const v = getBodyContext(body);
   const seed = [v.monScore, v.scoreAdverse, v.nbTours, v.inkFloat, v.toursTopDeck, v.loreFromLocations, v.topQuester, v.opponentName].join("|");
 
-  // Fallbacks mis à jour avec un ton plus agressif/commentateur
   const pools = {
     perfectWin: {
-      title: ["CLIMATISATION TOTALE !", "UNE MASTERCLASS ABSOLUE.", "FERMETURE DE LA BOUTIQUE."],
-      description: ["C'est un {monScore}-0 clinique ! {opponentName} a regardé le match depuis les tribunes pendant que tu roulais sur le board. Une boucherie tactique en {nbTours} tours, emballez c'est pesé !"]
+      title: ["CLIMATISATION TOTALE !", "UNE MASTERCLASS ABSOLUE.", "FERMETURE DE LA BOUTIQUE.", "DOMINATION CLINIQUE.", "LE BROOM SWEEP !"],
+      description: [
+        "Un 20-0 parfait ! {opponentName} a regardé le match en spectateur pendant que tu roulais sur le board. Aucun respect pour son tempo.",
+        "Card Advantage, Ink Advantage, Lore Advantage... Tu as tout confisqué. {topQuester} s'est promené sur le terrain comme à l'entraînement.",
+        "Une boucherie tactique. Pas un seul point de lore concédé. Même les balais de Mickey n'auraient pas nettoyé le board aussi proprement !",
+        "On The Play ou On The Draw, ça n'a rien changé. Tu as verrouillé la game avant même qu'elle ne commence vraiment.",
+        "Score vierge en face. Tu as imposé un rythme {pace} infernal et la défense a été un mur de briques. Emballez, c'est pesé."
+      ]
     },
     stompWin: {
-      title: ["PROMENADE DE SANTÉ.", "CASSAGE DE REINS EN RÈGLE.", "SCOOP MENTAL."],
-      description: ["Victoire écrasante {monScore}-{scoreAdverse}. {topQuester} a porté l'équipe pendant que {opponentName} cherchait encore comment jouer. Il va falloir de la glace pour ces chevilles !"]
-    },
-    cleanWin: {
-      title: ["TRAVAIL DE PRO.", "PROPRE, NET ET SANS BAVURE.", "LE PLAN S'EST DÉROULÉ SANS ACCROC."],
-      description: ["Une belle victoire {monScore}-{scoreAdverse}. Tu as imposé ton rythme {pace} et {opponentName} n'a jamais pu respirer. Les ressources ont été converties en caviar de lore !"]
-    },
-    concedeWin: {
-      title: ["ABANDON DANS LA DOULEUR !", "IL A JETÉ L'ÉPONGE.", "SCOOP DÉTECTÉ."],
-      description: ["Victoire par K.O. technique avant les 20 lore. Le score s'arrête à {monScore}-{scoreAdverse}, {opponentName} a préféré fuir le carnage plutôt que de subir le lethal."]
+      title: ["CASSAGE DE REINS EN RÈGLE.", "PROMENADE DE SANTÉ.", "SCOOP MENTAL.", "LE ROULEAU COMPRESSEUR.", "UNE LEÇON DE TEMPO."],
+      description: [
+        "Victoire expéditive {monScore}-{scoreAdverse}. {topQuester} a porté l'équipe pendant que {opponentName} cherchait encore sa curve d'encre.",
+        "Il va falloir de la glace pour ces chevilles ! Tu as agressé le board en {nbTours} tours sans laisser la moindre fenêtre de respiration.",
+        "Le pauvre {opponentName} a dû se demander s'il jouait au même jeu. Ton deck a déroulé sa partition sans aucun accroc.",
+        "Quand {topQuester} prend le contrôle comme ça, y'a rien à faire. Un écart de score abyssal qui prouve ta maîtrise du match-up.",
+        "Mulligan géré à la perfection. La sortie était fluide, le tempo était lourd, victoire sans trembler."
+      ]
     },
     closeWin: {
-      title: ["SUR LE FIL DU RASOIR !", "PHOTO-FINISH CARDIAQUE !", "QUEL SPRINT FINAL !"],
-      description: ["Victoire à l'arrachée {monScore}-{scoreAdverse} ! Une vraie course au lethal au tour {nbTours}. Tu as fait transpirer le stade, mais le mental a tenu bon !"]
-    },
-    closeLoss: {
-      title: ["LE SEUM EST TOTAL.", "À UN CHEVEU DE LA GLOIRE.", "CRUEL, SI CRUEL..."],
-      description: ["Défaite amère {monScore}-{scoreAdverse}. Il s'en est fallu de rien, juste d'un mauvais trade ou d'une mauvaise pioche. La VOD va être douloureuse à regarder !"]
-    },
-    stompLoss: {
-      title: ["UNE VRAIE BOUCHERIE...", "SORTIE DE ROUTE MONUMENTALE.", "LE ROULEAU COMPRESSEUR."],
-      description: ["Défaite {monScore}-{scoreAdverse}. On ne va pas se mentir, tu t'es fait ouvrir en deux. {opponentName} a pris le contrôle direct et tu es resté dans les cordes tout le match."]
-    },
-    topDeck: {
-      title: ["LE DÉSERT TACTIQUE.", "PRIÈRE ET TOP DECK.", "PLUS UNE GOUTTE D'ENCRE."],
-      description: ["Passer {toursTopDeck} tours la main vide, c'est du suicide ! Perdre l'avantage des cartes t'a transformé en spectateur de ta propre défaite."]
-    },
-    inkLeak: {
-      title: ["LA FUITE D'ENCRE.", "TEMPÊTE DANS UN VERRE D'EAU.", "GASPILLAGE TOTAL."],
-      description: ["{inkFloat} encres flottées ! C'est inadmissible à ce niveau. L'adversaire doit bien rigoler face à autant de ressources jetées par la fenêtre."]
+      title: ["SUR LE FIL DU RASOIR !", "PHOTO-FINISH CARDIAQUE !", "QUEL SPRINT FINAL !", "LE MENTAL DE CHAMPION !", "CLUTCH MOMENT !"],
+      description: [
+        "La course au lore était irrespirable ! Victoire {monScore}-{scoreAdverse} à l'arrachée. Un seul mauvais trade et ça basculait.",
+        "Tu as fait transpirer tout le stade au tour {nbTours}, mais ton {topQuester} a sorti l'action clutch au buzzer !",
+        "C'est dans ces games qu'on reconnait les grands joueurs. Tu as tenu la pression malgré le retard pour arracher ce {monScore}-{scoreAdverse}.",
+        "Un finish de folie ! L'adversaire pensait avoir sécurisé le lethal, mais ton board management a fait la différence in extremis.",
+        "Le genre de partie qui finit sous aspirine. C'était tendu, mais l'efficacité de tes encrages a validé la win."
+      ]
     },
     passiveLore: {
-      title: ["LA RENTE IMMOBILIÈRE !", "LORE PASSIF, DÉGÂTS ACTIFS.", "L'INSPECTEUR DES IMPÔTS."],
-      description: ["Tes lieux ont rapporté {loreFromLocations} lore sans rien faire ! Pendant que {opponentName} s'excitait sur tes personnages, la rente tombait toute seule. Brillant !"]
+      title: ["LA RENTE IMMOBILIÈRE !", "LORE PASSIF, DÉGÂTS ACTIFS.", "LE MONOPOLY LORCANA.", "INVESTISSEMENT LOCATIF."],
+      description: [
+        "{loreFromLocations} lore générés par tes lieux ! Pendant que {opponentName} s'épuisait sur tes personnages, la rente tombait toute seule.",
+        "Une masterclass de gestion spatiale. Laisser tourner les lieux pour {loreFromLocations} lore, c'est du génie tactique pur et simple.",
+        "L'adversaire a complètement oublié d'attaquer tes lieux. Ces points gratuits au start-of-turn t'ont offert la partie sur un plateau."
+      ]
+    },
+    topDeckLoss: {
+      title: ["LE DÉSERT TACTIQUE.", "PRIÈRE ET TOP DECK.", "SYNDROME DE LA PAGE BLANCHE.", "L'ASPHYXIE TOTALE.", "PANNE SÈCHE."],
+      description: [
+        "Passer {toursTopDeck} tours la main vide, c'est mortel à ce niveau. Sans Card Advantage, tu es devenu spectateur de ta propre défaite.",
+        "Le moteur de pioche a calé sec. Quand tu joues au top deck la moitié de la game, {opponentName} n'a plus qu'à dérouler son plan.",
+        "Gros problème de ressources. Tes {toursTopDeck} tours sans options en main t'ont coûté le tempo et le match.",
+        "On ne gagne pas sans munitions. Tu as brûlé tes cartes trop vite et la sanction est tombée : {monScore}-{scoreAdverse}.",
+        "Il va falloir revoir le ratio de pioche du deck. Tomber à sec aussi vite t'a empêché de répondre aux menaces adverses."
+      ]
+    },
+    inkLeakLoss: {
+      title: ["LA FUITE D'ENCRE.", "TEMPÊTE DANS UN VERRE D'EAU.", "GASPILLAGE TOTAL.", "OÙ EST LE TEMPO ?", "L'ÉCONOMIE EN BERNE."],
+      description: [
+        "{inkFloat} encres flottées sur le match ! C'est beaucoup trop de ressources jetées par la fenêtre. Le tempo est resté au vestiaire.",
+        "Avoir de l'encre c'est bien, s'en servir c'est mieux. Tes {inkFloat} encres inutilisées ont offert un boulevard au board adverse.",
+        "La curve a complètement déraillé. Tu n'as pas pu rentabiliser tes ressources et {opponentName} en a profité pour creuser l'écart.",
+        "Problème d'optimisation majeur. Tes encres ont dormi pendant que l'adversaire mettait une pression monstre sur le lore.",
+        "Une défaite {monScore}-{scoreAdverse} qui s'explique par un cruel manque d'impact sur le board malgré un encrier rempli."
+      ]
+    },
+    mulliganLoss: {
+      title: ["LE MULLIGAN DE LA PEUR.", "LA BRIQUE AU DÉMARRAGE.", "SORTIE DE PISTE IMMÉDIATE.", "MAUVAISE PIOCHE."],
+      description: [
+        "Renvoyer {nbMulligan} cartes pour finir avec une brique... La RNG t'a frappé de plein fouet dès le début du match.",
+        "Le mulligan t'a crucifié. Difficile d'installer un tempo {pace} quand la main de départ refuse obstinément de coopérer.",
+        "Tu as cherché des solutions avec ton mulligan de {nbMulligan}, mais les dieux de la pioche étaient contre toi aujourd'hui."
+      ]
+    },
+    stompLoss: {
+      title: ["UNE VRAIE BOUCHERIE...", "LE SEUM EST TOTAL.", "RETOUR AU LOBBY.", "OUTPLAY COMPLET.", "DANS LES CORDES."],
+      description: [
+        "Défaite sévère {monScore}-{scoreAdverse}. On ne va pas se mentir, tu t'es fait ouvrir en deux. {opponentName} a dicté tout le rythme.",
+        "Aïe. Le rouleau compresseur adverse t'a écrasé en {nbTours} tours. Impossible de contester le board face à une telle sortie.",
+        "Il n'y a pas eu de match. Tu as encaissé les quêtes sans pouvoir répondre. Une VOD à oublier (ou à analyser en boucle).",
+        "L'adversaire a pris le Card et le Lore Advantage instantanément. Tu as passé la partie à courir derrière un train déjà parti.",
+        "Aucun tempo, aucune réponse. {topInkedCard} aura beau avoir été encrée {topInkedCount} fois, ça n'a pas suffi pour stabiliser la game."
+      ]
+    },
+    closeLoss: {
+      title: ["LA CLIM EN FIN DE MATCH.", "À UN CHEVEU DU HOLD-UP.", "CRUEL, SI CRUEL...", "LE LETHAL MANQUÉ.", "BRAQUAGE RATÉ."],
+      description: [
+        "Le seum intersidéral ! Défaite {monScore}-{scoreAdverse} sur le fil. Un seul mauvais trade a fait basculer toute la partie.",
+        "Tu y as cru jusqu'au bout ! C'était un match de gladiateurs, mais {opponentName} a trouvé l'ouverture juste avant toi.",
+        "La course au lore s'est jouée sur des détails infimes. Une défaite frustrante en {nbTours} tours, mais le niveau de jeu était là.",
+        "Tu as touché le lethal du bout des doigts. Il a manqué une toute petite goutte de value pour renverser ce {monScore}-{scoreAdverse}.",
+        "Terrible finish. L'adversaire a fermé la porte au pire moment. C'est le genre de partie qui va te hanter cette nuit !"
+      ]
     },
     control: {
-      title: ["DANS LES TRANCHÉES.", "GUERRE D'USURE.", "UN MARATHON MENTAL."],
-      description: ["{nbTours} tours de pure souffrance mentale ! Un match ultra lent où chaque décision comptait. Le genre de partie qui finit sous aspirine."]
+      title: ["DANS LES TRANCHÉES.", "GUERRE D'USURE.", "UN MARATHON MENTAL.", "LA BATAILLE DE L'ATTRITION."],
+      description: [
+        "{nbTours} tours de pure guerre psychologique. Le match s'est joué sur la gestion millimétrée du Card Advantage et de la fatigue.",
+        "Un vrai match d'échecs. Tout s'est joué sur le contrôle du board et la patience. Une partie ultra lente pour les puristes.",
+        "Le festival des trades et des removals ! {nbTours} tours où chaque ressource valait de l'or. La fatigue mentale est réelle.",
+        "Une partie marathon. {opponentName} a joué la montre et l'attrition, forçant un late-game ultra punitif."
+      ]
+    },
+    defaultWin: {
+      title: ["TRAVAIL DE PRO.", "PROPRE, NET ET SANS BAVURE.", "LE PLAN S'EST DÉROULÉ SANS ACCROC.", "VICTOIRE SOLIDE.", "BON TEMPO."],
+      description: [
+        "Une belle victoire {monScore}-{scoreAdverse}. Tu as imposé ton rythme {pace} et converti proprement tes ressources en lore.",
+        "Match très solide. {topQuester} a fait le taf sur le board et {opponentName} n'a jamais pu combler son retard.",
+        "Tu as géré ton encre et ta main intelligemment. L'adversaire a été étouffé tactiquement en {nbTours} tours.",
+        "Le deck a bien tourné. Ton adversaire a essayé de résister, mais la pression au lore était trop constante.",
+        "Victoire logique. Tu as su tirer parti des erreurs adverses tout en maintenant un excellent Card Advantage."
+      ]
     },
     defaultLoss: {
-      title: ["RÉVEIL DOULOUREUX.", "RETOUR À L'ENTRAÎNEMENT.", "CIRCULEZ, Y'A RIEN À VOIR."],
-      description: ["Défaite {monScore}-{scoreAdverse}. Il va falloir analyser la VOD parce que là, {opponentName} t'a clairement donné une leçon de rythme."]
-    },
+      title: ["RÉVEIL DOULOUREUX.", "RETOUR À L'ENTRAÎNEMENT.", "CIRCULEZ, Y'A RIEN À VOIR.", "DÉFAITE TACTIQUE.", "LE TEMPO PERDU."],
+      description: [
+        "Défaite {monScore}-{scoreAdverse}. Il va falloir analyser la VOD parce que là, l'adversaire a clairement pris le dessus tactiquement.",
+        "Le plan de jeu a coincé. Entre les {inkFloat} encres flottées et le manque de présence, la victoire était hors de portée.",
+        "Tu as subi le rythme du début à la fin. {opponentName} a mieux exploité ses cartes clés pour plier le match en {nbTours} tours.",
+        "La mécanique du deck s'est enrayée. Difficile de l'emporter quand la menace sur le board n'arrive pas à se concrétiser.",
+        "Une défaite sèche. Il faudra revoir la gestion des ressources et les décisions de trades sur ce match-up."
+      ]
+    }
   };
 
-  let scenario = pools.cleanWin;
-  if (v.isWin && v.monScore >= 20 && v.scoreAdverse === 0) scenario = pools.perfectWin;
-  else if (v.isWin && v.monScore < 20) scenario = pools.concedeWin;
-  else if (v.isWin && v.scoreAdverse <= 5) scenario = pools.stompWin;
-  else if (v.isWin && v.loreFromLocations >= 4) scenario = pools.passiveLore;
-  else if (v.scoreGap <= 3 && v.monScore >= 15 && v.scoreAdverse >= 15) scenario = v.isWin ? pools.closeWin : pools.closeLoss;
-  else if (!v.isWin && v.monScore <= 6 && v.scoreAdverse >= 20) scenario = pools.stompLoss;
-  else if (v.toursTopDeck >= 4) scenario = pools.topDeck;
-  else if (v.inkFloat >= 15) scenario = pools.inkLeak;
-  else if (v.nbTours >= 13) scenario = pools.control;
-  else if (!v.isWin) scenario = pools.defaultLoss;
+  // Logique de triage hyper détaillée selon les variables
+  let scenario = pools.defaultWin;
+
+  if (v.isWin) {
+    if (v.monScore >= 20 && v.scoreAdverse === 0) scenario = pools.perfectWin;
+    else if (v.scoreAdverse <= 7) scenario = pools.stompWin;
+    else if (v.scoreGap <= 3 && v.monScore >= 18) scenario = pools.closeWin;
+    else if (v.loreFromLocations >= 4) scenario = pools.passiveLore;
+    else scenario = pools.defaultWin;
+  } else {
+    if (v.toursTopDeck >= 3) scenario = pools.topDeckLoss;
+    else if (v.inkFloat >= 10) scenario = pools.inkLeakLoss;
+    else if (v.nbMulligan >= 4 && v.nbTours <= 8) scenario = pools.mulliganLoss;
+    else if (v.monScore <= 7) scenario = pools.stompLoss;
+    else if (v.scoreGap <= 3 && v.scoreAdverse >= 18) scenario = pools.closeLoss;
+    else scenario = pools.defaultLoss;
+  }
+
+  // Override Control flavor pour les games très longues
+  if (v.nbTours >= 13 && Math.random() > 0.6) {
+    scenario = pools.control;
+  }
 
   const vars = { ...v, pace: v.pace };
 
@@ -156,32 +233,35 @@ function buildLocalCommentary(body = {}) {
 function buildPrompt(body = {}) {
   const v = getBodyContext(body);
   return `
-Tu es un commentateur d'e-sport et de sport légendaire, connu pour tes punchlines incroyables, ton sarcasme, tes hyperboles et ton style très direct (façon commentateur de football très excité).
-Tu dois analyser un match du jeu de cartes Lorcana en te basant sur les statistiques ci-dessous.
+Tu es un coach eSport Lorcana sarcastique, piquant, mais très expert.
+Tu maîtrises la théorie des ressources : Card Advantage, Ink Advantage, Tempo, Curve, Lethal, Top deck, Lore passif, Attrition.
 
-RÈGLES STRICTES DE GÉNÉRATION :
-1. TITRE ("title") : Donne un titre au match. Il DOIT être agressif, hyper accrocheur. Soit ultra-flatteur et second degré si j'ai dominé, soit piquant, sarcastique et moqueur si j'ai perdu ou mal joué. (1 ligne max).
-2. ANALYSE ("description") : Un résumé ultra nerveux. Va droit au but. Utilise du vocabulaire de commentateur sportif (ex: 'masterclass', 'il a fermé la boutique', 'clim', 'cassé les reins', 'caviar', 'boucherie', 'dans les cordes'). Fais une remarque sur mon adversaire (${v.opponentName}).
-3. LONGUEUR : Le champ "description" NE DOIT JAMAIS faire plus de 3 ou 4 phrases courtes. Ne coupe pas tes phrases.
-4. FORMAT : Réponds UNIQUEMENT au format JSON valide. N'ajoute AUCUN texte avant ou après le JSON. Utilise exactement les clés "title" et "description".
-
-DONNÉES DU MATCH À COMMENTER :
-- Mon Résultat : ${v.isWin ? "Victoire" : "Défaite"} (${v.monScore} à ${v.scoreAdverse})
+Analyse ce match :
 - Adversaire : ${v.opponentName}
-- Format : ${v.format}, Deck : ${v.deckName}, Matchup : ${v.matchupLabel}
+- Format : ${v.format}
+- Deck : ${v.deckName}
+- Matchup : ${v.matchupLabel}
 - Départ : ${v.otp}
-- Durée : ${v.nbTours} tours (Rythme probable : ${v.pace})
-- Cartes mulliganées au départ : ${v.nbMulligan}
-- Encre gaspillée (flottée) : ${v.inkFloat}
-- Tours passés avec la main vide (Top deck) : ${v.toursTopDeck}
-- Ma carte MVP : ${v.topQuester}
-- Ma carte la plus encrée : ${v.topInkedCard} (${v.topInkedCount}x)
-- Ma carte la plus jouée : ${v.topPlayedCard} (${v.topPlayedCount}x)
-- Lore passif généré par mes Lieux : ${v.loreFromLocations}
+- Score : ${v.monScore} à ${v.scoreAdverse}
+- Résultat : ${v.isWin ? "victoire" : "défaite"}
+- Durée : ${v.nbTours} tours
+- Rythme probable : ${v.pace}
+- Cartes mulliganées : ${v.nbMulligan}
+- Encre flottée : ${v.inkFloat}
+- Tours en main vide : ${v.toursTopDeck}
+- Carte MVP : ${v.topQuester}
+- Carte la plus encrée : ${v.topInkedCard} (${v.topInkedCount}x)
+- Carte la plus jouée : ${v.topPlayedCard} (${v.topPlayedCount}x)
+- Lore passif des Lieux : ${v.loreFromLocations}
+
+Consigne de ton :
+Fais une vanne piquante mais pas insultante sur le pseudo de l'adversaire ou sur mes erreurs. Reste constructif et pro TCG.
+Réponds UNIQUEMENT au format JSON valide, sans markdown, avec exactement deux clés: "title" et "description".
 `.trim();
 }
 
 async function callGroq(prompt) {
+  // L'URL ici est désormais une string propre, sans Markdown
   const response = await fetch("[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)", {
     method: "POST",
     headers: {
@@ -191,7 +271,7 @@ async function callGroq(prompt) {
     body: JSON.stringify({
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.8, // Température un peu plus haute pour plus de "folie" et créativité dans le commentaire
+      temperature: 0.7,
       response_format: { type: "json_object" }
     })
   });
@@ -204,12 +284,11 @@ async function callGroq(prompt) {
 
   const rawText = data?.choices?.[0]?.message?.content || "";
   if (!rawText) throw new Error("Empty Groq response.");
-  
   const parsed = extractFirstJsonObject(rawText);
 
   return {
-    title: clampText(parsed.title, "Analyse du match", 100), // Limite augmentée pour laisser de la place aux titres excentriques
-    description: clampText(parsed.description, "Analyse indisponible.", 400), // La limite en dur est maintenue en filet de sécurité
+    title: clampText(parsed.title, "Lecture du match", 60),
+    description: clampText(parsed.description, "Analyse indisponible.", 420),
     source: "Groq Llama 3",
   };
 }
