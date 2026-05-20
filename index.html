@@ -304,10 +304,18 @@
             <select id="performanceDeckFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par version de deck">
               <option value="all">Toutes les versions</option>
             </select>
+            <select id="performanceOpponentColorFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par matchup adverse">
+              <option value="all">Tous les matchups</option>
+            </select>
             <select id="performanceFormatFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par format">
               <option value="all">Tous les formats</option>
               <option value="BO1">BO1</option>
               <option value="BO3">BO3</option>
+            </select>
+            <select id="performanceTempoFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par départ">
+              <option value="all">OTP + OTD</option>
+              <option value="otp">OTP</option>
+              <option value="otd">OTD</option>
             </select>
             <select id="performanceResultFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par résultat">
               <option value="all">Tous les résultats</option>
@@ -323,12 +331,24 @@
               <div id="performanceDeckPills" class="filter-pill-row" aria-label="Choisir une version de deck"></div>
             </div>
             <div class="filter-pill-block compact">
+              <span>Matchup adverse</span>
+              <div id="performanceOpponentColorPills" class="filter-pill-row compact-matchup-pills" aria-label="Choisir une bicolorité adverse"></div>
+            </div>
+            <div class="filter-pill-block compact">
               <span>Format</span>
               <div id="performanceFormatPills" class="filter-pill-row" aria-label="Choisir un format"></div>
             </div>
             <div class="filter-pill-block compact">
+              <span>Départ</span>
+              <div id="performanceTempoPills" class="filter-pill-row" aria-label="Choisir OTP ou OTD"></div>
+            </div>
+            <div class="filter-pill-block compact">
               <span>Résultat</span>
               <div id="performanceResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div>
+            </div>
+            <div class="filter-pill-block compact filter-reset-block">
+              <span>Action</span>
+              <button id="performanceResetFilters" type="button" class="ghost-button compact">Réinitialiser</button>
             </div>
           </div>
         </article>
@@ -511,12 +531,19 @@
               <option value="BO1">BO1</option>
               <option value="BO3">BO3</option>
             </select>
+            <select id="historyTempoFilter" class="sort-select technical-select" aria-label="Filtrer par départ">
+              <option value="all">OTP + OTD</option>
+              <option value="otp">OTP</option>
+              <option value="otd">OTD</option>
+            </select>
             <div class="history-filter-pills">
               <div class="filter-pill-block compact"><span>Bicolorité</span><div id="historyColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
               <div id="historyVersionBlock" class="filter-pill-block compact"><span>Version du deck</span><div id="historyDeckPills" class="filter-pill-row" aria-label="Choisir une version"></div></div>
               <div class="filter-pill-block compact"><span>Adversaire</span><div id="historyOpponentColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité adverse"></div></div>
               <div class="filter-pill-block compact"><span>Résultat</span><div id="historyResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div></div>
               <div class="filter-pill-block compact"><span>Format</span><div id="historyFormatPills" class="filter-pill-row" aria-label="Choisir un format"></div></div>
+              <div class="filter-pill-block compact"><span>Départ</span><div id="historyTempoPills" class="filter-pill-row" aria-label="Choisir OTP ou OTD"></div></div>
+              <div class="filter-pill-block compact filter-reset-block"><span>Action</span><button id="historyResetFilters" type="button" class="ghost-button compact">Réinitialiser</button></div>
             </div>
             <div class="history-search-row">
               <button id="historyRefreshButton" type="button" class="ghost-button">Actualiser l’historique</button>

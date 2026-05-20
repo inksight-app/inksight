@@ -30,7 +30,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','quickInsights','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceResultPills','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyResultPills','historyFormatFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','quickInsights','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -89,8 +89,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.mulliganButton?.addEventListener('click', toggleMulliganResolution);
     els.saveAnalysisButton?.addEventListener('click', saveCurrentAnalysis);
     els.historyRefreshButton?.addEventListener('click', () => refreshSavedMatches({ force:true }));
+    els.performanceResetFilters?.addEventListener('click', resetPerformanceFilters);
+    els.historyResetFilters?.addEventListener('click', resetHistoryFilters);
     els.deckManagerRefresh?.addEventListener('click', async () => { await refreshDeckProfiles({ force:true, silent:true }); await refreshSavedMatches({ force:true, silent:true }); renderAccountPage(); });
-    [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
+    [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
     document.addEventListener('click', handlePerformanceFilterClick);
     document.addEventListener('click', handleAccountDeckManagerClick);
     document.addEventListener('click', handlePerformanceSortClick);
@@ -1055,25 +1057,47 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(owner !== 'mine' && owner !== 'opponent') return null;
     const patches = Array.isArray(frame?.patch) ? frame.patch : [];
     const handCandidates = [];
-    const pushHandCard = (value) => {
-      extractCards(value, []).forEach(card => handCandidates.push(card));
+    const nonHandCandidates = [];
+    const pushCards = (bucket, value) => {
+      extractCards(value, []).forEach(card => bucket.push(card));
     };
+
     for(const patch of patches){
       const path = String(patch?.path || '');
-      if(ownerFromPatchPath(path) !== owner || !isOwnerHandPath(path)) continue;
-      // A card inked from hand leaves the hand. Attribute standard ink and extra-ink effects
-      // only when we can see that hand movement. Cards moved from discard/field must not feed
-      // the "cartes sacrifiées" statistic.
-      if(patch.op === 'remove'){
-        pushHandCard(patch.value);
-        pushHandCard(valueAtPointer(snapshot, path));
-        pushHandCard(valueAtPointer(snapshot, parentPointer(path)));
+      if(ownerFromPatchPath(path) !== owner) continue;
+      const isHandPath = isOwnerHandPath(path);
+      const isNonHandSourcePath = pathHasAnyZone(path, ['discard','field','characters','items','locations','play','banished','banish','exile']);
+
+      if(isHandPath && patch.op === 'remove'){
+        // Une carte encrée depuis la main doit alimenter le classement "encrées".
+        // On lit à la fois la valeur du patch et la snapshot avant patch, car Duel.ink
+        // alterne selon les actions standard et les effets visibles type Sail.
+        pushCards(handCandidates, patch.value);
+        pushCards(handCandidates, valueAtPointer(snapshot, path));
+        pushCards(handCandidates, valueAtPointer(snapshot, parentPointer(path)));
+        continue;
+      }
+
+      if(isNonHandSourcePath && patch.op === 'remove'){
+        // Une carte envoyée en encre depuis le board ou la défausse ne doit pas compter
+        // comme "carte sacrifiée depuis la main".
+        pushCards(nonHandCandidates, patch.value);
+        pushCards(nonHandCandidates, valueAtPointer(snapshot, path));
+        pushCards(nonHandCandidates, valueAtPointer(snapshot, parentPointer(path)));
       }
     }
-    const direct = cardFromActionFields(frame, frame?.actionType, true);
+
+    const direct = cardFromInkActionFields(frame);
     const directResolved = resolveCardReference(direct, owner, replayCardIndex);
     const directCard = directResolved || (direct && isKnownActionCard(direct) ? direct : null);
-    if(directCard && handContainsCard(snapshot, owner, directCard, replayCardIndex)) handCandidates.unshift(directCard);
+    if(directCard){
+      if(cardListContainsReference(nonHandCandidates, directCard, owner, replayCardIndex)) return null;
+      // Standard Lorcana : inking from hand reveals the card first. For the opponent,
+      // the hand itself may stay private in the export, but if Duel.ink gives cardName/cardId
+      // on ADD_TO_INK and no board/discard source contradicts it, this is a valid hand-ink.
+      return hydrateCard(directCard);
+    }
+
     for(const candidate of handCandidates){
       const resolved = resolveCardReference(candidate, owner, replayCardIndex) || candidate;
       const hydrated = hydrateCard(resolved);
@@ -1082,19 +1106,57 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return null;
   }
 
+  function cardFromInkActionFields(frame){
+    const taken = frame?.takenAction || {};
+    const nested = taken.card && typeof taken.card === 'object' ? taken.card : null;
+    const name = firstString([
+      taken.inkedCardName,
+      taken.cardName,
+      taken.card?.fullName,
+      taken.card?.cardName,
+      taken.card?.name
+    ]);
+    const id = firstString([
+      taken.inkedCardId,
+      taken.cardId,
+      taken.card?.id,
+      taken.card?.cardId
+    ]);
+    const instanceId = firstString([
+      taken.inkedCardInstanceId,
+      taken.cardInstanceId,
+      taken.instanceId,
+      taken.card?.instanceId,
+      taken.card?.cardInstanceId
+    ]);
+    if(nested && isKnownActionCard(nested)) return { ...nested, id:id || nested.id || nested.cardId || '', cardId:id || nested.cardId || nested.id || '', fullName:name || fullName(nested), name:name || nested.name || nested.cardName || '', cardName:name || nested.cardName || nested.name || '', instanceId:instanceId || nested.instanceId || nested.cardInstanceId || '', cardInstanceId:instanceId || nested.cardInstanceId || nested.instanceId || '' };
+    if(name || id || instanceId) return { id, cardId:id, fullName:name, name, cardName:name, instanceId, cardInstanceId:instanceId };
+    return null;
+  }
+
+  function cardListContainsReference(cards, cardLike, owner, replayCardIndex){
+    const wantedKeys = new Set(cardReferenceKeys(cardLike));
+    const resolved = resolveCardReference(cardLike, owner, replayCardIndex);
+    if(resolved) cardReferenceKeys(resolved).forEach(key => wantedKeys.add(key));
+    if(!wantedKeys.size) return false;
+    return (cards || []).some(candidate => {
+      const keys = new Set(cardReferenceKeys(candidate));
+      const candidateResolved = resolveCardReference(candidate, owner, replayCardIndex);
+      if(candidateResolved) cardReferenceKeys(candidateResolved).forEach(key => keys.add(key));
+      return [...keys].some(key => wantedKeys.has(key));
+    });
+  }
+
   function handContainsCard(snapshot, owner, cardLike, replayCardIndex){
     const zone = owner === 'mine' ? 'myPlayer' : owner === 'opponent' ? 'opponent' : '';
     const hand = Array.isArray(snapshot?.[zone]?.hand) ? snapshot[zone].hand : [];
     if(!hand.length || !cardLike) return false;
-    const wantedKeys = new Set(cardReferenceKeys(cardLike));
-    const resolved = resolveCardReference(cardLike, owner, replayCardIndex);
-    if(resolved) cardReferenceKeys(resolved).forEach(key => wantedKeys.add(key));
-    return hand.some(card => cardReferenceKeys(card).some(key => wantedKeys.has(key)));
+    return cardListContainsReference(hand, cardLike, owner, replayCardIndex);
   }
 
   function sourceCardForAction(frame, owner, snapshot, deckOwners, replayCardIndex){
     const type = frame.actionType;
-    const direct = cardFromActionFields(frame, type);
+    const direct = type === 'ADD_TO_INK' ? cardFromInkActionFields(frame) : cardFromActionFields(frame, type);
     const directResolved = resolveCardReference(direct, owner, replayCardIndex);
     if(directResolved && isKnownActionCard(directResolved)) return hydrateCard(directResolved);
     if(direct && isKnownActionCard(direct)) return hydrateCard(direct);
@@ -3364,6 +3426,26 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     target.dispatchEvent(new Event('input', { bubbles:true }));
   }
 
+
+  function resetPerformanceFilters(){
+    ['performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter'].forEach(id => {
+      if(els[id]) els[id].value = 'all';
+    });
+    state.performanceMulliganMatchupFilter = 'all';
+    state.performanceMulliganPlayFilter = 'all';
+    state.performanceMulliganRecommendationFilter = 'all';
+    state.performanceExpandedLists = { cards:false, mulligan:false };
+    renderPerformanceData();
+  }
+
+  function resetHistoryFilters(){
+    ['historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyFormatFilter','historyTempoFilter','historyResultFilter'].forEach(id => {
+      if(els[id]) els[id].value = 'all';
+    });
+    if(els.historySearchInput) els.historySearchInput.value = '';
+    renderPerformanceData();
+  }
+
   function handlePerformanceDetailClick(event){
     const btn = event.target.closest('[data-performance-detail]');
     if(!btn) return;
@@ -3444,16 +3526,23 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(els.performanceVersionBlock) els.performanceVersionBlock.hidden = !showDeckVersions;
     renderPillGroup(els.performanceDeckPills, 'performanceDeckFilter', deckOptions, els.performanceDeckFilter?.value || 'all');
 
+    const performanceOpponentOptions = opponentColorOptionsForPills('stats');
+    syncSelectOptions(els.performanceOpponentColorFilter, performanceOpponentOptions, 'all');
+    renderPillGroup(els.performanceOpponentColorPills, 'performanceOpponentColorFilter', performanceOpponentOptions, els.performanceOpponentColorFilter?.value || 'all');
+
     renderPillGroup(els.performanceFormatPills, 'performanceFormatFilter', [
       { value:'all', label:'Tous' }, { value:'BO1', label:'BO1' }, { value:'BO3', label:'BO3' }
     ], els.performanceFormatFilter?.value || 'all');
+    renderPillGroup(els.performanceTempoPills, 'performanceTempoFilter', [
+      { value:'all', label:'OTP + OTD' }, { value:'otp', label:'OTP' }, { value:'otd', label:'OTD' }
+    ], els.performanceTempoFilter?.value || 'all');
     renderPillGroup(els.performanceResultPills, 'performanceResultFilter', [
       { value:'all', label:'Tous' }, { value:'win', label:'Victoires' }, { value:'loss', label:'Défaites' }
     ], els.performanceResultFilter?.value || 'all');
 
     syncSelectOptions(els.historyColorFilter, colorOptions, 'all');
     renderPillGroup(els.historyColorPills, 'historyColorFilter', colorOptions, els.historyColorFilter?.value || 'all');
-    const opponentColorOptions = historyOpponentColorOptionsForPills();
+    const opponentColorOptions = opponentColorOptionsForPills('history');
     syncSelectOptions(els.historyOpponentColorFilter, opponentColorOptions, 'all');
     renderPillGroup(els.historyOpponentColorPills, 'historyOpponentColorFilter', opponentColorOptions, els.historyOpponentColorFilter?.value || 'all');
     const historyDeckOptions = deckFilterOptionsForPills('history');
@@ -3467,6 +3556,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderPillGroup(els.historyResultPills, 'historyResultFilter', [
       { value:'all', label:'Tous' }, { value:'win', label:'Victoires' }, { value:'loss', label:'Défaites' }
     ], els.historyResultFilter?.value || 'all');
+    renderPillGroup(els.historyTempoPills, 'historyTempoFilter', [
+      { value:'all', label:'OTP + OTD' }, { value:'otp', label:'OTP' }, { value:'otd', label:'OTD' }
+    ], els.historyTempoFilter?.value || 'all');
   }
 
   function syncSelectOptions(select, options, fallback='all'){
@@ -3492,7 +3584,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     ];
   }
 
-  function historyOpponentColorOptionsForPills(){
+  function opponentColorOptionsForPills(mode='history'){
     const map = new Map();
     (state.savedMatches || []).forEach(row => {
       const colors = rowOpponentColors(row);
@@ -3502,9 +3594,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       item.count += 1;
       map.set(key, item);
     });
+    const allLabel = mode === 'stats' ? 'Tous matchups' : 'Tous les adversaires';
     return [
-      { value:'all', label:'Tous les adversaires' },
-      ...[...map.values()].sort((a,b)=>b.count-a.count || a.label.localeCompare(b.label)).map(item => ({ ...item, label:`${item.label} · ${item.count}` }))
+      { value:'all', label:allLabel },
+      ...[...map.values()].sort((a,b)=>b.count-a.count || a.label.localeCompare(b.label)).map(item => ({
+        ...item,
+        label:`vs ${item.label} · ${item.count}`,
+        shortLabel:`vs · ${item.count}`,
+        ariaLabel:`vs ${item.label} · ${item.count} match${item.count > 1 ? 's' : ''}`,
+        compact:true
+      }))
     ];
   }
 
@@ -3556,7 +3655,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     target.innerHTML = options.map(option => {
       const active = String(option.value) === String(activeValue);
       const dots = inkDotsHtml(option.colors || []);
-      return `<button type="button" class="filter-pill ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-pressed="${active ? 'true' : 'false'}">${dots}<span>${esc(option.label)}</span></button>`;
+      const label = option.shortLabel || option.label;
+      const aria = option.ariaLabel || option.label || label;
+      const compact = option.compact ? ' compact-matchup-pill' : '';
+      return `<button type="button" class="filter-pill${compact} ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-label="${escAttr(aria)}" title="${escAttr(aria)}" aria-pressed="${active ? 'true' : 'false'}">${dots}<span>${esc(label)}</span></button>`;
     }).join('');
   }
 
@@ -3714,7 +3816,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     let rows = [...(state.savedMatches || [])].sort((a,b) => savedMatchPlayedTime(b) - savedMatchPlayedTime(a));
     const deck = mode === 'stats' ? (els.performanceDeckFilter?.value || 'all') : (els.historyDeckFilter?.value || 'all');
     const color = mode === 'stats' ? (els.performanceColorFilter?.value || 'all') : (els.historyColorFilter?.value || 'all');
-    const opponentColor = mode === 'history' ? (els.historyOpponentColorFilter?.value || 'all') : 'all';
+    const opponentColor = mode === 'stats' ? (els.performanceOpponentColorFilter?.value || 'all') : (els.historyOpponentColorFilter?.value || 'all');
+    const tempo = mode === 'stats' ? (els.performanceTempoFilter?.value || 'all') : (els.historyTempoFilter?.value || 'all');
     const result = mode === 'stats' ? (els.performanceResultFilter?.value || 'all') : (els.historyResultFilter?.value || 'all');
     const format = mode === 'stats' ? (els.performanceFormatFilter?.value || 'all') : (els.historyFormatFilter?.value || 'all');
     const query = mode === 'history' ? String(els.historySearchInput?.value || '').trim().toLowerCase() : '';
@@ -3723,6 +3826,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(deck && deck !== 'all') rows = rows.filter(row => row.deck_profile_id === deck || row.deck_name === deck);
     if(result !== 'all') rows = rows.filter(row => row.result === result);
     if(format !== 'all') rows = rows.filter(row => String(row.format || '').toUpperCase() === format);
+    if(tempo && tempo !== 'all') rows = rows.filter(row => rowMatchesTempo(row, tempo));
     if(query){
       rows = rows.filter(row => [row.title, row.matchup_label, row.opponent_name, row.deck_name, row.score_label]
         .filter(Boolean)
@@ -3731,6 +3835,60 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         .includes(query));
     }
     return rows;
+  }
+
+  function rowTempoValues(row){
+    const analysis = parseStoredJson(row?.analysis_json);
+    const games = Array.isArray(analysis?.games) ? analysis.games : [];
+    const values = [];
+    games.forEach(game => {
+      if(game?.otp === true) values.push('otp');
+      else if(game?.otp === false) values.push('otd');
+    });
+    return [...new Set(values)];
+  }
+
+  function rowMatchesTempo(row, tempo){
+    if(!tempo || tempo === 'all') return true;
+    return rowTempoValues(row).includes(tempo);
+  }
+
+  function selectedPerformanceTempo(){
+    const value = String(els.performanceTempoFilter?.value || 'all');
+    return ['otp','otd'].includes(value) ? value : 'all';
+  }
+
+  function gameMatchesSelectedTempo(game, tempo=selectedPerformanceTempo()){
+    if(!tempo || tempo === 'all') return true;
+    if(tempo === 'otp') return game?.otp === true;
+    if(tempo === 'otd') return game?.otp === false;
+    return true;
+  }
+
+  function activePerformanceContextLabel(){
+    const parts = [];
+    const color = String(els.performanceColorFilter?.value || 'all');
+    const opponent = String(els.performanceOpponentColorFilter?.value || 'all');
+    const format = String(els.performanceFormatFilter?.value || 'all');
+    const tempo = String(els.performanceTempoFilter?.value || 'all');
+    const result = String(els.performanceResultFilter?.value || 'all');
+    if(color !== 'all') parts.push(color.split('|').map(inkKey).map(inkLabel).join(' / '));
+    else parts.push('Toutes bicolorités');
+    if(opponent !== 'all') parts.push(`vs ${opponent.split('|').map(inkKey).map(inkLabel).join(' / ')}`);
+    if(format !== 'all') parts.push(format);
+    if(tempo === 'otp') parts.push('OTP');
+    if(tempo === 'otd') parts.push('OTD');
+    if(result === 'win') parts.push('Victoires');
+    if(result === 'loss') parts.push('Défaites');
+    return parts.join(' · ');
+  }
+
+  function reliabilityInfo(count){
+    const total = n(count);
+    if(total >= 10) return { tone:'solid', label:'Données solides' };
+    if(total >= 4) return { tone:'medium', label:'À confirmer' };
+    if(total >= 1) return { tone:'weak', label:'Trop peu de données' };
+    return { tone:'empty', label:'Aucune donnée' };
   }
 
   function renderSavedStats(){
@@ -3759,11 +3917,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const playDraw = analytics.playDraw;
     document.querySelectorAll('.card-signal-card').forEach(card => { card.hidden = !deckScoped; });
 
+    const sampleGames = analytics.games.length;
+    const sampleWins = analytics.games.filter(game => game.isWin).length;
+    const reliability = reliabilityInfo(sampleGames || total);
     if(els.performanceSavedCount) els.performanceSavedCount.textContent = loggedIn ? String(total) : '—';
-    if(els.performanceWinrate) els.performanceWinrate.textContent = loggedIn && total ? `${Math.round((wins / total) * 100)}%` : '—';
+    if(els.performanceWinrate) els.performanceWinrate.textContent = loggedIn && sampleGames ? `${Math.round((sampleWins / sampleGames) * 100)}%` : (loggedIn && total ? `${Math.round((wins / total) * 100)}%` : '—');
     if(els.performanceBo3Count) els.performanceBo3Count.textContent = loggedIn ? String(bo3) : '—';
-    if(els.performanceSampleLabel) els.performanceSampleLabel.textContent = loggedIn ? `${total} analyse${total > 1 ? 's' : ''}` : '—';
-    if(els.performanceSampleHelp) els.performanceSampleHelp.textContent = loggedIn ? `${analytics.games.length || 0} game(s) · ${bo3} BO3 · ${bo1} BO1` : 'Connectez-vous pour activer l’historique.';
+    if(els.performanceSampleLabel) els.performanceSampleLabel.textContent = loggedIn ? `${sampleGames || total} ${sampleGames ? 'game' : 'analyse'}${(sampleGames || total) > 1 ? 's' : ''}` : '—';
+    if(els.performanceSampleHelp) els.performanceSampleHelp.textContent = loggedIn ? `${sampleGames || 0} game(s) · ${bo3} BO3 · ${bo1} BO1 · ${reliability.label}` : 'Connectez-vous pour activer l’historique.';
 
     document.querySelectorAll('.card-signal-card').forEach(card => card.classList.toggle('is-muted', loggedIn && !deckScoped));
     if(!deckScoped){
@@ -3863,7 +4024,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const detailedCards = (state.savedAnalytics?.cardStats || []).filter(row => rowIds.has(row.match_id));
     const detailedTurns = (state.savedAnalytics?.turnStats || []).filter(row => rowIds.has(row.match_id));
     const hasDetailedRows = detailedGames.length || detailedCards.length || detailedTurns.length;
-    const games = detailedGames.length ? detailedGames.map(game => {
+    let games = detailedGames.length ? detailedGames.map(game => {
       const matchRow = rowsById.get(game.match_id) || {};
       const opponentColors = rowOpponentColors(matchRow);
       const json = gameJsonFromDetailRow(game);
@@ -3873,7 +4034,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         gameNumber:n(game.game_number),
         playedAt:game.played_at || matchRow.played_at || matchRow.created_at,
         isWin:!!game.is_win,
-        otp:!!game.otp,
+        otp:game.otp === true ? true : (game.otp === false ? false : null),
         turnCount:n(game.turn_count || stored.turnCount),
         finalMineLore:n(game.final_mine_lore ?? stored.finalMineLore),
         finalOppLore:n(game.final_opp_lore ?? stored.finalOppLore),
@@ -3887,12 +4048,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         matchupLabel:matchRow.matchup_label || ''
       };
     }) : fallbackGamesFromSavedRows(rows);
-    const fallbackCardRows = fallbackCardRowsFromSavedRows(rows);
-    const cardRows = chooseBestCardRows(detailedCards, fallbackCardRows, rows);
-    const fallbackTurnRows = fallbackTurnRowsFromSavedRows(rows);
-    const turnRows = chooseBestTurnRows(detailedTurns, fallbackTurnRows, rows);
+    const tempo = selectedPerformanceTempo();
+    games = games.filter(game => gameMatchesSelectedTempo(game, tempo));
     const gameKey = game => `${game.matchId || game.match_id || ''}::${n(game.gameNumber || game.game_number || 1)}`;
     const gameByKey = new Map(games.map(game => [gameKey(game), game]));
+    const allowedGameKeys = new Set(gameByKey.keys());
+    const rowAllowed = row => allowedGameKeys.has(`${row.match_id || row.matchId || ''}::${n(row.game_number || row.gameNumber || 1)}`);
+    const fallbackCardRows = fallbackCardRowsFromSavedRows(rows);
+    const cardRows = chooseBestCardRows(detailedCards, fallbackCardRows, rows).filter(rowAllowed);
+    const fallbackTurnRows = fallbackTurnRowsFromSavedRows(rows);
+    const turnRows = chooseBestTurnRows(detailedTurns, fallbackTurnRows, rows).filter(rowAllowed);
 
     const mineCards = aggregateDetailedCards(cardRows.filter(row => row.owner === 'mine'), games, gameByKey);
     const mulliganCards = aggregateEmpiricalMulliganCards(rows, detailedGames, games, gameByKey);
@@ -4050,7 +4215,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
             gameNumber:n(game.gameNumber || game.game_number || index + 1),
             playedAt:game.playedAt || game.played_at || analysis?.played_at || row.created_at,
             isWin:!!(game.isWin ?? game.is_win),
-            otp:!!game.otp,
+            otp:game.otp === true ? true : (game.otp === false ? false : null),
             turnCount:n(game.turnCount ?? game.turn_count ?? stored.turnCount ?? row.total_turns ?? row.avg_turns),
             finalMineLore:n(game.finalMineLore ?? game.final_mine_lore ?? stored.finalMineLore ?? row.final_mine_lore),
             finalOppLore:n(game.finalOppLore ?? game.final_opp_lore ?? stored.finalOppLore ?? row.final_opp_lore),
@@ -4072,7 +4237,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           gameNumber:1,
           playedAt:analysis?.played_at || row.created_at,
           isWin:row.result === 'win',
-          otp:false,
+          otp:null,
           turnCount:n(row.total_turns || row.avg_turns || stored.turnCount),
           finalMineLore:n(row.final_mine_lore ?? stored.finalMineLore),
           finalOppLore:n(row.final_opp_lore ?? stored.finalOppLore),
@@ -4297,7 +4462,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     rows.forEach(row => {
       const gameNumber = n(row.game_number || 1);
-      const g = gameByKey.get(`${row.match_id}::${gameNumber}`) || (games || []).find(game => game.matchId === row.match_id && n(game.gameNumber) === gameNumber) || {};
+      const keyForGame = `${row.match_id}::${gameNumber}`;
+      if(gameByKey?.size && !gameByKey.has(keyForGame)) return;
+      const g = gameByKey.get(keyForGame) || (games || []).find(game => game.matchId === row.match_id && n(game.gameNumber) === gameNumber) || {};
       const mulligan = gameJsonFromDetailRow(row)?.mulligan || {};
       const split = splitMulliganInitialCards(mulligan);
       const initialByKey = new Map();
@@ -4361,7 +4528,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           matchId:row.match_id,
           gameNumber,
           isWin:!!g.isWin,
-          otp:!!g.otp,
+          otp:g.otp === true ? true : (g.otp === false ? false : null),
           opponentKey:g.opponentKey || 'unknown',
           opponentLabel:g.opponentLabel || 'Adversaire inconnu',
           opponentColors:g.opponentColors || [],
@@ -4459,7 +4626,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           matchId:row.match_id,
           gameNumber:n(row.game_number || 1),
           isWin:!!g.isWin,
-          otp:!!g.otp,
+          otp:g.otp === true ? true : (g.otp === false ? false : null),
           opponentKey:g.opponentKey || 'unknown',
           opponentLabel:g.opponentLabel || 'Adversaire inconnu',
           opponentColors:g.opponentColors || [],
@@ -4504,8 +4671,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function aggregateGamesPlayDraw(games){
     let otpTotal = 0, otpWins = 0, otdTotal = 0, otdWins = 0;
     games.forEach(game => {
-      if(game.otp){ otpTotal += 1; if(game.isWin) otpWins += 1; }
-      else { otdTotal += 1; if(game.isWin) otdWins += 1; }
+      if(game.otp === true){ otpTotal += 1; if(game.isWin) otpWins += 1; }
+      else if(game.otp === false){ otdTotal += 1; if(game.isWin) otdWins += 1; }
     });
     return { otpTotal, otpWins, otdTotal, otdWins, total:otpTotal + otdTotal, otpRate:pct(otpWins, otpTotal), otdRate:pct(otdWins, otdTotal) };
   }
@@ -5231,8 +5398,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const samples = allSamples.filter(sample => {
       if(!n(sample.opening) && !n(sample.kept) && !n(sample.replaced)) return false;
       if(filters.matchup !== 'all' && String(sample.opponentKey || 'unknown') !== String(filters.matchup)) return false;
-      if(filters.play === 'otp' && !sample.otp) return false;
-      if(filters.play === 'otd' && sample.otp) return false;
+      if(filters.play === 'otp' && sample.otp !== true) return false;
+      if(filters.play === 'otd' && sample.otp !== false) return false;
       return true;
     });
     if(!allSamples.length){
@@ -5366,8 +5533,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function hasPlayDrawMulliganSplit(samples=[]){
     const rows = arrayify(samples).filter(row => n(row.opening) || n(row.kept) || n(row.replaced));
-    const otp = rows.filter(row => row.otp);
-    const otd = rows.filter(row => !row.otp);
+    const otp = rows.filter(row => row.otp === true);
+    const otd = rows.filter(row => row.otp === false);
     const total = group => group.reduce((sum,row)=>sum+n(row.kept)+n(row.replaced),0);
     if(total(otp) < 4 || total(otd) < 4) return false;
     const rate = group => pct(group.reduce((sum,row)=>sum+n(row.kept),0), total(group));
@@ -5409,8 +5576,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return '<div class="deck-required"><strong>Sélectionnez une bicolorité ou un deck</strong><span>Le Mulligan Lab doit être lu deck par deck. Sur plusieurs listes, les recommandations deviennent trompeuses.</span></div>';
     }
     const filters = {
-      matchup:state.performanceMulliganMatchupFilter || 'all',
-      play:state.performanceMulliganPlayFilter || 'all',
+      // Matchup and OTP/OTD now come from the global performance filters above.
+      matchup:'all',
+      play:'all',
       recommendation:state.performanceMulliganRecommendationFilter || 'all'
     };
     const sort = state.performanceMulliganSort || 'smart';
@@ -5419,15 +5587,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     rows = filterMulliganCardsBySort(rows, sort).sort((a,b)=>compareMulliganCards(a,b,sort));
     const limit = expanded ? 80 : 10;
     const visible = rows.slice(0, limit);
-    const matchups = analytics.mulliganLab?.matchups || [];
-    const matchupButtons = [mulliganLabButton('matchup','all','Tous matchups',filters.matchup)]
-      .concat(matchups.slice(0,8).map(item => mulliganLabButton('matchup', item.key, `${item.label} · ${item.games}`, filters.matchup, inkDotsHtml(item.colors || []))))
-      .join('');
-    const playButtons = [
-      mulliganLabButton('play','all','OTP + OTD',filters.play),
-      mulliganLabButton('play','otp','Vous commencez',filters.play),
-      mulliganLabButton('play','otd','Vous jouez second',filters.play)
-    ].join('');
     const recButtons = [
       mulliganLabButton('recommendation','all','Toutes',filters.recommendation),
       mulliganLabButton('recommendation','keep','À garder',filters.recommendation),
@@ -5435,9 +5594,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       mulliganLabButton('recommendation','context','Contexte',filters.recommendation),
       mulliganLabButton('recommendation','low_sample','À confirmer',filters.recommendation)
     ].join('');
-    const controlsHtml = `<div class="mulligan-lab-controls mulligan-lab-controls-compact">
-      <div><span>Matchup</span><div class="mulligan-lab-row">${matchupButtons}</div></div>
-      <div><span>Départ</span><div class="mulligan-lab-row">${playButtons}</div></div>
+    const contextLabel = activePerformanceContextLabel();
+    const controlsHtml = `<div class="mulligan-lab-controls mulligan-lab-controls-compact global-context-only">
+      <div><span>Contexte appliqué</span><p class="mulligan-lab-context-note">${esc(contextLabel)}</p></div>
       <div><span>Signal</span><div class="mulligan-lab-row">${recButtons}</div></div>
     </div>`;
     const toolbarHtml = `<div class="performance-block-toolbar mulligan-lab-toolbar action-first">
@@ -5831,6 +5990,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       els.historyOpponentColorFilter?.value || 'all',
       els.historyResultFilter?.value || 'all',
       els.historyFormatFilter?.value || 'all',
+      els.historyTempoFilter?.value || 'all',
       String(els.historySearchInput?.value || '').trim().toLowerCase()
     ].join('::');
   }
@@ -5845,6 +6005,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     add('Adversaire', els.historyOpponentColorFilter?.value || 'all');
     add('Résultat', els.historyResultFilter?.value || 'all');
     add('Format', els.historyFormatFilter?.value || 'all');
+    add('Départ', els.historyTempoFilter?.value || 'all');
     if(String(els.historySearchInput?.value || '').trim()) badges.push('<span class="history-filter-badge">Recherche</span>');
     return badges.length ? badges.join('') : '<span class="history-filter-badge muted">Aucun filtre actif</span>';
   }
