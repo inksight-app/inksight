@@ -11149,3 +11149,83 @@ body::after{
     top:18%!important;
   }
 }
+
+/* =========================================================
+   V129.3 — Body-owned cursor halo, no ambient layer artifact
+   =========================================================
+   Pourquoi : le rectangle violet/noir visible en haut venait du calque
+   fixed .ambient et de ses pseudo-elements composités par le navigateur.
+   L'effet souris est conservé, mais il est maintenant dessiné directement
+   dans le background du body via --mx / --my. Aucun calque rectangulaire
+   séparé ne peut donc apparaître autour du menu supérieur.
+*/
+html,
+body{
+  overflow-x:hidden!important;
+  background-color:#000!important;
+}
+
+/* Neutralisation définitive de l'ancien calque. Même si le HTML est ancien
+   sur un cache local, cette règle empêche le retour du carré de composition. */
+.ambient,
+.ambient::before,
+.ambient::after{
+  display:none!important;
+  visibility:hidden!important;
+  content:none!important;
+  opacity:0!important;
+  filter:none!important;
+  mix-blend-mode:normal!important;
+  background:none!important;
+  transform:none!important;
+}
+
+body{
+  /* Halo souris visible, mais sans élément overlay. Les variables --mx / --my
+     sont toujours mises à jour par main.js, donc l'aura suit bien la souris. */
+  background:
+    radial-gradient(circle at var(--mx,50%) var(--my,18%), rgba(255,255,255,.095), transparent 23rem),
+    radial-gradient(circle at var(--mx,50%) var(--my,18%), color-mix(in srgb,var(--theme-color-1,#2f8bd9) 34%, transparent), transparent 35rem),
+    radial-gradient(circle at calc(100% - var(--mx,50%)) calc(100% - var(--my,18%)), color-mix(in srgb,var(--theme-color-2,#f6c54d) 26%, transparent), transparent 40rem),
+    radial-gradient(circle at 12% 8%, color-mix(in srgb,var(--aura-one,var(--theme-color-1,#2f8bd9)) 21%, transparent), transparent 34rem),
+    radial-gradient(circle at 92% 12%, color-mix(in srgb,var(--aura-two,var(--theme-color-2,#f6c54d)) 18%, transparent), transparent 40rem),
+    linear-gradient(180deg,#020203 0%,#040405 58%,#010102 100%)!important;
+  background-attachment:fixed!important;
+}
+
+/* La texture reste fine et ne doit jamais former une dalle opaque. */
+body::after{
+  content:""!important;
+  display:block!important;
+  position:fixed!important;
+  inset:0!important;
+  z-index:0!important;
+  pointer-events:none!important;
+  opacity:.038!important;
+  background-image:
+    linear-gradient(rgba(255,255,255,.020) 1px, transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.012) 1px, transparent 1px)!important;
+  background-size:56px 56px!important;
+  mask-image:linear-gradient(180deg,#000 0%,transparent 76%)!important;
+}
+
+.header-shell,
+.main-shell,
+.mobile-bottom-nav,
+#cardModal,
+.auth-card,
+.chart-tooltip{
+  position:relative!important;
+  z-index:1!important;
+}
+
+@media (max-width:820px), (prefers-reduced-motion:reduce){
+  body{
+    background-attachment:scroll!important;
+    background:
+      radial-gradient(circle at 22% 10%, rgba(255,255,255,.055), transparent 18rem),
+      radial-gradient(circle at 22% 10%, color-mix(in srgb,var(--theme-color-1,#2f8bd9) 24%, transparent), transparent 26rem),
+      radial-gradient(circle at 88% 16%, color-mix(in srgb,var(--theme-color-2,#f6c54d) 19%, transparent), transparent 28rem),
+      linear-gradient(180deg,#020203 0%,#040405 58%,#010102 100%)!important;
+  }
+}
