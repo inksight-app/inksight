@@ -8108,6 +8108,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function renderStatTables(m){
+    const metrics = state.scope === 'mine' ? (m?.proMetrics || {}) : (m?.opponentProMetrics || {});
     if(els.mostInkedHelp) els.mostInkedHelp.textContent = 'Main = carte sacrifiée depuis la main. Défausse/board = ajout à l’encrier par effet.';
     const cards = cardsForScope(m, state.scope);
     const topQuesters = loreEngineCards(cards).sort(compareLoreEngines)
@@ -8801,7 +8802,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function summarizeDefaultHandReadout(rows, comparisonRows=[]){
     if(!Array.isArray(rows) || !rows.length){
-      return '<span>Cartes en main</span><strong>Replay en attente</strong><small>La taille de main apparaîtra après import.</small>';
+      return '<span>Cartes en main</span><strong>Replay en attente</strong><small>Donnée disponible après import.</small>';
     }
     const values = rows.map(r=>n(r.handCount));
     const minHand = Math.min(...values);
@@ -8809,8 +8810,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const emptyTurns = values.filter(v=>v <= 1).length;
     const label = emptyTurns >= 3 ? 'Mode top deck' : minHand <= 1 ? 'Main fragile' : 'Main stable';
     const advantage = handAdvantageSummary(rows, comparisonRows);
-    const base = `moyenne ${avgHand} carte(s) en fin de tour · minimum ${minHand} · ${emptyTurns} tour(s) critique(s)`;
-    return `<span>Réserve de main</span><strong>${esc(label)}</strong><small>${esc(advantage ? `${advantage} · ${base}` : base)}</small>`;
+    const compact = advantage ? `${advantage} · moy. ${avgHand} · min. ${minHand}` : `moy. ${avgHand} · min. ${minHand} · ${emptyTurns} critique(s)`;
+    return `<span>Réserve de main</span><strong>${esc(label)}</strong><small>${esc(compact)}</small>`;
   }
 
   function handAdvantageSummary(rows=[], comparisonRows=[]){
@@ -8842,7 +8843,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function summarizeDefaultBoardReadout(rows=[], comparisonRows=[]){
     if(!Array.isArray(rows) || !rows.length){
-      return '<span>Présence sur board</span><strong>Replay en attente</strong><small>Les personnages et le lore potentiel apparaîtront après import.</small>';
+      return '<span>Présence sur board</span><strong>Replay en attente</strong><small>Donnée disponible après import.</small>';
     }
     const peak = [...rows].sort((a,b)=>n(b.lorePotential)-n(a.lorePotential) || n(b.characters)-n(a.characters))[0] || {};
     const avgChars = round1(rows.reduce((acc,row)=>acc+n(row.characters),0) / Math.max(1, rows.length));
@@ -8850,8 +8851,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const last = rows[rows.length - 1] || {};
     const oppLast = comparisonMap.get(n(last.turn));
     const swing = oppLast ? n(last.characters) - n(oppLast.characters) : null;
-    const swingText = swing === null ? '' : swing > 0 ? ` · +${swing} perso(s) vs adversaire au T${n(last.turn)}` : swing < 0 ? ` · -${Math.abs(swing)} perso(s) vs adversaire au T${n(last.turn)}` : ` · board égal au T${n(last.turn)}`;
-    return `<span>Board en fin de tour</span><strong>${esc(`${n(peak.characters)} perso(s) · ${n(peak.lorePotential)} lore potentiel au T${n(peak.turn)}`)}</strong><small>${esc(`moyenne ${avgChars} personnage(s)${swingText}`)}</small>`;
+    const swingText = swing === null ? '' : swing > 0 ? `+${swing} persos au T${n(last.turn)}` : swing < 0 ? `-${Math.abs(swing)} persos au T${n(last.turn)}` : `égalité au T${n(last.turn)}`;
+    return `<span>Board en fin de tour</span><strong>${esc(`${n(peak.characters)} persos · ${n(peak.lorePotential)} lore · T${n(peak.turn)}`)}</strong><small>${esc(`moy. ${avgChars} persos${swingText ? ` · ${swingText}` : ''}`)}</small>`;
   }
 
   function summarizeBoard(rows=[], comparisonRows=[]){
@@ -8876,43 +8877,55 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const viewedLabel = viewedIsOpponent ? 'Persos adverses' : 'Vos persos';
     const comparisonLabel = viewedIsOpponent ? 'Vos persos' : 'Persos adverses';
     const loreLabel = viewedIsOpponent ? 'Lore potentiel adverse' : 'Votre lore potentiel';
+    const viewedColor = viewedColors[0] || theme[0];
+    const comparisonColor = comparisonColors[0] || theme[1];
+    const loreColor = viewedColors[1] || '#facc15';
     const datasets = [
       {
         label:viewedLabel,
         data:turnValues.map(turn => rowMap.has(turn) ? n(rowMap.get(turn).characters) : null),
-        backgroundColor:hexToRgba(viewedColors[0] || theme[0], .86),
-        borderColor:hexToRgba(viewedColors[0] || theme[0], .86),
-        maxBarThickness:24,
-        borderWidth:0,
-        borderRadius:0
+        tension:.42,
+        borderWidth:3,
+        pointRadius:0,
+        pointHoverRadius:5,
+        borderColor:viewedColor,
+        backgroundColor:hexToRgba(viewedColor, .12),
+        pointBackgroundColor:viewedColor,
+        pointBorderColor:viewedColor,
+        fill:false
       }
     ];
     if(comparisonRows?.length){
       datasets.push({
         label:comparisonLabel,
         data:turnValues.map(turn => comparisonMap.has(turn) ? n(comparisonMap.get(turn).characters) : null),
-        backgroundColor:hexToRgba(comparisonColors[0] || theme[1], .42),
-        borderColor:hexToRgba(comparisonColors[0] || theme[1], .42),
-        maxBarThickness:24,
-        borderWidth:0,
-        borderRadius:0
+        tension:.42,
+        borderWidth:2.4,
+        pointRadius:0,
+        pointHoverRadius:5,
+        borderColor:comparisonColor,
+        backgroundColor:hexToRgba(comparisonColor, .10),
+        pointBackgroundColor:comparisonColor,
+        pointBorderColor:comparisonColor,
+        fill:false
       });
     }
     datasets.push({
       label:loreLabel,
       data:turnValues.map(turn => rowMap.has(turn) ? n(rowMap.get(turn).lorePotential) : null),
-      type:'line',
-      tension:.45,
-      borderWidth:3,
-      pointRadius:2.8,
-      pointHoverRadius:5.5,
-      borderColor:viewedColors[1] || theme[1],
-      backgroundColor:viewedColors[1] || theme[1],
-      pointBackgroundColor:viewedColors[1] || theme[1],
-      pointBorderColor:viewedColors[1] || theme[1],
-      fill:false
+      tension:.42,
+      borderWidth:2,
+      pointRadius:0,
+      pointHoverRadius:5,
+      borderColor:hexToRgba(loreColor, .78),
+      backgroundColor:hexToRgba(loreColor, .08),
+      pointBackgroundColor:loreColor,
+      pointBorderColor:loreColor,
+      borderDash:[5,6],
+      fill:false,
+      noGlow:true
     });
-    charts.board = chart(charts.board, 'boardPresenceChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:false }, y:{ beginAtZero:true, ticks:{ precision:0 } } } });
+    charts.board = chart(charts.board, 'boardPresenceChart', 'line', { labels, datasets }, { scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } });
     updateChartDataTable('boardPresenceChart', labels, datasets, 'Données du graphique de présence sur board');
   }
 
