@@ -69,9 +69,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     initMobileViewportNav();
 
-    els.browseButton?.addEventListener('click', () => els.fileInput.click());
-    els.dropzone?.addEventListener('click', e => { if(e.target !== els.browseButton) els.fileInput.click(); });
-    els.dropzone?.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); els.fileInput.click(); } });
+    const openReplayFilePicker = () => { if(!els.fileInput) return; els.fileInput.value = ''; setTimeout(() => els.fileInput.click(), 0); };
+    els.browseButton?.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openReplayFilePicker(); });
+    els.dropzone?.addEventListener('click', e => { if(e.target !== els.browseButton) openReplayFilePicker(); });
+    els.dropzone?.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openReplayFilePicker(); } });
     els.fileInput?.addEventListener('change', e => handleFiles([...e.target.files]));
     ['dragenter','dragover'].forEach(type => els.dropzone?.addEventListener(type, e => { e.preventDefault(); els.dropzone.classList.add('dragover'); }));
     ['dragleave','drop'].forEach(type => els.dropzone?.addEventListener(type, e => { e.preventDefault(); els.dropzone.classList.remove('dragover'); }));
@@ -7912,7 +7913,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(els.topQuestersTitle) els.topQuestersTitle.textContent = global ? 'Moteurs de Victoire du BO3' : 'Moteurs de Victoire';
     if(els.topQuestersHelp) els.topQuestersHelp.textContent = global ? 'Les cartes qui ont fait avancer le score sur l’ensemble de la série.' : 'Les cartes qui rapprochent vraiment des 20 lore.';
     if(els.mostInkedTitle) els.mostInkedTitle.textContent = global ? 'Dead Weights du matchup' : 'Cartes les plus encrées';
-    if(els.mostInkedHelp) els.mostInkedHelp.textContent = global ? 'Cartes souvent sacrifiées : utile pour repérer ce qui performe mal dans ce matchup.' : 'Les cartes sacrifiées pour construire l’encrier.';
+    if(els.mostInkedHelp) els.mostInkedHelp.textContent = global ? 'Cartes souvent sacrifiées : utile pour repérer ce qui performe mal dans ce matchup.' : 'Main = sacrifice choisi. Les ajouts non identifiés viennent des cartes cachées ou effets que Duel.ink ne révèle pas.';
     if(els.playTimingTitle) els.playTimingTitle.textContent = global ? 'Séquence de jeu du BO3' : 'Séquence de jeu';
     if(els.playTimingHelp) els.playTimingHelp.textContent = global ? 'Les cartes jouées dans l’ordre, game par game, sans mélanger les courbes.' : 'Les cartes jouées dans l’ordre. Affichage compact, avec déroulé si besoin.';
     renderQuickInsights(m, metrics);
@@ -7924,11 +7925,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     updateChartSummary('handChartSummary', summarizeHand(metrics.handByTurn, comparisonMetrics?.handByTurn || []));
     updateChartSummary('boardChartSummary', summarizeBoard(metrics.boardByTurn || [], comparisonMetrics?.boardByTurn || []));
     renderStatTables(m);
+    renderDeadWeight(m);
   }
 
   function renderEmptyStats(){
     ['inkFloatTotal','actionRatioKpi','topDeckTurns','questChallengeCenter'].forEach(id => { if(els[id]) els[id].textContent='—'; });
-    ['topQuestersTable','mostInkedTable','playTimingTable','challengeTable'].forEach(id => els[id].innerHTML='<div class="empty-line">Importez un replay.</div>');
+    ['topQuestersTable','mostInkedTable','playTimingTable','challengeTable','deadWeightTable'].forEach(id => { if(els[id]) els[id].innerHTML='<div class="empty-line">Importez un replay.</div>'; });
     if(els.quickInsights) els.quickInsights.innerHTML='';
     renderInkChart([]); renderQuestChart(0,0); renderHandChart([], []); renderBoardChart([], []);
     updateChartSummary('inkChartSummary','Résumé du graphique économie d’encre disponible après import.');
@@ -8043,7 +8045,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       : 'Les cartes qui ont occupé votre main le plus longtemps avant d’être jouées, encrées ou conservées.';
     const items = rows.map(row => deadWeightListItem(row));
     renderStatCardList('deadWeight', els.deadWeightTable, items, {
-      empty:state.scope === 'opponent' ? 'Main adverse privée : donnée non calculée.' : 'Aucune carte bloquée en main détectée.',
+      hideWhenEmpty:false,
+      empty:state.scope === 'opponent' ? 'Main adverse privée : donnée non calculée.' : 'Aucune carte restée longtemps en main détectée sur ce replay.',
       collapsedLabel:'Voir toutes les cartes',
       expandedLabel:'Réduire la liste'
     });
@@ -8114,12 +8117,22 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         chips:[`${n(c.lore)} lore`, loreActivityChip(c), `${n(c.played)} jouée${n(c.played) > 1 ? 's' : ''}`]
       }));
 
+    const knownInkedTotal = cards.filter(c => n(c.inked) > 0).reduce((acc,c) => acc + n(c.inked), 0);
+    const totalInkwellAdds = metrics?.inkByTurn?.reduce((acc,row) => acc + n(row.inked), 0) || knownInkedTotal;
+    const unidentifiedInked = Math.max(0, totalInkwellAdds - knownInkedTotal);
     const mostInked = sortCards(cards.filter(c=>c.inked), els.mostInkedSort?.value || 'count_desc', 'inked')
       .map(c => ({
         card:c,
         meta:[typeLabel(c.type), c.cost !== null && c.cost !== undefined ? `Coût ${c.cost}` : '', inkLabel(c.colors?.[0])].filter(Boolean).join(' · '),
         chips:inkwellSourceChips(c)
       }));
+    if(unidentifiedInked > 0){
+      mostInked.push({
+        title:'Ajouts à l’encrier non identifiés',
+        meta:'Cartes cachées ou effets sans identité exploitable dans le replay',
+        chips:[`${unidentifiedInked} ajout${unidentifiedInked > 1 ? 's' : ''} non identifié${unidentifiedInked > 1 ? 's' : ''}`]
+      });
+    }
 
     const challenges = sortCards(cards.filter(c=>c.challenge), els.challengeSort?.value || 'wins_desc', 'challenge')
       .map(c => ({
@@ -8889,16 +8902,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       label:loreLabel,
       data:turnValues.map(turn => rowMap.has(turn) ? n(rowMap.get(turn).lorePotential) : null),
       type:'line',
-      yAxisID:'y1',
       tension:.45,
-      borderWidth:2.5,
-      pointRadius:0,
-      pointHoverRadius:5,
+      borderWidth:3,
+      pointRadius:2.8,
+      pointHoverRadius:5.5,
       borderColor:viewedColors[1] || theme[1],
-      backgroundColor:'transparent',
+      backgroundColor:viewedColors[1] || theme[1],
+      pointBackgroundColor:viewedColors[1] || theme[1],
+      pointBorderColor:viewedColors[1] || theme[1],
       fill:false
     });
-    charts.board = chart(charts.board, 'boardPresenceChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:false }, y:{ beginAtZero:true, ticks:{ precision:0 } }, y1:{ beginAtZero:true, position:'right', grid:{ display:false }, ticks:{ precision:0, color:'rgba(255,255,255,.55)' } } } });
+    charts.board = chart(charts.board, 'boardPresenceChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:false }, y:{ beginAtZero:true, ticks:{ precision:0 } } } });
     updateChartDataTable('boardPresenceChart', labels, datasets, 'Données du graphique de présence sur board');
   }
 
