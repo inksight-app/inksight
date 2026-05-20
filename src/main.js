@@ -1137,7 +1137,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     // Pour l'action normale ADD_TO_INK, Duel.ink fournit souvent la carte révélée mais pas
     // la main adverse complète. Si aucune zone publique ne contient cette instance, on classe
     // l'encrage comme venant de la main.
-    if(frame?.actionType === 'ADD_TO_INK' && ownerFromPlayer(frame?.player) === owner) return 'hand';
     if(frame?.actionType === 'ADD_TO_INK' && actorOwner === owner) return 'hand';
     return 'unknown';
   }
