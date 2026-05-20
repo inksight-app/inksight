@@ -291,44 +291,59 @@
       </nav>
 
       <section id="performance-stats" class="performance-panel active" data-performance-panel="stats">
-        <article class="glass performance-filter-bar performance-filter-bar-viz" aria-label="Filtres statistiques">
+        <article id="statsFilterPanel" class="glass performance-filter-bar performance-filter-bar-viz stats-filter-bar-v132" aria-label="Filtres statistiques">
           <div class="filter-header-copy">
-            <div class="kicker">Filtres</div>
-            <p>Choisissez un deck pour activer les statistiques cartes et mulligan vraiment exploitables.</p>
+            <div class="kicker">Contexte d’analyse</div>
+            <p>Filtrez la vue d’ensemble sans mélanger des decks, matchups ou tempos qui ne racontent pas la même partie.</p>
+            <div id="statsFilterSummary" class="stats-filter-summary">Tous les decks · Tous matchups · OTP + OTD · Tous résultats</div>
           </div>
-          <button type="button" class="filter-toggle" data-filter-toggle="performance" aria-expanded="false">Modifier les filtres</button>
-          <div class="performance-filter-controls performance-filter-controls-viz">
-            <select id="performanceColorFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par bicolorité">
-              <option value="all">Toutes les bicolorités</option>
+          <div class="stats-filter-actions">
+            <span id="statsReliabilityBadge" class="stats-reliability-badge muted">Aucun échantillon</span>
+            <button id="statsFilterSheetOpen" type="button" class="filter-toggle stats-filter-open" data-stats-filter-open aria-expanded="false" aria-controls="statsFilterSheet">Modifier les filtres</button>
+            <button id="statsFilterReset" type="button" class="ghost-button compact stats-reset-button" data-stats-filter-reset>Réinitialiser</button>
+          </div>
+          <button id="statsFilterSheetBackdrop" type="button" class="stats-filter-backdrop" data-stats-filter-close aria-label="Fermer les filtres"></button>
+          <div id="statsFilterSheet" class="performance-filter-controls performance-filter-controls-viz performance-filter-controls-v132" aria-hidden="false">
+            <div class="stats-sheet-head">
+              <div>
+                <strong>Modifier le contexte</strong>
+                <span>Les chiffres de la vue d’ensemble se recalculent immédiatement.</span>
+              </div>
+              <button id="statsFilterSheetClose" type="button" class="ghost-button compact" data-stats-filter-close>Fermer</button>
+            </div>
+            <select id="performanceDeckFilter" class="sort-select technical-select stats-hidden-select" aria-label="Filtrer les statistiques par deck">
+              <option value="all">Tous les decks</option>
             </select>
-            <select id="performanceDeckFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par version de deck">
-              <option value="all">Toutes les versions</option>
+            <select id="performanceMatchupFilter" class="sort-select technical-select stats-hidden-select" aria-label="Filtrer les statistiques par matchup adverse">
+              <option value="all">Tous les matchups</option>
             </select>
-            <select id="performanceFormatFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par format">
-              <option value="all">Tous les formats</option>
-              <option value="BO1">BO1</option>
-              <option value="BO3">BO3</option>
+            <select id="performanceTempoFilter" class="sort-select technical-select stats-hidden-select" aria-label="Filtrer les statistiques par tempo">
+              <option value="all">OTP + OTD</option>
             </select>
-            <select id="performanceResultFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par résultat">
+            <select id="performanceResultFilter" class="sort-select technical-select stats-hidden-select" aria-label="Filtrer les statistiques par résultat">
               <option value="all">Tous les résultats</option>
               <option value="win">Victoires</option>
               <option value="loss">Défaites</option>
             </select>
-            <div class="filter-pill-block">
-              <span>Bicolorité</span>
-              <div id="performanceColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div>
-            </div>
             <div id="performanceVersionBlock" class="filter-pill-block">
-              <span>Version du deck</span>
-              <div id="performanceDeckPills" class="filter-pill-row" aria-label="Choisir une version de deck"></div>
+              <span>Deck</span>
+              <div id="performanceDeckPills" class="filter-pill-row" aria-label="Choisir un deck"></div>
+            </div>
+            <div class="filter-pill-block">
+              <span>Matchup adverse</span>
+              <div id="performanceMatchupPills" class="filter-pill-row" aria-label="Choisir un matchup adverse"></div>
             </div>
             <div class="filter-pill-block compact">
-              <span>Format</span>
-              <div id="performanceFormatPills" class="filter-pill-row" aria-label="Choisir un format"></div>
+              <span>Tempo</span>
+              <div id="performanceTempoPills" class="filter-pill-row" aria-label="Choisir OTP ou OTD"></div>
             </div>
             <div class="filter-pill-block compact">
               <span>Résultat</span>
               <div id="performanceResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div>
+            </div>
+            <div class="stats-sheet-footer">
+              <button type="button" class="ghost-button compact" data-stats-filter-reset>Réinitialiser</button>
+              <button id="statsFilterSheetApply" type="button" class="primary-button compact" data-stats-filter-close>Appliquer</button>
             </div>
           </div>
         </article>
@@ -343,9 +358,9 @@
 
         <section id="perf-detail-overview" class="performance-detail-panel active" data-performance-detail-panel="overview">
           <section class="performance-grid performance-kpis">
-            <article class="metric-card"><span>Analyses sauvegardées</span><strong id="performanceSavedCount">—</strong><small>Total dans votre historique.</small></article>
-            <article class="metric-card"><span>Winrate filtré</span><strong id="performanceWinrate">—</strong><small>Victoires sur l’échantillon actuel.</small></article>
-            <article class="metric-card"><span>BO3 enregistrés</span><strong id="performanceBo3Count">—</strong><small>Séries de tournoi sauvegardées.</small></article>
+            <article class="metric-card"><span>Parties filtrées</span><strong id="performanceSavedCount">—</strong><small>Games disponibles dans le contexte actuel.</small></article>
+            <article class="metric-card"><span>Winrate global</span><strong id="performanceWinrate">—</strong><small>Victoires sur les games filtrées.</small></article>
+            <article class="metric-card"><span>Score moyen</span><strong id="performanceBo3Count">—</strong><small>Lore final moyen joueur / adversaire.</small></article>
             <article class="metric-card sample-card"><span>Échantillon actuel</span><strong id="performanceSampleLabel">—</strong><small id="performanceSampleHelp">Analyses BO1/BO3 disponibles.</small></article>
           </section>
 
