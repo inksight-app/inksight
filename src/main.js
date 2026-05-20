@@ -17,7 +17,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const GAME_ACTIONS = new Set(['ADD_TO_INK','PLAY_CARD','QUEST','CHALLENGE','ATTACK','END_TURN','MOVE_TO_LOCATION','ACTIVATE_ABILITY','RESPOND_TO_PROMPT']);
   const $ = id => document.getElementById(id);
   const els = {};
-  const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, performanceLore:null, performanceAction:null };
+  const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
+  const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
+  const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
   const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0 };
 
   document.addEventListener('DOMContentLoaded', init);
@@ -30,7 +32,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','quickInsights','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -492,6 +494,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const loreByTurn = new Map();
     const actionByTurn = new Map();
     const opponentDeckTracker = new Map();
+    const handLifecycle = { mine:null, opponent:null };
 
     const frames = [...(data.frames || [])].sort((a,b) => n(a.seq) - n(b.seq));
 
@@ -509,6 +512,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return null;
     };
     const zoneFromOwner = owner => owner === 'mine' ? 'myPlayer' : owner === 'opponent' ? 'opponent' : null;
+    const ownerTurnNumber = owner => currentRows[owner]?.turn || rows[owner]?.length + 1 || 1;
+    handLifecycle.mine = createHandLifecycleTracker('mine', ownerTurnNumber);
+    handLifecycle.opponent = createHandLifecycleTracker('opponent', ownerTurnNumber);
     const deckOwners = buildDeckOwnerIndex(data, perspective);
     const replayCardIndex = buildReplayCardIndex(data);
     const inferFrameOwner = (frame, snapshot) => {
@@ -535,7 +541,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const zoneKey = zoneFromOwner(owner);
       if(!zoneKey) return null;
       const z = zoneStats(snapshot, zoneKey);
-      const row = { owner, player:Number(player), turn:rows[owner].length + 1, globalTurn:n(snapshot.turnNumber || 1), startInk:z.ink, capacity:z.ink, spent:z.exerted, float:0, inked:0, played:0, quest:0, challenge:0, handStart:z.hand, handEnd:z.hand, endInk:z.ink };
+      const row = { owner, player:Number(player), turn:rows[owner].length + 1, globalTurn:n(snapshot.turnNumber || 1), startInk:z.ink, capacity:z.ink, spent:z.exerted, float:0, inked:0, played:0, quest:0, challenge:0, handStart:z.hand, handEnd:z.hand, endInk:z.ink, boardCharacters:z.boardCharacters, boardLocations:z.boardLocations, boardLorePotential:z.boardLorePotential };
       currentRows[owner] = row;
       return row;
     };
@@ -550,6 +556,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       row.spent = Math.max(row.spent, z.exerted);
       row.handEnd = z.hand;
       row.endInk = z.ink;
+      row.boardCharacters = z.boardCharacters;
+      row.boardLocations = z.boardLocations;
+      row.boardLorePotential = z.boardLorePotential;
       if(z.ink > beforeCap) row.inked += z.ink - beforeCap;
     };
 
@@ -568,6 +577,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     recordLore(1, zoneStats(working,'myPlayer').lore, zoneStats(working,'opponent').lore);
     scanVisibleCardsForStats(working, seenCards, passiveSeenOnce);
     scanOpponentVisibleInstances(working, opponentDeckTracker, { turn:1, zone:'initial' });
+    handLifecycle.mine.sync(working, null);
+    handLifecycle.opponent.sync(working, null);
 
     for(const frame of frames){
       const actionType = frame.actionType;
@@ -583,10 +594,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
       updateActionStatsFromFrame(frame, actorOwner, seenCards, timeline, actionByTurn, actorOwner ? currentRows[actorOwner] : null, working, deckOwners, replayCardIndex, opponentDeckTracker);
       creditNonQuestLoreSources(frame, actorOwner, seenCards, working, deckOwners, replayCardIndex);
+      creditInkwellAdditionsFromFrame(frame, actorOwner, seenCards, working, replayCardIndex, opponentDeckTracker);
 
       for(const patch of frame.patch || []) applyPatch(working, patch);
       scanVisibleCardsForStats(working, seenCards, passiveSeenOnce);
       scanOpponentVisibleInstances(working, opponentDeckTracker, { turn:n(frame.turnNumber || working.turnNumber || 1), zone:'visible' });
+      handLifecycle.mine.sync(working, frame);
+      handLifecycle.opponent.sync(working, frame);
 
       if(isGame && [1,2].includes(beforeCurrent)){
         updateTurnRow(beforeOwner, working);
@@ -602,6 +616,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       recordLore(frame.turnNumber || working.turnNumber || 1, myLore, oppLore);
     }
     closeTurnRow('mine', working); closeTurnRow('opponent', working);
+    handLifecycle.mine.finish(working);
+    handLifecycle.opponent.finish(working);
 
     const finalMineLore = zoneStats(working,'myPlayer').lore || n(data.baseSnapshot?.myPlayer?.lore);
     const finalOppLore = zoneStats(working,'opponent').lore || n(data.baseSnapshot?.opponent?.lore);
@@ -614,7 +630,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const matchupLabel = formatMatchupLabel(inkProfiles);
     const opponentDeckEstimate = finalizeOpponentDeckEstimate(opponentDeckTracker);
 
-    return { fileName:file.name, fileSize:file.size, data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate };
+    return { fileName:file.name, fileSize:file.size, data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate, handRetention:finalizeHandRetention(handLifecycle.mine), opponentHandRetention:finalizeHandRetention(handLifecycle.opponent) };
   }
 
   function updateActionStatsFromFrame(frame, owner, seenCards, timeline, actionByTurn, row, snapshot, deckOwners, replayCardIndex, opponentDeckTracker=null){
@@ -641,9 +657,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     };
 
     if(type === 'ADD_TO_INK'){
-      const countedFromHand = !!inkedFromHandCard;
       entryType='ink'; icon='◆'; title=`Encre ${sourceName}`; detail=`${owner === 'mine' ? 'Vous transformez' : 'L’adversaire transforme'} ${sourceName} en ressource d’encre.`; agg.ink += 1;
-      if(countedFromHand) countSource({ inked:1, seen:1 });
+      // Le crédit statistique des cartes encrées est centralisé dans creditInkwellAdditionsFromFrame.
+      // Cela permet de compter aussi les ajouts en encre par effet, avec source Main / Défausse / Board / Deck.
       useCardForTimeline();
     }else if(type === 'PLAY_CARD'){
       if(!sourceCard && sourceName === 'Carte inconnue') return;
@@ -1051,6 +1067,141 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const delta = positiveLoreDeltasByOwner(frame, snapshot).find(item => item.owner === owner)?.delta;
     if(n(delta) > 0) return n(delta);
     return n(cardIntrinsicLore(sourceCard));
+  }
+
+  function creditInkwellAdditionsFromFrame(frame, actorOwner, seenCards, snapshot, replayCardIndex, opponentDeckTracker=null){
+    const patches = Array.isArray(frame?.patch) ? frame.patch : [];
+    if(!patches.length) return;
+    const credited = new Set();
+    for(const patch of patches){
+      const path = String(patch?.path || '');
+      if(patch?.op !== 'add' || !pathHasAnyZone(path, ['inkwell'])) continue;
+      const owner = ownerFromPatchPath(path);
+      if(owner !== 'mine' && owner !== 'opponent') continue;
+      const rawCard = primaryCardFromPatchValue(patch.value);
+      if(!rawCard || isPlaceholderCard(rawCard)) continue;
+      const resolved = resolveCardReference(rawCard, owner, replayCardIndex) || rawCard;
+      const card = hydrateCard(resolved);
+      if(!card || isPlaceholderCard(card)) continue;
+      const instanceId = cardCopyInstanceId(card) || cardCopyInstanceId(rawCard) || '';
+      const key = `${owner}:${instanceId || statCardKey(card) || cardKey(card)}:${path}`;
+      if(credited.has(key)) continue;
+      credited.add(key);
+
+      const source = classifyInkwellSource(frame, owner, card, snapshot, replayCardIndex, actorOwner);
+      const inc = { inked:1, seen:1 };
+      inc[inkwellSourceStatKey(source)] = 1;
+      updateCardStat(seenCards, card, owner, inc);
+      if(owner === 'opponent' && opponentDeckTracker) recordOpponentDeckInstance(opponentDeckTracker, card, { turn:n(frame?.turnNumber || snapshot?.turnNumber || 1), zone:`inkwell:${source}` });
+    }
+  }
+
+  function primaryCardFromPatchValue(value){
+    if(!value || typeof value !== 'object') return null;
+    if(value.card && typeof value.card === 'object' && isCardLike(value.card)){
+      return {
+        ...value.card,
+        instanceId:value.instanceId || value.cardInstanceId || value.card.instanceId || value.card.cardInstanceId || '',
+        cardInstanceId:value.cardInstanceId || value.instanceId || value.card.cardInstanceId || value.card.instanceId || '',
+        exerted:value.exerted ?? value.card.exerted,
+        hidden:value.hidden ?? value.card.hidden
+      };
+    }
+    if(isCardLike(value)) return value;
+    const cards = extractCards(value, []).filter(card => !isNonCardAbilityObject(card));
+    return cards[0] || null;
+  }
+
+  function isNonCardAbilityObject(value){
+    if(!value || typeof value !== 'object') return false;
+    const hasCardIdentity = !!(value.id || value.cardId || value.card_id || value.instanceId || value.cardInstanceId || value.imageUrl || value.imageSmallUrl || value.cost !== undefined || value.inkCost !== undefined || value.type || value.cardType || value.colors || value.color);
+    const hasAbilityShape = !!(value.effect || value.slug || value.ability || value.name) && !hasCardIdentity;
+    return hasAbilityShape;
+  }
+
+  function inkwellSourceStatKey(source){
+    if(source === 'hand') return 'inkedFromHand';
+    if(source === 'discard') return 'inkedFromDiscard';
+    if(source === 'board') return 'inkedFromBoard';
+    if(source === 'deck') return 'inkedFromDeck';
+    return 'inkedFromUnknown';
+  }
+
+  function classifyInkwellSource(frame, owner, card, snapshot, replayCardIndex, actorOwner=null){
+    const exactZone = findCardSourceZoneInSnapshot(snapshot, owner, card, replayCardIndex, true);
+    if(exactZone) return normalizeInkwellSourceZone(exactZone);
+
+    const patchedZone = findRemovedSourceZoneInFrame(frame, owner, card, snapshot, replayCardIndex);
+    if(patchedZone) return normalizeInkwellSourceZone(patchedZone);
+
+    // Pour l'action normale ADD_TO_INK, Duel.ink fournit souvent la carte révélée mais pas
+    // la main adverse complète. Si aucune zone publique ne contient cette instance, on classe
+    // l'encrage comme venant de la main.
+    if(frame?.actionType === 'ADD_TO_INK' && ownerFromPlayer(frame?.player) === owner) return 'hand';
+    if(frame?.actionType === 'ADD_TO_INK' && actorOwner === owner) return 'hand';
+    return 'unknown';
+  }
+
+  function normalizeInkwellSourceZone(zone){
+    if(zone === 'hand') return 'hand';
+    if(zone === 'discard') return 'discard';
+    if(zone === 'deck') return 'deck';
+    if(['field','characters','items','locations','play'].includes(zone)) return 'board';
+    return 'unknown';
+  }
+
+  function findCardSourceZoneInSnapshot(snapshot, owner, card, replayCardIndex, exactOnly=false){
+    const root = owner === 'mine' ? snapshot?.myPlayer : owner === 'opponent' ? snapshot?.opponent : null;
+    if(!root || !card) return '';
+    const zones = ['hand','field','characters','locations','items','play','discard','deck','revealedCards','banished','banish','exile'];
+    for(const zone of zones){
+      const value = root?.[zone];
+      if(!value) continue;
+      const cards = extractCards(value, []).filter(candidate => !isNonCardAbilityObject(candidate));
+      if(cards.some(candidate => cardReferencesMatch(candidate, card, owner, replayCardIndex, exactOnly))) return zone;
+    }
+    return '';
+  }
+
+  function findRemovedSourceZoneInFrame(frame, owner, card, snapshot, replayCardIndex){
+    const patches = Array.isArray(frame?.patch) ? frame.patch : [];
+    const exactMatches = [];
+    const looseMatches = [];
+    for(const patch of patches){
+      const path = String(patch?.path || '');
+      if(patch?.op !== 'remove' || ownerFromPatchPath(path) !== owner) continue;
+      const sourceZone = zoneNameFromPointer(path);
+      if(!sourceZone || sourceZone === 'inkwell') continue;
+      const candidates = [];
+      extractCards(patch.value, []).forEach(c => candidates.push(c));
+      extractCards(valueAtPointer(snapshot, path), []).forEach(c => candidates.push(c));
+      extractCards(valueAtPointer(snapshot, parentPointer(path)), []).forEach(c => candidates.push(c));
+      if(!candidates.length) continue;
+      if(candidates.some(candidate => !isNonCardAbilityObject(candidate) && cardReferencesMatch(candidate, card, owner, replayCardIndex, true))) exactMatches.push(sourceZone);
+      else if(candidates.some(candidate => !isNonCardAbilityObject(candidate) && cardReferencesMatch(candidate, card, owner, replayCardIndex, false))) looseMatches.push(sourceZone);
+    }
+    return exactMatches[0] || looseMatches[0] || '';
+  }
+
+  function zoneNameFromPointer(path){
+    const parts = pointerParts(path);
+    return ['hand','discard','field','characters','items','locations','play','deck','revealedCards','banished','banish','exile','inkwell'].find(zone => parts.includes(zone)) || '';
+  }
+
+  function cardReferencesMatch(candidate, wanted, owner, replayCardIndex, exactOnly=false){
+    if(!candidate || !wanted) return false;
+    const a = resolveCardReference(candidate, owner, replayCardIndex) || candidate;
+    const b = resolveCardReference(wanted, owner, replayCardIndex) || wanted;
+    const aInstance = cardCopyInstanceId(a) || cardCopyInstanceId(candidate);
+    const bInstance = cardCopyInstanceId(b) || cardCopyInstanceId(wanted);
+    if(aInstance && bInstance) return String(aInstance) === String(bInstance);
+    if(exactOnly) return false;
+    const aId = canonicalCardId(a) || canonicalCardId(candidate);
+    const bId = canonicalCardId(b) || canonicalCardId(wanted);
+    if(aId && bId && aId === bId) return true;
+    const aName = slug(cleanCardName(fullName(a) || a.cardName || a.name || ''));
+    const bName = slug(cleanCardName(fullName(b) || b.cardName || b.name || ''));
+    return !!(aName && bName && aName === bName);
   }
 
   function inkedCardFromHandForFrame(frame, owner, snapshot, replayCardIndex){
@@ -1617,12 +1768,223 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return card?.instanceId || card?.cardInstanceId || card?.id || cardKey(card) || fullName(card);
   }
 
+
+  function createHandLifecycleTracker(owner, getTurn){
+    const active = new Map();
+    const episodes = [];
+    let lastKnownCount = 0;
+    const handForSnapshot = snapshot => {
+      const zone = owner === 'mine' ? 'myPlayer' : 'opponent';
+      const hand = snapshot?.[zone]?.hand;
+      if(!Array.isArray(hand)) return [];
+      return hand.map((raw, index) => {
+        const card = hydrateCard(raw);
+        const trackingId = handTrackingId(raw, card, index);
+        return { raw, card, trackingId, index };
+      }).filter(row => row.trackingId && row.card && !isPlaceholderCard(row.card));
+    };
+    const sync = (snapshot, frame=null) => {
+      const hand = handForSnapshot(snapshot);
+      if(!hand.length && !Array.isArray(snapshot?.[owner === 'mine' ? 'myPlayer' : 'opponent']?.hand)) return;
+      const nowIds = new Set(hand.map(row => row.trackingId));
+      const turn = Math.max(1, n(getTurn(owner)) || 1);
+      [...active.entries()].forEach(([trackingId, episode]) => {
+        if(nowIds.has(trackingId)) return;
+        closeHandEpisode(episode, turn, inferHandExitReason(frame, owner, episode.card), false);
+        episodes.push(episode);
+        active.delete(trackingId);
+      });
+      hand.forEach(row => {
+        if(active.has(row.trackingId)) return;
+        const episode = {
+          owner,
+          trackingId:row.trackingId,
+          instanceId:cardInstanceIdentity(row.raw || row.card),
+          card:row.card,
+          cardKey:statCardKey(row.card) || cardKey(row.card),
+          cardName:cleanCardName(fullName(row.card)),
+          inkable:cardIsInkable(row.card),
+          cost:row.card.cost ?? row.card.inkCost ?? null,
+          entryTurn:turn,
+          exitTurn:null,
+          heldTurns:0,
+          entryReason:inferHandEntryReason(frame, owner, row.card),
+          exitReason:'',
+          stillInHand:false
+        };
+        active.set(row.trackingId, episode);
+      });
+      lastKnownCount = hand.length;
+    };
+    const finish = snapshot => {
+      const turn = Math.max(1, n(getTurn(owner)) || 1);
+      [...active.entries()].forEach(([trackingId, episode]) => {
+        closeHandEpisode(episode, turn, 'stillInHand', true);
+        episodes.push(episode);
+        active.delete(trackingId);
+      });
+      lastKnownCount = handForSnapshot(snapshot).length || lastKnownCount;
+    };
+    return { owner, sync, finish, episodes, active, get known(){ return episodes.length || active.size || lastKnownCount > 0; } };
+  }
+
+  function handTrackingId(raw, card, index=0){
+    const inst = cardInstanceIdentity(raw) || cardInstanceIdentity(card);
+    if(inst) return `inst:${inst}`;
+    const key = statCardKey(card) || cleanCardName(fullName(card));
+    return key ? `fallback:${key}:slot:${index}` : '';
+  }
+
+  function cardInstanceIdentity(cardLike){
+    if(!cardLike || typeof cardLike !== 'object') return '';
+    return String(cardLike.instanceId || cardLike.cardInstanceId || cardLike.instance_id || cardLike.uuid || cardLike.uid || cardLike.localId || cardLike.card?.instanceId || cardLike.card?.cardInstanceId || '').trim();
+  }
+
+  function cardIsInkable(card){
+    if(!card || typeof card !== 'object') return null;
+    const candidates = [card.inkable, card.isInkable, card.canInk, card.inkwell, card.hasInkwell, card.has_inkwell];
+    for(const value of candidates){
+      if(value === true || value === false) return !!value;
+      if(typeof value === 'string'){
+        const raw = value.toLowerCase();
+        if(['true','yes','oui','inkable'].includes(raw)) return true;
+        if(['false','no','non','uninkable','non-inkable'].includes(raw)) return false;
+      }
+    }
+    const symbol = String(card.inkwellSymbol || card.inkwell_symbol || card.inkSymbol || '').toLowerCase();
+    if(symbol) return !['false','no','none','absent'].includes(symbol);
+    return null;
+  }
+
+  function closeHandEpisode(episode, exitTurn, exitReason='unknown', stillInHand=false){
+    episode.exitTurn = Math.max(n(exitTurn), n(episode.entryTurn));
+    episode.heldTurns = Math.max(0, n(episode.exitTurn) - n(episode.entryTurn));
+    episode.exitReason = exitReason || 'unknown';
+    episode.stillInHand = !!stillInHand || episode.exitReason === 'stillInHand';
+  }
+
+  function inferHandEntryReason(frame, owner, card){
+    if(!frame) return 'openingHand';
+    const type = String(frame.actionType || frame.takenAction?.actionType || '');
+    const pathText = arrayify(frame.patch).map(p => `${p.path || ''}`).join(' ').toLowerCase();
+    if(type.includes('DRAW') || pathText.includes('/deck') && pathText.includes('/hand')) return 'draw';
+    if(pathText.includes('/discard') && pathText.includes('/hand')) return 'recovered';
+    if(pathText.includes('/field') && pathText.includes('/hand') || pathText.includes('/characters') && pathText.includes('/hand') || pathText.includes('/play') && pathText.includes('/hand')) return 'bounce';
+    if(type === 'RESPOND_TO_PROMPT') return 'effect';
+    return 'handAdd';
+  }
+
+  function inferHandExitReason(frame, owner, card){
+    if(!frame) return 'unknown';
+    const type = String(frame.actionType || frame.takenAction?.actionType || '');
+    if(type === 'PLAY_CARD') return 'played';
+    if(type === 'ADD_TO_INK') return 'inked';
+    const zones = handExitZonesFromFrame(frame, owner, card);
+    if(zones.has('inkwell')) return 'inked';
+    if(zones.has('discard') || zones.has('banished') || zones.has('banish') || zones.has('exile')) return 'discarded';
+    if(zones.has('field') || zones.has('characters') || zones.has('items') || zones.has('locations') || zones.has('play')) return 'played';
+    if(zones.has('deck')) return 'deck';
+    if(type === 'RESPOND_TO_PROMPT') return 'effect';
+    return 'unknown';
+  }
+
+  function handExitZonesFromFrame(frame, owner, card){
+    const zones = new Set();
+    const zonePrefix = owner === 'mine' ? '/myPlayer/' : '/opponent/';
+    const cardIds = new Set([cardInstanceIdentity(card), statCardKey(card), cardKey(card), cleanCardName(fullName(card))].filter(Boolean).map(String));
+    arrayify(frame?.patch).forEach(patch => {
+      const path = String(patch?.path || '');
+      if(!path.startsWith(zonePrefix)) return;
+      const parts = pointerParts(path);
+      const zone = parts[1] || '';
+      if(!zone || zone === 'hand') return;
+      const candidates = extractCards(patch?.value, []);
+      if(!candidates.length){ zones.add(zone); return; }
+      const match = candidates.some(candidate => {
+        const h = hydrateCard(candidate);
+        const ids = [cardInstanceIdentity(candidate), cardInstanceIdentity(h), statCardKey(h), cardKey(h), cleanCardName(fullName(h))].filter(Boolean).map(String);
+        return ids.some(id => cardIds.has(id));
+      });
+      if(match) zones.add(zone);
+    });
+    return zones;
+  }
+
+  function finalizeHandRetention(tracker){
+    const episodes = arrayify(tracker?.episodes).filter(ep => ep?.cardName && ep.cardName !== 'Carte inconnue');
+    return mergeHandRetention(episodes);
+  }
+
+  function mergeHandRetention(rows=[]){
+    const map = new Map();
+    arrayify(rows).forEach(row => {
+      const card = hydrateCard(row.card || { fullName:row.cardName, id:row.cardKey, cost:row.cost, inkable:row.inkable });
+      const key = row.cardKey || statCardKey(card) || cardKey(card);
+      if(!key) return;
+      const existing = map.get(key) || {
+        card,
+        cardKey:key,
+        cardName:cleanCardName(row.cardName || fullName(card)),
+        inkable:row.inkable ?? cardIsInkable(card),
+        cost:row.cost ?? card.cost ?? null,
+        episodes:0,
+        totalHeldTurns:0,
+        maxHeldTurns:0,
+        stuckEpisodes:0,
+        exits:{ played:0, inked:0, discarded:0, deck:0, effect:0, stillInHand:0, unknown:0 },
+        representative:null,
+        gameIndex:row.gameIndex,
+        gameNumber:row.gameNumber
+      };
+      const held = n(row.heldTurns);
+      existing.episodes += n(row.episodes || 1);
+      existing.totalHeldTurns += row.totalHeldTurns !== undefined ? n(row.totalHeldTurns) : held;
+      existing.maxHeldTurns = Math.max(existing.maxHeldTurns, n(row.maxHeldTurns ?? held));
+      existing.stuckEpisodes += row.stuckEpisodes !== undefined ? n(row.stuckEpisodes) : (held >= 4 ? 1 : 0);
+      const exitReason = row.exitReason || (row.stillInHand ? 'stillInHand' : 'unknown');
+      if(row.exits && typeof row.exits === 'object') Object.entries(row.exits).forEach(([k,v]) => { existing.exits[k] = n(existing.exits[k]) + n(v); });
+      else existing.exits[exitReason] = n(existing.exits[exitReason]) + 1;
+      const rep = row.representative || row;
+      if(!existing.representative || n(rep.heldTurns) > n(existing.representative.heldTurns)) existing.representative = { ...rep, card, cardName:existing.cardName, cardKey:key };
+      existing.card = mergeCard(existing.card, card);
+      map.set(key, existing);
+    });
+    return [...map.values()].map(item => ({
+      ...item,
+      averageHeldTurns:round1(item.totalHeldTurns / Math.max(1, item.episodes)),
+      stuckRate:round1((item.stuckEpisodes / Math.max(1, item.episodes)) * 100)
+    })).sort((a,b) => n(b.maxHeldTurns) - n(a.maxHeldTurns) || n(b.averageHeldTurns) - n(a.averageHeldTurns) || String(a.cardName).localeCompare(String(b.cardName)));
+  }
+
+  function compactHandRetention(rows=[]){
+    return arrayify(rows).map(row => ({
+      cardKey:row.cardKey || statCardKey(row.card),
+      cardName:row.cardName || cleanCardName(fullName(row.card || {})),
+      card:row.card ? {
+        id:row.card.id || row.cardKey || '', fullName:fullName(row.card), name:row.card.name || '', type:row.card.type || '', colors:row.card.colors || [], cost:row.card.cost ?? null, inkable:row.inkable ?? cardIsInkable(row.card), image:row.card.image || '', imageSmall:row.card.imageSmall || row.card.image || ''
+      } : null,
+      inkable:row.inkable,
+      cost:row.cost ?? null,
+      episodes:n(row.episodes),
+      totalHeldTurns:round1(row.totalHeldTurns),
+      averageHeldTurns:round1(row.averageHeldTurns),
+      maxHeldTurns:n(row.maxHeldTurns),
+      stuckEpisodes:n(row.stuckEpisodes),
+      stuckRate:round1(row.stuckRate),
+      exits:row.exits || {},
+      representative:row.representative ? {
+        entryTurn:n(row.representative.entryTurn), exitTurn:n(row.representative.exitTurn), heldTurns:n(row.representative.heldTurns), entryReason:row.representative.entryReason || '', exitReason:row.representative.exitReason || '', stillInHand:!!row.representative.stillInHand, gameNumber:row.representative.gameNumber || row.gameNumber || null
+      } : null
+    })).slice(0, 120);
+  }
+
   function computeMetrics(turnRows, actions){
     const questCount = actions.filter(a => a.type === 'quest').length;
     const challengeCount = actions.filter(a => a.type === 'challenge').length;
     const handByTurn = turnRows.map(r => ({ turn:r.turn, handCount:r.handEnd }));
     const inkByTurn = turnRows.map(r => ({ turn:r.turn, capacity:r.capacity, spent:r.spent, float:r.float, inked:r.inked, handStart:r.handStart, handEnd:r.handEnd }));
-    return { totalInkFloat:round1(sum(inkByTurn, 'float')), totalInkSpent:round1(sum(inkByTurn, 'spent')), questCount, challengeCount, topDeckTurns:handByTurn.filter(r => r.handCount <= 1).length, handKnown:handByTurn.length > 0, handByTurn, inkByTurn };
+    const boardByTurn = turnRows.map(r => ({ turn:r.turn, characters:n(r.boardCharacters), locations:n(r.boardLocations), lorePotential:n(r.boardLorePotential) }));
+    return { totalInkFloat:round1(sum(inkByTurn, 'float')), totalInkSpent:round1(sum(inkByTurn, 'spent')), questCount, challengeCount, topDeckTurns:handByTurn.filter(r => r.handCount <= 1).length, handKnown:handByTurn.length > 0, handByTurn, inkByTurn, boardByTurn };
   }
 
 
@@ -1707,6 +2069,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     bucket.seen += inc.seen || 0;
     bucket.played += inc.played || 0;
     bucket.inked += inc.inked || 0;
+    INKWELL_SOURCE_KEYS.forEach(key => { bucket[key] = n(bucket[key]) + n(inc[key]); });
     bucket.quest += inc.quest || 0;
     bucket.lore += inc.lore || 0;
     bucket.loreActions += inc.loreActions || 0;
@@ -1717,6 +2080,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     merged.seen += inc.seen || 0;
     merged.played += inc.played || 0;
     merged.inked += inc.inked || 0;
+    INKWELL_SOURCE_KEYS.forEach(key => { merged[key] = n(merged[key]) + n(inc[key]); });
     merged.quest += inc.quest || 0;
     merged.lore += inc.lore || 0;
     merged.loreActions = n(merged.loreActions) + (inc.loreActions || 0);
@@ -1725,7 +2089,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     map.set(key, merged);
   }
 
-  function freshOwnerStats(){ return { seen:0, played:0, inked:0, quest:0, lore:0, loreActions:0, challenge:0, firstTurns:[] }; }
+  function freshOwnerStats(){ return { seen:0, played:0, inked:0, inkedFromHand:0, inkedFromDiscard:0, inkedFromBoard:0, inkedFromDeck:0, inkedFromUnknown:0, quest:0, lore:0, loreActions:0, challenge:0, firstTurns:[] }; }
 
   function normalizeOwnerStats(stats){
     return {
@@ -1737,7 +2101,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function scopedCard(card, owner){
     if(owner !== 'mine' && owner !== 'opponent') return card;
     const stats = normalizeOwnerStats(card.ownerStats)[owner];
-    return { ...card, owners:[owner], seen:n(stats.seen), played:n(stats.played), inked:n(stats.inked), quest:n(stats.quest), lore:n(stats.lore), loreActions:n(stats.loreActions), challenge:n(stats.challenge), firstTurns:stats.firstTurns || [], avgTurn:stats.firstTurns?.length ? mean(stats.firstTurns) : null };
+    const sourceStats = Object.fromEntries(INKWELL_SOURCE_KEYS.map(key => [key, n(stats[key])]));
+    return { ...card, owners:[owner], seen:n(stats.seen), played:n(stats.played), inked:n(stats.inked), ...sourceStats, quest:n(stats.quest), lore:n(stats.lore), loreActions:n(stats.loreActions), challenge:n(stats.challenge), firstTurns:stats.firstTurns || [], avgTurn:stats.firstTurns?.length ? mean(stats.firstTurns) : null };
   }
 
   function cardsForScope(m, scope=state.scope){
@@ -1853,15 +2218,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       acc.seen += n(stats.seen);
       acc.played += n(stats.played);
       acc.inked += n(stats.inked);
+      INKWELL_SOURCE_KEYS.forEach(key => { acc[key] = n(acc[key]) + n(stats[key]); });
       acc.quest += n(stats.quest);
       acc.lore += n(stats.lore);
       acc.loreActions += n(stats.loreActions);
       acc.challenge += n(stats.challenge);
       acc.firstTurns.push(...arrayify(stats.firstTurns));
       return acc;
-    }, { seen:0, played:0, inked:0, quest:0, lore:0, loreActions:0, challenge:0, firstTurns:[] });
+    }, { seen:0, played:0, inked:0, inkedFromHand:0, inkedFromDiscard:0, inkedFromBoard:0, inkedFromDeck:0, inkedFromUnknown:0, quest:0, lore:0, loreActions:0, challenge:0, firstTurns:[] });
     const ownersValue = c.owners instanceof Set ? [...c.owners] : arrayify(c.owners);
-    return { ...c, owners:ownersValue, ownerStats, seen:totalStats.seen, played:totalStats.played, inked:totalStats.inked, quest:totalStats.quest, lore:totalStats.lore, loreActions:totalStats.loreActions, challenge:totalStats.challenge, firstTurns:totalStats.firstTurns, avgTurn:totalStats.firstTurns.length ? mean(totalStats.firstTurns) : null };
+    const sourceStats = Object.fromEntries(INKWELL_SOURCE_KEYS.map(key => [key, n(totalStats[key])]));
+    return { ...c, owners:ownersValue, ownerStats, seen:totalStats.seen, played:totalStats.played, inked:totalStats.inked, ...sourceStats, quest:totalStats.quest, lore:totalStats.lore, loreActions:totalStats.loreActions, challenge:totalStats.challenge, firstTurns:totalStats.firstTurns, avgTurn:totalStats.firstTurns.length ? mean(totalStats.firstTurns) : null };
   }
 
   function mergeScopedCardTotals(a, b){
@@ -1903,6 +2270,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const allCards = new Map();
     const allActions = [];
     const allTimeline = [];
+    const allHandRetention = [];
+    const allOpponentHandRetention = [];
     sessions.forEach((s, index) => {
       const gameIndex = index;
       const gameNumber = n(s.gameNumber || index + 1);
@@ -1914,6 +2283,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       });
       allActions.push(...s.actions.map(a => ({ ...a, gameIndex, gameNumber })));
       allTimeline.push(...s.timeline.map(t => ({ ...t, gameIndex, gameNumber })));
+      allHandRetention.push(...arrayify(s.handRetention).map(row => ({ ...row, gameIndex, gameNumber })));
+      allOpponentHandRetention.push(...arrayify(s.opponentHandRetention).map(row => ({ ...row, gameIndex, gameNumber })));
     });
     const cards = [...allCards.values()];
     const inkProfiles = buildInkProfiles({ cards });
@@ -1942,6 +2313,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       timeline:allTimeline,
       proMetrics:mergeMetrics(sessions.map(s=>s.proMetrics)),
       opponentProMetrics:mergeMetrics(sessions.map(s=>s.opponentProMetrics)),
+      handRetention:mergeHandRetention(allHandRetention),
+      opponentHandRetention:mergeHandRetention(allOpponentHandRetention),
       loreSeries:first.loreSeries,
       actionSeries:first.actionSeries,
       inkProfiles,
@@ -1989,6 +2362,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       timeline:session.timeline.map(t => ({ ...t, gameIndex:index, gameNumber:n(session.gameNumber || index + 1) })),
       proMetrics:session.proMetrics,
       opponentProMetrics:session.opponentProMetrics,
+      handRetention:arrayify(session.handRetention),
+      opponentHandRetention:arrayify(session.opponentHandRetention),
       loreSeries:session.loreSeries,
       actionSeries:session.actionSeries,
       inkProfiles,
@@ -2012,7 +2387,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function mergeMetrics(list){
     if(list.length === 1) return list[0];
-    return { totalInkFloat:sum(list,'totalInkFloat'), totalInkSpent:sum(list,'totalInkSpent'), questCount:sum(list,'questCount'), challengeCount:sum(list,'challengeCount'), topDeckTurns:sum(list,'topDeckTurns'), handKnown:list.some(x=>x.handKnown), inkByTurn:list.flatMap(x=>x.inkByTurn || []), handByTurn:list.flatMap(x=>x.handByTurn || []) };
+    return { totalInkFloat:sum(list,'totalInkFloat'), totalInkSpent:sum(list,'totalInkSpent'), questCount:sum(list,'questCount'), challengeCount:sum(list,'challengeCount'), topDeckTurns:sum(list,'topDeckTurns'), handKnown:list.some(x=>x.handKnown), inkByTurn:list.flatMap(x=>x.inkByTurn || []), handByTurn:list.flatMap(x=>x.handByTurn || []), boardByTurn:list.flatMap(x=>x.boardByTurn || []) };
   }
 
   function renderAll(){
@@ -2553,6 +2928,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       narrative:{ title:narrative.title, text:narrative.text || narrative.summary || '', badge:narrative.badge || '' },
       key_moments:collectKeyMoments(m).map(moment => ({ kind:moment.kind, owner:moment.owner, turn:n(moment.turn), delta:n(moment.delta), text:keyMomentText(moment) })),
       metrics:{ mine:compactMetrics(m.proMetrics), opponent:compactMetrics(m.opponentProMetrics) },
+      hand_retention:{ mine:compactHandRetention(m.handRetention), opponent:compactHandRetention(m.opponentHandRetention) },
       mulligan:compactMulligan(m.sessions?.[0]?.mulligan || m.first?.mulligan),
       charts:{ lore_series:compactLoreSeries(m.loreSeries), action_series:compactActionSeries(m.actionSeries) },
       opponent_deck_estimate:compactOpponentDeckEstimate(m.opponentDeckEstimate),
@@ -2571,7 +2947,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       topDeckTurns:n(metrics.topDeckTurns),
       handKnown:!!metrics.handKnown,
       handByTurn:(metrics.handByTurn || []).map(r => ({ turn:n(r.turn), handCount:n(r.handCount) })),
-      inkByTurn:(metrics.inkByTurn || []).map(r => ({ turn:n(r.turn), capacity:n(r.capacity), spent:n(r.spent), float:round1(r.float), inked:n(r.inked), handStart:n(r.handStart), handEnd:n(r.handEnd) }))
+      inkByTurn:(metrics.inkByTurn || []).map(r => ({ turn:n(r.turn), capacity:n(r.capacity), spent:n(r.spent), float:round1(r.float), inked:n(r.inked), handStart:n(r.handStart), handEnd:n(r.handEnd) })),
+      boardByTurn:(metrics.boardByTurn || []).map(r => ({ turn:n(r.turn), characters:n(r.characters), locations:n(r.locations), lorePotential:n(r.lorePotential) }))
     };
   }
 
@@ -2593,6 +2970,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         seen:n(card.seen),
         played:n(card.played),
         inked:n(card.inked),
+        inkedFromHand:n(card.inkedFromHand),
+        inkedFromDiscard:n(card.inkedFromDiscard),
+        inkedFromBoard:n(card.inkedFromBoard),
+        inkedFromDeck:n(card.inkedFromDeck),
+        inkedFromUnknown:n(card.inkedFromUnknown),
         quest:n(card.quest),
         lore:n(card.lore),
         loreActions:n(card.loreActions),
@@ -2656,6 +3038,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       matchupLabel:session.matchupLabel || '',
       proMetrics:compactMetrics(session.proMetrics),
       opponentProMetrics:compactMetrics(session.opponentProMetrics),
+      handRetention:compactHandRetention(session.handRetention),
+      opponentHandRetention:compactHandRetention(session.opponentHandRetention),
       mulligan:compactMulligan(session.mulligan),
       loreSeries:compactLoreSeries(session.loreSeries),
       actionSeries:compactActionSeries(session.actionSeries),
@@ -2845,7 +3229,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       topDeckTurns:n(metrics?.topDeckTurns),
       handKnown:!!metrics?.handKnown,
       handByTurn:(metrics?.handByTurn || []).map(r => ({ turn:n(r.turn), handCount:n(r.handCount) })),
-      inkByTurn:(metrics?.inkByTurn || []).map(r => ({ turn:n(r.turn), capacity:n(r.capacity), spent:n(r.spent), float:round1(r.float), inked:n(r.inked), handStart:n(r.handStart), handEnd:n(r.handEnd) }))
+      inkByTurn:(metrics?.inkByTurn || []).map(r => ({ turn:n(r.turn), capacity:n(r.capacity), spent:n(r.spent), float:round1(r.float), inked:n(r.inked), handStart:n(r.handStart), handEnd:n(r.handEnd) })),
+      boardByTurn:(metrics?.boardByTurn || []).map(r => ({ turn:n(r.turn), characters:n(r.characters), locations:n(r.locations), lorePotential:n(r.lorePotential) }))
     };
   }
 
@@ -2898,6 +3283,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       seen:n(compact.seen),
       played:n(compact.played),
       inked:n(compact.inked),
+      inkedFromHand:n(compact.inkedFromHand),
+      inkedFromDiscard:n(compact.inkedFromDiscard),
+      inkedFromBoard:n(compact.inkedFromBoard),
+      inkedFromDeck:n(compact.inkedFromDeck),
+      inkedFromUnknown:n(compact.inkedFromUnknown),
       quest:n(compact.quest),
       lore:n(compact.lore),
       loreActions:n(compact.loreActions),
@@ -4205,6 +4595,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       handStart:n(row.handStart ?? row.hand_start),
       handEnd:n(row.handEnd ?? row.hand_end)
     })).filter(row => row.turn);
+    const board = arrayify(source.boardByTurn || source.board_by_turn).map(row => ({
+      turn:n(row.turn),
+      characters:n(row.characters ?? row.boardCharacters ?? row.board_characters),
+      locations:n(row.locations ?? row.boardLocations ?? row.board_locations),
+      lorePotential:n(row.lorePotential ?? row.boardLorePotential ?? row.board_lore_potential)
+    })).filter(row => row.turn);
     return {
       ...source,
       handKnown:source.handKnown ?? source.hand_known ?? hand.length > 0,
@@ -4214,7 +4610,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       challengeCount:n(source.challengeCount ?? source.challenge_count),
       topDeckTurns:n(source.topDeckTurns ?? source.top_deck_turns),
       handByTurn:hand,
-      inkByTurn:ink
+      inkByTurn:ink,
+      boardByTurn:board
     };
   }
 
@@ -4376,6 +4773,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         replaced_mulligan:0,
         played:n(card.played),
         inked:n(card.inked),
+        inkedFromHand:n(card.inkedFromHand),
+        inkedFromDiscard:n(card.inkedFromDiscard),
+        inkedFromBoard:n(card.inkedFromBoard),
+        inkedFromDeck:n(card.inkedFromDeck),
+        inkedFromUnknown:n(card.inkedFromUnknown),
         quest_count:n(card.quest),
         lore_generated:n(card.lore),
         lore_actions:n(card.loreActions),
@@ -7499,7 +7901,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.actionRatioKpi.textContent = totalActions ? `${questPct}%` : '—';
     els.actionRatioLabel.textContent = `${metrics.questCount} quête(s) · ${metrics.challengeCount} défi(s)`;
     els.topDeckTurns.textContent = metrics.handKnown ? metrics.topDeckTurns : '—';
-    els.topDeckBadge.textContent = metrics.handKnown ? (metrics.topDeckTurns >= 3 ? 'Attention : la main s’épuise souvent.' : 'Tours critiques en fin de tour.') : 'Main non visible.';
+    els.topDeckBadge.textContent = metrics.handKnown ? (metrics.topDeckTurns >= 3 ? 'Main critique : 0 ou 1 carte en fin de tour.' : 'Mesuré après actions et effets du tour.') : 'Main non visible.';
     document.querySelector('#topDeckTurns')?.closest('.pro-card')?.classList.toggle('risk', metrics.topDeckTurns >= 3);
     if(els.topQuestersTitle) els.topQuestersTitle.textContent = global ? 'Moteurs de Victoire du BO3' : 'Moteurs de Victoire';
     if(els.topQuestersHelp) els.topQuestersHelp.textContent = global ? 'Les cartes qui ont fait avancer le score sur l’ensemble de la série.' : 'Les cartes qui rapprochent vraiment des 20 lore.';
@@ -7508,11 +7910,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(els.playTimingTitle) els.playTimingTitle.textContent = global ? 'Séquence de jeu du BO3' : 'Séquence de jeu';
     if(els.playTimingHelp) els.playTimingHelp.textContent = global ? 'Les cartes jouées dans l’ordre, game par game, sans mélanger les courbes.' : 'Les cartes jouées dans l’ordre. Affichage compact, avec déroulé si besoin.';
     renderQuickInsights(m, metrics);
-    renderInkChart(metrics.inkByTurn); renderQuestChart(metrics.questCount, metrics.challengeCount); renderHandChart(metrics.handByTurn);
+    const comparisonMetrics = state.scope === 'mine' ? m.opponentProMetrics : m.proMetrics;
+    renderInkChart(metrics.inkByTurn); renderQuestChart(metrics.questCount, metrics.challengeCount); renderHandChart(metrics.handByTurn, comparisonMetrics?.handByTurn || []); renderBoardChart(metrics.boardByTurn || [], comparisonMetrics?.boardByTurn || []);
     syncChartsWithTheme(state.scope);
     updateChartSummary('inkChartSummary', summarizeInk(metrics.inkByTurn));
     updateChartSummary('questChartSummary', summarizeQuest(metrics.questCount, metrics.challengeCount));
-    updateChartSummary('handChartSummary', summarizeHand(metrics.handByTurn));
+    updateChartSummary('handChartSummary', summarizeHand(metrics.handByTurn, comparisonMetrics?.handByTurn || []));
+    updateChartSummary('boardChartSummary', summarizeBoard(metrics.boardByTurn || [], comparisonMetrics?.boardByTurn || []));
     renderStatTables(m);
   }
 
@@ -7520,10 +7924,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     ['inkFloatTotal','actionRatioKpi','topDeckTurns','questChallengeCenter'].forEach(id => { if(els[id]) els[id].textContent='—'; });
     ['topQuestersTable','mostInkedTable','playTimingTable','challengeTable'].forEach(id => els[id].innerHTML='<div class="empty-line">Importez un replay.</div>');
     if(els.quickInsights) els.quickInsights.innerHTML='';
-    renderInkChart([]); renderQuestChart(0,0); renderHandChart([]);
+    renderInkChart([]); renderQuestChart(0,0); renderHandChart([], []); renderBoardChart([], []);
     updateChartSummary('inkChartSummary','Résumé du graphique économie d’encre disponible après import.');
     updateChartSummary('questChartSummary','Résumé du graphique quête défi disponible après import.');
     updateChartSummary('handChartSummary','Résumé du graphique de main disponible après import.');
+    updateChartSummary('boardChartSummary','Résumé du graphique de présence sur board disponible après import.');
   }
 
   function renderQuickInsights(m, metrics){
@@ -7615,6 +8020,83 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
+
+  function handRetentionForScope(m){
+    return state.scope === 'opponent' ? arrayify(m?.opponentHandRetention) : arrayify(m?.handRetention);
+  }
+
+  function renderDeadWeight(m){
+    if(!els.deadWeightTable) return;
+    const rows = handRetentionForScope(m)
+      .filter(row => n(row.maxHeldTurns) > 0 || n(row.averageHeldTurns) > 0)
+      .sort((a,b) => n(b.maxHeldTurns) - n(a.maxHeldTurns) || n(b.averageHeldTurns) - n(a.averageHeldTurns));
+    if(els.deadWeightTitle) els.deadWeightTitle.textContent = state.scope === 'opponent' ? 'Cartes restées en main adverse' : 'Cartes restées en main';
+    if(els.deadWeightHelp) els.deadWeightHelp.textContent = state.scope === 'opponent'
+      ? 'Cartes adverses visibles qui sont restées en main plusieurs tours. Donnée partielle si la main est cachée.'
+      : 'Les cartes qui ont occupé votre main le plus longtemps avant d’être jouées, encrées ou conservées.';
+    const items = rows.map(row => deadWeightListItem(row));
+    renderStatCardList('deadWeight', els.deadWeightTable, items, {
+      empty:state.scope === 'opponent' ? 'Main adverse non exploitable dans ce replay.' : 'Aucune carte bloquée en main détectée.',
+      collapsedLabel:'Voir toutes les cartes',
+      expandedLabel:'Réduire la liste'
+    });
+  }
+
+  function deadWeightListItem(row){
+    const card = hydrateCard(row.card || { fullName:row.cardName, id:row.cardKey, cost:row.cost, inkable:row.inkable });
+    const rep = row.representative || {};
+    const turns = n(row.maxHeldTurns);
+    const avg = round1(row.averageHeldTurns);
+    const exit = dominantHandExit(row.exits || {});
+    const metaBits = [];
+    if(row.cost !== null && row.cost !== undefined) metaBits.push(`Coût ${row.cost}`);
+    const inkable = row.inkable ?? cardIsInkable(card);
+    if(inkable === false) metaBits.push('Non-encrable');
+    else if(inkable === true) metaBits.push('Encrable');
+    if(n(row.episodes) > 1) metaBits.push(`${n(row.episodes)} passages en main`);
+    const range = rep.entryTurn ? `T${n(rep.entryTurn)} → ${rep.stillInHand ? 'fin' : `T${n(rep.exitTurn)}`}` : `${n(row.episodes)} passage(s)`;
+    return {
+      card,
+      title:row.cardName || fullName(card),
+      meta:metaBits.filter(Boolean).join(' · ') || 'Carte suivie en main',
+      chips:[
+        `${turns} tour${turns > 1 ? 's' : ''} max`,
+        avg ? `${avg} moy.` : range,
+        handExitLabel(exit)
+      ].filter(Boolean)
+    };
+  }
+
+  function dominantHandExit(exits={}){
+    const entries = Object.entries(exits || {}).map(([key,value]) => ({ key, value:n(value) })).filter(row => row.value > 0);
+    if(!entries.length) return 'unknown';
+    return entries.sort((a,b)=>b.value-a.value)[0].key;
+  }
+
+  function handExitLabel(reason){
+    const labels = {
+      played:'jouée',
+      inked:'encrée',
+      discarded:'défaussée',
+      deck:'retour deck',
+      effect:'sortie par effet',
+      stillInHand:'encore en main',
+      unknown:'sortie inconnue'
+    };
+    return labels[reason] || labels.unknown;
+  }
+
+  function inkwellSourceChips(card){
+    const chips = [];
+    if(n(card.inkedFromHand)) chips.push({ label:`${n(card.inkedFromHand)} main`, className:'ink-source-chip ink-source-hand' });
+    if(n(card.inkedFromDiscard)) chips.push({ label:`${n(card.inkedFromDiscard)} défausse`, className:'ink-source-chip ink-source-discard' });
+    if(n(card.inkedFromBoard)) chips.push({ label:`${n(card.inkedFromBoard)} board`, className:'ink-source-chip ink-source-board' });
+    if(n(card.inkedFromDeck)) chips.push({ label:`${n(card.inkedFromDeck)} deck`, className:'ink-source-chip ink-source-deck' });
+    if(n(card.inkedFromUnknown)) chips.push({ label:`${n(card.inkedFromUnknown)} inconnu`, className:'ink-source-chip ink-source-unknown' });
+    if(!chips.length) chips.push(`${n(card.inked)} encrée${n(card.inked) > 1 ? 's' : ''}`);
+    return chips.slice(0, 3);
+  }
+
   function renderStatTables(m){
     const cards = cardsForScope(m, state.scope);
     const topQuesters = loreEngineCards(cards).sort(compareLoreEngines)
@@ -7628,7 +8110,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       .map(c => ({
         card:c,
         meta:[typeLabel(c.type), c.cost !== null && c.cost !== undefined ? `Coût ${c.cost}` : '', inkLabel(c.colors?.[0])].filter(Boolean).join(' · '),
-        chips:[`${n(c.inked)} encrée${n(c.inked) > 1 ? 's' : ''}`, `${n(c.played)} jouée${n(c.played) > 1 ? 's' : ''}`, typeLabel(c.type)]
+        chips:inkwellSourceChips(c)
       }));
 
     const challenges = sortCards(cards.filter(c=>c.challenge), els.challengeSort?.value || 'wins_desc', 'challenge')
@@ -7714,7 +8196,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const chips = arrayify(item.chips).filter(Boolean).slice(0, 3);
     const thumb = card ? cardThumbHtml(card, 'match-card-thumb-v81') : `<span class="match-card-thumb-v81 thumb-placeholder">${esc(title.slice(0,2).toUpperCase())}</span>`;
     const rankLabel = options.ordered ? `#${index + 1}` : String(index + 1).padStart(2,'0');
-    const body = `<span class="match-card-rank-v81">${esc(rankLabel)}</span><div class="match-card-art-v81">${thumb}</div><div class="match-card-body-v81"><h3>${esc(title)}</h3><p>${esc(meta || '—')}</p><div class="match-card-chips-v81">${chips.map(chip => `<span>${esc(chip)}</span>`).join('')}</div></div>`;
+    const chipHtml = chips.map(chip => {
+      if(chip && typeof chip === 'object') return `<span class="${escAttr(chip.className || '')}">${esc(chip.label || '')}</span>`;
+      return `<span>${esc(chip)}</span>`;
+    }).join('');
+    const body = `<span class="match-card-rank-v81">${esc(rankLabel)}</span><div class="match-card-art-v81">${thumb}</div><div class="match-card-body-v81"><h3>${esc(title)}</h3><p>${esc(meta || '—')}</p><div class="match-card-chips-v81">${chipHtml}</div></div>`;
     if(key) return `<button type="button" class="match-card-row-v81" data-card-key="${esc(key)}">${body}</button>`;
     return `<article class="match-card-row-v81 is-static">${body}</article>`;
   }
@@ -8292,16 +8778,120 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return `<span>Économie d’encre</span><strong>${esc(label)}</strong><small>${esc(`${round1(spent)} dépensées · ${round1(floating)} flottées · ${avgFloat}/tour`)}</small>`;
   }
 
-  function summarizeDefaultHandReadout(rows){
+  function summarizeDefaultHandReadout(rows, comparisonRows=[]){
     if(!Array.isArray(rows) || !rows.length){
-      return '<span>Réserve de main</span><strong>Replay en attente</strong><small>La taille de main apparaîtra après import.</small>';
+      return '<span>Cartes en main</span><strong>Replay en attente</strong><small>La taille de main apparaîtra après import.</small>';
     }
     const values = rows.map(r=>n(r.handCount));
     const minHand = Math.min(...values);
     const avgHand = round1(values.reduce((a,b)=>a+b,0) / Math.max(1, values.length));
     const emptyTurns = values.filter(v=>v <= 1).length;
-    const label = emptyTurns >= 3 ? 'Top deck mode' : minHand <= 1 ? 'Main fragile' : 'Main stable';
-    return `<span>Réserve de main</span><strong>${esc(label)}</strong><small>${esc(`moyenne ${avgHand} carte(s) · minimum ${minHand} · ${emptyTurns} tour(s) critique(s)`)}</small>`;
+    const label = emptyTurns >= 3 ? 'Mode top deck' : minHand <= 1 ? 'Main fragile' : 'Main stable';
+    const advantage = handAdvantageSummary(rows, comparisonRows);
+    const base = `moyenne ${avgHand} carte(s) en fin de tour · minimum ${minHand} · ${emptyTurns} tour(s) critique(s)`;
+    return `<span>Réserve de main</span><strong>${esc(label)}</strong><small>${esc(advantage ? `${advantage} · ${base}` : base)}</small>`;
+  }
+
+  function handAdvantageSummary(rows=[], comparisonRows=[]){
+    if(!Array.isArray(rows) || !rows.length || !Array.isArray(comparisonRows) || !comparisonRows.length) return '';
+    const mineMap = new Map(rows.map(r => [n(r.turn), n(r.handCount)]));
+    const oppMap = new Map(comparisonRows.map(r => [n(r.turn), n(r.handCount)]));
+    const sharedTurns = [...mineMap.keys()].filter(turn => oppMap.has(turn)).sort((a,b)=>a-b);
+    if(!sharedTurns.length) return '';
+    const best = sharedTurns.map(turn => ({ turn, diff:n(mineMap.get(turn))-n(oppMap.get(turn)) })).sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff))[0];
+    if(!best || best.diff === 0) return 'Équilibre de main';
+    const viewedOwner = state.scope === 'opponent' ? 'Adversaire' : 'Vous';
+    const otherOwner = state.scope === 'opponent' ? 'vous' : 'adversaire';
+    return best.diff > 0 ? `${viewedOwner} +${best.diff} carte(s) au T${best.turn}` : `${otherOwner} +${Math.abs(best.diff)} carte(s) au T${best.turn}`;
+  }
+
+
+  function isCharacterCardForBoard(card){
+    const type = `${typeLabel(card?.type || card?.cardType || '')} ${card?.type || ''} ${card?.cardType || ''}`.toLowerCase();
+    return type.includes('personnage') || type.includes('character');
+  }
+
+  function boardCardsForZone(z={}){
+    return [
+      ...arrayify(z.field),
+      ...arrayify(z.characters),
+      ...arrayify(z.locations)
+    ].map(card => hydrateCard(card)).filter(Boolean);
+  }
+
+  function summarizeDefaultBoardReadout(rows=[], comparisonRows=[]){
+    if(!Array.isArray(rows) || !rows.length){
+      return '<span>Présence sur board</span><strong>Replay en attente</strong><small>Les personnages et le lore potentiel apparaîtront après import.</small>';
+    }
+    const peak = [...rows].sort((a,b)=>n(b.lorePotential)-n(a.lorePotential) || n(b.characters)-n(a.characters))[0] || {};
+    const avgChars = round1(rows.reduce((acc,row)=>acc+n(row.characters),0) / Math.max(1, rows.length));
+    const comparisonMap = new Map((comparisonRows || []).map(row => [n(row.turn), row]));
+    const last = rows[rows.length - 1] || {};
+    const oppLast = comparisonMap.get(n(last.turn));
+    const swing = oppLast ? n(last.characters) - n(oppLast.characters) : null;
+    const swingText = swing === null ? '' : swing > 0 ? ` · +${swing} perso(s) vs adversaire au T${n(last.turn)}` : swing < 0 ? ` · -${Math.abs(swing)} perso(s) vs adversaire au T${n(last.turn)}` : ` · board égal au T${n(last.turn)}`;
+    return `<span>Board en fin de tour</span><strong>${esc(`${n(peak.characters)} perso(s) · ${n(peak.lorePotential)} lore potentiel au T${n(peak.turn)}`)}</strong><small>${esc(`moyenne ${avgChars} personnage(s)${swingText}`)}</small>`;
+  }
+
+  function summarizeBoard(rows=[], comparisonRows=[]){
+    if(!Array.isArray(rows) || !rows.length) return 'Aucune donnée de board disponible.';
+    const maxPotential = Math.max(...rows.map(row => n(row.lorePotential)));
+    const maxChars = Math.max(...rows.map(row => n(row.characters)));
+    return `Présence sur board : pic à ${maxChars} personnage(s), ${maxPotential} lore potentiel en fin de tour.`;
+  }
+
+  function renderBoardChart(rows=[], comparisonRows=[]){
+    setChartReadoutDefault('boardPresenceChart', summarizeDefaultBoardReadout(rows, comparisonRows));
+    const rowMap = new Map((rows || []).map(r => [n(r.turn), r]));
+    const comparisonMap = new Map((comparisonRows || []).map(r => [n(r.turn), r]));
+    const turnValues = [...new Set([...rowMap.keys(), ...comparisonMap.keys()])].filter(Boolean).sort((a,b)=>a-b);
+    const labels = turnValues.map(turn=>`T${turn}`);
+    const theme = cssThemeColors();
+    const mineColors = chartColorsForScope('mine');
+    const opponentColors = chartColorsForScope('opponent');
+    const viewedIsOpponent = state.scope === 'opponent';
+    const viewedColors = viewedIsOpponent ? opponentColors : mineColors;
+    const comparisonColors = viewedIsOpponent ? mineColors : opponentColors;
+    const viewedLabel = viewedIsOpponent ? 'Persos adverses' : 'Vos persos';
+    const comparisonLabel = viewedIsOpponent ? 'Vos persos' : 'Persos adverses';
+    const loreLabel = viewedIsOpponent ? 'Lore potentiel adverse' : 'Votre lore potentiel';
+    const datasets = [
+      {
+        label:viewedLabel,
+        data:turnValues.map(turn => rowMap.has(turn) ? n(rowMap.get(turn).characters) : null),
+        backgroundColor:hexToRgba(viewedColors[0] || theme[0], .86),
+        borderColor:hexToRgba(viewedColors[0] || theme[0], .86),
+        maxBarThickness:24,
+        borderWidth:0,
+        borderRadius:0
+      }
+    ];
+    if(comparisonRows?.length){
+      datasets.push({
+        label:comparisonLabel,
+        data:turnValues.map(turn => comparisonMap.has(turn) ? n(comparisonMap.get(turn).characters) : null),
+        backgroundColor:hexToRgba(comparisonColors[0] || theme[1], .42),
+        borderColor:hexToRgba(comparisonColors[0] || theme[1], .42),
+        maxBarThickness:24,
+        borderWidth:0,
+        borderRadius:0
+      });
+    }
+    datasets.push({
+      label:loreLabel,
+      data:turnValues.map(turn => rowMap.has(turn) ? n(rowMap.get(turn).lorePotential) : null),
+      type:'line',
+      yAxisID:'y1',
+      tension:.45,
+      borderWidth:2.5,
+      pointRadius:0,
+      pointHoverRadius:5,
+      borderColor:viewedColors[1] || theme[1],
+      backgroundColor:'transparent',
+      fill:false
+    });
+    charts.board = chart(charts.board, 'boardPresenceChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:false }, y:{ beginAtZero:true, ticks:{ precision:0 } }, y1:{ beginAtZero:true, position:'right', grid:{ display:false }, ticks:{ precision:0, color:'rgba(255,255,255,.55)' } } } });
+    updateChartDataTable('boardPresenceChart', labels, datasets, 'Données du graphique de présence sur board');
   }
 
   function renderLoreChart(rows){
@@ -8358,16 +8948,60 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     charts.matrix = chart(charts.matrix, 'questChallengeChart', 'doughnut', { labels, datasets }, { cutout:'72%' });
     updateChartDataTable('questChallengeChart', labels, datasets, 'Données du graphique quête contre défi');
   }
-  function renderHandChart(rows){
-    setChartReadoutDefault('handCurveChart', summarizeDefaultHandReadout(rows));
-    const labels = rows.map(r=>`T${r.turn}`);
+  function renderHandChart(rows, comparisonRows=[]){
+    setChartReadoutDefault('handCurveChart', summarizeDefaultHandReadout(rows, comparisonRows));
+    const rowMap = new Map((rows || []).map(r => [n(r.turn), n(r.handCount)]));
+    const comparisonMap = new Map((comparisonRows || []).map(r => [n(r.turn), n(r.handCount)]));
+    const turnValues = [...new Set([...rowMap.keys(), ...comparisonMap.keys()])].filter(Boolean).sort((a,b)=>a-b);
+    const labels = turnValues.map(turn=>`T${turn}`);
     const theme = cssThemeColors();
+    const mineColors = chartColorsForScope('mine');
+    const opponentColors = chartColorsForScope('opponent');
+    const viewedIsOpponent = state.scope === 'opponent';
+    const viewedColors = viewedIsOpponent ? opponentColors : mineColors;
+    const comparisonColors = viewedIsOpponent ? mineColors : opponentColors;
+    const viewedLabel = viewedIsOpponent ? 'Adversaire' : 'Vous';
+    const comparisonLabel = viewedIsOpponent ? 'Vous' : 'Adversaire';
     const highlights = detectHandHighlights(rows, state.scope);
-    const handDataset = { label:'Cartes en main', data:rows.map(r=>r.handCount), tension:.48, borderWidth:2.75, pointRadius:0, pointHoverRadius:5, borderColor:theme[0], backgroundColor:'transparent', highlightMessages:makeHighlightMessages(rows.length, highlights), fill:false };
-    stylePointHighlights(handDataset, theme[1], theme[0], 'refill');
+    const handDataset = {
+      label:viewedLabel,
+      data:turnValues.map(turn => rowMap.has(turn) ? rowMap.get(turn) : null),
+      tension:.48,
+      borderWidth:2.75,
+      pointRadius:0,
+      pointHoverRadius:5,
+      borderColor:viewedColors[0] || theme[0],
+      backgroundColor:'transparent',
+      highlightMessages:makeHighlightMessages(turnValues.length, remapHighlightsToTurns(highlights, turnValues)),
+      fill:false
+    };
+    stylePointHighlights(handDataset, viewedColors[1] || theme[1], viewedColors[0] || theme[0], 'refill');
+    const comparisonHighlights = detectHandHighlights(comparisonRows, viewedIsOpponent ? 'mine' : 'opponent');
+    const comparisonDataset = {
+      label:comparisonLabel,
+      data:turnValues.map(turn => comparisonMap.has(turn) ? comparisonMap.get(turn) : null),
+      tension:.48,
+      borderWidth:2.25,
+      pointRadius:0,
+      pointHoverRadius:5,
+      borderColor:comparisonColors[0] || theme[1],
+      backgroundColor:'transparent',
+      highlightMessages:makeHighlightMessages(turnValues.length, remapHighlightsToTurns(comparisonHighlights, turnValues)),
+      fill:false
+    };
+    stylePointHighlights(comparisonDataset, comparisonColors[1] || theme[0], comparisonColors[0] || theme[1], 'refill');
     const datasets = [handDataset];
+    if(comparisonRows?.length) datasets.push(comparisonDataset);
     charts.hand = chart(charts.hand, 'handCurveChart', 'line', { labels, datasets }, { scales:{ y:{ beginAtZero:true, suggestedMax:8, ticks:{ precision:0 } } } });
-    updateChartDataTable('handCurveChart', labels, datasets, 'Données du graphique de réserve de main');
+    updateChartDataTable('handCurveChart', labels, datasets, 'Données du graphique de cartes en main en fin de tour');
+  }
+
+  function remapHighlightsToTurns(highlights=[], turns=[]){
+    const byTurn = new Map((highlights || []).map(item => [n(item.turn), item]));
+    return (turns || []).map((turn, index) => {
+      const item = byTurn.get(n(turn));
+      return item ? { ...item, index } : null;
+    }).filter(Boolean);
   }
 
   function chart(existing, id, type, data, options={}){
@@ -8676,15 +9310,30 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       charts.matrix.update('active');
     }
     if(charts.hand){
-      const ds = charts.hand.data.datasets?.[0];
-      if(ds){
-        ds.borderColor = theme[0];
-        ds.backgroundColor = hexToRgba(theme[0], .16);
-        ds._normalPointBg = theme[1];
-        ds._normalPointBorder = theme[0];
-        if(!restyleDatasetHighlights(ds)){
-          ds.pointBackgroundColor = theme[1];
-          ds.pointBorderColor = theme[0];
+      const mine = chartColorsForScope('mine');
+      const opponent = chartColorsForScope('opponent');
+      const viewedIsOpponent = scope === 'opponent';
+      const viewedColors = viewedIsOpponent ? opponent : mine;
+      const comparisonColors = viewedIsOpponent ? mine : opponent;
+      const ds = charts.hand.data.datasets || [];
+      if(ds[0]){
+        ds[0].borderColor = viewedColors[0];
+        ds[0].backgroundColor = 'transparent';
+        ds[0]._normalPointBg = viewedColors[1];
+        ds[0]._normalPointBorder = viewedColors[0];
+        if(!restyleDatasetHighlights(ds[0])){
+          ds[0].pointBackgroundColor = viewedColors[1];
+          ds[0].pointBorderColor = viewedColors[0];
+        }
+      }
+      if(ds[1]){
+        ds[1].borderColor = comparisonColors[0];
+        ds[1].backgroundColor = 'transparent';
+        ds[1]._normalPointBg = comparisonColors[1];
+        ds[1]._normalPointBorder = comparisonColors[0];
+        if(!restyleDatasetHighlights(ds[1])){
+          ds[1].pointBackgroundColor = comparisonColors[1];
+          ds[1].pointBorderColor = comparisonColors[0];
         }
       }
       charts.hand.update('active');
@@ -8714,12 +9363,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return peak ? `Résumé du graphique : ${round1(sum(rows,'float'))} encre inutilisée au total, pic au tour ${peak.turn} avec ${round1(peak.float)}.` : 'Aucune encre inutilisée détectée.';
   }
   function summarizeQuest(quest, challenge){ const total = n(quest)+n(challenge); return total ? `Résumé du graphique : ${pct(quest,total)}% quête, avec ${quest} quête(s) et ${challenge} défi(s).` : 'Aucune quête ou défi détecté.'; }
-  function summarizeHand(rows){
+  function summarizeHand(rows, comparisonRows=[]){
     if(!rows?.length) return 'Aucune donnée de main à afficher.';
     const critical = rows.filter(r=>n(r.handCount)<=1).length;
     const refill = detectHandHighlights(rows, state.scope).sort((a,b)=>b.delta-a.delta)[0];
+    const advantage = handAdvantageSummary(rows, comparisonRows);
     const suffix = refill ? ` Second souffle détecté au tour ${refill.turn} : +${refill.delta} cartes en main.` : '';
-    return `Résumé du graphique : ${critical} tour(s) critique(s) terminés avec 0 ou 1 carte en main.${suffix}`;
+    const compare = advantage ? ` ${advantage}.` : '';
+    return `Résumé du graphique : ${critical} tour(s) critique(s) terminés avec 0 ou 1 carte en main.${compare}${suffix}`;
   }
 
   function applyPatch(obj, patch){
@@ -8744,7 +9395,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const inkArr = Array.isArray(z.inkwell) ? z.inkwell : [];
     const ink = inkArr.length || n(z.inkwellCount);
     const exerted = inkArr.reduce((count, card) => count + ((card?.exerted || card?.card?.exerted) ? 1 : 0), 0);
-    return { hand, ink, exerted, lore:n(z.lore) };
+    const boardCards = boardCardsForZone(z);
+    const boardCharacters = boardCards.filter(isCharacterCardForBoard).length;
+    const boardLocations = boardCards.filter(isLocationCard).length;
+    const boardLorePotential = boardCards.filter(card => isCharacterCardForBoard(card) || isLocationCard(card)).reduce((acc, card)=>acc + n(cardIntrinsicLore(card)), 0);
+    return { hand, ink, exerted, lore:n(z.lore), boardCharacters, boardLocations, boardLorePotential };
   }
   function buildActionSeries(map){ return [...map.values()].sort((a,b)=>a.turn-b.turn); }
 

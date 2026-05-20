@@ -11594,3 +11594,29 @@ body::after{
   .performance-filter-controls-viz .filter-mini,
   .performance-filter-controls-viz .filter-action{grid-column:auto!important;}
 }
+
+/* V132.1c — source d'encrage lisible dans les classements */
+.match-card-chips-v81 span.ink-source-chip{
+  border-width:1px!important;
+  background:rgba(255,255,255,.045)!important;
+}
+.match-card-chips-v81 span.ink-source-hand{
+  border-color:rgba(96,165,250,.45)!important;
+  color:#bfdbfe!important;
+}
+.match-card-chips-v81 span.ink-source-discard{
+  border-color:rgba(168,85,247,.45)!important;
+  color:#ddd6fe!important;
+}
+.match-card-chips-v81 span.ink-source-board{
+  border-color:rgba(251,191,36,.5)!important;
+  color:#fde68a!important;
+}
+.match-card-chips-v81 span.ink-source-deck{
+  border-color:rgba(52,211,153,.45)!important;
+  color:#bbf7d0!important;
+}
+.match-card-chips-v81 span.ink-source-unknown{
+  border-color:rgba(156,163,175,.38)!important;
+  color:#d4d4d8!important;
+}

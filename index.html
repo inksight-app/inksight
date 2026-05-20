@@ -224,7 +224,7 @@
       <section class="pro-grid">
         <article class="pro-card warn"><span>Économie d’Encre</span><strong id="inkFloatTotal">—</strong><small id="inkFloatAverage">Encre non convertie en pression.</small></article>
         <article class="pro-card good"><span>Pression (Lore vs Trade)</span><strong id="actionRatioKpi">—</strong><small id="actionRatioLabel">Ratio quête / défi.</small></article>
-        <article class="pro-card"><span>Réserve de main</span><strong id="topDeckTurns">—</strong><small id="topDeckBadge">Tours terminés avec 0 ou 1 carte.</small></article>
+        <article class="pro-card"><span>Cartes en main</span><strong id="topDeckTurns">—</strong><small id="topDeckBadge">Mesuré en fin de tour.</small></article>
       </section>
 
       <section class="chart-grid stats-charts">
@@ -233,14 +233,19 @@
           <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="inkFloatChart"><span>Lecture du tour</span><strong>Survolez une barre</strong><small>Encre dépensée et inutilisée s’affichent ici.</small></div><div class="chart-wrap"><canvas id="inkFloatChart" role="img" aria-label="Économie d’encre tour par tour" aria-describedby="inkChartSummary"></canvas></div><p id="inkChartSummary" class="sr-only">Résumé du graphique économie d’encre disponible après import.</p>
         </article>
         <article class="glass chart-panel wide">
-          <div class="section-head"><div><h2>Efficacité de la main</h2><p>Taille de main à la fin de vos tours.</p></div></div>
-          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="handCurveChart"><span>Lecture du tour</span><strong>Survolez la courbe</strong><small>La taille de main en fin de tour s’affiche ici.</small></div><div class="chart-wrap"><canvas id="handCurveChart" role="img" aria-label="Taille de main en fin de tour" aria-describedby="handChartSummary"></canvas></div><p id="handChartSummary" class="sr-only">Résumé du graphique de main disponible après import.</p>
+          <div class="section-head"><div><h2>Cartes en main en fin de tour</h2><p>Compare votre réserve de cartes avec celle de l’adversaire après actions et effets.</p></div></div>
+          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="handCurveChart"><span>Lecture du tour</span><strong>Survolez la courbe</strong><small>Nombre de cartes en main à la fin de chaque tour joué.</small></div><div class="chart-wrap"><canvas id="handCurveChart" role="img" aria-label="Comparaison des cartes en main en fin de tour" aria-describedby="handChartSummary"></canvas></div><p id="handChartSummary" class="sr-only">Résumé du graphique de main disponible après import.</p>
+        </article>
+        <article class="glass chart-panel wide">
+          <div class="section-head"><div><h2>Présence sur board</h2><p>Compare les personnages en jeu et le lore potentiel en fin de tour.</p></div></div>
+          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="boardPresenceChart"><span>Lecture du tour</span><strong>Survolez le board</strong><small>Personnages et lore potentiel apparaissent ici.</small></div><div class="chart-wrap"><canvas id="boardPresenceChart" role="img" aria-label="Comparaison de la présence sur board en fin de tour" aria-describedby="boardChartSummary"></canvas></div><p id="boardChartSummary" class="sr-only">Résumé du graphique de présence sur board disponible après import.</p>
         </article>
       </section>
 
       <section id="quickInsights" class="quick-insights" aria-label="Signaux rapides"></section>
 
       <section class="insight-grid">
+        <article class="glass stat-panel dead-weight-panel"><div class="section-head"><div><h2 id="deadWeightTitle">Cartes restées en main</h2><p id="deadWeightHelp">Les cartes qui ont occupé votre main le plus longtemps avant d’être jouées, encrées ou conservées.</p></div></div><div id="deadWeightTable" class="table-zone"></div></article>
         <article class="glass stat-panel"><div class="section-head"><div><h2 id="topQuestersTitle">Moteurs de Victoire</h2><p id="topQuestersHelp">Les cartes qui rapprochent vraiment des 20 lore.</p></div><select id="topQuestersSort" class="sort-select"><option value="lore_desc">Lore élevé</option><option value="count_desc">Plus d’aventures</option><option value="name_asc">Nom A → Z</option></select></div><div id="topQuestersTable" class="table-zone"></div></article>
         <article class="glass stat-panel"><div class="section-head"><div><h2 id="mostInkedTitle">Cartes les plus encrées</h2><p id="mostInkedHelp">Les cartes sacrifiées pour construire l’encrier.</p></div><select id="mostInkedSort" class="sort-select"><option value="count_desc">Plus souvent encrées</option><option value="type_asc">Type</option><option value="name_asc">Nom A → Z</option></select></div><div id="mostInkedTable" class="table-zone"></div></article>
         <article class="glass stat-panel play-sequence-panel"><div class="section-head"><div><h2 id="playTimingTitle">Cartes jouées par tour</h2><p id="playTimingHelp">Chronologie exacte des cartes jouées pendant la partie, dans l’ordre.</p></div></div><div id="playTimingTable" class="table-zone"></div></article>
