@@ -8058,17 +8058,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderDeadWeight(m){
     if(!els.deadWeightTable) return;
+    const panel = els.deadWeightTable.closest?.('.stat-panel');
+    // La main adverse est une zone privée : afficher un bloc “non exploitable” ajoutait du bruit
+    // sans donnée actionnable. On masque donc complètement ce module côté stats adverses.
+    if(state.scope === 'opponent'){
+      if(panel) panel.hidden = true;
+      els.deadWeightTable.innerHTML = '';
+      return;
+    }
+    if(panel) panel.hidden = false;
     const rows = handRetentionForScope(m)
       .filter(row => n(row.maxHeldTurns) > 0 || n(row.averageHeldTurns) > 0)
       .sort((a,b) => n(b.maxHeldTurns) - n(a.maxHeldTurns) || n(b.averageHeldTurns) - n(a.averageHeldTurns));
-    if(els.deadWeightTitle) els.deadWeightTitle.textContent = state.scope === 'opponent' ? 'Main adverse non exploitable' : 'Cartes restées en main';
-    if(els.deadWeightHelp) els.deadWeightHelp.textContent = state.scope === 'opponent'
-      ? 'La main adverse est une zone privée : InkSight ne peut pas suivre précisément les cartes cachées.'
-      : 'Les cartes qui ont occupé votre main le plus longtemps avant d’être jouées, encrées ou conservées.';
+    if(els.deadWeightTitle) els.deadWeightTitle.textContent = 'Cartes restées en main';
+    if(els.deadWeightHelp) els.deadWeightHelp.textContent = 'Repère les cartes gardées longtemps avant d’être jouées, encrées ou encore conservées à la fin.';
     const items = rows.map(row => deadWeightListItem(row));
     renderStatCardList('deadWeight', els.deadWeightTable, items, {
       hideWhenEmpty:false,
-      empty:state.scope === 'opponent' ? 'Main adverse privée : donnée non calculée.' : 'Aucune carte restée longtemps en main détectée sur ce replay.',
+      empty:'Aucune carte restée longtemps en main détectée sur ce replay.',
       collapsedLabel:'Voir toutes les cartes',
       expandedLabel:'Réduire la liste'
     });
@@ -8080,25 +8087,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const card = hydrateCard(row.card || { fullName:row.cardName, id:row.cardKey, cost:row.cost, inkable:row.inkable });
     const rep = row.representative || {};
     const turns = n(row.maxHeldTurns);
-    const avg = round1(row.averageHeldTurns);
     const exit = dominantHandExit(row.exits || {});
     const metaBits = [];
-    if(row.cost !== null && row.cost !== undefined) metaBits.push(`Coût ${row.cost}`);
     const inkable = row.inkable ?? cardIsInkable(card);
     if(inkable === false) metaBits.push('Non-encrable');
     else if(inkable === true) metaBits.push('Encrable');
-    if(n(row.episodes) > 1) metaBits.push(`${n(row.episodes)} passages en main`);
-    const range = rep.entryTurn ? `T${n(rep.entryTurn)} → ${rep.stillInHand ? 'fin' : `T${n(rep.exitTurn)}`}` : `${n(row.episodes)} passage(s)`;
-    const exitChip = exit === 'unknown' ? '' : `Fin : ${handExitLabel(exit)}`;
+    if(row.cost !== null && row.cost !== undefined) metaBits.push(`coût ${row.cost}`);
+    if(n(row.episodes) > 1) metaBits.push(`${n(row.episodes)} fois vue en main`);
+    const range = rep.entryTurn ? `Gardée T${n(rep.entryTurn)} → ${rep.stillInHand ? 'fin' : `T${n(rep.exitTurn)}`}` : 'Passage en main suivi';
+    const duration = turns ? `${turns} tour${turns > 1 ? 's' : ''} en main` : '';
+    const exitChip = exit === 'unknown' ? '' : handExitLabel(exit);
     return {
       card,
       title:row.cardName || fullName(card),
       meta:metaBits.filter(Boolean).join(' · ') || 'Carte suivie en main',
-      chips:[
-        `${turns} tour${turns > 1 ? 's' : ''} max`,
-        avg ? `${avg} tour${avg > 1 ? 's' : ''} moy.` : range,
-        exitChip
-      ].filter(Boolean)
+      chips:[range, duration, exitChip].filter(Boolean)
     };
   }
 
@@ -8110,31 +8113,31 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function handExitLabel(reason){
     const labels = {
-      played:'jouée',
-      inked:'encrée',
-      discarded:'défaussée',
-      deck:'retour deck',
-      effect:'sortie par effet',
-      stillInHand:'encore en main',
-      unknown:'sortie inconnue'
+      played:'Jouée ensuite',
+      inked:'Encrée ensuite',
+      discarded:'Défaussée ensuite',
+      deck:'Remise dans le deck',
+      effect:'Sortie par effet',
+      stillInHand:'Gardée jusqu’à la fin',
+      unknown:'Sortie inconnue'
     };
     return labels[reason] || labels.unknown;
   }
 
   function inkwellSourceChips(card){
     const chips = [];
-    if(n(card.inkedFromHand)) chips.push({ label:`${n(card.inkedFromHand)} main`, className:'ink-source-chip ink-source-hand' });
-    if(n(card.inkedFromDiscard)) chips.push({ label:`${n(card.inkedFromDiscard)} défausse`, className:'ink-source-chip ink-source-discard' });
-    if(n(card.inkedFromBoard)) chips.push({ label:`${n(card.inkedFromBoard)} board`, className:'ink-source-chip ink-source-board' });
-    if(n(card.inkedFromDeck)) chips.push({ label:`${n(card.inkedFromDeck)} deck`, className:'ink-source-chip ink-source-deck' });
-    if(n(card.inkedFromUnknown)) chips.push({ label:`${n(card.inkedFromUnknown)} source inconnue`, className:'ink-source-chip ink-source-unknown' });
+    if(n(card.inkedFromHand)) chips.push({ label:`Sacrifiée ×${n(card.inkedFromHand)}`, className:'ink-source-chip ink-source-hand' });
+    if(n(card.inkedFromDiscard)) chips.push({ label:`Défausse → encre ×${n(card.inkedFromDiscard)}`, className:'ink-source-chip ink-source-discard' });
+    if(n(card.inkedFromBoard)) chips.push({ label:`Board → encre ×${n(card.inkedFromBoard)}`, className:'ink-source-chip ink-source-board' });
+    if(n(card.inkedFromDeck)) chips.push({ label:`Deck → encre ×${n(card.inkedFromDeck)}`, className:'ink-source-chip ink-source-deck' });
+    if(n(card.inkedFromUnknown)) chips.push({ label:`Carte cachée ×${n(card.inkedFromUnknown)}`, className:'ink-source-chip ink-source-unknown' });
     if(!chips.length) chips.push(`${n(card.inked)} encrée${n(card.inked) > 1 ? 's' : ''}`);
     return chips.slice(0, 3);
   }
 
   function renderStatTables(m){
     const metrics = state.scope === 'mine' ? (m?.proMetrics || {}) : (m?.opponentProMetrics || {});
-    if(els.mostInkedHelp) els.mostInkedHelp.textContent = 'Main = carte sacrifiée depuis la main. Défausse/board = ajout à l’encrier par effet.';
+    if(els.mostInkedHelp) els.mostInkedHelp.textContent = 'Sacrifiée = encrée depuis la main. Défausse/board → encre = ajout par effet.';
     const cards = cardsForScope(m, state.scope);
     const topQuesters = loreEngineCards(cards).sort(compareLoreEngines)
       .map(c => ({
