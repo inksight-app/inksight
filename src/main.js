@@ -65,6 +65,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }, { passive:true });
     }
 
+    initMobileViewportNav();
+
     els.browseButton?.addEventListener('click', () => els.fileInput.click());
     els.dropzone?.addEventListener('click', e => { if(e.target !== els.browseButton) els.fileInput.click(); });
     els.dropzone?.addEventListener('keydown', e => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); els.fileInput.click(); } });
@@ -104,6 +106,52 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.querySelectorAll('[data-app-view="performances"], [data-performance-view]').forEach(btn => btn.addEventListener('click', () => refreshSavedMatches({ silent:true })));
     els.cardModal?.addEventListener('click', e => { if(e.target === els.cardModal) closeCardModal(); });
     document.addEventListener('keydown', handleModalKeydown);
+  }
+
+
+  function initMobileViewportNav(){
+    if(state.mobileNavReady) return;
+    state.mobileNavReady = true;
+
+    const syncVisualViewportInset = () => {
+      const vv = window.visualViewport;
+      const bottom = vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
+      document.documentElement.style.setProperty('--vv-bottom', `${bottom}px`);
+    };
+    syncVisualViewportInset();
+    window.visualViewport?.addEventListener('resize', syncVisualViewportInset, { passive:true });
+    window.visualViewport?.addEventListener('scroll', syncVisualViewportInset, { passive:true });
+    window.addEventListener('resize', syncVisualViewportInset, { passive:true });
+
+    const isMobile = () => window.matchMedia?.('(max-width:820px)')?.matches === true;
+    const scrollRoot = () => document.scrollingElement || document.documentElement || document.body;
+    const currentY = () => Math.max(window.scrollY || 0, document.documentElement.scrollTop || 0, document.body.scrollTop || 0);
+    let lastY = currentY();
+    let ticking = false;
+    const showNav = () => document.body.classList.remove('mobile-nav-hidden');
+    const hideNav = () => document.body.classList.add('mobile-nav-hidden');
+    const onScroll = () => {
+      if(!isMobile()) { showNav(); return; }
+      if(ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = currentY();
+        const root = scrollRoot();
+        const maxY = Math.max(0, n(root.scrollHeight) - window.innerHeight);
+        const delta = y - lastY;
+        if(y < 90 || delta < -7 || y > maxY - 80){
+          showNav();
+        }else if(delta > 9 && y > 180){
+          hideNav();
+        }
+        lastY = y;
+        ticking = false;
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive:true });
+    document.body.addEventListener('scroll', onScroll, { passive:true });
+    document.addEventListener('touchstart', showNav, { passive:true });
+    document.addEventListener('focusin', showNav, { passive:true });
   }
 
   function setApiStatus(text, mode='loading'){
@@ -781,6 +829,109 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       seenZones:[...row.seenZones],
       fallbackOnly:!!row.fallbackOnly
     })).sort((a,b) => (n(b.estimatedCopies) - n(a.estimatedCopies)) || (n(a.firstSeenTurn || 999) - n(b.firstSeenTurn || 999)) || a.cardName.localeCompare(b.cardName));
+    return { cards:rows, totalConfirmedCards:sum(rows, 'estimatedCopies'), exportText:buildOpponentDeckExportText(rows) };
+  }
+
+
+  function compactOpponentDeckEstimate(estimate){
+    const source = estimate?.cards ? estimate : finalizeOpponentDeckEstimate(new Map());
+    const cards = (source.cards || []).map(row => {
+      const card = row.card || {};
+      return {
+        key:row.key || row.cardKey || statCardKey(card) || slug(row.cardName || ''),
+        cardKey:row.cardKey || row.key || statCardKey(card) || slug(row.cardName || ''),
+        card:{
+          id:card.id || row.cardKey || row.key || '',
+          name:card.name || row.cardName || '',
+          fullName:fullName(card) || row.cardName || '',
+          type:card.type || row.type || '',
+          colors:arrayify(card.colors || row.colors).map(inkKey).filter(Boolean),
+          image:card.image || row.image || '',
+          imageSmall:card.imageSmall || row.imageSmall || row.image || ''
+        },
+        cardName:cleanCardName(row.cardName || fullName(card)),
+        subtitle:row.subtitle || cardSubtitle(card),
+        estimatedCopies:Math.max(1, Math.min(4, n(row.estimatedCopies))),
+        uniqueCopies:Math.max(1, n(row.uniqueCopies || row.estimatedCopies)),
+        instanceIds:Array.isArray(row.instanceIds) ? row.instanceIds.map(String).filter(Boolean) : [],
+        fallbackOnly:!!row.fallbackOnly,
+        seenZones:Array.isArray(row.seenZones) ? row.seenZones.filter(Boolean) : [],
+        firstSeenTurn:row.firstSeenTurn || null,
+        type:row.type || card.type || '',
+        colors:arrayify(row.colors || card.colors).map(inkKey).filter(Boolean),
+        image:row.image || card.image || '',
+        imageSmall:row.imageSmall || card.imageSmall || row.image || card.image || ''
+      };
+    }).filter(row => row.cardName && row.cardName !== 'Carte inconnue');
+    return { cards, totalConfirmedCards:sum(cards, 'estimatedCopies'), exportText:buildOpponentDeckExportText(cards) };
+  }
+
+  function normalizeStoredOpponentDeckEstimate(raw, fallbackCards=[]){
+    const source = raw?.opponent_deck_estimate || raw?.opponentDeckEstimate || raw?.opponentDeck || raw;
+    const rows = Array.isArray(source?.cards) ? source.cards : [];
+    if(!rows.length) return fallbackOpponentDeckEstimateFromCards(fallbackCards);
+    const cards = rows.map(row => {
+      const baseCard = hydrateCard(row.card || { id:row.cardKey || row.key || '', fullName:row.cardName || '', name:row.cardName || '', type:row.type || '', colors:row.colors || [], image:row.image || '', imageSmall:row.imageSmall || row.image || '' });
+      const key = row.cardKey || row.key || statCardKey(baseCard) || cardKey(baseCard);
+      const card = mergeCard(baseCard, {
+        id:key,
+        fullName:row.cardName || fullName(baseCard),
+        name:row.cardName || baseCard.name,
+        type:row.type || baseCard.type,
+        colors:arrayify(row.colors || baseCard.colors).map(inkKey).filter(Boolean),
+        image:row.image || baseCard.image || '',
+        imageSmall:row.imageSmall || baseCard.imageSmall || row.image || baseCard.image || ''
+      });
+      return {
+        key,
+        cardKey:key,
+        card,
+        cardName:cleanCardName(row.cardName || fullName(card)),
+        subtitle:row.subtitle || cardSubtitle(card),
+        estimatedCopies:Math.max(1, Math.min(4, n(row.estimatedCopies || row.uniqueCopies || 1))),
+        uniqueCopies:Math.max(1, n(row.uniqueCopies || row.estimatedCopies || 1)),
+        instanceIds:Array.isArray(row.instanceIds) ? row.instanceIds.map(String).filter(Boolean) : [],
+        fallbackOnly:!!row.fallbackOnly,
+        seenZones:Array.isArray(row.seenZones) ? row.seenZones.filter(Boolean) : [],
+        firstSeenTurn:row.firstSeenTurn || null,
+        type:row.type || card.type || '',
+        colors:arrayify(row.colors || card.colors).map(inkKey).filter(Boolean),
+        image:row.image || card.image || '',
+        imageSmall:row.imageSmall || card.imageSmall || row.image || card.image || ''
+      };
+    }).filter(row => row.cardName && row.cardName !== 'Carte inconnue');
+    cards.sort((a,b) => (n(b.estimatedCopies) - n(a.estimatedCopies)) || (n(a.firstSeenTurn || 999) - n(b.firstSeenTurn || 999)) || a.cardName.localeCompare(b.cardName));
+    return { cards, totalConfirmedCards:sum(cards, 'estimatedCopies'), exportText:buildOpponentDeckExportText(cards) };
+  }
+
+  function fallbackOpponentDeckEstimateFromCards(cards=[]){
+    const rows = [];
+    (cards || []).forEach(card => {
+      const scoped = scopedCard(card, 'opponent');
+      const hasOpponentSignal = scoped?.owners?.includes?.('opponent') || n(scoped.seen) || n(scoped.played) || n(scoped.inked) || n(scoped.quest) || n(scoped.challenge) || n(scoped.lore);
+      if(!hasOpponentSignal) return;
+      const key = statCardKey(scoped) || cardKey(scoped);
+      const name = cleanCardName(fullName(scoped));
+      if(!key || !name || name === 'Carte inconnue') return;
+      rows.push({
+        key,
+        cardKey:key,
+        card:scoped,
+        cardName:name,
+        subtitle:cardSubtitle(scoped),
+        estimatedCopies:1,
+        uniqueCopies:1,
+        instanceIds:[`fallback:${key}`],
+        fallbackOnly:true,
+        seenZones:['historique'],
+        firstSeenTurn:Array.isArray(scoped.firstTurns) && scoped.firstTurns.length ? Math.min(...scoped.firstTurns.map(n).filter(Boolean)) : null,
+        type:scoped.type || '',
+        colors:arrayify(scoped.colors).map(inkKey).filter(Boolean),
+        image:scoped.image || '',
+        imageSmall:scoped.imageSmall || scoped.image || ''
+      });
+    });
+    rows.sort((a,b) => a.cardName.localeCompare(b.cardName));
     return { cards:rows, totalConfirmedCards:sum(rows, 'estimatedCopies'), exportText:buildOpponentDeckExportText(rows) };
   }
 
@@ -2342,6 +2493,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       metrics:{ mine:compactMetrics(m.proMetrics), opponent:compactMetrics(m.opponentProMetrics) },
       mulligan:compactMulligan(m.sessions?.[0]?.mulligan || m.first?.mulligan),
       charts:{ lore_series:compactLoreSeries(m.loreSeries), action_series:compactActionSeries(m.actionSeries) },
+      opponent_deck_estimate:compactOpponentDeckEstimate(m.opponentDeckEstimate),
       cards:{ mine:compactCardStats(cardsForScope(m, 'mine')), opponent:compactCardStats(cardsForScope(m, 'opponent')) },
       timeline:compactTimeline(m.timeline),
       games:compactGames(m.sessions || [])
@@ -2444,7 +2596,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       opponentProMetrics:compactMetrics(session.opponentProMetrics),
       mulligan:compactMulligan(session.mulligan),
       loreSeries:compactLoreSeries(session.loreSeries),
-      actionSeries:compactActionSeries(session.actionSeries)
+      actionSeries:compactActionSeries(session.actionSeries),
+      opponent_deck_estimate:compactOpponentDeckEstimate(session.opponentDeckEstimate)
     }));
   }
 
@@ -2533,6 +2686,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       actionSeries,
       inkProfiles:profiles,
       matchupLabel:row.matchup_label || analysis.matchup?.label || formatMatchupLabel(profiles),
+      opponentDeckEstimate:normalizeStoredOpponentDeckEstimate(analysis, cards),
       first:sessions[0],
       last:sessions[sessions.length - 1],
       savedAnalysis:analysis
@@ -2551,6 +2705,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const timeline = savedTimelineToRuntime(analysis.timeline || [], isBo3Game ? gameNumber : null);
     const cards = isBo3Game ? savedCardsFromTimeline(timeline, analysis.cards || {}) : savedCardsToRuntimeCards(analysis.cards || {});
     const mulligan = savedMulliganToRuntime(game?.mulligan || (!isBo3Game ? analysis.mulligan : null));
+    const opponentDeckEstimate = normalizeStoredOpponentDeckEstimate(game?.opponent_deck_estimate || game?.opponentDeckEstimate || (!isBo3Game ? analysis : null), cards);
     const firstTurnPlayer = otp === null ? 1 : (otp ? 1 : 2);
     return {
       isSavedAnalysis:true,
@@ -2580,6 +2735,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       actionSeries:compactActionSeries(game?.actionSeries || analysis.charts?.action_series || []),
       inkProfiles:profiles,
       matchupLabel:row.matchup_label || analysis.matchup?.label || formatMatchupLabel(profiles),
+      opponentDeckEstimate,
       mulligan
     };
   }
@@ -8711,6 +8867,7 @@ function initAppShell() {
     });
 
     document.body.dataset.appView = next;
+    document.body.classList.remove('mobile-nav-hidden');
 
     if (next === 'performances') {
       setPerformanceView(options.perfView || 'stats');
