@@ -35,18 +35,94 @@ function safeLimit(value) {
   return Math.max(1, Math.min(25, parsed));
 }
 
+function getByPath(obj, path) {
+  return path.split('.').reduce((acc, key) => (acc && typeof acc === 'object' ? acc[key] : undefined), obj);
+}
+
+function firstValue(row, paths) {
+  for (const path of paths) {
+    const value = getByPath(row, path);
+    if (value !== undefined && value !== null && String(value).trim() !== '') return value;
+  }
+  return null;
+}
+
+function deepFind(row, matcher, depth = 0, seen = new Set()) {
+  if (!row || typeof row !== 'object' || depth > 5 || seen.has(row)) return null;
+  seen.add(row);
+  if (Array.isArray(row)) {
+    for (const item of row) {
+      const found = deepFind(item, matcher, depth + 1, seen);
+      if (found !== null && found !== undefined && String(found).trim() !== '') return found;
+    }
+    return null;
+  }
+  for (const [key, value] of Object.entries(row)) {
+    if (matcher(key, value) && value !== null && value !== undefined && typeof value !== 'object' && String(value).trim() !== '') {
+      return value;
+    }
+  }
+  for (const value of Object.values(row)) {
+    const found = deepFind(value, matcher, depth + 1, seen);
+    if (found !== null && found !== undefined && String(found).trim() !== '') return found;
+  }
+  return null;
+}
+
 function pickDate(row) {
-  return row?.updatedAt || row?.updated_at || row?.playedAt || row?.played_at || row?.createdAt || row?.created_at || null;
+  const direct = firstValue(row, [
+    'updatedAt','updated_at','playedAt','played_at','completedAt','completed_at','createdAt','created_at',
+    'game.updatedAt','game.updated_at','game.completedAt','game.completed_at','game.createdAt','game.created_at',
+    'match.updatedAt','match.updated_at','match.completedAt','match.completed_at'
+  ]);
+  if (direct) return direct;
+  return deepFind(row, (key) => /(?:updated|played|completed|created).*at$/i.test(key) || /^(?:updatedAt|playedAt|completedAt|createdAt)$/i.test(key));
+}
+
+function pickReplayId(row) {
+  return firstValue(row, [
+    'replay_id','replayId','replay.id','replay.replay_id','replay.replayId','replayId.id',
+    'game.replay_id','game.replayId','game.replay.id','gameReplayId','replayFile.id'
+  ]) || deepFind(row, (key) => /replay.*id/i.test(key));
+}
+
+function pickGameId(row) {
+  return firstValue(row, ['id','game_id','gameId','game.id','match.game_id','match.gameId']) || deepFind(row, (key) => /^(?:game_?id|id)$/i.test(key));
+}
+
+function pickOpponent(row) {
+  return firstValue(row, [
+    'opponentName','opponent_name','opponent.name','opponent.username','opponent.displayName','opponent.display_name',
+    'opponentPlayer.name','opponentPlayer.username','opponentPlayer.displayName','opponent_player.name',
+    'enemy.name','enemy.username','otherPlayer.name','other_player.name','game.opponent.name','game.opponentName'
+  ]) || deepFind(row, (key) => /opponent|enemy|other/i.test(key) && /name|user|display/i.test(key));
+}
+
+function pickSource(row) {
+  return firstValue(row, ['source','game.source','game_source','gameSource','queue_source','match.source','mode'])
+    || deepFind(row, (key) => /^(source|gameSource|game_source|mode)$/i.test(key));
+}
+
+function pickQueue(row) {
+  return firstValue(row, ['queue','queue_id','queueId','queueName','queue_name','game.queue','game.queue_id','game.queueId','match.queue'])
+    || deepFind(row, (key) => /queue/i.test(key));
+}
+
+function pickResult(row) {
+  return firstValue(row, ['result','outcome','winner','game.result','game.outcome','isWin','is_win','won']);
 }
 
 function summarizeGame(row) {
-  const id = row?.id || row?.game_id || row?.gameId || row?.game?.id || null;
-  const replayId = row?.replay_id || row?.replayId || row?.replay?.id || row?.replay?.replay_id || null;
-  const source = row?.source || row?.game_source || row?.gameSource || row?.queue_source || null;
-  const queue = row?.queue || row?.queue_id || row?.queueId || row?.queueName || row?.queue_name || null;
-  const opponent = row?.opponentName || row?.opponent_name || row?.opponent?.name || row?.opponentDisplayName || row?.opponent_display_name || null;
-  const result = row?.result || row?.outcome || row?.isWin || row?.is_win || null;
-  return { id, replayId, source, queue, opponent, result, updatedAt: pickDate(row) };
+  return {
+    id: pickGameId(row),
+    replayId: pickReplayId(row),
+    source: pickSource(row),
+    queue: pickQueue(row),
+    opponent: pickOpponent(row),
+    result: pickResult(row),
+    updatedAt: pickDate(row),
+    rawKeys: row && typeof row === 'object' ? Object.keys(row).slice(0, 25) : [],
+  };
 }
 
 export default async function handler(req, res) {
