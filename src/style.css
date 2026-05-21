@@ -12747,3 +12747,94 @@ body::after{
     justify-self: start;
   }
 }
+
+/* V135.4C · Sync simplifiée + infos compactes */
+.duelink-sync-card .duelink-token-actions{
+  grid-template-columns:repeat(3, minmax(0, max-content)) !important;
+  align-items:end;
+}
+#duelinkImportSaveButton{display:none!important;}
+.duelink-import-progress.is-complete ul{display:none!important;}
+.duelink-import-summary-card{
+  display:grid;
+  gap:8px;
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(52,211,153,.20);
+  background:rgba(52,211,153,.075);
+}
+.duelink-import-summary-card strong{color:#d1fae5;font-size:.95rem;}
+.duelink-import-summary-card span{color:rgba(255,255,255,.68);font-size:.82rem;line-height:1.45;}
+.duelink-result-empty .primary-button.compact,
+.duelink-import-summary-card .primary-button.compact{
+  justify-self:start;
+  margin-top:4px;
+}
+.stat-panel .section-head h2,
+.cards-panel .section-head h2,
+.timeline-panel .section-head h2{
+  display:flex!important;
+  align-items:center!important;
+  gap:8px!important;
+  min-width:0;
+}
+.info-dot{
+  appearance:none!important;
+  flex:0 0 24px!important;
+  width:24px!important;
+  height:24px!important;
+  min-width:24px!important;
+  min-height:24px!important;
+  max-width:24px!important;
+  max-height:24px!important;
+  display:inline-grid!important;
+  place-items:center!important;
+  border-radius:50%!important;
+  padding:0!important;
+  border:1px solid rgba(255,255,255,.18)!important;
+  background:rgba(255,255,255,.06)!important;
+  color:rgba(255,255,255,.76)!important;
+  font-size:12px!important;
+  font-weight:900!important;
+  line-height:1!important;
+  text-transform:none!important;
+  letter-spacing:0!important;
+  cursor:pointer!important;
+}
+.info-dot:hover,
+.info-dot:focus-visible{
+  color:#fff!important;
+  border-color:rgba(246,197,77,.42)!important;
+  background:rgba(246,197,77,.14)!important;
+  outline:none!important;
+}
+.stat-panel .section-head p,
+.cards-panel .section-head p,
+.timeline-panel .section-head p{
+  max-width:42ch;
+  display:block;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.match-card-body-v81 p{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+@media (max-width:760px){
+  .duelink-sync-card .duelink-token-actions{grid-template-columns:1fr!important;}
+  .duelink-sync-card #duelinkTestButton,
+  .duelink-sync-card #duelinkPreviewButton,
+  .duelink-sync-card #duelinkImportButton{width:100%;}
+  .stat-panel .section-head p,
+  .cards-panel .section-head p,
+  .timeline-panel .section-head p{
+    max-width:100%;
+    white-space:nowrap;
+  }
+  .info-dot{
+    width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;
+    font-size:11px!important;
+  }
+}

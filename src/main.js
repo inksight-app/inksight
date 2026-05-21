@@ -118,7 +118,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.duelinkTestButton?.addEventListener('click', testDuelinkToken);
     els.duelinkPreviewButton?.addEventListener('click', previewDuelinkMatches);
     els.duelinkImportButton?.addEventListener('click', () => importDuelinkPreviewToBulkQueue());
-    els.duelinkImportSaveButton?.addEventListener('click', importDuelinkPreviewAndSave);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
     [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
     document.addEventListener('click', handlePerformanceFilterClick);
@@ -131,6 +130,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.addEventListener('click', handlePerformanceDetailClick);
     document.addEventListener('click', handlePerformanceListModalClick);
     document.addEventListener('click', handleDataMaintenanceClick);
+    document.addEventListener('click', handleDuelinkNavigationClick);
     document.addEventListener('click', handleInfoDotClick);
     [els.saveDeckSelect, els.saveDeckNameInput].forEach(el => el?.addEventListener('input', () => syncSaveButton()));
     document.querySelectorAll('[data-app-view="performances"], [data-performance-view]').forEach(btn => btn.addEventListener('click', () => refreshSavedMatches({ silent:true })));
@@ -278,12 +278,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const busy = !!(state.duelinkImporting || state.duelinkAutoSaving);
     if(els.duelinkImportButton){
       els.duelinkImportButton.disabled = !count || busy;
-      els.duelinkImportButton.textContent = count ? `Importer ${count} nouveau${count > 1 ? 'x' : ''}` : 'Aucun nouveau replay';
+      els.duelinkImportButton.textContent = count ? `Importer ${count} replay${count > 1 ? 's' : ''}` : 'Aucun nouveau replay';
     }
     if(els.duelinkImportSaveButton){
-      els.duelinkImportSaveButton.disabled = !count || busy || !state.currentUser;
-      if(!state.currentUser) els.duelinkImportSaveButton.textContent = 'Connexion requise pour sauvegarder';
-      else els.duelinkImportSaveButton.textContent = count ? `Importer + sauvegarder ${count}` : 'Rien à sauvegarder';
+      els.duelinkImportSaveButton.hidden = true;
+      els.duelinkImportSaveButton.disabled = true;
     }
   }
 
@@ -359,6 +358,22 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return session;
   }
 
+  function openBulkImportArea(){
+    document.querySelector('.app-nav-button[data-app-view="analysis"]')?.click();
+    setTab('overview');
+    requestAnimationFrame(() => {
+      const target = els.bulkImportPanel || document.getElementById('bulkImportPanel') || els.dropzone;
+      target?.scrollIntoView({ behavior:'smooth', block:'start' });
+    });
+  }
+
+  function handleDuelinkNavigationClick(event){
+    const button = event.target.closest('[data-duelink-go-bulk]');
+    if(!button) return;
+    event.preventDefault();
+    openBulkImportArea();
+  }
+
   async function downloadDuelinkReplayBuffer(token, replayId){
     const response = await fetch('/api/duelink-download', {
       method:'POST',
@@ -375,6 +390,28 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function renderDuelinkImportProgress(rows, activeIndex=-1, done=0, failed=0){
     if(!els.duelinkTestResult) return;
     const total = rows.length;
+    const finished = total > 0 && (done + failed) >= total;
+    const percent = total ? Math.round(((done + failed) / total) * 100) : 0;
+    const readyCount = (state.bulkQueue || []).filter(item => item?.merged && ['ready','warning'].includes(item.status)).length;
+    const duplicateCount = (state.bulkQueue || []).filter(item => item.status === 'duplicate').length;
+    const errorCount = (state.bulkQueue || []).filter(item => item.status === 'error').length;
+
+    if(finished){
+      const block = `<div class="duelink-import-progress is-complete" id="duelinkImportProgressBox">
+        <div class="duelink-import-progress-head"><strong>Import préparé</strong><span>${done}/${total}</span></div>
+        <div class="duelink-progressbar"><i style="width:${percent}%"></i></div>
+        <div class="duelink-import-summary-card">
+          <strong>${readyCount} replay${readyCount > 1 ? 's' : ''} prêt${readyCount > 1 ? 's' : ''} dans la file</strong>
+          <span>${duplicateCount} doublon${duplicateCount > 1 ? 's' : ''} ignoré${duplicateCount > 1 ? 's' : ''} · ${errorCount || failed} erreur${(errorCount || failed) > 1 ? 's' : ''}</span>
+          <button type="button" class="primary-button compact" data-duelink-go-bulk>Voir la file d’import</button>
+        </div>
+      </div>`;
+      const existing = document.getElementById('duelinkImportProgressBox');
+      if(existing) existing.outerHTML = block;
+      else els.duelinkTestResult.insertAdjacentHTML('afterbegin', block);
+      return;
+    }
+
     const items = rows.map((row, index) => {
       const game = row.game || row;
       const replayId = String(game.replayId || game.id || `#${index + 1}`);
@@ -385,7 +422,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(row.importError) { status = 'error'; label = 'Erreur'; }
       return `<li class="duelink-import-step ${status}"><span class="bulk-status-dot"></span><div><strong>${title}</strong><small>${esc(label)} · replay ${esc(replayId.slice(0, 12))}</small></div></li>`;
     }).join('');
-    const percent = total ? Math.round(((done + failed) / total) * 100) : 0;
     const block = `<div class="duelink-import-progress" id="duelinkImportProgressBox">
       <div class="duelink-import-progress-head"><strong>Import vers la file</strong><span>${done + failed}/${total}</span></div>
       <div class="duelink-progressbar"><i style="width:${percent}%"></i></div>
@@ -395,6 +431,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(existing) existing.outerHTML = block;
     else els.duelinkTestResult.insertAdjacentHTML('afterbegin', block);
   }
+
 
   async function importDuelinkPreviewToBulkQueue(options={}){
     const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
@@ -517,7 +554,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const duplicates = state.bulkQueue.filter(item => item.status === 'duplicate').length;
       const errors = state.bulkQueue.filter(item => item.status === 'error').length;
       if(els.duelinkTestResult && !options.silentSuccess){
-        els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty ok"><strong>Replays ajoutés à la file.</strong><span>${ready} prêt(s), ${duplicates} doublon(s), ${errors} erreur(s). Utilisez ensuite la file d’import pour contrôler et sauvegarder.</span></div>`);
+        els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty ok"><strong>File d’import prête.</strong><span>${ready} prêt(s), ${duplicates} doublon(s), ${errors} erreur(s). Vérifiez puis sauvegardez les analyses depuis la page Analyse.</span><button type="button" class="primary-button compact" data-duelink-go-bulk>Voir la file d’import</button></div>`);
       }
       return { imported:importedCount, duplicates, errors, ready };
     }catch(err){
@@ -1216,10 +1253,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const opponentDeckEstimate = finalizeOpponentDeckEstimate(opponentDeckTracker);
 
     let mineHandRetention = finalizeHandRetention(handLifecycle.mine);
-    // Certains replays récupérés via API exposent mal les identifiants de main : si le suivi précis est vide,
-    // on reconstruit un signal prudent depuis la main de départ/résolue et le premier moment où la carte quitte la main.
-    if(!mineHandRetention.length && mulligan?.visible){
-      mineHandRetention = fallbackHandRetentionFromMulligan(mulligan, timeline, rows.mine, cards);
+    // Les imports Duel.ink API et les imports manuels doivent produire les mêmes signaux.
+    // Le suivi par instance est prioritaire, mais on le complète systématiquement avec un fallback
+    // depuis la main résolue du mulligan pour éviter les faux vides quand Duel.ink décale les instances
+    // après une pioche/recherche ou un effet de type main -> main.
+    if(mulligan?.visible){
+      const fallbackRetention = fallbackHandRetentionFromMulligan(mulligan, timeline, rows.mine, cards);
+      if(fallbackRetention.length){
+        mineHandRetention = mergeHandRetention([...mineHandRetention, ...fallbackRetention]);
+      }
     }
     return { fileName:file.name, fileSize:file.size, replaySha256:file.replaySha256 || '', data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate, handRetention:mineHandRetention, opponentHandRetention:finalizeHandRetention(handLifecycle.opponent) };
   }
@@ -3222,6 +3264,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         renderBulkQueue();
       }
       await refreshSavedMatches({ force:true, silent:true });
+      const shouldCleanQueue = queue.length > 1 || queue.some(item => item?.duelinkGame || item?.merged?.sourceType === 'duelink_api');
+      if(shouldCleanQueue){
+        state.bulkQueue = state.bulkQueue.filter(item => !['saved','duplicate'].includes(item.status));
+        state.activeBulkIndex = state.bulkQueue.findIndex(item => item?.merged && item.status !== 'error');
+        if(state.activeBulkIndex < 0) state.activeBulkIndex = null;
+      }
       if(els.bulkImportStatus) els.bulkImportStatus.textContent = `${savedCount} analyse(s) sauvegardée(s). ${duplicateCount ? `${duplicateCount} doublon(s) ignoré(s).` : ''}`.trim();
     }finally{
       state.bulkSaving = false;
@@ -3682,6 +3730,28 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     };
   }
 
+  function compactTimelineCard(card){
+    if(!card) return null;
+    const hydrated = hydrateCard(card);
+    const name = cleanCardName(fullName(hydrated));
+    if(!name || name === 'Carte inconnue') return null;
+    return {
+      id:hydrated.id || hydrated.cardId || '',
+      cardId:hydrated.cardId || hydrated.id || '',
+      instanceId:hydrated.instanceId || hydrated.cardInstanceId || '',
+      cardInstanceId:hydrated.cardInstanceId || hydrated.instanceId || '',
+      name:hydrated.name || '',
+      version:hydrated.version || hydrated.title || '',
+      fullName:name,
+      type:hydrated.type || '',
+      colors:arrayify(hydrated.colors),
+      cost:hydrated.cost ?? null,
+      inkable:hydrated.inkable ?? null,
+      image:hydrated.image || '',
+      imageSmall:hydrated.imageSmall || hydrated.image || ''
+    };
+  }
+
   function compactTimeline(rows=[]){
     return (rows || []).map(row => ({
       gameNumber:n(row.gameNumber),
@@ -3691,7 +3761,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       title:row.title,
       detail:row.detail,
       cardName:row.cardName || '',
-      cardKey:row.cardKey || ''
+      cardKey:row.cardKey || '',
+      card:compactTimelineCard(row.card)
     })).slice(0, 800);
   }
 
@@ -3986,7 +4057,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           cardName:name,
           cardKey:key,
           icon:savedActionIcon(row.type),
-          card:key || name ? { id:key || slug(name), name, fullName:name } : null
+          card:row.card ? hydrateCard(row.card) : (key || name ? { id:key || slug(name), name, fullName:name } : null)
         };
       });
   }
@@ -8897,6 +8968,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return [...byTurn.values()].sort((a,b)=>a.turn-b.turn);
   }
 
+  function setPanelInfo(titleEl, label, info){
+    if(!titleEl) return;
+    titleEl.innerHTML = `${esc(label)} <button type="button" class="info-dot" data-info="${escAttr(info)}" aria-label="Plus d’informations sur ${escAttr(label)}">i</button>`;
+  }
+
   function renderStats(){
     const m = getWorkingData();
     if(!m){ renderEmptyStats(); return; }
@@ -8915,12 +8991,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.topDeckTurns.textContent = metrics.handKnown ? metrics.topDeckTurns : '—';
     els.topDeckBadge.textContent = metrics.handKnown ? (metrics.topDeckTurns >= 3 ? 'Main critique : 0 ou 1 carte en fin de tour.' : 'Mesuré après actions et effets du tour.') : 'Main non visible.';
     document.querySelector('#topDeckTurns')?.closest('.pro-card')?.classList.toggle('risk', metrics.topDeckTurns >= 3);
-    if(els.topQuestersTitle) els.topQuestersTitle.textContent = global ? 'Moteurs de Victoire du BO3' : 'Moteurs de Victoire';
-    if(els.topQuestersHelp) els.topQuestersHelp.textContent = global ? 'Les cartes qui ont fait avancer le score sur l’ensemble de la série.' : 'Les cartes qui rapprochent vraiment des 20 lore.';
-    if(els.mostInkedTitle) els.mostInkedTitle.textContent = global ? 'Dead Weights du matchup' : 'Cartes les plus encrées';
-    if(els.mostInkedHelp) els.mostInkedHelp.textContent = global ? 'Cartes souvent encrées : utile pour repérer ce qui sort du plan de jeu.' : 'Depuis main = carte transformée en encre depuis la main. Défausse/board → encre = ajout par effet.';
-    if(els.playTimingTitle) els.playTimingTitle.textContent = global ? 'Séquence de jeu du BO3' : 'Séquence de jeu';
-    if(els.playTimingHelp) els.playTimingHelp.textContent = global ? 'Les cartes jouées dans l’ordre, game par game, sans mélanger les courbes.' : 'Les cartes jouées dans l’ordre. Affichage compact, avec déroulé si besoin.';
+    if(els.topQuestersTitle) setPanelInfo(els.topQuestersTitle, global ? 'Moteurs de Victoire du BO3' : 'Moteurs de Victoire', global ? 'Cartes qui ont fait avancer le score sur l’ensemble de la série.' : 'Classe les cartes qui ont généré ou accéléré votre lore. Le but est d’identifier ce qui vous rapproche réellement des 20 lore.');
+    if(els.topQuestersHelp) els.topQuestersHelp.textContent = global ? 'Top cartes sur la série.' : 'Cartes qui font avancer le score.';
+    if(els.mostInkedTitle) setPanelInfo(els.mostInkedTitle, global ? 'Cartes souvent encrées' : 'Cartes les plus encrées', global ? 'Repère les cartes souvent transformées en encre sur ce matchup. Une carte souvent encrée peut être utile, situationnelle ou trop lourde selon le contexte.' : 'Depuis main = carte encrée depuis votre main. Défausse/board = ajout à l’encrier par effet. Les cartes encrées depuis la main sont prioritaires, car elles n’ont pas été jouées.');
+    if(els.mostInkedHelp) els.mostInkedHelp.textContent = global ? 'Cartes souvent transformées en encre.' : 'Main / effet distingués.';
+    if(els.playTimingTitle) setPanelInfo(els.playTimingTitle, global ? 'Séquence de jeu du BO3' : 'Séquence de jeu', global ? 'Affiche les cartes jouées dans l’ordre, game par game, pour relire le plan de jeu de la série.' : 'Affiche les cartes jouées dans l’ordre. Utile pour voir le rythme de sortie et les tours où le plan s’est installé.');
+    if(els.playTimingHelp) els.playTimingHelp.textContent = global ? 'Ordre des cartes jouées.' : 'Cartes jouées dans l’ordre.';
     renderQuickInsights(m, metrics);
     const comparisonMetrics = state.scope === 'mine' ? m.opponentProMetrics : m.proMetrics;
     const scopedActionSeries = global ? [] : actionSeriesForScope(m, state.scope);
@@ -9058,8 +9134,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const rows = handRetentionForScope(m)
       .filter(row => n(row.maxHeldTurns) > 0 || n(row.averageHeldTurns) > 0)
       .sort((a,b) => n(b.maxHeldTurns) - n(a.maxHeldTurns) || n(b.averageHeldTurns) - n(a.averageHeldTurns));
-    if(els.deadWeightTitle) els.deadWeightTitle.textContent = 'Cartes restées en main';
-    if(els.deadWeightHelp) els.deadWeightHelp.textContent = 'Repère les cartes gardées longtemps avant d’être jouées, encrées ou encore conservées à la fin.';
+    if(els.deadWeightTitle) setPanelInfo(els.deadWeightTitle, 'Cartes restées en main', 'Repère les cartes qui ont occupé votre main longtemps avant d’être jouées, encrées ou conservées jusqu’à la fin. Le signal est calculé depuis la main visible du joueur analysé.');
+    if(els.deadWeightHelp) els.deadWeightHelp.textContent = 'Cartes gardées longtemps.';
     const items = rows.map(row => deadWeightListItem(row));
     renderStatCardList('deadWeight', els.deadWeightTable, items, {
       hideWhenEmpty:false,
@@ -9125,7 +9201,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderStatTables(m){
     const metrics = state.scope === 'mine' ? (m?.proMetrics || {}) : (m?.opponentProMetrics || {});
-    if(els.mostInkedHelp) els.mostInkedHelp.textContent = 'Depuis main = encrée depuis la main. Défausse/board → encre = ajout par effet.';
+    if(els.mostInkedHelp) els.mostInkedHelp.textContent = 'Main / effet distingués.';
     const cards = cardsForScope(m, state.scope);
     const topQuesters = loreEngineCards(cards).sort(compareLoreEngines)
       .map(c => ({
