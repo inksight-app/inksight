@@ -9127,21 +9127,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!Array.isArray(rows) || !rows.length){
       return '<span>Présence sur board</span><strong>Replay en attente</strong><small>Donnée disponible après import.</small>';
     }
-    const peak = [...rows].sort((a,b)=>n(b.lorePotential)-n(a.lorePotential) || n(b.characters)-n(a.characters))[0] || {};
-    const avgChars = round1(rows.reduce((acc,row)=>acc+n(row.characters),0) / Math.max(1, rows.length));
     const comparisonMap = new Map((comparisonRows || []).map(row => [n(row.turn), row]));
     const last = rows[rows.length - 1] || {};
     const oppLast = comparisonMap.get(n(last.turn));
     const swing = oppLast ? n(last.characters) - n(oppLast.characters) : null;
-    const swingText = swing === null ? '' : swing > 0 ? `+${swing} persos au T${n(last.turn)}` : swing < 0 ? `-${Math.abs(swing)} persos au T${n(last.turn)}` : `égalité au T${n(last.turn)}`;
-    return `<span>Board en fin de tour</span><strong>${esc(`${n(peak.characters)} persos · ${n(peak.lorePotential)} lore · T${n(peak.turn)}`)}</strong><small>${esc(swingText || `moy. ${avgChars} persos`)}</small>`;
+    const swingText = swing === null ? `moy. ${round1(rows.reduce((acc,row)=>acc+n(row.characters),0) / Math.max(1, rows.length))} persos` : swing > 0 ? `+${swing} persos au T${n(last.turn)}` : swing < 0 ? `-${Math.abs(swing)} persos au T${n(last.turn)}` : `égalité au T${n(last.turn)}`;
+    const peakPressure = [...rows].sort((a,b)=>n(b.lorePotential)-n(a.lorePotential) || n(b.characters)-n(a.characters))[0] || {};
+    const pressureText = n(peakPressure.lorePotential) ? `Pression lore max : ${n(peakPressure.lorePotential)} au T${n(peakPressure.turn)}` : '';
+    return `<span>Board en fin de tour</span><strong>${esc(swingText)}</strong><small>${esc(pressureText || 'Compare les personnages en jeu.')}</small>`;
   }
 
   function summarizeBoard(rows=[], comparisonRows=[]){
     if(!Array.isArray(rows) || !rows.length) return 'Aucune donnée de board disponible.';
     const maxPotential = Math.max(...rows.map(row => n(row.lorePotential)));
     const maxChars = Math.max(...rows.map(row => n(row.characters)));
-    return `Présence sur board : pic à ${maxChars} personnage(s), ${maxPotential} lore potentiel à la fin des tours du joueur affiché.`;
+    return `Présence sur board : pic à ${maxChars} personnage(s). Pression lore maximale du joueur affiché : ${maxPotential}.`;
   }
 
   function renderBoardChart(rows=[], comparisonRows=[]){
@@ -9158,15 +9158,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const comparisonColors = viewedIsOpponent ? mineColors : opponentColors;
     const viewedLabel = viewedIsOpponent ? 'Persos adverses' : 'Vos persos';
     const comparisonLabel = viewedIsOpponent ? 'Vos persos' : 'Persos adverses';
-    const loreLabel = viewedIsOpponent ? 'Lore potentiel adverse' : 'Votre lore potentiel';
     const viewedColor = viewedColors[0] || theme[0];
-    const comparisonColor = comparisonColors[0] || theme[1];
-    const loreColor = getComputedStyle(document.documentElement).getPropertyValue('--warn').trim() || '#facc15';
+    const comparisonColor = ensureChartContrast(comparisonColors[0] || theme[1], [viewedColor]);
     const datasets = [
       {
         label:viewedLabel,
         data:turnValues.map(turn => rowMap.has(turn) ? n(rowMap.get(turn).characters) : null),
-        tension:.42,
+        tension:.36,
         borderWidth:3,
         pointRadius:0,
         pointHoverRadius:5,
@@ -9181,8 +9179,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       datasets.push({
         label:comparisonLabel,
         data:turnValues.map(turn => comparisonMap.has(turn) ? n(comparisonMap.get(turn).characters) : null),
-        tension:.42,
-        borderWidth:2.4,
+        tension:.36,
+        borderWidth:2.6,
         pointRadius:0,
         pointHoverRadius:5,
         borderColor:comparisonColor,
@@ -9192,21 +9190,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         fill:false
       });
     }
-    datasets.push({
-      label:loreLabel,
-      data:turnValues.map(turn => rowMap.has(turn) ? n(rowMap.get(turn).lorePotential) : null),
-      tension:.42,
-      borderWidth:2,
-      pointRadius:0,
-      pointHoverRadius:5,
-      borderColor:loreColor,
-      backgroundColor:loreColor,
-      pointBackgroundColor:loreColor,
-      pointBorderColor:loreColor,
-      borderDash:[5,6],
-      fill:false,
-      noGlow:true
-    });
     charts.board = chart(charts.board, 'boardPresenceChart', 'line', { labels, datasets }, { scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } });
     updateChartDataTable('boardPresenceChart', labels, datasets, 'Données du graphique de présence sur board');
   }
@@ -9227,24 +9210,37 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       { label:'Ligne de victoire · 20 lore', data:rows.map(()=>20), borderColor:'rgba(255,255,255,.24)', borderDash:[5,6], borderWidth:1, pointRadius:0, pointHoverRadius:0, fill:false, tension:0, noGlow:true, tooltipSkip:true }
     ];
     charts.lore = chart(charts.lore, 'loreChart', 'line', { labels, datasets }, { scales:{ y:{ beginAtZero:true, suggestedMax:21 } } });
-    updateChartDataTable('loreChart', labels, datasets, 'Données du graphique de lore');
+    updateChartDataTable('loreChart', labels, datasets, 'Données du graphique de course aux 20 lore');
   }
   function renderActionChart(rows){
     setChartReadoutDefault('actionChart', summarizeDefaultActionReadout(rows));
     const labels = rows.map(r=>`T${r.turn}`);
     const theme = cssThemeColors();
+    const palette = distinctChartPalette([theme[0], theme[1]], 4);
     const boardHighlights = detectBoardControlHighlights(rows);
-    const challengeDataset = { label:'Défis', data:rows.map(r=>r.challenge), backgroundColor:hexToRgba(theme[1], .78), borderColor:hexToRgba(theme[1], .78), borderWidth:1, highlightMessages:makeHighlightMessages(rows.length, boardHighlights), maxBarThickness:24, borderWidth:0, borderRadius:0 };
-    styleBarHighlights(challengeDataset, hexToRgba(theme[1], .78), hexToRgba(theme[1], .78), 'board');
+    const challengeDataset = {
+      label:'Défis',
+      data:rows.map(r=>r.challenge),
+      backgroundColor:hexToRgba(palette[3], .86),
+      borderColor:palette[3],
+      borderWidth:0,
+      highlightMessages:makeHighlightMessages(rows.length, boardHighlights),
+      maxBarThickness:16,
+      borderRadius:0,
+      categoryPercentage:.76,
+      barPercentage:.74
+    };
+    styleBarHighlights(challengeDataset, hexToRgba(palette[3], .86), palette[3], 'board');
     const datasets = [
-      { label:'Encrées', data:rows.map(r=>r.ink), backgroundColor:theme[1], maxBarThickness:24, borderWidth:0, borderRadius:0 },
-      { label:'Jouées', data:rows.map(r=>r.play), backgroundColor:theme[0], maxBarThickness:24, borderWidth:0, borderRadius:0 },
-      { label:'Quêtes', data:rows.map(r=>r.quest), backgroundColor:hexToRgba(theme[0], .78), maxBarThickness:24, borderWidth:0, borderRadius:0 },
+      { label:'Encrées', data:rows.map(r=>r.ink), backgroundColor:hexToRgba(palette[1], .92), borderColor:palette[1], maxBarThickness:16, borderWidth:0, borderRadius:0, categoryPercentage:.76, barPercentage:.74 },
+      { label:'Jouées', data:rows.map(r=>r.play), backgroundColor:hexToRgba(palette[0], .92), borderColor:palette[0], maxBarThickness:16, borderWidth:0, borderRadius:0, categoryPercentage:.76, barPercentage:.74 },
+      { label:'Quêtes', data:rows.map(r=>r.quest), backgroundColor:hexToRgba(palette[2], .86), borderColor:palette[2], maxBarThickness:16, borderWidth:0, borderRadius:0, categoryPercentage:.76, barPercentage:.74 },
       challengeDataset
     ];
-    charts.action = chart(charts.action, 'actionChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true } } });
+    charts.action = chart(charts.action, 'actionChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:false }, y:{ stacked:false, beginAtZero:true, ticks:{ precision:0 } } } });
     updateChartDataTable('actionChart', labels, datasets, 'Données du graphique des actions par tour');
   }
+
   function renderInkChart(rows){
     setChartReadoutDefault('inkFloatChart', summarizeDefaultInkReadout(rows));
     const labels = rows.map(r=>`T${r.turn}`);
@@ -9670,7 +9666,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const overtake = all.find(h => h.kind === 'overtake' && h.owner === 'mine') || all.find(h => h.kind === 'overtake');
     const sprint = all.filter(h => h.kind === 'sprint').sort((a,b)=>b.delta-a.delta)[0];
     const suffix = overtake ? ` Overtake détecté au tour ${overtake.turn}.` : sprint ? ` Accélération détectée au tour ${sprint.turn} : +${sprint.delta} lore ${sprint.owner === 'mine' ? 'pour vous' : 'adverse'}.` : '';
-    return `Résumé du graphique : vous terminez à ${n(last.mine)} lore contre ${n(last.opponent)} pour l’adversaire au tour ${last.turn}.${suffix}`;
+    return `Résumé du graphique : score final affiché, vous terminez à ${n(last.mine)} lore contre ${n(last.opponent)} pour l’adversaire au tour ${last.turn}.${suffix}`;
   }
   function summarizeActions(rows){
     if(!rows?.length) return 'Aucune action à afficher.';
@@ -9792,6 +9788,56 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function mean(arr){ const a=arr.map(n).filter(Number.isFinite); return a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0; }
   function pct(a,b){ return b ? Math.round(n(a)/n(b)*100) : 0; }
   function round1(v){ const x=n(v); return Math.round(x*10)/10; }
+  function hexToRgbParts(color){
+    const raw = String(color || '').trim();
+    if(raw.startsWith('rgb')){
+      const nums = raw.match(/[\d.]+/g)?.slice(0,3).map(Number) || [];
+      if(nums.length >= 3) return nums.map(v => Math.max(0, Math.min(255, v)));
+    }
+    const clean = raw.replace('#','');
+    const full = clean.length === 3 ? clean.split('').map(ch => ch + ch).join('') : clean;
+    if(!/^([0-9a-f]{6})$/i.test(full)) return [47,139,217];
+    return [parseInt(full.slice(0,2),16), parseInt(full.slice(2,4),16), parseInt(full.slice(4,6),16)];
+  }
+  function chartColorDistance(a,b){
+    const aa = hexToRgbParts(a), bb = hexToRgbParts(b);
+    return Math.sqrt((aa[0]-bb[0])**2 + (aa[1]-bb[1])**2 + (aa[2]-bb[2])**2);
+  }
+  function ensureChartContrast(color, used=[], fallbackIndex=0){
+    const styles = getComputedStyle(document.documentElement);
+    const candidates = [
+      color,
+      styles.getPropertyValue('--warn').trim() || '#f6c54d',
+      styles.getPropertyValue('--good').trim() || '#34d399',
+      styles.getPropertyValue('--bad').trim() || '#fb7185',
+      '#38bdf8', '#a78bfa', '#f97316', '#e5e7eb'
+    ].filter(Boolean);
+    for(const candidate of candidates){
+      if((used || []).every(existing => chartColorDistance(candidate, existing) >= 86)) return candidate;
+    }
+    return candidates[fallbackIndex % candidates.length] || color || '#e5e7eb';
+  }
+  function distinctChartPalette(seed=[], count=4){
+    const styles = getComputedStyle(document.documentElement);
+    const candidates = [
+      ...(seed || []),
+      styles.getPropertyValue('--warn').trim() || '#f6c54d',
+      styles.getPropertyValue('--good').trim() || '#34d399',
+      styles.getPropertyValue('--bad').trim() || '#fb7185',
+      '#38bdf8', '#a78bfa', '#f97316', '#e5e7eb'
+    ].filter(Boolean);
+    const out = [];
+    for(const candidate of candidates){
+      if(out.length >= count) break;
+      if(out.every(existing => chartColorDistance(candidate, existing) >= 76)) out.push(candidate);
+    }
+    for(const candidate of candidates){
+      if(out.length >= count) break;
+      if(!out.includes(candidate)) out.push(candidate);
+    }
+    return out.slice(0, count);
+  }
+
   function hexToRgba(hex, alpha=.16){
     const clean = String(hex || '').trim().replace('#','');
     const full = clean.length === 3 ? clean.split('').map(ch => ch + ch).join('') : clean;
