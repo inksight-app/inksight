@@ -32,7 +32,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -116,6 +116,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.historyResetFilters?.addEventListener('click', resetHistoryFilters);
     els.deckManagerRefresh?.addEventListener('click', async () => { await refreshDeckProfiles({ force:true, silent:true }); await refreshSavedMatches({ force:true, silent:true }); renderAccountPage(); });
     els.duelinkTestButton?.addEventListener('click', testDuelinkToken);
+    els.duelinkPreviewButton?.addEventListener('click', previewDuelinkMatches);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
     [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
     document.addEventListener('click', handlePerformanceFilterClick);
@@ -187,6 +188,116 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         </div>
       </div>
       <ul class="duelink-result-list">${rows}</ul>`;
+  }
+
+
+  function collectSavedDuelinkRefs(){
+    const gameIds = new Set();
+    const replayIds = new Set();
+    const rows = Array.isArray(state.savedMatches) ? state.savedMatches : [];
+    rows.forEach(row => {
+      if(row?.duelink_match_id) gameIds.add(String(row.duelink_match_id));
+      if(row?.analysis_json?.duelink_game_id) gameIds.add(String(row.analysis_json.duelink_game_id));
+      if(row?.analysis_json?.duelink_replay_id) replayIds.add(String(row.analysis_json.duelink_replay_id));
+      if(row?.api_metadata?.game_id) gameIds.add(String(row.api_metadata.game_id));
+      if(row?.api_metadata?.replay_id) replayIds.add(String(row.api_metadata.replay_id));
+    });
+    const games = Array.isArray(state.savedAnalytics?.games) ? state.savedAnalytics.games : [];
+    games.forEach(row => {
+      if(row?.duelink_game_id) gameIds.add(String(row.duelink_game_id));
+      if(row?.duelink_replay_id) replayIds.add(String(row.duelink_replay_id));
+      if(row?.api_row?.id) gameIds.add(String(row.api_row.id));
+      if(row?.api_row?.replayId || row?.api_row?.replay_id) replayIds.add(String(row.api_row.replayId || row.api_row.replay_id));
+    });
+    return { gameIds, replayIds };
+  }
+
+  function duelinkPreviewStatus(game, refs){
+    const gameId = game?.id ? String(game.id) : '';
+    const replayId = game?.replayId ? String(game.replayId) : '';
+    if((gameId && refs.gameIds.has(gameId)) || (replayId && refs.replayIds.has(replayId))){
+      return { key:'existing', label:'Déjà présent' };
+    }
+    return { key:'new', label:'Nouveau' };
+  }
+
+  function renderDuelinkPreviewResult(payload){
+    if(!els.duelinkTestResult) return;
+    const games = Array.isArray(payload?.games) ? payload.games : [];
+    if(!games.length){
+      els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty"><strong>Aucun match à prévisualiser.</strong><span>L’API répond, mais aucune partie n’est retournée dans cette fenêtre.</span></div>`;
+      return;
+    }
+    const refs = collectSavedDuelinkRefs();
+    const classified = games.map((game, index) => ({ game, index, status:duelinkPreviewStatus(game, refs) }));
+    const newCount = classified.filter(row => row.status.key === 'new').length;
+    const existingCount = classified.length - newCount;
+    const replayCount = games.filter(game => game.replayId).length;
+    const newest = games.slice().sort((a,b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0];
+    const rows = classified.map(({ game, index, status }) => {
+      const source = duelinkSourceLabel(game.source);
+      const queue = game.queue ? esc(String(game.queue)) : 'queue inconnue';
+      const replay = game.replayId ? 'Replay OK' : 'Replay non indiqué';
+      const title = game.opponent ? `vs ${esc(game.opponent)}` : `Match Duel.ink ${game.id ? `<span class="duelink-row-id">${esc(String(game.id).slice(0, 10))}</span>` : `#${index + 1}`}`;
+      const date = formatShortDateTime(game.updatedAt);
+      const dateLabel = game.dateSource === 'id' ? `${date} · estimée via ID` : date;
+      return `<li class="duelink-preview-row ${escAttr(status.key)}">
+        <div class="duelink-row-main"><strong>${title}</strong><span>${esc(dateLabel)}</span></div>
+        <div class="duelink-row-meta"><span class="duelink-preview-status ${escAttr(status.key)}">${esc(status.label)}</span><span>${esc(source)}</span><span>${queue}</span><span>${esc(replay)}</span></div>
+      </li>`;
+    }).join('');
+    const compareText = state.currentUser
+      ? 'Comparaison avec vos sauvegardes actuelles. Aucun replay n’est importé.'
+      : 'Connectez-vous pour comparer avec vos sauvegardes. Aucun replay n’est importé.';
+    els.duelinkTestResult.innerHTML = `
+      <div class="duelink-result-summary">
+        <div><strong>Prévisualisation prête</strong><span>${compareText}</span></div>
+        <div class="duelink-mini-stats" aria-label="Résumé preview Duel.ink">
+          <span><b>${games.length}</b><small>matchs lus</small></span>
+          <span><b>${newCount}</b><small>nouveaux</small></span>
+          <span><b>${existingCount}</b><small>déjà présents</small></span>
+          <span><b>${replayCount}</b><small>replays OK</small></span>
+          <span><b>${esc(formatShortDateTime(newest?.updatedAt))}</b><small>dernier match</small></span>
+        </div>
+      </div>
+      <ul class="duelink-result-list">${rows}</ul>`;
+  }
+
+  async function previewDuelinkMatches(){
+    const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
+    if(!token){
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez d’abord un token Duel.ink.</strong><span>Le token sert uniquement à cette prévisualisation et n’est pas enregistré.</span></div>';
+      return;
+    }
+    if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Preview en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
+    if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = true;
+    if(els.duelinkTestButton) els.duelinkTestButton.disabled = true;
+    if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = true;
+    if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty"><strong>Lecture de Duel.ink…</strong><span>Récupération des 25 derniers matchs et comparaison avec vos sauvegardes. Rien n’est importé.</span></div>';
+    try{
+      if(state.currentUser){
+        await refreshSavedMatches({ force:true, silent:true });
+      }
+      const response = await fetch('/api/duelink-history', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ token, limit:25 })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if(!response.ok || !payload.success){
+        throw new Error(payload.error || `Erreur HTTP ${response.status}`);
+      }
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Preview OK'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
+      renderDuelinkPreviewResult(payload);
+    }catch(err){
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec preview'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty error"><strong>Impossible de prévisualiser les matchs Duel.ink.</strong><span>${esc(err.message || err)}.</span></div>`;
+    }finally{
+      if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = false;
+      if(els.duelinkTestButton) els.duelinkTestButton.disabled = false;
+      if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = false;
+    }
   }
 
   async function testDuelinkToken(){
