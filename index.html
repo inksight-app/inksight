@@ -613,24 +613,7 @@
                     Continuer avec Discord
                   </button>
 
-                  <div class="auth-divider"><span>ou utiliser un email</span></div>
-
-                  <label>
-                    Email
-                    <input type="email" id="authEmail" placeholder="joueur@email.com" autocomplete="email">
-                  </label>
-
-                  <label>
-                    Mot de passe
-                    <input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password">
-                  </label>
-
-                  <div class="auth-actions">
-                    <button id="btnLogin" class="auth-btn auth-btn-primary" type="button">Se connecter</button>
-                    <button id="btnSignup" class="auth-btn auth-btn-secondary" type="button">Créer un compte</button>
-                  </div>
-
-                  <p class="auth-note">Discord est recommandé. L’email reste disponible comme solution de secours.</p>
+                  <p class="auth-note">Connexion par Discord uniquement pour cette version. Les options email pourront revenir plus tard.</p>
                   <p id="authMessage" class="auth-message" role="status"></p>
                 </div>
               </div>
@@ -663,7 +646,7 @@
         </div>
       </section>
 
-      <section class="account-grid account-grid-v71">
+      <section class="account-grid account-grid-v71" data-auth-required>
         <article class="glass account-card account-profile-card">
           <span>Profil</span>
           <h2 id="accountProfileTitle">Non connecté</h2>
@@ -678,7 +661,7 @@
       </section>
 
 
-      <section class="glass duelink-connect-section duelink-sync-card" aria-labelledby="duelinkConnectTitle">
+      <section class="glass duelink-connect-section duelink-sync-card" data-auth-required aria-labelledby="duelinkConnectTitle">
         <div class="duelink-connect-head">
           <div class="duelink-title-block">
             <div class="kicker">Duel.ink API · synchronisation</div>
@@ -715,7 +698,7 @@
         <div id="duelinkTestResult" class="duelink-test-result">Collez un token, testez la connexion, puis prévisualisez les matchs avant import.</div>
       </section>
 
-      <section class="glass deck-manager-section" aria-labelledby="deckManagerTitle">
+      <section class="glass deck-manager-section" data-auth-required aria-labelledby="deckManagerTitle">
         <div class="deck-manager-head">
           <div>
             <div class="kicker">Mes decks</div>
@@ -728,7 +711,7 @@
         <div id="deckManagerList" class="deck-manager-list"></div>
       </section>
 
-      <section class="glass data-maintenance-section" aria-labelledby="dataMaintenanceTitle">
+      <section class="glass data-maintenance-section" data-auth-required aria-labelledby="dataMaintenanceTitle">
         <div class="kicker">Maintenance</div>
         <h2 id="dataMaintenanceTitle">Analyses à vérifier</h2>
         <p>Repérez les anciennes sauvegardes partielles et les doublons potentiels avant d’ajouter de nouvelles statistiques avancées.</p>
