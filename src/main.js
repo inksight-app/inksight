@@ -921,7 +921,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function importDuelinkPreviewAndSave(options={}){
     if(state.duelinkAutoSaving || state.duelinkImporting) return;
-    if(!state.currentUser){
+    const user = await ensureInkSightUser({ render:true });
+    if(!user){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Connexion requise'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty error"><strong>Connectez-vous avant la sauvegarde.</strong><span>Le test et l’import sont possibles sans stockage du token, mais la sauvegarde dans l’historique nécessite votre compte InkSight.</span></div>');
       syncDuelinkActionButtons();
@@ -3494,6 +3495,42 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderCloudStatus();
   }
 
+  async function ensureInkSightUser(options={}){
+    if(state.currentUser) return state.currentUser;
+    try{
+      const { data } = await supabase.auth.getSession();
+      const sessionUser = data?.session?.user || null;
+      if(sessionUser){
+        state.currentUser = sessionUser;
+        setCloudOnline();
+        if(options.render){
+          syncSaveButton();
+          renderBulkQueue();
+          renderPerformanceData();
+        }
+        return sessionUser;
+      }
+    }catch(err){
+      console.warn('Session Supabase temporairement indisponible', err);
+    }
+    try{
+      const user = await getCurrentUser();
+      if(user){
+        state.currentUser = user;
+        setCloudOnline();
+        if(options.render){
+          syncSaveButton();
+          renderBulkQueue();
+          renderPerformanceData();
+        }
+        return user;
+      }
+    }catch(err){
+      console.warn('Utilisateur Supabase temporairement indisponible', err);
+    }
+    return null;
+  }
+
   function renderCloudStatus(){
     document.body?.classList.toggle('cloud-offline', !!state.cloudOffline);
     if(!els.cloudStatusBanner) return;
@@ -3576,12 +3613,27 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
 
-    els.saveAnalysisButton.textContent = state.lastSavedMatchId ? 'Analyse sauvegardée' : 'Sauvegarder l’analyse';
-    els.saveAnalysisStatus.textContent = message || (state.lastSavedMatchId ? 'Ce match est dans votre historique.' : 'Cette analyse sera liée à votre compte.');
+    const alreadySaved = !!(state.lastSavedMatchId || state.loadedSavedMatchId);
+    if(alreadySaved){
+      // V136.0C: un match déjà sauvegardé ne doit plus proposer d’action de sauvegarde.
+      // Cela évite les doublons quand l’utilisateur rouvre une analyse depuis l’historique.
+      els.saveAnalysisPanel.hidden = true;
+      els.saveAnalysisButton.disabled = true;
+      els.saveAnalysisButton.textContent = 'Analyse sauvegardée';
+      els.saveAnalysisStatus.textContent = message || 'Ce match est déjà dans votre historique.';
+      return;
+    }
+
+    els.saveAnalysisButton.textContent = 'Sauvegarder l’analyse';
+    els.saveAnalysisStatus.textContent = message || 'Cette analyse sera liée à votre compte.';
   }
 
   async function saveCurrentAnalysis(){
     if(state.savePending) return;
+    if(state.lastSavedMatchId || state.loadedSavedMatchId){
+      syncSaveButton('Ce match est déjà dans votre historique. Aucun doublon créé.');
+      return;
+    }
     if(!state.currentUser){
       syncSaveButton('Connectez-vous avec Discord avant de sauvegarder.');
       return;
@@ -3626,9 +3678,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function saveBulkQueue(){
     if(state.bulkSaving) return { saved:0, duplicates:0, errors:0 };
-    if(!state.currentUser){
+    const user = await ensureInkSightUser({ render:true });
+    if(!user){
       if(els.bulkImportStatus) els.bulkImportStatus.textContent = 'Connectez-vous avec Discord avant de sauvegarder un lot.';
-      return;
+      return { saved:0, duplicates:0, errors:0 };
     }
     const queue = state.bulkQueue || [];
     const candidates = queue.filter(item => item.merged && ['ready','warning'].includes(item.status));
@@ -4833,21 +4886,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function handleInfoDotClick(event){
     const button = event.target.closest('.info-dot[data-info]');
-    document.querySelectorAll('.info-popover').forEach(node => node.remove());
+    const existing = document.querySelector('.info-popover-backdrop');
+    if(existing) existing.remove();
     if(!button) return;
     event.preventDefault();
     event.stopPropagation();
     const pop = document.createElement('div');
-    pop.className = 'info-popover';
-    pop.textContent = button.dataset.info || '';
+    pop.className = 'info-popover-backdrop';
+    pop.innerHTML = `<div class="info-popover-modal" role="dialog" aria-modal="true" aria-label="Information"><button type="button" class="info-popover-close" aria-label="Fermer">×</button><p>${esc(button.dataset.info || '')}</p></div>`;
     document.body.appendChild(pop);
-    const rect = button.getBoundingClientRect();
-    const width = Math.min(320, window.innerWidth - 32);
-    pop.style.maxWidth = `${width}px`;
-    const left = Math.min(window.innerWidth - width - 16, Math.max(16, rect.left + rect.width / 2 - width / 2));
-    const top = Math.min(window.innerHeight - 80, rect.bottom + 10);
-    pop.style.left = `${left}px`;
-    pop.style.top = `${top}px`;
+    pop.querySelector('.info-popover-close')?.focus();
+    pop.addEventListener('click', e => {
+      if(e.target === pop || e.target.closest('.info-popover-close')) pop.remove();
+    });
   }
 
   function renderDeckOptions(){
@@ -5218,7 +5269,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     });
     return [
       { value:'all', label:'Toutes les bicolorités' },
-      ...[...map.values()].sort((a,b)=>b.count-a.count || a.label.localeCompare(b.label)).map(item => ({ ...item, label:`${item.label} · ${item.count}` }))
+      ...[...map.values()].sort((a,b)=>b.count-a.count || a.label.localeCompare(b.label)).map(item => ({
+        ...item,
+        label:`${item.count}`,
+        shortLabel:`${item.count}`,
+        ariaLabel:`${item.label} · ${item.count} match${item.count > 1 ? 's' : ''}`,
+        compact:true
+      }))
     ];
   }
 
@@ -5300,7 +5357,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const label = option.shortLabel || option.label;
       const aria = option.ariaLabel || option.label || label;
       const compact = option.compact ? ' compact-matchup-pill' : '';
-      return `<button type="button" class="filter-pill${compact} ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-label="${escAttr(aria)}" title="${escAttr(aria)}" aria-pressed="${active ? 'true' : 'false'}">${dots}<span>${esc(label)}</span></button>`;
+      const colorOnly = option.colors?.length ? ' color-badge-pill' : '';
+      return `<button type="button" class="filter-pill${compact}${colorOnly} ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-label="${escAttr(aria)}" title="${escAttr(aria)}" aria-pressed="${active ? 'true' : 'false'}">${dots}<span>${esc(label)}</span></button>`;
     }).join('');
   }
 
@@ -5341,13 +5399,22 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function refreshSavedMatches(options={}){
     if(!state.currentUser){
-      state.savedMatches = [];
-      state.savedMatchesLoaded = false;
-      state.selectedSavedMatchId = null;
-      state.expandedSavedMatchId = null;
-      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' };
-      renderPerformanceData();
-      return [];
+      const user = await ensureInkSightUser();
+      if(!user){
+        // Ne pas vider brutalement l'historique local sur un simple trou réseau/session.
+        // L'événement SIGNED_OUT officiel reste responsable du vrai nettoyage.
+        if((state.savedMatches || []).length){
+          renderPerformanceData();
+          return state.savedMatches;
+        }
+        state.savedMatches = [];
+        state.savedMatchesLoaded = false;
+        state.selectedSavedMatchId = null;
+        state.expandedSavedMatchId = null;
+        state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' };
+        renderPerformanceData();
+        return [];
+      }
     }
     if(state.savedMatchesLoading) return state.savedMatches;
     if(state.savedMatchesLoaded && !options.force){
@@ -5365,12 +5432,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       await refreshSavedAnalytics(state.savedMatches, { force:!!options.force });
     }catch(err){
       console.error(err);
-      state.savedMatches = [];
+      // V136.0D: ne jamais effacer l'historique visible si Supabase a un problème temporaire
+      // après un gros import ou un refresh de session. On garde les données déjà chargées.
       state.savedMatchesLoaded = true;
-      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:err.message || 'Historique indisponible.' };
-      if(els.historyStatus) els.historyStatus.textContent = `Erreur historique : ${err.message || err}`;
-      if(els.historyList) els.historyList.innerHTML = `<div class="history-empty-state"><strong>Impossible de charger l’historique.</strong><span>${esc(err.message || err)}. Vérifiez la connexion puis réessayez.</span><button type="button" class="ghost-button compact" id="historyRetryInline">Réessayer</button></div>`;
-      document.getElementById('historyRetryInline')?.addEventListener('click', () => refreshSavedMatches({ force:true }));
+      state.savedAnalytics = { ...(state.savedAnalytics || {}), loading:false, error:err.message || 'Historique indisponible.' };
+      if(els.historyStatus) els.historyStatus.textContent = `Historique temporairement indisponible : ${err.message || err}`;
+      if(!(state.savedMatches || []).length && els.historyList){
+        els.historyList.innerHTML = `<div class="history-empty-state"><strong>Impossible de charger l’historique.</strong><span>${esc(err.message || err)}. Vérifiez la connexion puis réessayez.</span><button type="button" class="ghost-button compact" id="historyRetryInline">Réessayer</button></div>`;
+        document.getElementById('historyRetryInline')?.addEventListener('click', () => refreshSavedMatches({ force:true }));
+      }
     }finally{
       state.savedMatchesLoading = false;
       renderPerformanceData();
@@ -7919,19 +7989,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const losses = visibleRows.filter(row => row.result === 'loss').length;
     const winrate = visibleRows.length ? Math.round((wins / visibleRows.length) * 100) : 0;
     const latest = visibleRows[0];
-    const latestDeck = latest?.deck_name || latest?.analysis_json?.deck?.name || '—';
+    const latestColors = latest ? rowMineColors(latest) : [];
+    const latestDeck = latestColors.length ? inkDotsHtml(latestColors) : esc(latest?.deck_name || latest?.analysis_json?.deck?.name || '—');
     return `<div class="history-summary-strip" aria-label="Résumé de l’historique filtré">
       <div><span>Total</span><strong>${esc(total)}</strong><small>analyses sauvegardées</small></div>
       <div><span>Vue actuelle</span><strong>${esc(visibleRows.length)}</strong><small>matchs filtrés</small></div>
       <div><span>Winrate</span><strong>${visibleRows.length ? `${winrate}%` : '—'}</strong><small>${wins} V · ${losses} D</small></div>
-      <div><span>Dernier deck</span><strong>${esc(latestDeck)}</strong><small>${esc(latest ? formatSavedDate(getSavedMatchPlayedAt(latest)) : '—')}</small></div>
+      <div><span>Dernière bicolorité</span><strong class="history-summary-colors">${latestDeck}</strong><small>${esc(latest ? formatSavedDate(getSavedMatchPlayedAt(latest)) : '—')}</small></div>
     </div>`;
   }
 
 
   function renderSavedHistory(){
     if(!els.historyList) return;
-    if(!state.currentUser){
+    if(!state.currentUser && !(state.savedMatches || []).length){
       renderPostImportCleanup();
       els.historyList.innerHTML = '<div class="empty-line">Connectez-vous avec Discord pour afficher vos matchs sauvegardés.</div>';
       if(els.historyStatus) els.historyStatus.textContent = 'Historique disponible après connexion.';
