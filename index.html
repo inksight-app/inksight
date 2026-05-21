@@ -692,14 +692,17 @@
             Token API Duel.ink
             <input id="duelinkTokenInput" type="password" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Bearer token Duel.ink" />
           </label>
-          <button id="duelinkTestButton" type="button" class="primary-button compact">Tester la connexion</button>
+          <div class="duelink-token-actions">
+            <button id="duelinkTestButton" type="button" class="ghost-button compact">Tester la connexion</button>
+            <button id="duelinkPreviewButton" type="button" class="primary-button compact">Prévisualiser 25 matchs</button>
+          </div>
         </div>
         <div class="duelink-help-grid">
           <div><strong>Conseil sécurité</strong><span>Créez un token Duel.ink avec expiration. 90 jours est un bon compromis. Évitez “No expiry” sauf besoin avancé.</span></div>
           <div><strong>Lecture seule</strong><span>Le token permet uniquement de lire vos matchs, replays et logs. Il ne permet pas de jouer ou modifier votre compte.</span></div>
-          <div><strong>Pas encore de sync</strong><span>Cette étape teste seulement <code>/match-history</code>. Aucun replay n’est téléchargé ou sauvegardé automatiquement.</span></div>
+          <div><strong>Preview sans import</strong><span>Cette étape lit <code>/match-history</code> et compare avec vos sauvegardes. Aucun replay n’est téléchargé ni sauvegardé.</span></div>
         </div>
-        <div id="duelinkTestResult" class="duelink-test-result">Collez un token puis lancez le test pour afficher les 5 derniers matchs visibles par l’API.</div>
+        <div id="duelinkTestResult" class="duelink-test-result">Collez un token puis testez la connexion, ou prévisualisez les matchs Duel.ink disponibles sans rien importer.</div>
       </section>
 
       <section class="glass deck-manager-section" aria-labelledby="deckManagerTitle">
