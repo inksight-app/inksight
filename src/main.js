@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -32,7 +32,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImportSaveButton','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -118,6 +118,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.duelinkTestButton?.addEventListener('click', testDuelinkToken);
     els.duelinkPreviewButton?.addEventListener('click', previewDuelinkMatches);
     els.duelinkImportButton?.addEventListener('click', () => importDuelinkPreviewToBulkQueue());
+    els.duelinkSaveTokenButton?.addEventListener('click', saveDuelinkTokenForAccount);
+    els.duelinkForgetTokenButton?.addEventListener('click', forgetDuelinkTokenForAccount);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
     [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
     document.addEventListener('click', handlePerformanceFilterClick);
@@ -374,11 +376,123 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     openBulkImportArea();
   }
 
-  async function downloadDuelinkReplayBuffer(token, replayId){
+
+  async function duelinkAuthHeaders(extra={}){
+    const headers = { ...extra };
+    try{
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      if(accessToken) headers.Authorization = `Bearer ${accessToken}`;
+    }catch(err){ console.warn('Session Supabase indisponible pour Duel.ink', err); }
+    return headers;
+  }
+
+  async function duelinkTokenPayload(){
+    const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
+    return token ? { token } : {};
+  }
+
+  async function hasDuelinkTokenAvailable(){
+    const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
+    return Boolean(token || state.duelinkConnection?.connected);
+  }
+
+  function updateDuelinkStoredTokenUi(){
+    const connection = state.duelinkConnection;
+    const connected = Boolean(connection?.connected);
+    if(els.duelinkSavedTokenHint){
+      els.duelinkSavedTokenHint.textContent = connected
+        ? `Clé mémorisée sur ce compte (${connection.connection?.token_hint || 'chiffrée'}). Vous pouvez synchroniser sans la recoller.`
+        : 'Optionnel : mémorisez la clé de manière chiffrée pour éviter de la recoller à chaque session.';
+    }
+    if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.hidden = !connected;
+    if(els.duelinkSaveTokenButton) els.duelinkSaveTokenButton.textContent = connected ? 'Remplacer la clé mémorisée' : 'Mémoriser la clé chiffrée';
+  }
+
+  async function refreshDuelinkConnectionStatus({ silent=false }={}){
+    if(!state.currentUser){
+      state.duelinkConnection = null;
+      state.duelinkConnectionLoaded = true;
+      updateDuelinkStoredTokenUi();
+      return null;
+    }
+    try{
+      const response = await fetch('/api/duelink-token', {
+        method:'GET',
+        headers: await duelinkAuthHeaders(),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
+      state.duelinkConnection = payload;
+      state.duelinkConnectionLoaded = true;
+      updateDuelinkStoredTokenUi();
+      return payload;
+    }catch(err){
+      state.duelinkConnection = null;
+      state.duelinkConnectionLoaded = true;
+      updateDuelinkStoredTokenUi();
+      if(!silent && els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = `Statut clé Duel.ink indisponible : ${err.message || err}`;
+      return null;
+    }
+  }
+
+  async function saveDuelinkTokenForAccount(){
+    const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
+    if(!state.currentUser){
+      if(els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = 'Connectez-vous à InkSight avant de mémoriser une clé.';
+      return;
+    }
+    if(!token){
+      if(els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = 'Collez une clé Duel.ink avant de la mémoriser.';
+      return;
+    }
+    if(els.duelinkSaveTokenButton) els.duelinkSaveTokenButton.disabled = true;
+    try{
+      const response = await fetch('/api/duelink-token', {
+        method:'POST',
+        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+        body: JSON.stringify({ token })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
+      state.duelinkConnection = payload;
+      if(els.duelinkTokenInput) els.duelinkTokenInput.value = '';
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Clé mémorisée'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
+      updateDuelinkStoredTokenUi();
+    }catch(err){
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Mémoire indisponible'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
+      if(els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = err.message || String(err);
+    }finally{
+      if(els.duelinkSaveTokenButton) els.duelinkSaveTokenButton.disabled = false;
+    }
+  }
+
+  async function forgetDuelinkTokenForAccount(){
+    if(!state.currentUser) return;
+    if(!confirm('Supprimer la clé Duel.ink mémorisée pour ce compte ?')) return;
+    if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.disabled = true;
+    try{
+      const response = await fetch('/api/duelink-token', {
+        method:'DELETE',
+        headers: await duelinkAuthHeaders(),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
+      state.duelinkConnection = payload;
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Clé supprimée'; els.duelinkTokenStatus.className = 'duelink-status-chip'; }
+      updateDuelinkStoredTokenUi();
+    }catch(err){
+      if(els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = err.message || String(err);
+    }finally{
+      if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.disabled = false;
+    }
+  }
+
+  async function downloadDuelinkReplayBuffer(tokenPayload, replayId){
     const response = await fetch('/api/duelink-download', {
       method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body:JSON.stringify({ token, id:replayId })
+      headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+      body:JSON.stringify({ ...(tokenPayload || {}), id:replayId })
     });
     if(!response.ok){
       const payload = await response.json().catch(() => ({}));
@@ -434,10 +548,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
 
   async function importDuelinkPreviewToBulkQueue(options={}){
-    const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
-    if(!token){
+    const tokenPayload = await duelinkTokenPayload();
+    if(!tokenPayload.token && !state.duelinkConnection?.connected){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez d’abord un token Duel.ink.</strong><span>Le token sert uniquement à récupérer les replays et n’est pas enregistré.</span></div>';
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duel.ink ou mémorisez une clé chiffrée.</strong><span>Le token sert à récupérer les replays depuis Duel.ink.</span></div>';
       return { imported:0, duplicates:0, errors:0, ready:0 };
     }
     if(state.currentUser){
@@ -463,8 +577,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const ids = rows.map(row => row.game.replayId);
       const manifestResponse = await fetch('/api/duelink-replays', {
         method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body:JSON.stringify({ token, ids })
+        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+        body:JSON.stringify({ ...tokenPayload, ids })
       });
       const manifest = await manifestResponse.json().catch(() => ({}));
       if(!manifestResponse.ok || !manifest.success){
@@ -503,7 +617,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         state.bulkQueue.push(item);
         renderBulkQueue();
         try{
-          const buffer = await downloadDuelinkReplayBuffer(token, replayId);
+          const buffer = await downloadDuelinkReplayBuffer(tokenPayload, replayId);
           item.fileSize = buffer.byteLength || 0;
           const replaySha256 = await replaySha256FromBuffer(buffer);
           const replay = await readReplayBuffer(buffer, file.filename || `${replayId}.replay.gz`);
@@ -630,10 +744,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function previewDuelinkMatches(){
-    const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
-    if(!token){
+    const tokenPayload = await duelinkTokenPayload();
+    if(!tokenPayload.token && !state.duelinkConnection?.connected){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez d’abord un token Duel.ink.</strong><span>Le token sert uniquement à cette prévisualisation et n’est pas enregistré.</span></div>';
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duel.ink ou mémorisez une clé chiffrée.</strong><span>La prévisualisation lit vos derniers matchs sans rien importer.</span></div>';
       return;
     }
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Preview en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
@@ -650,8 +764,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }
       const response = await fetch('/api/duelink-history', {
         method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body:JSON.stringify({ token, limit:25 })
+        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+        body:JSON.stringify({ ...tokenPayload, limit:25 })
       });
       const payload = await response.json().catch(() => ({}));
       if(!response.ok || !payload.success){
@@ -670,10 +784,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function testDuelinkToken(){
-    const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
-    if(!token){
+    const tokenPayload = await duelinkTokenPayload();
+    if(!tokenPayload.token && !state.duelinkConnection?.connected){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez d’abord un token Duel.ink.</strong><span>Dans Duel.ink : Mon compte → API Tokens → créer un token avec expiration.</span></div>';
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duel.ink ou mémorisez une clé chiffrée.</strong><span>Dans Duel.ink : Mon compte → API Tokens → créer un token avec expiration.</span></div>';
       return;
     }
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Test en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
@@ -684,8 +798,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const response = await fetch('/api/duelink-history', {
         method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body:JSON.stringify({ token, limit:5 })
+        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+        body:JSON.stringify({ ...tokenPayload, limit:5 })
       });
       const payload = await response.json().catch(() => ({}));
       if(!response.ok || !payload.success){
@@ -4111,6 +4225,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
 
   function renderAccountPage(){
+    if(state.currentUser && !state.duelinkConnectionLoaded) refreshDuelinkConnectionStatus({ silent:true });
+    if(!state.currentUser){ state.duelinkConnection = null; state.duelinkConnectionLoaded = true; updateDuelinkStoredTokenUi(); }
+    else updateDuelinkStoredTokenUi();
     renderDeckManager();
     renderDataQualityPanel();
     renderDuplicateAudit();
@@ -10800,6 +10917,7 @@ function initAuthUI() {
 
   function updateAuthUI(user) {
     const isLoggedIn = Boolean(user);
+    state.duelinkConnectionLoaded = false;
     const accountProfileTitle = document.getElementById('accountProfileTitle');
     const accountProfileText = document.getElementById('accountProfileText');
 
