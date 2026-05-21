@@ -163,14 +163,29 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
     const newest = games.slice().sort((a,b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0];
     const replayCount = games.filter(game => game.replayId).length;
-    const rows = games.map(game => {
-      const opponent = game.opponent ? `vs ${esc(game.opponent)}` : 'Adversaire non indiqué';
+    const sourceSet = [...new Set(games.map(game => duelinkSourceLabel(game.source)).filter(Boolean))];
+    const rows = games.map((game, index) => {
+      const title = game.opponent ? `vs ${esc(game.opponent)}` : `Match Duel.ink ${game.id ? `<span class="duelink-row-id">${esc(String(game.id).slice(0, 10))}</span>` : `#${index + 1}`}`;
       const source = duelinkSourceLabel(game.source);
-      const queue = game.queue ? ` · ${esc(String(game.queue))}` : '';
-      const replay = game.replayId ? 'Replay disponible' : 'Replay non indiqué';
-      return `<li><strong>${esc(formatShortDateTime(game.updatedAt))}</strong><span>${opponent}</span><em>${esc(source)}${queue} · ${esc(replay)}</em></li>`;
+      const queue = game.queue ? esc(String(game.queue)) : 'queue inconnue';
+      const replay = game.replayId ? 'Replay OK' : 'Replay non indiqué';
+      const date = formatShortDateTime(game.updatedAt);
+      return `<li>
+        <div class="duelink-row-main"><strong>${title}</strong><span>${esc(date)}</span></div>
+        <div class="duelink-row-meta"><span>${esc(source)}</span><span>${queue}</span><span>${esc(replay)}</span></div>
+      </li>`;
     }).join('');
-    els.duelinkTestResult.innerHTML = `<div class="duelink-result-summary"><strong>Connexion validée</strong><span>${games.length} match(s) lus · ${replayCount} avec replay id · dernier : ${esc(formatShortDateTime(newest?.updatedAt))}</span></div><ul class="duelink-result-list">${rows}</ul>`;
+    els.duelinkTestResult.innerHTML = `
+      <div class="duelink-result-summary">
+        <div><strong>Connexion validée</strong><span>${games.length} match(s) lus sur Duel.ink. Aucun replay n’est importé à cette étape.</span></div>
+        <div class="duelink-mini-stats" aria-label="Résumé du test Duel.ink">
+          <span><b>${games.length}</b><small>matchs lus</small></span>
+          <span><b>${replayCount}</b><small>replays OK</small></span>
+          <span><b>${esc(formatShortDateTime(newest?.updatedAt))}</b><small>dernier match</small></span>
+          <span><b>${esc(sourceSet.join(', ') || 'Source inconnue')}</b><small>source</small></span>
+        </div>
+      </div>
+      <ul class="duelink-result-list">${rows}</ul>`;
   }
 
   async function testDuelinkToken(){
@@ -380,7 +395,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
     state.bulkSaving = false;
     if(state.currentUser){
-      try{ await refreshSavedMatches({ silent:true }); }
+      try{ await globalThis.INKSIGHT_refreshSavedMatches?.({ silent:true }); }
       catch(err){ console.warn('Historique indisponible pour la détection des doublons', err); }
       try{ await refreshDeckProfiles({ silent:true }); }
       catch(err){ console.warn('Decks indisponibles pour l’attribution par lot', err); }
@@ -2645,7 +2660,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       state.savePending = true;
       syncSaveButton();
-      await refreshSavedMatches({ silent:true });
+      await globalThis.INKSIGHT_refreshSavedMatches?.({ silent:true });
       const duplicate = findDuplicateSavedMatch(m);
       if(duplicate){
         state.loadedSavedMatchId = duplicate.id;
@@ -2688,7 +2703,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.bulkSaving = true;
     renderBulkQueue();
     try{
-      await refreshSavedMatches({ silent:true });
+      await globalThis.INKSIGHT_refreshSavedMatches?.({ silent:true });
       let savedCount = 0;
       let duplicateCount = 0;
       for(const item of candidates){
@@ -4349,6 +4364,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return state.savedMatches;
   }
 
+
+  globalThis.INKSIGHT_refreshSavedMatches = refreshSavedMatches;
 
   async function refreshSavedAnalytics(rows=[], options={}){
     const ids = [...new Set((rows || []).map(row => row.id).filter(Boolean))].sort();
@@ -10367,7 +10384,7 @@ function initAppShell() {
     button.addEventListener('click', () => {
       setPerformanceView(button.dataset.performanceView);
       if(button.dataset.performanceView === 'history'){
-        refreshSavedMatches({ silent:true });
+        globalThis.INKSIGHT_refreshSavedMatches?.({ silent:true });
       }
     });
   });

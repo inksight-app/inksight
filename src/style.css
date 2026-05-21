@@ -12236,3 +12236,150 @@ body::after{
   .duelink-result-list li { grid-template-columns: 1fr; gap: 4px; }
   .duelink-result-list em { text-align: left; }
 }
+
+/* V135.1b · Duel.ink test UI hotfix */
+.duelink-connect-section {
+  padding: clamp(18px, 2.8vw, 28px) !important;
+  overflow: hidden;
+}
+.duelink-connect-head {
+  align-items: center;
+  margin-bottom: 2px;
+}
+.duelink-connect-head .kicker {
+  margin-bottom: 6px;
+}
+.duelink-connect-head h2 {
+  font-size: clamp(1.45rem, 2.3vw, 2rem);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+}
+.duelink-connect-head p {
+  margin-top: 10px;
+  line-height: 1.5;
+  color: rgba(255,255,255,.70);
+}
+.duelink-token-form {
+  grid-template-columns: minmax(0, 1fr) minmax(190px, auto);
+  align-items: end;
+  margin-top: 2px;
+}
+.duelink-token-form input {
+  min-height: 52px;
+  border-radius: 18px;
+  font-size: .95rem;
+}
+.duelink-token-form .primary-button,
+#duelinkTestButton {
+  min-height: 52px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.duelink-help-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.duelink-help-grid > div,
+.duelink-test-result {
+  border-radius: 20px;
+  padding: 16px;
+}
+.duelink-test-result {
+  display: grid;
+  gap: 14px;
+}
+.duelink-result-summary {
+  display: grid;
+  gap: 14px;
+}
+.duelink-mini-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.duelink-mini-stats span {
+  display: grid;
+  gap: 3px;
+  min-height: 66px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.20);
+}
+.duelink-mini-stats b {
+  color: #fff;
+  font-size: .94rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.duelink-mini-stats small {
+  color: rgba(255,255,255,.54);
+  font-size: .72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.duelink-result-list {
+  gap: 10px;
+}
+.duelink-result-list li {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
+  background: rgba(0,0,0,.18);
+}
+.duelink-row-main,
+.duelink-row-meta {
+  min-width: 0;
+}
+.duelink-row-main strong {
+  display: block;
+  color: #fff;
+  font-size: .92rem;
+  line-height: 1.2;
+  margin-bottom: 5px;
+}
+.duelink-row-main span {
+  color: rgba(255,255,255,.58);
+  font-size: .78rem;
+}
+.duelink-row-id {
+  color: rgba(255,255,255,.52);
+  font-weight: 700;
+}
+.duelink-row-meta {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.duelink-row-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.045);
+  color: rgba(255,255,255,.72);
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+@media (max-width: 960px) {
+  .duelink-help-grid,
+  .duelink-mini-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .duelink-connect-section { padding: 18px !important; }
+  .duelink-connect-head { align-items: start; }
+  .duelink-token-form { grid-template-columns: 1fr; }
+  .duelink-help-grid,
+  .duelink-mini-stats { grid-template-columns: 1fr; }
+  .duelink-result-list li { grid-template-columns: 1fr; }
+  .duelink-row-meta { justify-content: flex-start; }
+}
