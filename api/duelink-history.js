@@ -32,7 +32,7 @@ function cleanToken(value) {
 function safeLimit(value) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return 5;
-  return Math.max(1, Math.min(25, parsed));
+  return Math.max(1, Math.min(50, parsed));
 }
 
 function getByPath(obj, path) {
@@ -171,6 +171,9 @@ export default async function handler(req, res) {
     const body = await readJsonBody(req);
     const token = cleanToken(body.token);
     const limit = safeLimit(body.limit);
+    const cursor = body.cursor ? String(body.cursor) : '';
+    const source = body.source ? String(body.source) : '';
+    const queue = body.queue ? String(body.queue) : '';
 
     if (!token) {
       return json(res, 400, { success: false, error: 'Token Duel.ink manquant.' });
@@ -179,6 +182,9 @@ export default async function handler(req, res) {
     const url = new URL('/api/me/match-history', DUELINK_BASE_URL);
     url.searchParams.set('format', 'json');
     url.searchParams.set('limit', String(limit));
+    if (cursor) url.searchParams.set('cursor', cursor);
+    if (source) url.searchParams.set('source', source);
+    if (queue) url.searchParams.set('queue', queue);
 
     const response = await fetch(url, {
       method: 'GET',
