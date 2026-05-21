@@ -4574,6 +4574,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const gameByKey = new Map(games.map(game => [gameKey(game), game]));
     const allowedGameKeys = new Set(gameByKey.keys());
     const rowAllowed = row => allowedGameKeys.has(`${row.match_id || row.matchId || ''}::${n(row.game_number || row.gameNumber || 1)}`);
+    const performanceDeadWeight = aggregatePerformanceHandRetention(rows, detailedGames, games, gameByKey);
     const fallbackCardRows = fallbackCardRowsFromSavedRows(rows);
     const cardRows = chooseBestCardRows(detailedCards, fallbackCardRows, rows).filter(rowAllowed);
     const fallbackTurnRows = fallbackTurnRowsFromSavedRows(rows);
@@ -4597,6 +4598,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       hasDetailedRows:!!hasDetailedRows,
       cardSignals:{ topLore, topInked },
       cards:cardValues,
+      deadWeight:performanceDeadWeight,
       playDraw,
       avgTurns:avgTurns === null ? null : round1(avgTurns),
       avgFinalLore:avgFinalLore === null ? null : round1(avgFinalLore),
@@ -4605,6 +4607,43 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       loreMilestones:aggregateLoreMilestones(turnRows.filter(row => row.owner === 'mine'), games),
       mulliganLab:buildMulliganLabMeta(cardValues, games)
     };
+  }
+
+
+  function aggregatePerformanceHandRetention(savedRows=[], detailedGameRows=[], games=[], gameByKey=new Map()){
+    const out = [];
+    const seenGames = new Set();
+    const pushGameRows = (matchId, gameNumber, gameJson) => {
+      const key = `${matchId || ''}::${n(gameNumber || 1)}`;
+      if(!matchId || seenGames.has(key)) return;
+      if(gameByKey?.size && !gameByKey.has(key)) return;
+      seenGames.add(key);
+      const list = arrayify(gameJson?.handRetention || gameJson?.hand_retention || gameJson?.deadWeight || gameJson?.dead_weight);
+      if(!list.length) return;
+      list.forEach(row => out.push({ ...row, matchId, match_id:matchId, gameNumber:n(gameNumber || 1) }));
+    };
+
+    arrayify(detailedGameRows).forEach(row => {
+      const json = gameJsonFromDetailRow(row);
+      pushGameRows(row.match_id || row.matchId, row.game_number || row.gameNumber || json?.gameNumber || 1, json);
+    });
+
+    arrayify(savedRows).forEach(row => {
+      const analysis = parseStoredJson(row.analysis_json);
+      const gamesJson = Array.isArray(analysis?.games) ? analysis.games : [];
+      if(gamesJson.length){
+        gamesJson.forEach((game, index) => pushGameRows(row.id, game.gameNumber || game.game_number || index + 1, game));
+      }else{
+        pushGameRows(row.id, 1, analysis);
+      }
+    });
+
+    return mergeHandRetention(out)
+      .map(row => ({
+        ...row,
+        gamesWithSignal:new Set(arrayify(row.samples).map(sample => `${sample.matchId || sample.match_id || ''}::${n(sample.gameNumber || sample.game_number || 1)}`)).size || 0
+      }))
+      .sort((a,b) => n(b.stuckEpisodes) - n(a.stuckEpisodes) || n(b.maxHeldTurns) - n(a.maxHeldTurns) || n(b.averageHeldTurns) - n(a.averageHeldTurns));
   }
 
   function normalizeStoredMetrics(metrics={}){
@@ -5817,7 +5856,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const limit = expanded ? 80 : 4;
     const rows = sorted.slice(0, limit);
     if(!rows.length) return '<div class="empty-line">Aucune statistique carte disponible pour ce deck. Réimportez et sauvegardez des matchs avec la V62+ pour alimenter ces signaux.</div>';
-    return `<div class="performance-block-toolbar">
+    const deadWeightHtml = performanceDeadWeightHtml(analytics);
+    return `${deadWeightHtml}<div class="performance-block-toolbar">
       <div class="sort-pills" aria-label="Trier les cartes clés">
         ${performanceSortButton('cards','lore','Lore',sort)}
         ${performanceSortButton('cards','played','Jouées',sort)}
@@ -5827,6 +5867,57 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       ${sorted.length > (expanded ? 4 : limit) ? `<button type="button" class="ghost-button compact" data-performance-full-list="cards">${expanded ? 'Réduire la liste' : `Voir les ${sorted.length} cartes`}</button>` : ''}
     </div>
     <div class="performance-card-gallery key-card-gallery ${expanded ? 'expanded' : ''}">${rows.map(card => performanceKeyCardHtml(card)).join('')}</div>`;
+  }
+
+
+  function performanceDeadWeightHtml(analytics){
+    const rows = arrayify(analytics?.deadWeight)
+      .filter(row => n(row.maxHeldTurns) >= 3 || n(row.stuckEpisodes) > 0 || n(row.exits?.stillInHand) > 0)
+      .sort((a,b)=>n(b.stuckEpisodes)-n(a.stuckEpisodes) || n(b.maxHeldTurns)-n(a.maxHeldTurns) || n(b.averageHeldTurns)-n(a.averageHeldTurns))
+      .slice(0, 6);
+    if(!rows.length){
+      return `<section class="performance-dead-weight-block">
+        <div class="performance-block-heading"><span>Cartes souvent bloquées</span><small>Aucune tendance claire sur l’échantillon actuel.</small></div>
+      </section>`;
+    }
+    const reliability = reliabilityInfo(analytics?.games?.length || 0);
+    return `<section class="performance-dead-weight-block">
+      <div class="performance-block-heading">
+        <span>Cartes souvent bloquées</span>
+        <small>${esc(reliability.label)} · cartes restées longtemps en main sur vos parties filtrées.</small>
+      </div>
+      <div class="performance-card-gallery key-card-gallery dead-weight-gallery">${rows.map(row => performanceDeadWeightCardHtml(row)).join('')}</div>
+    </section>`;
+  }
+
+  function performanceDeadWeightCardHtml(row){
+    const card = hydrateCard(row.card || { fullName:row.cardName, id:row.cardKey, cost:row.cost, inkable:row.inkable });
+    const rep = row.representative || {};
+    const inkable = row.inkable ?? cardIsInkable(card);
+    const stuck = n(row.stuckEpisodes);
+    const episodes = Math.max(1, n(row.episodes));
+    const exit = dominantHandExit(row.exits || {});
+    const exitLabel = handExitLabel(exit).replace(' ensuite','');
+    const range = rep.entryTurn ? `Exemple : T${n(rep.entryTurn)} → ${rep.stillInHand ? 'fin' : `T${n(rep.exitTurn)}`}` : `${n(row.maxHeldTurns)} tours max`;
+    const badgeTone = inkable === false ? 'danger' : stuck ? 'neutral' : 'blue';
+    const badges = [
+      inkable === false ? 'Non-encrable' : 'Encrable',
+      `${stuck}/${episodes} passage${episodes > 1 ? 's' : ''} long${episodes > 1 ? 's' : ''}`,
+      exit && exit !== 'unknown' ? `Fin fréquente : ${exitLabel.toLowerCase()}` : ''
+    ].filter(Boolean);
+    return `<article class="performance-card-tile performance-card-tile-v2 dead-weight-tile is-clickable" role="button" tabindex="0" data-performance-card-key="${escAttr(cardKey(card) || row.cardKey || '')}" data-performance-card-name="${escAttr(row.cardName || fullName(card))}">
+      <div class="performance-card-art">${cardThumbHtml(card, 'performance-card-thumb')}</div>
+      <div class="performance-card-body">
+        <h3>${esc(performanceDisplayName({ name:row.cardName || fullName(card) }))}</h3>
+        <div class="card-status-row">${badges.slice(0,3).map((label,idx) => `<span class="card-status-badge ${idx === 0 ? badgeTone : 'neutral'}">${esc(label)}</span>`).join('')}</div>
+        <div class="performance-stat-strip stat-token-strip">
+          ${statTokenHtml('max en main', `${n(row.maxHeldTurns)}T`, 'neutral')}
+          ${statTokenHtml('moyenne', `${round1(row.averageHeldTurns)}T`, 'neutral')}
+          ${statTokenHtml('blocage', `${Math.round(n(row.stuckRate))}%`, stuck ? 'inked' : 'neutral')}
+        </div>
+        <small class="dead-weight-example">${esc(range)}</small>
+      </div>
+    </article>`;
   }
 
   function comparePerformanceCards(a,b,sort){
@@ -7933,7 +8024,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(els.topQuestersTitle) els.topQuestersTitle.textContent = global ? 'Moteurs de Victoire du BO3' : 'Moteurs de Victoire';
     if(els.topQuestersHelp) els.topQuestersHelp.textContent = global ? 'Les cartes qui ont fait avancer le score sur l’ensemble de la série.' : 'Les cartes qui rapprochent vraiment des 20 lore.';
     if(els.mostInkedTitle) els.mostInkedTitle.textContent = global ? 'Dead Weights du matchup' : 'Cartes les plus encrées';
-    if(els.mostInkedHelp) els.mostInkedHelp.textContent = global ? 'Cartes souvent sacrifiées : utile pour repérer ce qui performe mal dans ce matchup.' : 'Main = sacrifice choisi. Les ajouts non identifiés viennent des cartes cachées ou effets que Duel.ink ne révèle pas.';
+    if(els.mostInkedHelp) els.mostInkedHelp.textContent = global ? 'Cartes souvent encrées : utile pour repérer ce qui sort du plan de jeu.' : 'Depuis main = carte transformée en encre depuis la main. Défausse/board → encre = ajout par effet.';
     if(els.playTimingTitle) els.playTimingTitle.textContent = global ? 'Séquence de jeu du BO3' : 'Séquence de jeu';
     if(els.playTimingHelp) els.playTimingHelp.textContent = global ? 'Les cartes jouées dans l’ordre, game par game, sans mélanger les courbes.' : 'Les cartes jouées dans l’ordre. Affichage compact, avec déroulé si besoin.';
     renderQuickInsights(m, metrics);
@@ -8017,9 +8108,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         card:topQuester ? cardKey(topQuester) : ''
       },
       {
-        label:isOpponent ? 'Carte adverse sacrifiée' : 'Carte la plus sacrifiée',
+        label:isOpponent ? 'Carte adverse la plus encrée' : 'Carte la plus encrée',
         value:mostInked ? `${fullName(mostInked)} · ${n(mostInked.inked)}x` : 'Non détectée',
-        helper:'Carte le plus souvent utilisée comme encre.',
+        helper:'Carte le plus souvent transformée en encre.',
         card:mostInked ? cardKey(mostInked) : ''
       },
       {
@@ -8126,7 +8217,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function inkwellSourceChips(card){
     const chips = [];
-    if(n(card.inkedFromHand)) chips.push({ label:`Sacrifiée ×${n(card.inkedFromHand)}`, className:'ink-source-chip ink-source-hand' });
+    if(n(card.inkedFromHand)) chips.push({ label:`Depuis main ×${n(card.inkedFromHand)}`, className:'ink-source-chip ink-source-hand' });
     if(n(card.inkedFromDiscard)) chips.push({ label:`Défausse → encre ×${n(card.inkedFromDiscard)}`, className:'ink-source-chip ink-source-discard' });
     if(n(card.inkedFromBoard)) chips.push({ label:`Board → encre ×${n(card.inkedFromBoard)}`, className:'ink-source-chip ink-source-board' });
     if(n(card.inkedFromDeck)) chips.push({ label:`Deck → encre ×${n(card.inkedFromDeck)}`, className:'ink-source-chip ink-source-deck' });
@@ -8137,7 +8228,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderStatTables(m){
     const metrics = state.scope === 'mine' ? (m?.proMetrics || {}) : (m?.opponentProMetrics || {});
-    if(els.mostInkedHelp) els.mostInkedHelp.textContent = 'Sacrifiée = encrée depuis la main. Défausse/board → encre = ajout par effet.';
+    if(els.mostInkedHelp) els.mostInkedHelp.textContent = 'Depuis main = encrée depuis la main. Défausse/board → encre = ajout par effet.';
     const cards = cardsForScope(m, state.scope);
     const topQuesters = loreEngineCards(cards).sort(compareLoreEngines)
       .map(c => ({

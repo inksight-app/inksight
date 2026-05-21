@@ -11886,3 +11886,68 @@ body::after{
   }
   .match-card-body-v81 h3{font-size:.86rem!important;}
 }
+
+/* V133.1H — Mobile overview containment hotfix
+   Keep the diagnostic result cards inside their parent panel on iPhone/Safari. */
+#tab-overview .match-read,
+#tab-overview .result-hero,
+#tab-overview .result-stamp,
+#tab-overview .result-score,
+#tab-overview .result-matchup{
+  min-width:0!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+}
+#tab-overview .result-hero{
+  width:100%!important;
+}
+#tab-overview .result-score strong,
+#tab-overview .result-opponent strong,
+#tab-overview .result-matchup strong,
+#tab-overview .result-score small,
+#tab-overview .result-matchup .matchup-line{
+  max-width:100%!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+#tab-overview .result-score small{
+  white-space:normal!important;
+}
+#tab-overview .result-matchup .matchup-line{
+  flex-wrap:wrap!important;
+}
+@media (max-width:720px){
+  #tab-overview .match-read{
+    overflow:hidden!important;
+    padding:14px!important;
+    border-radius:22px!important;
+  }
+  #tab-overview .result-hero{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:10px!important;
+    margin:0!important;
+  }
+  #tab-overview .result-stamp,
+  #tab-overview .result-score,
+  #tab-overview .result-matchup{
+    width:100%!important;
+    min-height:0!important;
+    padding:14px!important;
+    border-radius:18px!important;
+  }
+  #tab-overview .result-stamp strong,
+  #tab-overview .result-score strong,
+  #tab-overview .result-opponent strong{
+    font-size:clamp(1.8rem,10vw,2.8rem)!important;
+    line-height:.98!important;
+    white-space:normal!important;
+    overflow-wrap:anywhere!important;
+  }
+  #tab-overview .result-score small,
+  #tab-overview .result-matchup .matchup-line{
+    font-size:.9rem!important;
+    line-height:1.35!important;
+  }
+}
