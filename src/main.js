@@ -170,14 +170,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const queue = game.queue ? esc(String(game.queue)) : 'queue inconnue';
       const replay = game.replayId ? 'Replay OK' : 'Replay non indiqué';
       const date = formatShortDateTime(game.updatedAt);
+      const dateLabel = game.dateSource === 'id' ? `${date} · estimée via ID` : date;
       return `<li>
-        <div class="duelink-row-main"><strong>${title}</strong><span>${esc(date)}</span></div>
+        <div class="duelink-row-main"><strong>${title}</strong><span>${esc(dateLabel)}</span></div>
         <div class="duelink-row-meta"><span>${esc(source)}</span><span>${queue}</span><span>${esc(replay)}</span></div>
       </li>`;
     }).join('');
     els.duelinkTestResult.innerHTML = `
       <div class="duelink-result-summary">
-        <div><strong>Connexion validée</strong><span>${games.length} match(s) lus sur Duel.ink. Aucun replay n’est importé à cette étape.</span></div>
+        <div><strong>Connexion validée</strong><span>${games.length} match(s) lus sur Duel.ink. Test uniquement : rien n’est ajouté à l’historique.</span></div>
         <div class="duelink-mini-stats" aria-label="Résumé du test Duel.ink">
           <span><b>${games.length}</b><small>matchs lus</small></span>
           <span><b>${replayCount}</b><small>replays OK</small></span>
