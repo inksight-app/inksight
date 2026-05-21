@@ -678,14 +678,19 @@
       </section>
 
 
-      <section class="glass duelink-connect-section" aria-labelledby="duelinkConnectTitle">
+      <section class="glass duelink-connect-section duelink-sync-card" aria-labelledby="duelinkConnectTitle">
         <div class="duelink-connect-head">
-          <div>
-            <div class="kicker">Duel.ink API · test</div>
-            <h2 id="duelinkConnectTitle">Tester une clé API Duel.ink</h2>
-            <p>Collez temporairement un token Bearer pour vérifier que l’accès à votre historique fonctionne. Le token n’est pas enregistré par InkSight à cette étape.</p>
+          <div class="duelink-title-block">
+            <div class="kicker">Duel.ink API · synchronisation</div>
+            <h2 id="duelinkConnectTitle">Connecter Duel.ink</h2>
+            <p>Collez temporairement un token Bearer pour lire vos derniers matchs. Le token n’est pas enregistré par InkSight à cette étape.</p>
           </div>
           <span class="duelink-status-chip" id="duelinkTokenStatus">Non testé</span>
+        </div>
+        <div class="duelink-workflow" aria-label="Étapes de synchronisation Duel.ink">
+          <span class="is-active">1 · Tester</span>
+          <span>2 · Prévisualiser</span>
+          <span>3 · Importer dans la file</span>
         </div>
         <div class="duelink-token-form">
           <label>
@@ -693,16 +698,17 @@
             <input id="duelinkTokenInput" type="password" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Bearer token Duel.ink" />
           </label>
           <div class="duelink-token-actions">
-            <button id="duelinkTestButton" type="button" class="ghost-button compact">Tester la connexion</button>
-            <button id="duelinkPreviewButton" type="button" class="primary-button compact">Prévisualiser 25 matchs</button>
+            <button id="duelinkTestButton" type="button" class="ghost-button compact">Tester</button>
+            <button id="duelinkPreviewButton" type="button" class="ghost-button compact">Prévisualiser 25</button>
+            <button id="duelinkImportButton" type="button" class="primary-button compact" disabled>Importer les nouveaux</button>
           </div>
         </div>
         <div class="duelink-help-grid">
-          <div><strong>Conseil sécurité</strong><span>Créez un token Duel.ink avec expiration. 90 jours est un bon compromis. Évitez “No expiry” sauf besoin avancé.</span></div>
-          <div><strong>Lecture seule</strong><span>Le token permet uniquement de lire vos matchs, replays et logs. Il ne permet pas de jouer ou modifier votre compte.</span></div>
-          <div><strong>Preview sans import</strong><span>Cette étape lit <code>/match-history</code> et compare avec vos sauvegardes. Aucun replay n’est téléchargé ni sauvegardé.</span></div>
+          <div><strong>Sécurité</strong><span>Token temporaire, non stocké. 90 jours est un bon compromis.</span></div>
+          <div><strong>Lecture seule</strong><span>Accès à vos matchs, replays et logs uniquement.</span></div>
+          <div><strong>Import contrôlé</strong><span>Les replays API arrivent dans la même file que vos imports manuels.</span></div>
         </div>
-        <div id="duelinkTestResult" class="duelink-test-result">Collez un token puis testez la connexion, ou prévisualisez les matchs Duel.ink disponibles sans rien importer.</div>
+        <div id="duelinkTestResult" class="duelink-test-result">Collez un token, testez la connexion, puis prévisualisez les matchs avant import.</div>
       </section>
 
       <section class="glass deck-manager-section" aria-labelledby="deckManagerTitle">
