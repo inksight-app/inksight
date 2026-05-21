@@ -4618,7 +4618,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!matchId || seenGames.has(key)) return;
       if(gameByKey?.size && !gameByKey.has(key)) return;
       seenGames.add(key);
-      const list = arrayify(gameJson?.handRetention || gameJson?.hand_retention || gameJson?.deadWeight || gameJson?.dead_weight);
+      const list = extractMineHandRetentionRows(gameJson);
       if(!list.length) return;
       list.forEach(row => out.push({ ...row, matchId, match_id:matchId, gameNumber:n(gameNumber || 1) }));
     };
@@ -4954,6 +4954,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return parseStoredJson(row?.analysis_json);
   }
 
+
+  function extractMineHandRetentionRows(gameJson={}){
+    const direct = gameJson?.handRetention || gameJson?.deadWeight || gameJson?.dead_weight;
+    if(Array.isArray(direct)) return direct;
+    const nested = gameJson?.hand_retention || gameJson?.handRetention;
+    if(Array.isArray(nested)) return nested;
+    if(nested && typeof nested === 'object'){
+      if(Array.isArray(nested.mine)) return nested.mine;
+      if(Array.isArray(nested.player)) return nested.player;
+      if(Array.isArray(nested.me)) return nested.me;
+    }
+    return [];
+  }
+
   function savedGameRowsForMulligan(savedRows=[], detailedGameRows=[]){
     const out = [];
     if(Array.isArray(detailedGameRows) && detailedGameRows.length){
@@ -4984,7 +4998,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         out.push({
           match_id:row.id,
           game_number:1,
-          game_json:{ mulligan:analysis.mulligan }
+          game_json:analysis
         });
       }
     });
@@ -5027,6 +5041,112 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     };
   }
 
+  function handRetentionIdentityTokens(row={}){
+    const card = hydrateCard(row.card || { fullName:row.cardName, id:row.cardKey, cost:row.cost, inkable:row.inkable });
+    return [row.cardKey, row.cardName, cardKey(card), statCardKey(card), fullName(card), card.name]
+      .filter(Boolean)
+      .map(value => slug(String(value)))
+      .filter(Boolean);
+  }
+
+  function mulliganSeedIdentityTokens(seed={}){
+    return [seed.key, seed.name, fullName(seed), cardKey(seed), statCardKey(seed)]
+      .filter(Boolean)
+      .map(value => slug(String(value)))
+      .filter(Boolean);
+  }
+
+  function findHandRetentionForMulliganSeed(seed={}, retentionRows=[]){
+    const wanted = new Set(mulliganSeedIdentityTokens(seed));
+    if(!wanted.size) return null;
+    return arrayify(retentionRows).find(row => handRetentionIdentityTokens(row).some(token => wanted.has(token))) || null;
+  }
+
+  function compactMulliganKeepRetention(row){
+    if(!row) return null;
+    const episodes = Math.max(1, n(row.episodes));
+    const totalHeld = row.totalHeldTurns !== undefined ? n(row.totalHeldTurns) : round1(n(row.averageHeldTurns) * episodes);
+    const exits = row.exits || {};
+    return {
+      episodes,
+      totalHeldTurns:totalHeld,
+      averageHeldTurns:round1(totalHeld / episodes),
+      maxHeldTurns:n(row.maxHeldTurns),
+      stuckEpisodes:n(row.stuckEpisodes),
+      stuckRate:round1((n(row.stuckEpisodes) / episodes) * 100),
+      stillInHand:n(exits.stillInHand),
+      played:n(exits.played),
+      inked:n(exits.inked),
+      representative:row.representative || null
+    };
+  }
+
+  function addMulliganKeepRetention(item, row){
+    const compact = compactMulliganKeepRetention(row);
+    if(!compact) return item;
+    item.keepRetentionEpisodes = n(item.keepRetentionEpisodes) + n(compact.episodes);
+    item.keepRetentionTotalHeld = n(item.keepRetentionTotalHeld) + n(compact.totalHeldTurns);
+    item.keepRetentionStuck = n(item.keepRetentionStuck) + n(compact.stuckEpisodes);
+    item.keepRetentionStillInHand = n(item.keepRetentionStillInHand) + n(compact.stillInHand);
+    item.keepRetentionPlayed = n(item.keepRetentionPlayed) + n(compact.played);
+    item.keepRetentionInked = n(item.keepRetentionInked) + n(compact.inked);
+    item.keepRetentionMax = Math.max(n(item.keepRetentionMax), n(compact.maxHeldTurns));
+    const rep = compact.representative;
+    if(rep && (!item.keepRetentionRepresentative || n(rep.heldTurns) > n(item.keepRetentionRepresentative.heldTurns))){
+      item.keepRetentionRepresentative = rep;
+    }
+    return item;
+  }
+
+  function summarizeMulliganRetentionFromSamples(samples=[]){
+    const out = { keepRetentionEpisodes:0, keepRetentionTotalHeld:0, keepRetentionStuck:0, keepRetentionStillInHand:0, keepRetentionPlayed:0, keepRetentionInked:0, keepRetentionMax:0, keepRetentionRepresentative:null };
+    arrayify(samples).forEach(sample => {
+      if(n(sample.kept) <= 0) return;
+      const dw = sample.deadWeight;
+      if(!dw) return;
+      out.keepRetentionEpisodes += n(dw.episodes);
+      out.keepRetentionTotalHeld += n(dw.totalHeldTurns);
+      out.keepRetentionStuck += n(dw.stuckEpisodes);
+      out.keepRetentionStillInHand += n(dw.stillInHand);
+      out.keepRetentionPlayed += n(dw.played);
+      out.keepRetentionInked += n(dw.inked);
+      out.keepRetentionMax = Math.max(out.keepRetentionMax, n(dw.maxHeldTurns));
+      const rep = dw.representative;
+      if(rep && (!out.keepRetentionRepresentative || n(rep.heldTurns) > n(out.keepRetentionRepresentative.heldTurns))) out.keepRetentionRepresentative = rep;
+    });
+    return applyMulliganRetentionSummary(out, out);
+  }
+
+  function applyMulliganRetentionSummary(target, source){
+    const episodes = n(source.keepRetentionEpisodes);
+    target.keepRetentionEpisodes = episodes;
+    target.keepRetentionAvg = episodes ? round1(n(source.keepRetentionTotalHeld) / episodes) : null;
+    target.keepRetentionStuckRate = episodes ? round1((n(source.keepRetentionStuck) / episodes) * 100) : null;
+    target.keepRetentionMax = n(source.keepRetentionMax);
+    target.keepRetentionStuck = n(source.keepRetentionStuck);
+    target.keepRetentionStillInHand = n(source.keepRetentionStillInHand);
+    target.keepRetentionPlayed = n(source.keepRetentionPlayed);
+    target.keepRetentionInked = n(source.keepRetentionInked);
+    target.keepRetentionRepresentative = source.keepRetentionRepresentative || target.keepRetentionRepresentative || null;
+    return target;
+  }
+
+  function mulliganDeadWeightView(card={}){
+    const episodes = n(card.keepRetentionEpisodes);
+    if(!episodes) return { hasSignal:false, label:'', detail:'', tone:'neutral' };
+    const avgHeld = round1(card.keepRetentionAvg);
+    const stuckRate = round1(card.keepRetentionStuckRate);
+    const still = n(card.keepRetentionStillInHand);
+    const maxHeld = n(card.keepRetentionMax);
+    const uninkable = card.inkable === false || performanceCardView(card).inkable === false;
+    let label = 'Sort vite après keep';
+    let tone = 'good';
+    if(still > 0 || stuckRate >= 50 || avgHeld >= 4){ label = 'Keep risqué'; tone = 'danger'; }
+    else if(stuckRate >= 25 || avgHeld >= 3 || (uninkable && avgHeld >= 2.5)){ label = 'Keep à surveiller'; tone = 'context'; }
+    const detail = `${avgHeld} tour${avgHeld > 1 ? 's' : ''} en main après keep · max ${maxHeld}T`;
+    return { hasSignal:true, label, detail, tone, avgHeld, stuckRate, maxHeld, stillInHand:still };
+  }
+
   function aggregateEmpiricalMulliganCards(savedRows=[], detailedGameRows=[], games=[], gameByKey=new Map()){
     const rows = savedGameRowsForMulligan(savedRows, detailedGameRows);
     const map = new Map();
@@ -5036,7 +5156,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const keyForGame = `${row.match_id}::${gameNumber}`;
       if(gameByKey?.size && !gameByKey.has(keyForGame)) return;
       const g = gameByKey.get(keyForGame) || (games || []).find(game => game.matchId === row.match_id && n(game.gameNumber) === gameNumber) || {};
-      const mulligan = gameJsonFromDetailRow(row)?.mulligan || {};
+      const gameJson = gameJsonFromDetailRow(row) || {};
+      const mulligan = gameJson?.mulligan || {};
+      const retentionRows = extractMineHandRetentionRows(gameJson);
       const split = splitMulliganInitialCards(mulligan);
       const initialByKey = new Map();
 
@@ -5080,6 +5202,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           seen:0, played:0, inked:0, quest:0, lore:0, challenge:0,
           opening:0, kept:0, replaced:0,
           gamesSeen:0, winsSeen:0, gamesNotSeen:0, winsNotSeen:0, gamesPlayed:0, winsPlayed:0, keptGames:0, keptWins:0,
+          keepRetentionEpisodes:0, keepRetentionTotalHeld:0, keepRetentionStuck:0, keepRetentionStillInHand:0, keepRetentionPlayed:0, keepRetentionInked:0, keepRetentionMax:0, keepRetentionRepresentative:null,
           firstTurns:[], samples:[]
         };
 
@@ -5094,7 +5217,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         item.opening += n(sample.opening);
         item.kept += n(sample.kept);
         item.replaced += n(sample.replaced);
-        if(n(sample.kept) > 0){ item.keptGames += 1; if(g.isWin) item.keptWins += 1; }
+        const keptInThisGame = n(sample.kept) > 0;
+        const keepRetention = keptInThisGame ? findHandRetentionForMulliganSeed(seed, retentionRows) : null;
+        if(keptInThisGame){
+          item.keptGames += 1;
+          if(g.isWin) item.keptWins += 1;
+          addMulliganKeepRetention(item, keepRetention);
+        }
         item.samples.push({
           matchId:row.match_id,
           gameNumber,
@@ -5106,6 +5235,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           opening:n(sample.opening),
           kept:n(sample.kept),
           replaced:n(sample.replaced),
+          deadWeight:compactMulliganKeepRetention(keepRetention),
           seen:0,
           played:0
         });
@@ -5116,6 +5246,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     map.forEach(item => {
       item.keepRate = pct(item.kept, item.kept + item.replaced);
       item.keptWr = pct(item.keptWins, item.keptGames);
+      applyMulliganRetentionSummary(item, item);
     });
 
     return map;
@@ -5157,6 +5288,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         keptWins:n(mulligan.keptWins),
         keepRate:pct(mulligan.kept, n(mulligan.kept) + n(mulligan.replaced)),
         keptWr:pct(mulligan.keptWins, mulligan.keptGames),
+        keepRetentionEpisodes:n(mulligan.keepRetentionEpisodes),
+        keepRetentionAvg:mulligan.keepRetentionAvg,
+        keepRetentionStuckRate:mulligan.keepRetentionStuckRate,
+        keepRetentionMax:n(mulligan.keepRetentionMax),
+        keepRetentionStuck:n(mulligan.keepRetentionStuck),
+        keepRetentionStillInHand:n(mulligan.keepRetentionStillInHand),
+        keepRetentionPlayed:n(mulligan.keepRetentionPlayed),
+        keepRetentionInked:n(mulligan.keepRetentionInked),
+        keepRetentionRepresentative:mulligan.keepRetentionRepresentative || null,
         samples:arrayify(mulligan.samples)
       });
     });
@@ -5876,8 +6016,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       .sort((a,b)=>n(b.stuckEpisodes)-n(a.stuckEpisodes) || n(b.maxHeldTurns)-n(a.maxHeldTurns) || n(b.averageHeldTurns)-n(a.averageHeldTurns))
       .slice(0, 6);
     if(!rows.length){
-      return `<section class="performance-dead-weight-block">
-        <div class="performance-block-heading"><span>Cartes souvent bloquées</span><small>Aucune tendance claire sur l’échantillon actuel.</small></div>
+      const hasAny = arrayify(analytics?.deadWeight).length > 0;
+      return `<section class="performance-dead-weight-block is-empty">
+        <div class="performance-block-heading"><span>Cartes souvent bloquées</span></div>
+        <p class="performance-dead-weight-empty">${hasAny ? 'Aucune carte ne reste souvent bloquée dans l’échantillon filtré.' : 'Aucune donnée Dead Weight disponible pour cet échantillon. Importez puis sauvegardez des replays récents pour alimenter ce signal.'}</p>
       </section>`;
     }
     const reliability = reliabilityInfo(analytics?.games?.length || 0);
@@ -6043,6 +6185,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     };
     out.keepRate = pct(out.kept, out.kept + out.replaced);
     out.keptWr = pct(out.keptWins, out.keptGames);
+    Object.assign(out, summarizeMulliganRetentionFromSamples(samples));
     // Important: the recommendation must be computed on the filtered context, not on the full history.
     out.recommendation = mulliganRecommendation(out, samples);
     out.mulliganScore = mulliganPriorityScore(out);
@@ -6260,9 +6403,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const copyPattern = mulliganCopyPattern(card.samples);
     const curveLabel = traits.cost !== null ? `Coût ${traits.cost}` : 'Coût —';
     const inkLabelText = traits.inkable ? 'Encrable' : traits.uninkable ? 'Non-encrable' : 'Encrable —';
-    const decisionTag = mulliganShortTag(recommendation, keep, throwPct, copyPattern);
+    const deadWeight = mulliganDeadWeightView(card);
+    const decisionTag = deadWeight.hasSignal && deadWeight.tone === 'danger' && keep >= 45 ? deadWeight.label : mulliganShortTag(recommendation, keep, throwPct, copyPattern);
     const wrBadge = card.keptGames >= 8 ? `${card.keptWr}% WR gardée` : `${n(card.opening)} mains`;
-    return `<article class="mulligan-visual-card mulligan-lab-card mulligan-lab-card-v2 is-clickable ${escAttr(recommendation.tone || 'neutral')}" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(displayName)}">
+    const deadWeightTag = deadWeight.hasSignal ? `<span class="mulligan-dead-weight-tag ${escAttr(deadWeight.tone)}">${esc(deadWeight.detail)}</span>` : '';
+    return `<article class="mulligan-visual-card mulligan-lab-card mulligan-lab-card-v2 is-clickable ${escAttr(deadWeight.hasSignal && deadWeight.tone === 'danger' ? 'danger' : (recommendation.tone || 'neutral'))}" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(displayName)}">
       <div class="mulligan-visual-art">${cardThumbHtml(view, 'mulligan-visual-thumb')}</div>
       <div class="mulligan-visual-body">
         <div class="mulligan-card-head"><h3>${esc(displayName)}</h3><span class="mulligan-rec ${escAttr(recommendation.tone || 'neutral')}">${esc(decisionTag)}</span></div>
@@ -6271,7 +6416,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         </div>
         <div class="mulligan-bar"><i style="width:${keep}%"></i><b style="width:${throwPct}%"></b></div>
         <div class="mulligan-bar-labels"><span>Garder ${keep}%</span><span>Renvoyer ${throwPct}%</span></div>
-        <div class="mulligan-bottom-tags"><span>${esc(wrBadge)}</span>${copyPattern.keptAndCut.length ? `<span>Doublon limité · ${copyPattern.keptAndCut.length}</span>` : ''}</div>
+        <div class="mulligan-bottom-tags"><span>${esc(wrBadge)}</span>${copyPattern.keptAndCut.length ? `<span>Doublon limité · ${copyPattern.keptAndCut.length}</span>` : ''}${deadWeightTag}</div>
       </div>
     </article>`;
   }

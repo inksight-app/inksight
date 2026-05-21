@@ -11951,3 +11951,80 @@ body::after{
     line-height:1.35!important;
   }
 }
+
+/* V133.3 — Mulligan Lab x Dead Weight */
+.mulligan-dead-weight-tag{
+  border-color:rgba(255,255,255,.12)!important;
+  background:rgba(255,255,255,.055)!important;
+}
+.mulligan-dead-weight-tag.danger{
+  border-color:rgba(251,113,133,.34)!important;
+  background:rgba(251,113,133,.13)!important;
+  color:#fecdd3!important;
+}
+.mulligan-dead-weight-tag.context{
+  border-color:rgba(246,197,77,.35)!important;
+  background:rgba(246,197,77,.12)!important;
+  color:#fde68a!important;
+}
+.mulligan-dead-weight-tag.good{
+  border-color:rgba(52,211,153,.28)!important;
+  background:rgba(52,211,153,.10)!important;
+  color:#bbf7d0!important;
+}
+@media (max-width:560px){
+  .mulligan-dead-weight-tag{white-space:normal;line-height:1.25;}
+}
+
+/* V133.3a — Global Dead Weight visibility */
+.performance-dead-weight-block{
+  margin:0 0 24px;
+  padding:18px;
+  border:1px solid rgba(255,255,255,.11);
+  border-radius:24px;
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));
+}
+.performance-dead-weight-block .performance-block-heading{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-bottom:14px;
+}
+.performance-dead-weight-block .performance-block-heading span{
+  display:block;
+  font-size:clamp(1.2rem,2.2vw,1.75rem);
+  font-weight:850;
+  line-height:1.02;
+  color:#fff;
+  letter-spacing:-.04em;
+}
+.performance-dead-weight-block .performance-block-heading small,
+.performance-dead-weight-empty{
+  display:block;
+  max-width:62ch;
+  color:rgba(255,255,255,.66);
+  font-size:.96rem;
+  line-height:1.45;
+}
+.performance-dead-weight-block.is-empty{
+  padding:16px 18px;
+}
+.performance-dead-weight-block.is-empty .performance-block-heading{
+  margin-bottom:6px;
+}
+@media (max-width:700px){
+  .performance-dead-weight-block{
+    margin:0 0 18px;
+    padding:14px;
+    border-radius:20px;
+  }
+  .performance-dead-weight-block .performance-block-heading span{
+    font-size:1.08rem;
+    letter-spacing:-.035em;
+  }
+  .performance-dead-weight-block .performance-block-heading small,
+  .performance-dead-weight-empty{
+    font-size:.86rem;
+    line-height:1.35;
+  }
+}
