@@ -121,6 +121,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.duelinkSaveTokenButton?.addEventListener('click', saveDuelinkTokenForAccount);
     els.duelinkForgetTokenButton?.addEventListener('click', forgetDuelinkTokenForAccount);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
+    els.duelinkTokenInput?.addEventListener('input', updateDuelinkStoredTokenUi);
     [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
     document.addEventListener('click', handlePerformanceFilterClick);
     document.addEventListener('click', handleAccountDeckManagerClick);
@@ -400,13 +401,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function updateDuelinkStoredTokenUi(){
     const connection = state.duelinkConnection;
     const connected = Boolean(connection?.connected);
+    const hasTypedToken = Boolean(normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || ''));
     if(els.duelinkSavedTokenHint){
       els.duelinkSavedTokenHint.textContent = connected
-        ? `Clé mémorisée sur ce compte (${connection.connection?.token_hint || 'chiffrée'}). Vous pouvez synchroniser sans la recoller.`
+        ? `Connexion Duel.ink mémorisée (${connection.connection?.token_hint || 'clé chiffrée'}). Vous pouvez tester, prévisualiser et importer sans recoller la clé.`
         : 'Optionnel : mémorisez la clé de manière chiffrée pour éviter de la recoller à chaque session.';
     }
+    if(els.duelinkTokenInput){
+      els.duelinkTokenInput.placeholder = connected ? 'Clé déjà mémorisée — collez une nouvelle clé seulement pour la remplacer' : 'Bearer token Duel.ink';
+    }
     if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.hidden = !connected;
-    if(els.duelinkSaveTokenButton) els.duelinkSaveTokenButton.textContent = connected ? 'Remplacer la clé mémorisée' : 'Mémoriser la clé chiffrée';
+    if(els.duelinkSaveTokenButton){
+      els.duelinkSaveTokenButton.textContent = connected ? 'Remplacer la clé' : 'Mémoriser la clé chiffrée';
+      els.duelinkSaveTokenButton.disabled = connected && !hasTypedToken;
+    }
+    if(connected && els.duelinkTokenStatus && !['Preview en cours…','Import en cours…','Test en cours…'].includes(els.duelinkTokenStatus.textContent || '')){
+      els.duelinkTokenStatus.textContent = 'Connexion mémorisée';
+      els.duelinkTokenStatus.className = 'duelink-status-chip ok';
+    }
   }
 
   async function refreshDuelinkConnectionStatus({ silent=false }={}){
@@ -457,7 +469,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
       state.duelinkConnection = payload;
       if(els.duelinkTokenInput) els.duelinkTokenInput.value = '';
-      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Clé mémorisée'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Connexion mémorisée'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
       updateDuelinkStoredTokenUi();
     }catch(err){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Mémoire indisponible'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }

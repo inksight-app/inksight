@@ -12941,3 +12941,167 @@ body:not(.is-authenticated) #view-account .auth-card.account-auth-card {
 body:not(.is-authenticated) #view-performances {
   display: none !important;
 }
+
+/* V135.6 · Account login redesign + connected Duel.ink polish */
+#view-account.app-view-page {
+  max-width: min(1500px, calc(100vw - 48px));
+  margin-inline: auto;
+}
+body:not(.is-authenticated) #view-account.app-view-page {
+  min-height: calc(100svh - 120px);
+  display: grid !important;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(18px, 2.5vw, 28px);
+  max-width: min(980px, calc(100vw - 40px));
+  padding-top: clamp(20px, 4vw, 56px);
+  padding-bottom: clamp(80px, 8vw, 120px);
+}
+body:not(.is-authenticated) #view-account .account-page-hero,
+body:not(.is-authenticated) #view-account .account-auth-wrapper {
+  width: 100%;
+  max-width: 860px !important;
+  margin: 0 auto !important;
+}
+body:not(.is-authenticated) #view-account .account-page-hero {
+  text-align: center;
+  padding: clamp(30px, 5vw, 52px) clamp(24px, 5vw, 56px) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(55,148,227,.13), transparent 36%),
+    radial-gradient(circle at 10% 0%, rgba(246,197,77,.08), transparent 32%),
+    linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.026)) !important;
+}
+body:not(.is-authenticated) #view-account .account-page-hero .kicker {
+  justify-content: center;
+}
+body:not(.is-authenticated) #view-account .account-page-hero h1 {
+  max-width: 760px;
+  margin-inline: auto;
+  font-size: clamp(3.8rem, 8vw, 6.9rem) !important;
+  line-height: .92 !important;
+  letter-spacing: -.075em !important;
+}
+body:not(.is-authenticated) #view-account .account-page-hero p {
+  max-width: 650px;
+  margin: 18px auto 0;
+  font-size: clamp(1rem, 1.5vw, 1.22rem) !important;
+}
+body:not(.is-authenticated) #view-account .account-auth-wrapper {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body:not(.is-authenticated) #view-account .account-auth-zone,
+body:not(.is-authenticated) #view-account .auth-inner {
+  display: grid;
+  place-items: center;
+  width: 100%;
+}
+body:not(.is-authenticated) #view-account .auth-card.account-auth-card {
+  width: min(760px, 100%) !important;
+  padding: clamp(26px, 4vw, 42px) !important;
+  border-radius: clamp(26px, 3vw, 36px) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(55,148,227,.10), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,.058), rgba(255,255,255,.03)) !important;
+  box-shadow: 0 28px 90px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+body:not(.is-authenticated) #view-account .auth-card-head {
+  text-align: center;
+  display: grid;
+  gap: 8px;
+  margin-bottom: clamp(18px, 3vw, 28px);
+}
+body:not(.is-authenticated) #view-account .auth-kicker {
+  justify-content: center;
+  margin: 0 auto;
+}
+body:not(.is-authenticated) #view-account .auth-card-head h2 {
+  font-size: clamp(1.8rem, 3.3vw, 2.7rem) !important;
+  letter-spacing: -.045em !important;
+  margin: 0;
+}
+body:not(.is-authenticated) #view-account .auth-card-head p {
+  max-width: 540px;
+  margin-inline: auto;
+}
+body:not(.is-authenticated) #view-account .auth-form {
+  display: grid;
+  gap: 14px;
+}
+body:not(.is-authenticated) #view-account #btnDiscordLogin {
+  min-height: 58px;
+  border-radius: 999px;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--accent, #f6c54d), var(--accent-2, #3794e3)) !important;
+  color: #08090d !important;
+  border: 0 !important;
+  box-shadow: 0 16px 38px rgba(55,148,227,.18), 0 14px 34px rgba(246,197,77,.12);
+}
+body:not(.is-authenticated) #view-account #btnDiscordLogin .discord-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: rgba(0,0,0,.16);
+  color: #08090d;
+}
+body:not(.is-authenticated) #view-account .auth-note {
+  text-align: center;
+  max-width: 560px;
+  margin: 4px auto 0;
+  font-size: .94rem;
+}
+body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
+  text-align: center;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.045);
+}
+#view-account .duelink-sync-card #duelinkSavedTokenHint {
+  display: block;
+  margin-top: 8px;
+  color: rgba(255,255,255,.62);
+}
+#view-account .duelink-sync-card #duelinkTokenInput::placeholder {
+  color: rgba(255,255,255,.36);
+}
+#view-account .duelink-sync-card .duelink-token-actions #duelinkSaveTokenButton,
+#view-account .duelink-sync-card .duelink-token-actions #duelinkForgetTokenButton {
+  min-height: 46px;
+}
+@media (max-width: 760px){
+  body:not(.is-authenticated) #view-account.app-view-page {
+    max-width: calc(100vw - 28px);
+    align-content: start;
+    padding-top: 18px;
+  }
+  body:not(.is-authenticated) #view-account .account-page-hero {
+    text-align: left;
+    padding: 28px 22px !important;
+  }
+  body:not(.is-authenticated) #view-account .account-page-hero .kicker,
+  body:not(.is-authenticated) #view-account .auth-kicker {
+    justify-content: flex-start;
+  }
+  body:not(.is-authenticated) #view-account .account-page-hero h1 {
+    margin-inline: 0;
+    font-size: clamp(3.4rem, 16vw, 5.1rem) !important;
+  }
+  body:not(.is-authenticated) #view-account .account-page-hero p,
+  body:not(.is-authenticated) #view-account .auth-card-head p {
+    margin-inline: 0;
+  }
+  body:not(.is-authenticated) #view-account .auth-card.account-auth-card {
+    padding: 22px !important;
+    border-radius: 28px !important;
+  }
+  body:not(.is-authenticated) #view-account .auth-card-head {
+    text-align: left;
+  }
+}
