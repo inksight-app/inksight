@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0 };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -32,7 +32,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -117,6 +117,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.deckManagerRefresh?.addEventListener('click', async () => { await refreshDeckProfiles({ force:true, silent:true }); await refreshSavedMatches({ force:true, silent:true }); renderAccountPage(); });
     els.duelinkTestButton?.addEventListener('click', testDuelinkToken);
     els.duelinkPreviewButton?.addEventListener('click', previewDuelinkMatches);
+    els.duelinkImportButton?.addEventListener('click', importDuelinkPreviewToBulkQueue);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
     [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
     document.addEventListener('click', handlePerformanceFilterClick);
@@ -200,7 +201,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(row?.analysis_json?.duelink_game_id) gameIds.add(String(row.analysis_json.duelink_game_id));
       if(row?.analysis_json?.duelink_replay_id) replayIds.add(String(row.analysis_json.duelink_replay_id));
       if(row?.api_metadata?.game_id) gameIds.add(String(row.api_metadata.game_id));
+      if(row?.api_metadata?.duelink_game_id) gameIds.add(String(row.api_metadata.duelink_game_id));
+      if(row?.analysis_json?.api_metadata?.duelink_game_id) gameIds.add(String(row.analysis_json.api_metadata.duelink_game_id));
       if(row?.api_metadata?.replay_id) replayIds.add(String(row.api_metadata.replay_id));
+      if(row?.api_metadata?.duelink_replay_id) replayIds.add(String(row.api_metadata.duelink_replay_id));
+      if(row?.analysis_json?.api_metadata?.duelink_replay_id) replayIds.add(String(row.analysis_json.api_metadata.duelink_replay_id));
     });
     const games = Array.isArray(state.savedAnalytics?.games) ? state.savedAnalytics.games : [];
     games.forEach(row => {
@@ -230,7 +235,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
     const refs = collectSavedDuelinkRefs();
     const classified = games.map((game, index) => ({ game, index, status:duelinkPreviewStatus(game, refs) }));
-    const newCount = classified.filter(row => row.status.key === 'new').length;
+    state.duelinkPreviewRows = classified;
+    const newCount = classified.filter(row => row.status.key === 'new' && row.game?.replayId).length;
+    if(els.duelinkImportButton){
+      els.duelinkImportButton.disabled = !newCount || state.duelinkImporting;
+      els.duelinkImportButton.textContent = newCount ? `Importer ${newCount} nouveau${newCount > 1 ? 'x' : ''}` : 'Aucun nouveau replay';
+    }
+    const visibleNewCount = classified.filter(row => row.status.key === 'new').length;
     const existingCount = classified.length - newCount;
     const replayCount = games.filter(game => game.replayId).length;
     const newest = games.slice().sort((a,b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0];
@@ -254,13 +265,161 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <div><strong>Prévisualisation prête</strong><span>${compareText}</span></div>
         <div class="duelink-mini-stats" aria-label="Résumé preview Duel.ink">
           <span><b>${games.length}</b><small>matchs lus</small></span>
-          <span><b>${newCount}</b><small>nouveaux</small></span>
+          <span><b>${visibleNewCount}</b><small>nouveaux</small></span>
           <span><b>${existingCount}</b><small>déjà présents</small></span>
           <span><b>${replayCount}</b><small>replays OK</small></span>
           <span><b>${esc(formatShortDateTime(newest?.updatedAt))}</b><small>dernier match</small></span>
         </div>
       </div>
       <ul class="duelink-result-list">${rows}</ul>`;
+  }
+
+  function attachDuelinkMetadataToSession(session, game={}, replaySha256=''){
+    if(!session) return session;
+    session.sourceType = 'duelink_api';
+    session.duelinkGameId = game.id || '';
+    session.duelinkReplayId = game.replayId || '';
+    session.duelinkSource = game.source || '';
+    session.duelinkQueue = game.queue || '';
+    session.duelinkUpdatedAt = game.updatedAt || null;
+    session.playedAt = session.playedAt || game.updatedAt || null;
+    session.replaySha256 = replaySha256 || session.replaySha256 || '';
+    session.myDecklist = Array.isArray(game.myDecklist) ? game.myDecklist : null;
+    session.opponentDecklist = Array.isArray(game.opponentDecklist) ? game.opponentDecklist : null;
+    session.apiRow = {
+      id: game.id || null,
+      replayId: game.replayId || null,
+      source: game.source || null,
+      queue: game.queue || null,
+      updatedAt: game.updatedAt || null,
+      dateSource: game.dateSource || null,
+      opponent: game.opponent || null,
+      result: game.result || null,
+    };
+    return session;
+  }
+
+  async function downloadDuelinkReplayBuffer(token, replayId){
+    const response = await fetch('/api/duelink-download', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body:JSON.stringify({ token, id:replayId })
+    });
+    if(!response.ok){
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || `Téléchargement impossible pour ${replayId}`);
+    }
+    return response.arrayBuffer();
+  }
+
+  async function importDuelinkPreviewToBulkQueue(){
+    const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
+    if(!token){
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez d’abord un token Duel.ink.</strong><span>Le token sert uniquement à récupérer les replays et n’est pas enregistré.</span></div>';
+      return;
+    }
+    const rows = (state.duelinkPreviewRows || []).filter(row => row?.status?.key === 'new' && row?.game?.replayId);
+    if(!rows.length){
+      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucun nouveau replay à importer.</strong><span>Lancez d’abord une prévisualisation ou ajustez la fenêtre de matchs.</span></div>');
+      return;
+    }
+    await ensureLocalCardsLoaded();
+    state.duelinkImporting = true;
+    if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Import en cours…'; }
+    if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Import en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
+    if(els.duelinkTestResult){
+      els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty"><strong>Import Duel.ink en cours…</strong><span>${rows.length} replay${rows.length > 1 ? 's' : ''} vont être ajoutés à la file d’import. Rien n’est sauvegardé automatiquement.</span></div>`);
+    }
+    try{
+      const ids = rows.map(row => row.game.replayId);
+      const manifestResponse = await fetch('/api/duelink-replays', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify({ token, ids })
+      });
+      const manifest = await manifestResponse.json().catch(() => ({}));
+      if(!manifestResponse.ok || !manifest.success){
+        throw new Error(manifest.error || `Erreur HTTP ${manifestResponse.status}`);
+      }
+      const files = Array.isArray(manifest.files) ? manifest.files : [];
+      const fileById = new Map(files.map(file => [String(file.id), file]));
+      const previousMatchMeta = state.matchMeta;
+      if(!state.bulkQueue.length){
+        clearReplays({ keepBulk:true });
+        state.bulkQueue = [];
+        state.activeBulkIndex = null;
+      }
+      for(const row of rows){
+        const game = row.game;
+        const replayId = String(game.replayId || '');
+        const file = fileById.get(replayId) || { id:replayId, filename:`${replayId}.replay.gz` };
+        const item = {
+          id:`duelink-${replayId}-${Date.now()}`,
+          fileName:file.filename || `${replayId}.replay.gz`,
+          fileSize:0,
+          replays:[], sessions:[], merged:null, matchMeta:null,
+          status:'reading', message:'Téléchargement Duel.ink…', duplicate:null, savedId:null, error:null, assignedDeck:null,
+          duelinkGame:game
+        };
+        state.bulkQueue.push(item);
+        renderBulkQueue();
+        try{
+          const buffer = await downloadDuelinkReplayBuffer(token, replayId);
+          item.fileSize = buffer.byteLength || 0;
+          const replaySha256 = await replaySha256FromBuffer(buffer);
+          const replay = await readReplayBuffer(buffer, file.filename || `${replayId}.replay.gz`);
+          const pseudoFile = {
+            name:file.filename || `${replayId}.replay.gz`,
+            size:item.fileSize,
+            parentName:'Duel.ink API',
+            isDuelinkApi:true,
+            lastModified:0,
+            playedAt:game.updatedAt || null,
+            replaySha256
+          };
+          const session = parseReplay(replay, pseudoFile);
+          attachDuelinkMetadataToSession(session, game, replaySha256);
+          const merged = mergeSessions([session]);
+          if(merged){
+            attachDuelinkMetadataToSession(merged, game, replaySha256);
+            merged.sessions = [session];
+          }
+          item.replays = [{ file:pseudoFile, parentFile:null, replay, replaySha256, session, matchMeta:null, sourceType:'duelink_api' }];
+          item.sessions = [session];
+          item.merged = merged;
+          item.matchMeta = null;
+          const duplicate = merged ? findDuplicateSavedMatchForData(merged) : null;
+          item.duplicate = duplicate || null;
+          item.status = duplicate ? 'duplicate' : 'ready';
+          item.message = duplicate ? 'Déjà présent dans l’historique.' : 'Importé depuis Duel.ink. Prêt à sauvegarder.';
+        }catch(err){
+          console.error(err);
+          item.status = 'error';
+          item.error = err;
+          item.message = `Erreur Duel.ink : ${err.message}`;
+        }
+        renderBulkQueue();
+      }
+      state.matchMeta = previousMatchMeta;
+      const firstReady = state.bulkQueue.findIndex(item => item.merged && item.status !== 'error');
+      if(firstReady >= 0) activateBulkItem(firstReady);
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Import prêt'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
+      if(els.duelinkTestResult){
+        const ready = state.bulkQueue.filter(item => item.status === 'ready').length;
+        const duplicates = state.bulkQueue.filter(item => item.status === 'duplicate').length;
+        const errors = state.bulkQueue.filter(item => item.status === 'error').length;
+        els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty ok"><strong>Replays ajoutés à la file.</strong><span>${ready} prêt(s), ${duplicates} doublon(s), ${errors} erreur(s). Utilisez ensuite la file d’import pour contrôler et sauvegarder.</span></div>`);
+      }
+    }catch(err){
+      console.error(err);
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec import'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
+      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty error"><strong>Impossible d’importer les replays Duel.ink.</strong><span>${esc(err.message || err)}.</span></div>`);
+    }finally{
+      state.duelinkImporting = false;
+      const remaining = (state.duelinkPreviewRows || []).filter(row => row?.status?.key === 'new' && row?.game?.replayId).length;
+      if(els.duelinkImportButton){ els.duelinkImportButton.disabled = !remaining; els.duelinkImportButton.textContent = remaining ? `Importer ${remaining} nouveau${remaining > 1 ? 'x' : ''}` : 'Aucun nouveau replay'; }
+    }
   }
 
   async function previewDuelinkMatches(){
@@ -271,6 +430,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Preview en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
+    state.duelinkPreviewRows = [];
+    if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Importer les nouveaux'; }
     if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = true;
     if(els.duelinkTestButton) els.duelinkTestButton.disabled = true;
     if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = true;
@@ -308,6 +469,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Test en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
+    state.duelinkPreviewRows = [];
+    if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Importer les nouveaux'; }
     if(els.duelinkTestButton) els.duelinkTestButton.disabled = true;
     if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty"><strong>Connexion à Duel.ink…</strong><span>Test de /api/me/match-history?limit=5. Le token n’est pas enregistré.</span></div>';
     try{
@@ -2897,6 +3060,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return m?.replaySha256 || m?.first?.replaySha256 || '';
   }
 
+
+  function apiMetadataForSavedData(m){
+    const sessions = Array.isArray(m?.sessions) && m.sessions.length ? m.sessions : (m?.first ? [m.first] : []);
+    const first = sessions.find(session => session?.sourceType === 'duelink_api' || session?.duelinkGameId || session?.duelinkReplayId) || (m?.sourceType === 'duelink_api' ? m : null);
+    if(!first) return null;
+    return {
+      source_type:'duelink_api',
+      duelink_game_id:first.duelinkGameId || m?.duelinkGameId || null,
+      duelink_replay_id:first.duelinkReplayId || m?.duelinkReplayId || null,
+      duelink_source:first.duelinkSource || m?.duelinkSource || null,
+      duelink_queue:first.duelinkQueue || m?.duelinkQueue || null,
+      duelink_updated_at:first.duelinkUpdatedAt || m?.duelinkUpdatedAt || first.playedAt || null,
+      my_decklist:first.myDecklist || m?.myDecklist || null,
+      opponent_decklist:first.opponentDecklist || m?.opponentDecklist || null,
+      api_row:first.apiRow || m?.apiRow || null
+    };
+  }
+
   function buildSavedMatchPayload(m, deckProfile={}, details={}){
     const global = !!(m?.isBO3 || isGlobalView());
     const format = global ? 'BO3' : 'BO1';
@@ -2911,6 +3092,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const quality = auditCurrentAnalysisQuality(m, details, deckProfile);
     const fingerprint = savedMatchSignatureFromM(m);
     const playedAt = detectPlayedAt(m) || null;
+    const apiMeta = apiMetadataForSavedData(m);
+    const sourceType = apiMeta?.source_type || 'manual';
 
     return {
       title,
@@ -2927,15 +3110,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       deck_profile_id:deckProfile.id || null,
       duelink_url:null,
       played_at:playedAt,
-      source_type:'manual',
-      duelink_match_id:null,
-      duelink_source:null,
-      duelink_queue:null,
-      duelink_updated_at:null,
+      source_type:sourceType,
+      duelink_match_id:apiMeta?.duelink_game_id || null,
+      duelink_source:apiMeta?.duelink_source || null,
+      duelink_queue:apiMeta?.duelink_queue || null,
+      duelink_updated_at:apiMeta?.duelink_updated_at || null,
       replay_sha256:replaySha256ForSavedData(m) || null,
-      my_decklist:null,
-      opponent_decklist:null,
-      api_metadata:null,
+      my_decklist:apiMeta?.my_decklist || null,
+      opponent_decklist:apiMeta?.opponent_decklist || null,
+      api_metadata:apiMeta || null,
       replay_fingerprint:fingerprint || null,
       data_quality:quality.status,
       quality_issues:quality.issues,
@@ -2943,7 +3126,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       avg_turns:round1(m.avgTurns || 0),
       final_mine_lore:n(m.finalMineLore),
       final_opp_lore:n(m.finalOppLore),
-      analysis_json:buildSavedAnalysisJson(m, { format, result, scoreLabel, matchup, profiles, deckProfile, quality })
+      analysis_json:buildSavedAnalysisJson(m, { format, result, scoreLabel, matchup, profiles, deckProfile, quality, apiMeta, sourceType })
     };
   }
 
@@ -2965,16 +3148,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         is_win:!!session.isWin,
         format:state.isBO3 ? 'BO3' : 'BO1',
         played_at:session.playedAt || null,
-        source_type:'manual',
-        duelink_game_id:null,
-        duelink_replay_id:null,
-        duelink_gamelog_id:null,
-        duelink_source:null,
-        duelink_queue:null,
+        source_type:session.sourceType || 'manual',
+        duelink_game_id:session.duelinkGameId || null,
+        duelink_replay_id:session.duelinkReplayId || null,
+        duelink_gamelog_id:session.duelinkGamelogId || null,
+        duelink_source:session.duelinkSource || null,
+        duelink_queue:session.duelinkQueue || null,
         replay_sha256:session.replaySha256 || null,
-        my_decklist:null,
-        opponent_decklist:null,
-        api_row:null,
+        my_decklist:session.myDecklist || null,
+        opponent_decklist:session.opponentDecklist || null,
+        api_row:session.apiRow || null,
         otp:session.firstTurnPlayer === session.myPlayerNumber,
         first_turn_player:n(session.firstTurnPlayer),
         turn_count:n(session.turnCount),
@@ -3183,9 +3366,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       duplicate_signature:savedMatchSignatureFromM(m),
       data_quality:meta.quality || null,
       source:'lorcana-gto-replay-analyzer',
-      source_type:'manual',
+      source_type:meta.sourceType || 'manual',
       replay_sha256:replaySha256ForSavedData(m) || null,
-      api_metadata:null,
+      api_metadata:meta.apiMeta || null,
       view_mode:state.viewMode,
       format:meta.format,
       result:{
@@ -4512,9 +4695,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function findDuplicateSavedMatchForData(m){
+    const apiMeta = apiMetadataForSavedData(m);
+    const replaySha = replaySha256ForSavedData(m);
+    const rows = state.savedMatches || [];
+    if(apiMeta?.duelink_game_id){
+      const byGame = rows.find(row => String(row.duelink_match_id || row.analysis_json?.duelink_game_id || row.api_metadata?.duelink_game_id || '') === String(apiMeta.duelink_game_id));
+      if(byGame) return byGame;
+    }
+    if(apiMeta?.duelink_replay_id){
+      const byReplay = rows.find(row => String(row.analysis_json?.duelink_replay_id || row.api_metadata?.duelink_replay_id || '') === String(apiMeta.duelink_replay_id));
+      if(byReplay) return byReplay;
+    }
+    if(replaySha){
+      const byHash = rows.find(row => String(row.replay_sha256 || row.analysis_json?.replay_sha256 || '') === String(replaySha));
+      if(byHash) return byHash;
+    }
     const signature = savedMatchSignatureFromM(m);
     if(!signature) return null;
-    return (state.savedMatches || []).find(row => savedMatchSignatureFromRow(row) === signature) || null;
+    return rows.find(row => savedMatchSignatureFromRow(row) === signature) || null;
   }
 
   function savedMatchSignatureFromM(m){

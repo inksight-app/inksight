@@ -12407,3 +12407,127 @@ body::after{
   .duelink-result-list li { grid-template-columns: 1fr; }
   .duelink-row-meta { justify-content: flex-start; }
 }
+
+/* V135.3 · Duel.ink sync card UX + API import controls */
+.account-view .duelink-sync-card,
+.duelink-sync-card {
+  margin-top: clamp(20px, 3vw, 34px);
+  margin-bottom: clamp(20px, 3vw, 34px);
+  border-radius: clamp(24px, 3vw, 34px) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(55,148,227,.12), transparent 30%),
+    radial-gradient(circle at 95% 10%, rgba(246,197,77,.10), transparent 32%),
+    linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.028)) !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.055);
+}
+.duelink-sync-card + .deck-manager-section,
+.account-grid + .duelink-sync-card {
+  margin-top: clamp(20px, 3vw, 34px);
+}
+.duelink-sync-card .duelink-connect-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(14px, 2vw, 24px);
+  align-items: start;
+}
+.duelink-title-block p {
+  max-width: 760px;
+  margin-bottom: 0;
+}
+.duelink-workflow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: -2px;
+}
+.duelink-workflow span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.18);
+  color: rgba(255,255,255,.56);
+  font-size: .74rem;
+  font-weight: 850;
+  letter-spacing: .02em;
+}
+.duelink-workflow span.is-active {
+  color: #fff;
+  border-color: rgba(246,197,77,.24);
+  background: linear-gradient(135deg, rgba(246,197,77,.16), rgba(55,148,227,.12));
+}
+.duelink-sync-card .duelink-token-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 24px;
+  background: rgba(0,0,0,.15);
+}
+.duelink-sync-card .duelink-token-actions {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+  gap: 10px;
+  align-self: end;
+}
+.duelink-sync-card #duelinkTestButton,
+.duelink-sync-card #duelinkPreviewButton,
+.duelink-sync-card #duelinkImportButton {
+  min-height: 52px;
+  border-radius: 999px;
+  padding-inline: 18px;
+  white-space: nowrap;
+}
+.duelink-sync-card #duelinkImportButton:disabled {
+  opacity: .45;
+  filter: saturate(.75);
+  cursor: not-allowed;
+}
+.duelink-sync-card .duelink-help-grid {
+  gap: 12px;
+}
+.duelink-sync-card .duelink-help-grid > div {
+  border-radius: 22px;
+  background: rgba(255,255,255,.04);
+  min-height: 92px;
+}
+.duelink-sync-card .duelink-test-result {
+  border-radius: 24px;
+  background: rgba(0,0,0,.16);
+}
+.duelink-result-empty.ok strong { color: #d1fae5; }
+.duelink-result-empty.ok { border-color: rgba(52,211,153,.22); background: rgba(52,211,153,.07); }
+.duelink-sync-card .duelink-mini-stats span {
+  border-radius: 18px;
+  background: rgba(255,255,255,.035);
+}
+.duelink-sync-card .duelink-result-list li {
+  border-radius: 20px;
+  background: rgba(255,255,255,.035);
+}
+@media (max-width: 1040px){
+  .duelink-sync-card .duelink-token-form { grid-template-columns: 1fr; }
+  .duelink-sync-card .duelink-token-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 760px){
+  .account-view .duelink-sync-card,
+  .duelink-sync-card {
+    margin-top: 18px;
+    margin-bottom: 18px;
+    padding: 20px !important;
+    border-radius: 28px !important;
+  }
+  .duelink-sync-card .duelink-connect-head { grid-template-columns: 1fr; }
+  .duelink-sync-card .duelink-token-form {
+    padding: 12px;
+    border-radius: 22px;
+  }
+  .duelink-sync-card .duelink-token-actions {
+    grid-template-columns: 1fr;
+  }
+  .duelink-workflow { gap: 7px; }
+  .duelink-workflow span { font-size: .68rem; min-height: 30px; padding-inline: 10px; }
+}
