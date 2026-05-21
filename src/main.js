@@ -412,38 +412,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
 
     const sourceSummary = stats.sources.join(', ') || 'Sources inconnues';
-    const rows = classified.slice(0, 80).map(({ game, index, status }) => {
-      const source = duelinkSourceLabel(game.source);
-      const queue = game.queue ? esc(String(game.queue)) : 'queue inconnue';
-      const replay = game.replayId ? 'Replay OK' : 'Replay non indiqué';
-      const format = duelinkFormatLabel(game.format);
-      const title = game.opponent ? `vs ${esc(game.opponent)}` : `Match Duel.ink ${game.id ? `<span class="duelink-row-id">${esc(String(game.id).slice(0, 10))}</span>` : `#${index + 1}`}`;
-      const date = formatShortDateTime(game.updatedAt);
-      const dateLabel = game.dateSource === 'id' ? `${date} · estimée via ID` : date;
-      return `<li class="duelink-preview-row ${escAttr(status.key)}">
-        <div class="duelink-row-main"><strong>${title}</strong><span>${esc(dateLabel)}</span></div>
-        <div class="duelink-row-meta"><span class="duelink-preview-status ${escAttr(status.key)}">${esc(status.label)}</span><span>${esc(source)}</span><span>${queue}</span><span>${esc(format)}</span><span>${esc(replay)}</span></div>
-      </li>`;
-    }).join('');
-    const hiddenCount = Math.max(0, classified.length - 80);
-    const hiddenNote = hiddenCount ? `<div class="duelink-result-empty compact"><strong>${hiddenCount} autre${hiddenCount > 1 ? 's' : ''} partie${hiddenCount > 1 ? 's' : ''} non affichée${hiddenCount > 1 ? 's' : ''}</strong><span>La liste est limitée visuellement pour garder la page lisible. Toutes les parties restent prises en compte pour l’import.</span></div>` : '';
+    const ready = stats.newWithReplay.length;
+    const already = stats.existing.length + stats.queued.length;
     els.duelinkTestResult.innerHTML = `
-      <div class="duelink-result-summary">
-        <div><strong>Synchronisation prête</strong><span>${games.length} partie${games.length > 1 ? 's' : ''} lue${games.length > 1 ? 's' : ''}. Aucun filtre n’a été appliqué : l’historique complet disponible est chargé.</span></div>
+      <div class="duelink-result-summary duelink-result-summary-compact">
+        <div><strong>Synchronisation prête</strong><span>${games.length} partie${games.length > 1 ? 's' : ''} trouvée${games.length > 1 ? 's' : ''}. Choisissez un volume d’import pour ajouter les nouvelles analyses à InkSight.</span></div>
         <div class="duelink-mini-stats" aria-label="Résumé synchronisation Duel.ink">
-          <span><b>${games.length}</b><small>parties lues</small></span>
-          <span><b>${stats.newRows.length}</b><small>nouvelles</small></span>
-          <span><b>${stats.existing.length}</b><small>déjà présentes</small></span>
-          <span><b>${stats.queued.length}</b><small>dans la file</small></span>
-          <span><b>${stats.newWithReplay.length}</b><small>prêtes à importer</small></span>
+          <span><b>${games.length}</b><small>trouvées</small></span>
+          <span><b>${ready}</b><small>à importer</small></span>
+          <span><b>${already}</b><small>déjà dans InkSight</small></span>
           <span><b>${stats.missingReplay.length}</b><small>sans replay</small></span>
           <span><b>${esc(formatShortDateTime(stats.newest?.updatedAt))}</b><small>plus récent</small></span>
-          <span><b>${esc(formatShortDateTime(stats.oldest?.updatedAt))}</b><small>plus ancien</small></span>
           <span><b>${esc(sourceSummary)}</b><small>sources</small></span>
         </div>
-      </div>
-      <ul class="duelink-result-list">${rows}</ul>
-      ${hiddenNote}`;
+      </div>`;
   }
 
   function attachDuelinkMetadataToSession(session, game={}, replaySha256=''){
@@ -637,12 +619,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     if(finished){
       const block = `<div class="duelink-import-progress is-complete" id="duelinkImportProgressBox">
-        <div class="duelink-import-progress-head"><strong>Import préparé</strong><span>${done}/${total}</span></div>
+        <div class="duelink-import-progress-head"><strong>Lot traité</strong><span>${done}/${total}</span></div>
         <div class="duelink-progressbar"><i style="width:${percent}%"></i></div>
         <div class="duelink-import-summary-card">
-          <strong>${readyCount} replay${readyCount > 1 ? 's' : ''} prêt${readyCount > 1 ? 's' : ''} dans la file</strong>
-          <span>${duplicateCount} doublon${duplicateCount > 1 ? 's' : ''} ignoré${duplicateCount > 1 ? 's' : ''} · ${errorCount || failed} erreur${(errorCount || failed) > 1 ? 's' : ''}</span>
-          <button type="button" class="primary-button compact" data-duelink-go-bulk>Voir la file d’import</button>
+          <strong>${done} replay${done > 1 ? 's' : ''} analysé${done > 1 ? 's' : ''}</strong>
+          <span>${duplicateCount} doublon${duplicateCount > 1 ? 's' : ''} ignoré${duplicateCount > 1 ? 's' : ''} · ${errorCount || failed} erreur${(errorCount || failed) > 1 ? 's' : ''} mise${(errorCount || failed) > 1 ? 's' : ''} de côté.</span>
         </div>
       </div>`;
       const existing = document.getElementById('duelinkImportProgressBox');
@@ -821,7 +802,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }
       state.matchMeta = previousMatchMeta;
       const firstReady = state.bulkQueue.findIndex(item => item.merged && item.status !== 'error');
-      if(firstReady >= 0) activateBulkItem(firstReady);
+      if(firstReady >= 0 && !options.autoSave) activateBulkItem(firstReady);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Import prêt'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
       renderDuelinkImportProgress(rows, rows.length, importedCount, failedCount);
       refreshDuelinkPreviewStatuses();
@@ -871,11 +852,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         return;
       }
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty pending"><strong>Sauvegarde en cours.</strong><span>${readyBeforeSave} analyse(s) vont être ajoutées à l’historique après dédoublonnage.</span></div>`);
-      await saveBulkQueue();
+      const saveSummary = await saveBulkQueue() || {};
       refreshDuelinkPreviewStatuses();
-      const saved = (state.bulkQueue || []).filter(item => item.status === 'saved').length;
-      const duplicates = (state.bulkQueue || []).filter(item => item.status === 'duplicate').length;
-      const errors = (state.bulkQueue || []).filter(item => item.status === 'error').length;
+      const saved = n(saveSummary.saved);
+      const duplicates = n(saveSummary.duplicates);
+      const errors = n(saveSummary.errors);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Sync terminée'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
       const remainingAfterSave = getDuelinkImportableRows().length;
       if(els.duelinkTestResult){
@@ -3549,7 +3530,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function saveBulkQueue(){
-    if(state.bulkSaving) return;
+    if(state.bulkSaving) return { saved:0, duplicates:0, errors:0 };
     if(!state.currentUser){
       if(els.bulkImportStatus) els.bulkImportStatus.textContent = 'Connectez-vous avec Discord avant de sauvegarder un lot.';
       return;
@@ -3606,9 +3587,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         renderBulkQueue();
       }
       await refreshSavedMatches({ force:true, silent:true });
+      const errorCountBeforeCleanup = queue.filter(item => item.status === 'error').length;
       const shouldCleanQueue = queue.length > 1 || queue.some(item => item?.duelinkGame || item?.merged?.sourceType === 'duelink_api');
       if(shouldCleanQueue){
-        state.bulkQueue = state.bulkQueue.filter(item => !['saved','duplicate'].includes(item.status));
+        if(state.duelinkAutoSaving){
+          state.bulkQueue = state.bulkQueue.filter(item => !(item?.duelinkGame || item?.merged?.sourceType === 'duelink_api'));
+        }else{
+          state.bulkQueue = state.bulkQueue.filter(item => !['saved','duplicate'].includes(item.status));
+        }
         state.activeBulkIndex = state.bulkQueue.findIndex(item => item?.merged && item.status !== 'error');
         if(state.activeBulkIndex < 0) state.activeBulkIndex = null;
       }
@@ -3620,6 +3606,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(els.dropzoneStatus) els.dropzoneStatus.textContent = finalMessage;
         if(els.statusText) els.statusText.textContent = finalMessage;
       }
+      return { saved:savedCount, duplicates:duplicateCount, errors:errorCountBeforeCleanup, message:finalMessage };
     }finally{
       state.bulkSaving = false;
       state.bulkSaveTotal = 0;
@@ -8442,6 +8429,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderBulkQueue(){
     if(!els.bulkImportPanel || !els.bulkImportList) return;
+    if(state.duelinkAutoSaving){
+      els.bulkImportPanel.hidden = true;
+      if(els.bulkDeckTools) els.bulkDeckTools.innerHTML = '';
+      return;
+    }
     const queue = state.bulkQueue || [];
     els.bulkImportPanel.hidden = !queue.length;
     if(!queue.length){
@@ -8546,6 +8538,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderBulkDeckTools(){
     if(!els.bulkDeckTools) return;
+    els.bulkDeckTools.innerHTML = '';
+    return;
     const items = bulkAssignableItems().filter(item => item.status !== 'saving');
     if(!items.length){
       els.bulkDeckTools.innerHTML = '';

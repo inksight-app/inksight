@@ -13135,3 +13135,190 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
   .duelink-sync-card #duelinkImport100Button,
   .duelink-sync-card #duelinkImportAllButton { width: 100%; }
 }
+
+/* V135.9B · Account simplifié + import API en arrière-plan */
+#view-account.app-view-page{
+  gap:clamp(16px,2vw,26px)!important;
+}
+#view-account .app-page-hero.account-page-hero{
+  padding:clamp(22px,3vw,34px)!important;
+}
+#view-account .account-auth-wrapper,
+#view-account .duelink-sync-card{
+  max-width:1120px;
+  width:100%;
+  margin-inline:auto!important;
+}
+#view-account .account-grid-v71,
+#view-account .account-profile-card,
+#view-account .account-data-quality-card,
+#view-account .deck-manager-section,
+#view-account .data-maintenance-section,
+#view-account .account-menu-list,
+#view-account .data-quality-grid,
+#view-account .duelink-help-grid,
+#view-account .duelink-workflow,
+.post-import-cleanup,
+#historyVersionBlock,
+#performanceVersionBlock,
+.bulk-deck-tools{
+  display:none!important;
+}
+#view-account .account-auth-wrapper{
+  padding:clamp(16px,2vw,24px)!important;
+}
+#view-account .account-auth-card{
+  padding:0!important;
+}
+#view-account .auth-card-head{
+  margin-bottom:clamp(14px,1.8vw,18px)!important;
+}
+#view-account #authLoggedIn .auth-card-head h2,
+#view-account #authLoggedOut .auth-card-head h2{
+  font-size:clamp(1.45rem,2.4vw,2.15rem)!important;
+  letter-spacing:-.045em;
+}
+#view-account .auth-user-box{
+  margin-bottom:clamp(14px,1.6vw,18px)!important;
+  padding:14px 16px!important;
+  border-radius:20px!important;
+}
+#view-account .auth-btn-danger{
+  width:100%;
+  max-width:360px;
+}
+.duelink-sync-card{
+  padding:clamp(18px,2.6vw,32px)!important;
+}
+.duelink-sync-card .duelink-connect-head{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:clamp(12px,2vw,20px)!important;
+  margin-bottom:clamp(14px,2vw,22px)!important;
+}
+.duelink-title-block p{
+  max-width:64ch!important;
+}
+.duelink-sync-card .duelink-token-form{
+  display:grid!important;
+  grid-template-columns:minmax(260px,1fr)!important;
+  gap:clamp(12px,1.6vw,16px)!important;
+  padding:clamp(12px,1.8vw,18px)!important;
+  margin-bottom:clamp(12px,1.8vw,16px)!important;
+}
+.duelink-token-actions{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  gap:10px!important;
+}
+.duelink-token-actions .ghost-button,
+.duelink-token-actions .primary-button{
+  min-height:46px!important;
+  border-radius:999px!important;
+  padding-inline:16px!important;
+}
+.duelink-token-actions .duelink-batch-button{
+  min-width:112px;
+}
+#duelinkPreviewButton{
+  background:linear-gradient(135deg,#f6c54d,#38bdf8)!important;
+  color:#10131a!important;
+  border-color:transparent!important;
+  font-weight:900!important;
+}
+.duelink-test-result{
+  max-width:100%;
+  overflow:hidden;
+}
+.duelink-result-summary-compact .duelink-mini-stats{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+}
+.duelink-result-list{
+  display:none!important;
+}
+.duelink-batch-summary{
+  margin-bottom:12px;
+}
+.duelink-batch-summary::after{
+  content:"";
+  display:block;
+  height:1px;
+  background:rgba(255,255,255,.06);
+  margin-top:10px;
+}
+#bulkImportPanel[hidden],
+#bulkDeckTools:empty{
+  display:none!important;
+}
+@media (max-width:900px){
+  .duelink-result-summary-compact .duelink-mini-stats{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+@media (max-width:760px){
+  #view-account.app-view-page{
+    gap:14px!important;
+    padding-bottom:calc(108px + env(safe-area-inset-bottom,0px))!important;
+  }
+  #view-account .app-page-hero.account-page-hero,
+  #view-account .account-auth-wrapper,
+  #view-account .duelink-sync-card{
+    border-radius:24px!important;
+    padding:18px!important;
+  }
+  #view-account .auth-user-box{
+    grid-template-columns:auto minmax(0,1fr)!important;
+  }
+  #view-account .auth-btn-danger{
+    max-width:none;
+  }
+  .duelink-sync-card .duelink-connect-head{
+    grid-template-columns:1fr!important;
+  }
+  .duelink-status-chip{
+    justify-self:start!important;
+  }
+  .duelink-sync-card .duelink-token-form{
+    padding:12px!important;
+    border-radius:20px!important;
+  }
+  .duelink-token-actions{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:9px!important;
+  }
+  .duelink-token-actions .ghost-button,
+  .duelink-token-actions .primary-button{
+    width:100%!important;
+    min-width:0!important;
+    padding-inline:10px!important;
+    font-size:.84rem!important;
+  }
+  #duelinkImportAllButton,
+  #duelinkForgetTokenButton{
+    grid-column:1 / -1;
+  }
+  .duelink-result-summary-compact .duelink-mini-stats{
+    grid-template-columns:1fr 1fr!important;
+    gap:8px!important;
+  }
+  .duelink-mini-stats span{
+    min-height:72px!important;
+    padding:11px 12px!important;
+  }
+  .duelink-mini-stats b{
+    font-size:1.02rem!important;
+  }
+  .duelink-mini-stats small{
+    font-size:.66rem!important;
+  }
+  .duelink-import-progress{
+    padding:12px!important;
+    border-radius:18px!important;
+  }
+  .duelink-import-progress ul{
+    max-height:210px!important;
+  }
+}
