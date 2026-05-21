@@ -949,6 +949,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty pending"><strong>Sauvegarde en cours.</strong><span>${readyBeforeSave} analyse(s) vont être ajoutées à l’historique après dédoublonnage.</span></div>`);
       const saveSummary = await saveBulkQueue() || {};
+      // V136.0E: make the new saves visible before the user goes to History/Stats.
+      await refreshSavedMatches({ force:true, silent:true, keepVisible:true });
       refreshDuelinkPreviewStatuses();
       const saved = n(saveSummary.saved);
       const duplicates = n(saveSummary.duplicates);
@@ -3555,25 +3557,41 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       .catch(error => { setCloudOffline(error); });
 
     try{
-      supabase.auth.onAuthStateChange((_event, session) => {
+      supabase.auth.onAuthStateChange((event, session) => {
         setCloudOnline();
-        state.currentUser = session?.user || null;
-        syncSaveButton();
-        renderBulkQueue();
-        if(state.currentUser){
-          refreshDeckProfiles({ force:true, silent:true }).catch(setCloudOffline);
-          refreshSavedMatches({ force:true, silent:true }).catch(setCloudOffline);
-        }
-        else {
+        const sessionUser = session?.user || null;
+
+        // V136.0E: Supabase can briefly emit an empty session while refreshing tokens,
+        // especially after heavy imports on mobile Safari. Do not clear local history/stats
+        // unless we receive an explicit SIGNED_OUT event. Otherwise the UI can flash
+        // "no saved matches" even though data still exists in Supabase.
+        if(event === 'SIGNED_OUT'){
+          state.currentUser = null;
           state.savedMatches = [];
           state.savedMatchesLoaded = false;
           state.selectedSavedMatchId = null;
           state.deckProfiles = [];
           state.deckProfilesLoaded = false;
           renderDeckOptions();
+          syncSaveButton();
           renderBulkQueue();
           renderPerformanceData();
+          return;
         }
+
+        if(sessionUser){
+          state.currentUser = sessionUser;
+          syncSaveButton();
+          renderBulkQueue();
+          refreshDeckProfiles({ force:true, silent:true }).catch(setCloudOffline);
+          refreshSavedMatches({ force:true, silent:true, keepVisible:true }).catch(setCloudOffline);
+          return;
+        }
+
+        // Temporary auth gap: keep the last visible data and only update controls.
+        syncSaveButton();
+        renderBulkQueue();
+        renderPerformanceData();
       });
     }catch(error){
       setCloudOffline(error);
@@ -3734,7 +3752,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         state.bulkSaveDone += 1;
         renderBulkQueue();
       }
-      await refreshSavedMatches({ force:true, silent:true });
+      // V136.0E: refresh history after saves, but keep the existing list visible if
+      // Supabase/session needs a moment to settle after a large batch.
+      await refreshSavedMatches({ force:true, silent:true, keepVisible:true });
       const errorCountBeforeCleanup = queue.filter(item => item.status === 'error').length;
       const shouldCleanQueue = queue.length > 1 || queue.some(item => item?.duelinkGame || item?.merged?.sourceType === 'duelink_api');
       if(shouldCleanQueue){
@@ -5401,19 +5421,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!state.currentUser){
       const user = await ensureInkSightUser();
       if(!user){
-        // Ne pas vider brutalement l'historique local sur un simple trou réseau/session.
-        // L'événement SIGNED_OUT officiel reste responsable du vrai nettoyage.
+        // V136.0E: never clear the visible history on a transient auth/session gap.
+        // Only SIGNED_OUT clears data. This prevents the terrifying "everything vanished" state.
         if((state.savedMatches || []).length){
           renderPerformanceData();
           return state.savedMatches;
         }
-        state.savedMatches = [];
         state.savedMatchesLoaded = false;
-        state.selectedSavedMatchId = null;
-        state.expandedSavedMatchId = null;
-        state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' };
+        state.savedAnalytics = { ...(state.savedAnalytics || {}), loading:false, error:'Session en cours de vérification.' };
         renderPerformanceData();
-        return [];
+        return state.savedMatches || [];
       }
     }
     if(state.savedMatchesLoading) return state.savedMatches;
@@ -5425,8 +5442,18 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       state.savedMatchesLoading = true;
       if(!options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
+      const previousRows = Array.isArray(state.savedMatches) ? state.savedMatches : [];
       const rows = await listSavedMatches(5000);
-      state.savedMatches = Array.isArray(rows) ? rows : [];
+      const nextRows = Array.isArray(rows) ? rows : [];
+      // If a forced refresh returns an empty array immediately after a batch import while
+      // we had visible rows, treat it as suspicious and keep the previous UI until retry.
+      if(options.keepVisible && previousRows.length && !nextRows.length){
+        console.warn('Historique refresh returned 0 rows while previous rows exist; keeping visible rows for stability.');
+        state.savedMatchesLoaded = true;
+        if(els.historyStatus) els.historyStatus.textContent = 'Mise à jour de l’historique en cours…';
+        return previousRows;
+      }
+      state.savedMatches = nextRows;
       state.savedMatchesLoaded = true;
       if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
       await refreshSavedAnalytics(state.savedMatches, { force:!!options.force });
@@ -7691,8 +7718,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const actionAxis = [['Tempo', actionTotals.play], ['Lore', actionTotals.quest], ['Board', actionTotals.challenge], ['Encrage', actionTotals.ink]].sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Plan';
     const actionHtml = `<span>Plan moyen</span><strong>${esc(actionAxis)} dominant</strong><small>${esc(`${round1(actionTotals.play)} jouées · ${round1(actionTotals.quest)} quêtes · ${round1(actionTotals.challenge)} défis`)}</small>`;
     return `<div class="performance-charts-grid">
-      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Lore & main moyenne <button class="info-dot" type="button" data-info="La courbe est calculée tour par tour uniquement avec les parties qui atteignent réellement le tour affiché. Le repère de vitesse indique à quel tour moyen le deck atteint les paliers de lore.">?</button></h3><p>Progression moyenne vers 20 lore, sans pénaliser les tours tardifs avec les parties déjà terminées.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceLoreAvgChart">${speedHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceLoreAvgChart" aria-label="Courbe moyenne de lore et de main"></canvas></div></article>
-      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Plan de jeu par tour <button class="info-dot" type="button" data-info="Chaque barre montre ce que le deck fait en moyenne à ce tour : encrer, jouer des cartes, quêter ou défier. Les tours tardifs utilisent uniquement les parties qui les atteignent réellement.">?</button></h3><p>Encrage, cartes jouées, quêtes et défis : le plan de jeu moyen tour par tour.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceActionAvgChart">${actionHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceActionAvgChart" aria-label="Actions moyennes par tour"></canvas></div></article>
+      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Lore & main moyenne <button class="info-dot" type="button" data-info="La courbe est calculée tour par tour uniquement avec les parties qui atteignent réellement le tour affiché. Le repère de vitesse indique à quel tour moyen le deck atteint les paliers de lore. Les tours tardifs peuvent être moins représentatifs s’ils concernent peu de parties.">?</button></h3><p>Progression lore / main. <button class="info-dot" type="button" data-info="Cette courbe compare le lore moyen et la taille de main moyenne sur les parties filtrées. Elle sert à voir quand le deck accélère, s’essouffle ou atteint ses paliers de victoire.">?</button></p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceLoreAvgChart">${speedHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceLoreAvgChart" aria-label="Courbe moyenne de lore et de main"></canvas></div></article>
+      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Plan de jeu par tour <button class="info-dot" type="button" data-info="Chaque barre montre ce que le deck fait en moyenne à ce tour : encrer, jouer des cartes, quêter ou défier. Les tours tardifs utilisent uniquement les parties qui les atteignent réellement.">?</button></h3><p>Actions moyennes. <button class="info-dot" type="button" data-info="Cette courbe aide à lire le rythme du deck : combien de cartes sont encrées, jouées, envoyées à l’aventure ou utilisées en défi à chaque tour moyen.">?</button></p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceActionAvgChart">${actionHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceActionAvgChart" aria-label="Actions moyennes par tour"></canvas></div></article>
     </div>`;
   }
 
