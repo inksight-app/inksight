@@ -69,6 +69,32 @@ function deepFind(row, matcher, depth = 0, seen = new Set()) {
   return null;
 }
 
+
+function dateFromUuidLike(value) {
+  const text = String(value || '').trim();
+  const compact = text.replace(/-/g, '');
+  if (!/^[0-9a-f]{12}/i.test(compact)) return null;
+  try {
+    const ms = Number.parseInt(compact.slice(0, 12), 16);
+    if (!Number.isFinite(ms)) return null;
+    // UUIDv7 ids used by Duel.ink start with a millisecond timestamp.
+    // Guard against random legacy ids by accepting only plausible recent dates.
+    const min = Date.UTC(2023, 0, 1);
+    const max = Date.now() + 1000 * 60 * 60 * 24 * 30;
+    if (ms < min || ms > max) return null;
+    return new Date(ms).toISOString();
+  } catch {
+    return null;
+  }
+}
+
+function pickIdForDate(row) {
+  return firstValue(row, [
+    'id','game_id','gameId','game.id','match.id','match_id','matchId',
+    'replay_id','replayId','replay.id','game.replay_id','game.replayId'
+  ]) || deepFind(row, (key) => /^(?:id|game_?id|match_?id|replay_?id|replayId|gameId|matchId)$/i.test(key));
+}
+
 function pickDate(row) {
   const direct = firstValue(row, [
     'updatedAt','updated_at','playedAt','played_at','completedAt','completed_at','createdAt','created_at',
@@ -76,7 +102,9 @@ function pickDate(row) {
     'match.updatedAt','match.updated_at','match.completedAt','match.completed_at'
   ]);
   if (direct) return direct;
-  return deepFind(row, (key) => /(?:updated|played|completed|created).*at$/i.test(key) || /^(?:updatedAt|playedAt|completedAt|createdAt)$/i.test(key));
+  const nested = deepFind(row, (key) => /(?:updated|played|completed|created|finished|ended).*at$/i.test(key) || /^(?:updatedAt|playedAt|completedAt|createdAt|finishedAt|endedAt|timestamp|date)$/i.test(key));
+  if (nested) return nested;
+  return dateFromUuidLike(pickIdForDate(row));
 }
 
 function pickReplayId(row) {
@@ -113,14 +141,22 @@ function pickResult(row) {
 }
 
 function summarizeGame(row) {
+  const id = pickGameId(row);
+  const explicitDate = firstValue(row, [
+    'updatedAt','updated_at','playedAt','played_at','completedAt','completed_at','createdAt','created_at',
+    'game.updatedAt','game.updated_at','game.completedAt','game.completed_at','game.createdAt','game.created_at',
+    'finishedAt','finished_at','endedAt','ended_at','timestamp','date'
+  ]);
+  const updatedAt = pickDate(row);
   return {
-    id: pickGameId(row),
+    id,
     replayId: pickReplayId(row),
     source: pickSource(row),
     queue: pickQueue(row),
     opponent: pickOpponent(row),
     result: pickResult(row),
-    updatedAt: pickDate(row),
+    updatedAt,
+    dateSource: explicitDate ? 'api' : (updatedAt ? 'id' : 'unknown'),
     rawKeys: row && typeof row === 'object' ? Object.keys(row).slice(0, 25) : [],
   };
 }
@@ -165,7 +201,11 @@ export default async function handler(req, res) {
       });
     }
 
-    const games = Array.isArray(payload?.games) ? payload.games : (Array.isArray(payload) ? payload : []);
+    const games = Array.isArray(payload?.games) ? payload.games
+      : Array.isArray(payload?.items) ? payload.items
+      : Array.isArray(payload?.matches) ? payload.matches
+      : Array.isArray(payload?.data) ? payload.data
+      : (Array.isArray(payload) ? payload : []);
     const summaries = games.slice(0, limit).map(summarizeGame);
 
     return json(res, 200, {
