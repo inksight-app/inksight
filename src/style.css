@@ -13105,3 +13105,33 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
     text-align: left;
   }
 }
+
+/* V135.8 · Duel.ink controlled batch import */
+.duelink-sync-card #duelinkImport50Button,
+.duelink-sync-card #duelinkImport100Button,
+.duelink-sync-card #duelinkImportAllButton {
+  min-height: 52px;
+  border-radius: 999px;
+  padding-inline: 18px;
+  white-space: nowrap;
+}
+.duelink-sync-card .duelink-batch-button {
+  border-color: rgba(56, 189, 248, .22);
+  background: rgba(56, 189, 248, .08);
+}
+.duelink-sync-card .duelink-batch-button.subtle-danger {
+  border-color: rgba(246,197,77,.26);
+  background: rgba(246,197,77,.08);
+}
+.duelink-batch-summary {
+  margin-bottom: 12px;
+}
+@media (max-width: 1040px){
+  .duelink-sync-card .duelink-token-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px){
+  .duelink-sync-card .duelink-token-actions { grid-template-columns: 1fr; }
+  .duelink-sync-card #duelinkImport50Button,
+  .duelink-sync-card #duelinkImport100Button,
+  .duelink-sync-card #duelinkImportAllButton { width: 100%; }
+}
