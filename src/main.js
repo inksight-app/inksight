@@ -1,5 +1,5 @@
 import './style.css';
-import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatches, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles } from './supabase.js';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatches, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
 
 (() => {
   'use strict';
@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -32,7 +32,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImportSaveButton','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -117,7 +117,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.deckManagerRefresh?.addEventListener('click', async () => { await refreshDeckProfiles({ force:true, silent:true }); await refreshSavedMatches({ force:true, silent:true }); renderAccountPage(); });
     els.duelinkTestButton?.addEventListener('click', testDuelinkToken);
     els.duelinkPreviewButton?.addEventListener('click', previewDuelinkMatches);
-    els.duelinkImportButton?.addEventListener('click', importDuelinkPreviewToBulkQueue);
+    els.duelinkImportButton?.addEventListener('click', () => importDuelinkPreviewToBulkQueue());
+    els.duelinkImportSaveButton?.addEventListener('click', importDuelinkPreviewAndSave);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
     [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
     document.addEventListener('click', handlePerformanceFilterClick);
@@ -192,6 +193,23 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
+  function collectDuelinkRefsFromBulkQueue(){
+    const gameIds = new Set();
+    const replayIds = new Set();
+    const replayHashes = new Set();
+    (state.bulkQueue || []).forEach(item => {
+      const game = item?.duelinkGame || item?.merged?.apiRow || item?.merged?.api_row || {};
+      const api = apiMetadataForSavedData(item?.merged) || {};
+      const gameId = game.id || game.duelink_game_id || api.duelink_game_id || item?.merged?.duelinkGameId || '';
+      const replayId = game.replayId || game.replay_id || api.duelink_replay_id || item?.merged?.duelinkReplayId || '';
+      if(gameId) gameIds.add(String(gameId));
+      if(replayId) replayIds.add(String(replayId));
+      const hash = replaySha256ForSavedData(item?.merged) || item?.replays?.find(entry => entry?.replaySha256)?.replaySha256 || '';
+      if(hash) replayHashes.add(String(hash));
+    });
+    return { gameIds, replayIds, replayHashes };
+  }
+
   function collectSavedDuelinkRefs(){
     const gameIds = new Set();
     const replayIds = new Set();
@@ -217,13 +235,56 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return { gameIds, replayIds };
   }
 
+  function collectAllDuelinkRefs(){
+    const saved = collectSavedDuelinkRefs();
+    const queued = collectDuelinkRefsFromBulkQueue();
+    return {
+      savedGameIds:saved.gameIds,
+      savedReplayIds:saved.replayIds,
+      queuedGameIds:queued.gameIds,
+      queuedReplayIds:queued.replayIds,
+      queuedReplayHashes:queued.replayHashes
+    };
+  }
+
   function duelinkPreviewStatus(game, refs){
     const gameId = game?.id ? String(game.id) : '';
     const replayId = game?.replayId ? String(game.replayId) : '';
-    if((gameId && refs.gameIds.has(gameId)) || (replayId && refs.replayIds.has(replayId))){
+    if((gameId && refs.savedGameIds?.has(gameId)) || (replayId && refs.savedReplayIds?.has(replayId))){
       return { key:'existing', label:'Déjà présent' };
     }
+    if((gameId && refs.queuedGameIds?.has(gameId)) || (replayId && refs.queuedReplayIds?.has(replayId))){
+      return { key:'queued', label:'Déjà dans la file' };
+    }
     return { key:'new', label:'Nouveau' };
+  }
+
+  function refreshDuelinkPreviewStatuses(){
+    const rows = state.duelinkPreviewRows || [];
+    if(!rows.length){
+      syncDuelinkActionButtons(0);
+      return;
+    }
+    const refs = collectAllDuelinkRefs();
+    rows.forEach(row => {
+      if(row?.game) row.status = duelinkPreviewStatus(row.game, refs);
+    });
+    syncDuelinkActionButtons();
+  }
+
+  function syncDuelinkActionButtons(newCount=null){
+    const rows = state.duelinkPreviewRows || [];
+    const count = newCount === null ? rows.filter(row => row?.status?.key === 'new' && row?.game?.replayId).length : n(newCount);
+    const busy = !!(state.duelinkImporting || state.duelinkAutoSaving);
+    if(els.duelinkImportButton){
+      els.duelinkImportButton.disabled = !count || busy;
+      els.duelinkImportButton.textContent = count ? `Importer ${count} nouveau${count > 1 ? 'x' : ''}` : 'Aucun nouveau replay';
+    }
+    if(els.duelinkImportSaveButton){
+      els.duelinkImportSaveButton.disabled = !count || busy || !state.currentUser;
+      if(!state.currentUser) els.duelinkImportSaveButton.textContent = 'Connexion requise pour sauvegarder';
+      else els.duelinkImportSaveButton.textContent = count ? `Importer + sauvegarder ${count}` : 'Rien à sauvegarder';
+    }
   }
 
   function renderDuelinkPreviewResult(payload){
@@ -233,16 +294,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty"><strong>Aucun match à prévisualiser.</strong><span>L’API répond, mais aucune partie n’est retournée dans cette fenêtre.</span></div>`;
       return;
     }
-    const refs = collectSavedDuelinkRefs();
+    const refs = collectAllDuelinkRefs();
     const classified = games.map((game, index) => ({ game, index, status:duelinkPreviewStatus(game, refs) }));
     state.duelinkPreviewRows = classified;
     const newCount = classified.filter(row => row.status.key === 'new' && row.game?.replayId).length;
-    if(els.duelinkImportButton){
-      els.duelinkImportButton.disabled = !newCount || state.duelinkImporting;
-      els.duelinkImportButton.textContent = newCount ? `Importer ${newCount} nouveau${newCount > 1 ? 'x' : ''}` : 'Aucun nouveau replay';
-    }
+    syncDuelinkActionButtons(newCount);
     const visibleNewCount = classified.filter(row => row.status.key === 'new').length;
-    const existingCount = classified.length - newCount;
+    const existingCount = classified.filter(row => row.status.key === 'existing').length;
+    const queuedCount = classified.filter(row => row.status.key === 'queued').length;
     const replayCount = games.filter(game => game.replayId).length;
     const newest = games.slice().sort((a,b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0];
     const rows = classified.map(({ game, index, status }) => {
@@ -267,6 +326,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <span><b>${games.length}</b><small>matchs lus</small></span>
           <span><b>${visibleNewCount}</b><small>nouveaux</small></span>
           <span><b>${existingCount}</b><small>déjà présents</small></span>
+          <span><b>${queuedCount}</b><small>dans la file</small></span>
           <span><b>${replayCount}</b><small>replays OK</small></span>
           <span><b>${esc(formatShortDateTime(newest?.updatedAt))}</b><small>dernier match</small></span>
         </div>
@@ -336,21 +396,30 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     else els.duelinkTestResult.insertAdjacentHTML('afterbegin', block);
   }
 
-  async function importDuelinkPreviewToBulkQueue(){
+  async function importDuelinkPreviewToBulkQueue(options={}){
     const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
     if(!token){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez d’abord un token Duel.ink.</strong><span>Le token sert uniquement à récupérer les replays et n’est pas enregistré.</span></div>';
-      return;
+      return { imported:0, duplicates:0, errors:0, ready:0 };
     }
+    if(state.currentUser){
+      try{ await globalThis.INKSIGHT_refreshSavedMatches?.({ silent:true }); }catch(err){ console.warn('Historique indisponible pour le contrôle doublon API', err); }
+    }
+    const refsBeforeImport = collectAllDuelinkRefs();
+    (state.duelinkPreviewRows || []).forEach(row => {
+      if(row?.game) row.status = duelinkPreviewStatus(row.game, refsBeforeImport);
+    });
+    syncDuelinkActionButtons();
     const rows = (state.duelinkPreviewRows || []).filter(row => row?.status?.key === 'new' && row?.game?.replayId);
     if(!rows.length){
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucun nouveau replay à importer.</strong><span>Lancez d’abord une prévisualisation ou ajustez la fenêtre de matchs.</span></div>');
-      return;
+      return { imported:0, duplicates:0, errors:0, ready:0 };
     }
     await ensureLocalCardsLoaded();
     state.duelinkImporting = true;
     if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Import en cours…'; }
+    if(els.duelinkImportSaveButton){ els.duelinkImportSaveButton.disabled = true; els.duelinkImportSaveButton.textContent = options.autoSave ? 'Import + sauvegarde…' : 'Import en cours…'; }
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Import en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
     renderDuelinkImportProgress(rows, 0, 0, 0);
     try{
@@ -379,6 +448,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         renderDuelinkImportProgress(rows, rowIndex, importedCount, failedCount);
         const game = row.game;
         const replayId = String(game.replayId || '');
+        const freshRefs = collectAllDuelinkRefs();
+        const freshStatus = duelinkPreviewStatus(game, freshRefs);
+        if(freshStatus.key !== 'new'){
+          row.status = freshStatus;
+          continue;
+        }
         const file = fileById.get(replayId) || { id:replayId, filename:`${replayId}.replay.gz` };
         const item = {
           id:`duelink-${replayId}-${Date.now()}`,
@@ -419,6 +494,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           item.duplicate = duplicate || null;
           item.status = duplicate ? 'duplicate' : 'ready';
           item.message = duplicate ? 'Déjà présent dans l’historique.' : 'Importé depuis Duel.ink. Prêt à sauvegarder.';
+          row.status = duplicate ? { key:'existing', label:'Déjà présent' } : { key:'queued', label:'Déjà dans la file' };
           importedCount += 1;
           renderDuelinkImportProgress(rows, rowIndex + 1, importedCount, failedCount);
         }catch(err){
@@ -437,20 +513,85 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(firstReady >= 0) activateBulkItem(firstReady);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Import prêt'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
       renderDuelinkImportProgress(rows, rows.length, importedCount, failedCount);
-      if(els.duelinkTestResult){
-        const ready = state.bulkQueue.filter(item => item.status === 'ready').length;
-        const duplicates = state.bulkQueue.filter(item => item.status === 'duplicate').length;
-        const errors = state.bulkQueue.filter(item => item.status === 'error').length;
+      const ready = state.bulkQueue.filter(item => item.status === 'ready').length;
+      const duplicates = state.bulkQueue.filter(item => item.status === 'duplicate').length;
+      const errors = state.bulkQueue.filter(item => item.status === 'error').length;
+      if(els.duelinkTestResult && !options.silentSuccess){
         els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty ok"><strong>Replays ajoutés à la file.</strong><span>${ready} prêt(s), ${duplicates} doublon(s), ${errors} erreur(s). Utilisez ensuite la file d’import pour contrôler et sauvegarder.</span></div>`);
       }
+      return { imported:importedCount, duplicates, errors, ready };
     }catch(err){
       console.error(err);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec import'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty error"><strong>Impossible d’importer les replays Duel.ink.</strong><span>${esc(err.message || err)}.</span></div>`);
+      return { imported:0, duplicates:0, errors:1, ready:0, error:err };
     }finally{
       state.duelinkImporting = false;
-      const remaining = (state.duelinkPreviewRows || []).filter(row => row?.status?.key === 'new' && row?.game?.replayId).length;
-      if(els.duelinkImportButton){ els.duelinkImportButton.disabled = !remaining; els.duelinkImportButton.textContent = remaining ? `Importer ${remaining} nouveau${remaining > 1 ? 'x' : ''}` : 'Aucun nouveau replay'; }
+      refreshDuelinkPreviewStatuses();
+    }
+  }
+
+  async function importDuelinkPreviewAndSave(){
+    if(state.duelinkAutoSaving || state.duelinkImporting) return;
+    if(!state.currentUser){
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Connexion requise'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
+      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty error"><strong>Connectez-vous avant la sauvegarde.</strong><span>Le test et l’import sont possibles sans stockage du token, mais la sauvegarde dans l’historique nécessite votre compte InkSight.</span></div>');
+      syncDuelinkActionButtons();
+      return;
+    }
+    const rows = (state.duelinkPreviewRows || []).filter(row => row?.status?.key === 'new' && row?.game?.replayId);
+    if(!rows.length){
+      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucun nouveau replay à sauvegarder.</strong><span>Lancez une prévisualisation ou vérifiez que les matchs ne sont pas déjà présents.</span></div>');
+      return;
+    }
+    state.duelinkAutoSaving = true;
+    if(els.duelinkImportSaveButton){ els.duelinkImportSaveButton.disabled = true; els.duelinkImportSaveButton.textContent = 'Import + sauvegarde…'; }
+    if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Sync contrôlée…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
+    const startedAt = new Date().toISOString();
+    let importSummary = { imported:0, duplicates:0, errors:0, ready:0 };
+    try{
+      importSummary = await importDuelinkPreviewToBulkQueue({ autoSave:true, silentSuccess:true }) || importSummary;
+      const readyBeforeSave = (state.bulkQueue || []).filter(item => item?.merged && ['ready','warning'].includes(item.status)).length;
+      if(!readyBeforeSave){
+        if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucune analyse à sauvegarder.</strong><span>Les replays étaient déjà présents ou en erreur. Rien n’a été ajouté à l’historique.</span></div>');
+        return;
+      }
+      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty pending"><strong>Sauvegarde contrôlée en cours.</strong><span>${readyBeforeSave} analyse(s) prête(s) vont être ajoutées à l’historique après dédoublonnage.</span></div>`);
+      await saveBulkQueue();
+      refreshDuelinkPreviewStatuses();
+      const saved = (state.bulkQueue || []).filter(item => item.status === 'saved').length;
+      const duplicates = (state.bulkQueue || []).filter(item => item.status === 'duplicate').length;
+      const errors = (state.bulkQueue || []).filter(item => item.status === 'error').length;
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Sync terminée'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
+      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty ok"><strong>Synchronisation terminée.</strong><span>${saved} sauvegardée(s), ${duplicates} doublon(s), ${errors} erreur(s). Le token n’a pas été stocké.</span></div>`);
+      await logDuelinkSyncRun({
+        started_at:startedAt,
+        finished_at:new Date().toISOString(),
+        status: errors ? 'partial' : 'success',
+        matches_seen:(state.duelinkPreviewRows || []).length,
+        matches_imported:saved,
+        matches_skipped:duplicates,
+        matches_failed:errors,
+        details:{ mode:'manual_token_controlled_autosave', imported:importSummary.imported, ready:importSummary.ready }
+      }).catch(err => console.warn('Duel.ink sync log unavailable:', err));
+    }catch(err){
+      console.error(err);
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Sync échouée'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
+      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty error"><strong>Synchronisation interrompue.</strong><span>${esc(err.message || err)}.</span></div>`);
+      await logDuelinkSyncRun({
+        started_at:startedAt,
+        finished_at:new Date().toISOString(),
+        status:'error',
+        matches_seen:(state.duelinkPreviewRows || []).length,
+        matches_imported:0,
+        matches_skipped:0,
+        matches_failed:rows.length,
+        error:String(err.message || err),
+        details:{ mode:'manual_token_controlled_autosave' }
+      }).catch(logErr => console.warn('Duel.ink sync log unavailable:', logErr));
+    }finally{
+      state.duelinkAutoSaving = false;
+      syncDuelinkActionButtons();
     }
   }
 
@@ -463,6 +604,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Preview en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
     state.duelinkPreviewRows = [];
+    syncDuelinkActionButtons(0);
     if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Importer les nouveaux'; }
     if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = true;
     if(els.duelinkTestButton) els.duelinkTestButton.disabled = true;
@@ -4128,11 +4270,51 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function duplicateGroupHtml(group=[]){
-    const first = group[0] || {};
-    return `<article class="maintenance-card duplicate-group"><div><strong>Doublon potentiel</strong><span>${esc(first.format || 'BO1')} · ${esc(first.score_label || '')} · ${esc(first.matchup_label || 'Matchup inconnu')}</span><small>${group.length} sauvegardes très similaires détectées.</small></div><div class="maintenance-mini-list">${group.map((row, index) => `<button type="button" data-maintenance-select="${escAttr(row.id)}"><b>${esc(formatSavedDate(getSavedMatchPlayedAt(row)))}</b><span>${index === 0 ? 'À garder en priorité' : 'Vérifier / supprimer si doublon'}</span></button>`).join('')}</div></article>`;
+    const sorted = [...group].sort((a,b) => {
+      const apiDelta = (b.source_type === 'duelink_api' ? 1 : 0) - (a.source_type === 'duelink_api' ? 1 : 0);
+      if(apiDelta) return apiDelta;
+      return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+    });
+    const first = sorted[0] || {};
+    const rows = sorted.map((row, index) => {
+      const keep = index === 0;
+      return `<div class="maintenance-duplicate-row ${keep ? 'keep' : 'duplicate'}">
+        <button type="button" class="maintenance-duplicate-main" data-maintenance-select="${escAttr(row.id)}">
+          <b>${esc(formatSavedDate(getSavedMatchPlayedAt(row)))}</b>
+          <span>${keep ? 'À garder en priorité' : 'Doublon probable'}</span>
+        </button>
+        ${keep ? '<em>Conserver</em>' : `<button type="button" class="danger-button compact" data-maintenance-delete="${escAttr(row.id)}">Supprimer</button>`}
+      </div>`;
+    }).join('');
+    return `<article class="maintenance-card duplicate-group"><div><strong>Doublon potentiel</strong><span>${esc(first.format || 'BO1')} · ${esc(first.score_label || '')} · ${esc(first.matchup_label || 'Matchup inconnu')}</span><small>${sorted.length} sauvegardes très similaires détectées. Supprimez uniquement les copies en trop.</small></div><div class="maintenance-mini-list duplicate-manager">${rows}</div></article>`;
+  }
+
+  async function deleteMaintenanceSavedMatch(id, button){
+    const row = state.savedMatches.find(item => item.id === id);
+    if(!row) return;
+    const label = `${row.format || 'BO1'} · ${row.score_label || ''} · ${row.matchup_label || row.opponent_name || 'analyse'}`.trim();
+    if(!confirm(`Supprimer ce doublon ?\n${label}`)) return;
+    try{
+      if(button) button.disabled = true;
+      await deleteSavedMatch(id);
+      state.savedMatches = state.savedMatches.filter(item => item.id !== id);
+      if(state.selectedSavedMatchId === id) state.selectedSavedMatchId = state.savedMatches[0]?.id || null;
+      await refreshSavedMatches({ force:true, silent:true });
+      renderAccountPage();
+      renderPerformanceData();
+    }catch(err){
+      console.error(err);
+      if(els.duplicateAuditList) els.duplicateAuditList.insertAdjacentHTML('afterbegin', `<div class="cleanup-error">Erreur suppression : ${esc(err.message || err)}</div>`);
+    }
   }
 
   function handleDataMaintenanceClick(event){
+    const del = event.target.closest('[data-maintenance-delete]');
+    if(del){
+      event.preventDefault();
+      deleteMaintenanceSavedMatch(del.dataset.maintenanceDelete, del);
+      return;
+    }
     const select = event.target.closest('[data-maintenance-select]');
     if(!select) return;
     event.preventDefault();

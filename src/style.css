@@ -12678,3 +12678,72 @@ body::after{
   .duelink-import-progress ul { max-height: 240px; }
   .duelink-import-step strong { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
+
+/* V135.4B · duplicate guard + account maintenance UX */
+.maintenance-mini-list.duplicate-manager {
+  gap: 10px;
+}
+.maintenance-duplicate-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.14);
+}
+.maintenance-duplicate-row.keep {
+  border-color: rgba(52,211,153,.18);
+  background: rgba(52,211,153,.055);
+}
+.maintenance-mini-list .maintenance-duplicate-main {
+  padding: 8px 10px;
+  border-color: transparent;
+  background: transparent;
+}
+.maintenance-duplicate-row em {
+  color: #bbf7d0;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 850;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(52,211,153,.10);
+  border: 1px solid rgba(52,211,153,.18);
+  white-space: nowrap;
+}
+.danger-button.compact {
+  appearance: none;
+  border: 1px solid rgba(251,113,133,.26);
+  background: rgba(251,113,133,.10);
+  color: #fecdd3;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-weight: 850;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.danger-button.compact:hover {
+  border-color: rgba(251,113,133,.48);
+  background: rgba(251,113,133,.16);
+}
+.duelink-preview-status.queued,
+.duelink-preview-row.queued .duelink-preview-status {
+  color: #fde68a;
+  border-color: rgba(246,197,77,.30);
+  background: rgba(246,197,77,.12);
+}
+.duelink-preview-row.queued {
+  opacity: .78;
+}
+@media (max-width: 760px){
+  .maintenance-duplicate-row {
+    grid-template-columns: 1fr;
+  }
+  .maintenance-duplicate-row em,
+  .danger-button.compact {
+    justify-self: start;
+  }
+}
