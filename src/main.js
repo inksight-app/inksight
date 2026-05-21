@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -289,51 +289,95 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
   }
 
+  function duelinkFormatLabel(value){
+    const text = String(value || '').toUpperCase();
+    if(text.includes('BO3')) return 'BO3';
+    if(text.includes('BO1')) return 'BO1';
+    return value ? String(value) : 'Format inconnu';
+  }
+
+  function classifyDuelinkRows(games=[]){
+    const refs = collectAllDuelinkRefs();
+    return (games || []).map((game, index) => ({ game, index, status:duelinkPreviewStatus(game, refs) }));
+  }
+
+  function duelinkPreviewStats(classified=[]){
+    const games = classified.map(row => row.game).filter(Boolean);
+    const newRows = classified.filter(row => row.status.key === 'new');
+    const newWithReplay = newRows.filter(row => row.game?.replayId);
+    const missingReplay = newRows.filter(row => !row.game?.replayId);
+    const existing = classified.filter(row => row.status.key === 'existing');
+    const queued = classified.filter(row => row.status.key === 'queued');
+    const replayCount = games.filter(game => game.replayId).length;
+    const newest = games.slice().sort((a,b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0];
+    const oldest = games.slice().sort((a,b) => new Date(a.updatedAt || 0) - new Date(b.updatedAt || 0))[0];
+    const sources = [...new Set(games.map(game => duelinkSourceLabel(game.source)).filter(Boolean))];
+    return { games, newRows, newWithReplay, missingReplay, existing, queued, replayCount, newest, oldest, sources };
+  }
+
+  function renderDuelinkScanProgress({ page=0, total=0, cursor='', done=false, error='' }={}){
+    if(!els.duelinkTestResult) return;
+    const title = error ? 'Synchronisation interrompue' : (done ? 'Scan Duel.ink terminé' : 'Scan Duel.ink en cours');
+    const text = error
+      ? error
+      : (done ? `${total} partie${total > 1 ? 's' : ''} lue${total > 1 ? 's' : ''} dans l’historique Duel.ink.` : `Page ${page} lue · ${total} partie${total > 1 ? 's' : ''} trouvée${total > 1 ? 's' : ''}.`);
+    const percent = done ? 100 : Math.min(95, Math.max(12, page * 7));
+    els.duelinkTestResult.innerHTML = `<div class="duelink-import-progress ${done ? 'is-complete' : ''}">
+      <div class="duelink-import-progress-head"><strong>${esc(title)}</strong><span>${esc(String(total))}</span></div>
+      <div class="duelink-progressbar"><i style="width:${percent}%"></i></div>
+      <div class="duelink-import-summary-card ${error ? 'error' : ''}">
+        <strong>${esc(text)}</strong>
+        <span>${cursor && !done ? 'Duel.ink a encore des pages à lire. Le scan continue automatiquement.' : 'Aucun filtre n’est appliqué à l’import : InkSight récupère tout, les filtres viendront ensuite dans Historique et Performance.'}</span>
+      </div>
+    </div>`;
+  }
+
   function renderDuelinkPreviewResult(payload){
     if(!els.duelinkTestResult) return;
     const games = Array.isArray(payload?.games) ? payload.games : [];
+    const classified = payload?.classified || classifyDuelinkRows(games);
+    state.duelinkPreviewRows = classified;
+    const stats = duelinkPreviewStats(classified);
+    syncDuelinkActionButtons(stats.newWithReplay.length);
+
     if(!games.length){
-      els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty"><strong>Aucun match à prévisualiser.</strong><span>L’API répond, mais aucune partie n’est retournée dans cette fenêtre.</span></div>`;
+      els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty"><strong>Aucune partie trouvée.</strong><span>L’API répond, mais aucun match terminé n’a été retourné dans l’historique Duel.ink.</span></div>`;
       return;
     }
-    const refs = collectAllDuelinkRefs();
-    const classified = games.map((game, index) => ({ game, index, status:duelinkPreviewStatus(game, refs) }));
-    state.duelinkPreviewRows = classified;
-    const newCount = classified.filter(row => row.status.key === 'new' && row.game?.replayId).length;
-    syncDuelinkActionButtons(newCount);
-    const visibleNewCount = classified.filter(row => row.status.key === 'new').length;
-    const existingCount = classified.filter(row => row.status.key === 'existing').length;
-    const queuedCount = classified.filter(row => row.status.key === 'queued').length;
-    const replayCount = games.filter(game => game.replayId).length;
-    const newest = games.slice().sort((a,b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0];
-    const rows = classified.map(({ game, index, status }) => {
+
+    const sourceSummary = stats.sources.join(', ') || 'Sources inconnues';
+    const rows = classified.slice(0, 80).map(({ game, index, status }) => {
       const source = duelinkSourceLabel(game.source);
       const queue = game.queue ? esc(String(game.queue)) : 'queue inconnue';
       const replay = game.replayId ? 'Replay OK' : 'Replay non indiqué';
+      const format = duelinkFormatLabel(game.format);
       const title = game.opponent ? `vs ${esc(game.opponent)}` : `Match Duel.ink ${game.id ? `<span class="duelink-row-id">${esc(String(game.id).slice(0, 10))}</span>` : `#${index + 1}`}`;
       const date = formatShortDateTime(game.updatedAt);
       const dateLabel = game.dateSource === 'id' ? `${date} · estimée via ID` : date;
       return `<li class="duelink-preview-row ${escAttr(status.key)}">
         <div class="duelink-row-main"><strong>${title}</strong><span>${esc(dateLabel)}</span></div>
-        <div class="duelink-row-meta"><span class="duelink-preview-status ${escAttr(status.key)}">${esc(status.label)}</span><span>${esc(source)}</span><span>${queue}</span><span>${esc(replay)}</span></div>
+        <div class="duelink-row-meta"><span class="duelink-preview-status ${escAttr(status.key)}">${esc(status.label)}</span><span>${esc(source)}</span><span>${queue}</span><span>${esc(format)}</span><span>${esc(replay)}</span></div>
       </li>`;
     }).join('');
-    const compareText = state.currentUser
-      ? 'Comparaison avec vos sauvegardes actuelles. Aucun replay n’est importé.'
-      : 'Connectez-vous pour comparer avec vos sauvegardes. Aucun replay n’est importé.';
+    const hiddenCount = Math.max(0, classified.length - 80);
+    const hiddenNote = hiddenCount ? `<div class="duelink-result-empty compact"><strong>${hiddenCount} autre${hiddenCount > 1 ? 's' : ''} partie${hiddenCount > 1 ? 's' : ''} non affichée${hiddenCount > 1 ? 's' : ''}</strong><span>La liste est limitée visuellement pour garder la page lisible. Toutes les parties restent prises en compte pour l’import.</span></div>` : '';
     els.duelinkTestResult.innerHTML = `
       <div class="duelink-result-summary">
-        <div><strong>Prévisualisation prête</strong><span>${compareText}</span></div>
-        <div class="duelink-mini-stats" aria-label="Résumé preview Duel.ink">
-          <span><b>${games.length}</b><small>matchs lus</small></span>
-          <span><b>${visibleNewCount}</b><small>nouveaux</small></span>
-          <span><b>${existingCount}</b><small>déjà présents</small></span>
-          <span><b>${queuedCount}</b><small>dans la file</small></span>
-          <span><b>${replayCount}</b><small>replays OK</small></span>
-          <span><b>${esc(formatShortDateTime(newest?.updatedAt))}</b><small>dernier match</small></span>
+        <div><strong>Synchronisation prête</strong><span>${games.length} partie${games.length > 1 ? 's' : ''} lue${games.length > 1 ? 's' : ''}. Aucun filtre n’a été appliqué : l’historique complet disponible est chargé.</span></div>
+        <div class="duelink-mini-stats" aria-label="Résumé synchronisation Duel.ink">
+          <span><b>${games.length}</b><small>parties lues</small></span>
+          <span><b>${stats.newRows.length}</b><small>nouvelles</small></span>
+          <span><b>${stats.existing.length}</b><small>déjà présentes</small></span>
+          <span><b>${stats.queued.length}</b><small>dans la file</small></span>
+          <span><b>${stats.newWithReplay.length}</b><small>prêtes à importer</small></span>
+          <span><b>${stats.missingReplay.length}</b><small>sans replay</small></span>
+          <span><b>${esc(formatShortDateTime(stats.newest?.updatedAt))}</b><small>plus récent</small></span>
+          <span><b>${esc(formatShortDateTime(stats.oldest?.updatedAt))}</b><small>plus ancien</small></span>
+          <span><b>${esc(sourceSummary)}</b><small>sources</small></span>
         </div>
       </div>
-      <ul class="duelink-result-list">${rows}</ul>`;
+      <ul class="duelink-result-list">${rows}</ul>
+      ${hiddenNote}`;
   }
 
   function attachDuelinkMetadataToSession(session, game={}, replaySha256=''){
@@ -343,6 +387,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     session.duelinkReplayId = game.replayId || '';
     session.duelinkSource = game.source || '';
     session.duelinkQueue = game.queue || '';
+    session.duelinkFormat = game.format || '';
     session.duelinkUpdatedAt = game.updatedAt || null;
     session.playedAt = session.playedAt || game.updatedAt || null;
     session.replaySha256 = replaySha256 || session.replaySha256 || '';
@@ -355,8 +400,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       queue: game.queue || null,
       updatedAt: game.updatedAt || null,
       dateSource: game.dateSource || null,
+      format: game.format || null,
       opponent: game.opponent || null,
       result: game.result || null,
+      raw: game.apiRow || null,
     };
     return session;
   }
@@ -415,7 +462,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       els.duelinkSaveTokenButton.textContent = connected ? 'Remplacer la clé' : 'Mémoriser la clé chiffrée';
       els.duelinkSaveTokenButton.disabled = connected && !hasTypedToken;
     }
-    if(connected && els.duelinkTokenStatus && !['Preview en cours…','Import en cours…','Test en cours…'].includes(els.duelinkTokenStatus.textContent || '')){
+    if(connected && els.duelinkTokenStatus && !['Scan en cours…','Import en cours…','Test en cours…'].includes(els.duelinkTokenStatus.textContent || '')){
       els.duelinkTokenStatus.textContent = 'Connexion mémorisée';
       els.duelinkTokenStatus.className = 'duelink-status-chip ok';
     }
@@ -759,39 +806,92 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const tokenPayload = await duelinkTokenPayload();
     if(!tokenPayload.token && !state.duelinkConnection?.connected){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duel.ink ou mémorisez une clé chiffrée.</strong><span>La prévisualisation lit vos derniers matchs sans rien importer.</span></div>';
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duel.ink ou mémorisez une clé chiffrée.</strong><span>La synchronisation lit tout l’historique disponible sans appliquer de filtres.</span></div>';
       return;
     }
-    if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Preview en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
+    if(state.duelinkImporting || state.duelinkAutoSaving) return;
+    if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Scan en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
     state.duelinkPreviewRows = [];
+    state.duelinkSyncSummary = null;
     syncDuelinkActionButtons(0);
     if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Importer les nouveaux'; }
-    if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = true;
+    if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = true; els.duelinkPreviewButton.textContent = 'Scan en cours…'; }
     if(els.duelinkTestButton) els.duelinkTestButton.disabled = true;
-    if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = true;
-    if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty"><strong>Lecture de Duel.ink…</strong><span>Récupération des 25 derniers matchs et comparaison avec vos sauvegardes. Rien n’est importé.</span></div>';
+    renderDuelinkScanProgress({ page:0, total:0 });
+    const startedAt = new Date().toISOString();
     try{
       if(state.currentUser){
         await refreshSavedMatches({ force:true, silent:true });
       }
-      const response = await fetch('/api/duelink-history', {
-        method:'POST',
-        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
-        body:JSON.stringify({ ...tokenPayload, limit:25 })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if(!response.ok || !payload.success){
-        throw new Error(payload.error || `Erreur HTTP ${response.status}`);
-      }
-      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Preview OK'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
-      renderDuelinkPreviewResult(payload);
+      const allGames = [];
+      let cursor = '';
+      let page = 0;
+      const seenCursors = new Set();
+      do{
+        page += 1;
+        const response = await fetch('/api/duelink-history', {
+          method:'POST',
+          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+          body:JSON.stringify({ ...tokenPayload, limit:1000, cursor })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if(!response.ok || !payload.success){
+          throw new Error(payload.error || `Erreur HTTP ${response.status}`);
+        }
+        const games = Array.isArray(payload.games) ? payload.games : [];
+        allGames.push(...games);
+        cursor = payload.next_cursor || payload.nextCursor || '';
+        renderDuelinkScanProgress({ page, total:allGames.length, cursor });
+        if(cursor && seenCursors.has(cursor)){
+          console.warn('Duel.ink next_cursor déjà vu, arrêt de sécurité.', cursor);
+          cursor = '';
+        }
+        if(cursor) seenCursors.add(cursor);
+      }while(cursor);
+
+      const classified = classifyDuelinkRows(allGames);
+      const stats = duelinkPreviewStats(classified);
+      state.duelinkPreviewRows = classified;
+      state.duelinkSyncSummary = {
+        scannedAt:new Date().toISOString(),
+        pages:page,
+        total:allGames.length,
+        newCount:stats.newRows.length,
+        readyCount:stats.newWithReplay.length,
+        existingCount:stats.existing.length,
+        queuedCount:stats.queued.length,
+        missingReplayCount:stats.missingReplay.length
+      };
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Scan OK'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
+      renderDuelinkPreviewResult({ games:allGames, classified });
+      await logDuelinkSyncRun({
+        started_at:startedAt,
+        finished_at:new Date().toISOString(),
+        status:'scanned',
+        matches_seen:allGames.length,
+        matches_imported:0,
+        matches_skipped:stats.existing.length + stats.queued.length + stats.missingReplay.length,
+        matches_failed:0,
+        details:{ mode:'full_history_scan', pages:page, ready_to_import:stats.newWithReplay.length, missing_replay:stats.missingReplay.length }
+      }).catch(err => console.warn('Duel.ink scan log unavailable:', err));
     }catch(err){
-      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec preview'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty error"><strong>Impossible de prévisualiser les matchs Duel.ink.</strong><span>${esc(err.message || err)}.</span></div>`;
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec scan'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
+      renderDuelinkScanProgress({ error:`Impossible de synchroniser Duel.ink : ${err.message || err}` });
+      await logDuelinkSyncRun({
+        started_at:startedAt,
+        finished_at:new Date().toISOString(),
+        status:'error',
+        matches_seen:(state.duelinkPreviewRows || []).length,
+        matches_imported:0,
+        matches_skipped:0,
+        matches_failed:0,
+        error:String(err.message || err),
+        details:{ mode:'full_history_scan' }
+      }).catch(logErr => console.warn('Duel.ink scan log unavailable:', logErr));
     }finally{
-      if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = false;
+      if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = false; els.duelinkPreviewButton.textContent = 'Synchroniser Duel.ink'; }
       if(els.duelinkTestButton) els.duelinkTestButton.disabled = false;
-      if(els.duelinkPreviewButton) els.duelinkPreviewButton.disabled = false;
+      syncDuelinkActionButtons();
     }
   }
 
@@ -806,7 +906,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.duelinkPreviewRows = [];
     if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Importer les nouveaux'; }
     if(els.duelinkTestButton) els.duelinkTestButton.disabled = true;
-    if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty"><strong>Connexion à Duel.ink…</strong><span>Test de /api/me/match-history?limit=5. Le token n’est pas enregistré.</span></div>';
+    if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty"><strong>Connexion à Duel.ink…</strong><span>Test rapide sur les 5 dernières lignes accessibles. Rien n’est importé.</span></div>';
     try{
       const response = await fetch('/api/duelink-history', {
         method:'POST',
@@ -3463,6 +3563,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       duelink_replay_id:first.duelinkReplayId || m?.duelinkReplayId || null,
       duelink_source:first.duelinkSource || m?.duelinkSource || null,
       duelink_queue:first.duelinkQueue || m?.duelinkQueue || null,
+      duelink_format:first.duelinkFormat || m?.duelinkFormat || null,
       duelink_updated_at:first.duelinkUpdatedAt || m?.duelinkUpdatedAt || first.playedAt || null,
       my_decklist:first.myDecklist || m?.myDecklist || null,
       opponent_decklist:first.opponentDecklist || m?.opponentDecklist || null,
@@ -5097,7 +5198,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       state.savedMatchesLoading = true;
       if(!options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
-      const rows = await listSavedMatches(100);
+      const rows = await listSavedMatches(5000);
       state.savedMatches = Array.isArray(rows) ? rows : [];
       state.savedMatchesLoaded = true;
       if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
