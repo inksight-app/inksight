@@ -197,14 +197,10 @@
         <div id="mulliganCards" class="mulligan-cards" aria-live="polite"></div>
       </section>
 
-      <section class="chart-grid two">
-        <article class="glass chart-panel">
+      <section class="chart-grid two overview-charts">
+        <article class="glass chart-panel overview-lore-panel">
           <div class="section-head"><div><h2>Course aux 20 lore</h2><p>Visualiser l’évolution du score jusqu’au seuil de victoire.</p></div></div>
           <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="loreChart"><span>Lecture du tour</span><strong>Survolez la courbe</strong><small>Les valeurs du joueur et de l’adversaire s’affichent ici.</small></div><div class="chart-wrap"><canvas id="loreChart" role="img" aria-label="Évolution du lore tour par tour" aria-describedby="loreChartSummary"></canvas></div><p id="loreChartSummary" class="sr-only">Résumé du graphique lore disponible après import.</p>
-        </article>
-        <article class="glass chart-panel">
-          <div class="section-head"><div><h2>Actions par tour</h2><p>Cartes encrées, jouées, quêtes et défis.</p></div></div>
-          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="actionChart"><span>Lecture du tour</span><strong>Survolez une barre</strong><small>Encrées, jouées, quêtes et défis apparaissent ici.</small></div><div class="chart-wrap"><canvas id="actionChart" role="img" aria-label="Actions principales par tour" aria-describedby="actionChartSummary"></canvas></div><p id="actionChartSummary" class="sr-only">Résumé du graphique actions disponible après import.</p>
         </article>
       </section>
     </section>
@@ -232,13 +228,17 @@
           <div class="section-head"><div><h2>Économie d’Encre</h2><p id="inkChartSubtitle">Encre investie, conservée ou perdue dans le tempo.</p></div></div>
           <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="inkFloatChart"><span>Lecture du tour</span><strong>Survolez une barre</strong><small>Encre dépensée et inutilisée s’affichent ici.</small></div><div class="chart-wrap"><canvas id="inkFloatChart" role="img" aria-label="Économie d’encre tour par tour" aria-describedby="inkChartSummary"></canvas></div><p id="inkChartSummary" class="sr-only">Résumé du graphique économie d’encre disponible après import.</p>
         </article>
+        <article class="glass chart-panel action-stats-panel">
+          <div class="section-head"><div><h2 id="actionChartTitle">Actions par tour</h2><p id="actionChartSubtitle">Vos cartes encrées, jouées, quêtes et défis par tour.</p></div></div>
+          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="actionChart"><span>Lecture du tour</span><strong>Survolez une barre</strong><small>Encrées, jouées, quêtes et défis apparaissent ici.</small></div><div class="chart-wrap"><canvas id="actionChart" role="img" aria-label="Actions principales par tour" aria-describedby="actionChartSummary"></canvas></div><p id="actionChartSummary" class="sr-only">Résumé du graphique actions disponible après import.</p>
+        </article>
         <article class="glass chart-panel wide">
           <div class="section-head"><div><h2>Cartes en main en fin de tour</h2><p>Compare votre réserve de cartes avec celle de l’adversaire après actions et effets.</p></div></div>
           <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="handCurveChart"><span>Lecture du tour</span><strong>Survolez la courbe</strong><small>Nombre de cartes en main à la fin de chaque tour joué.</small></div><div class="chart-wrap"><canvas id="handCurveChart" role="img" aria-label="Comparaison des cartes en main en fin de tour" aria-describedby="handChartSummary"></canvas></div><p id="handChartSummary" class="sr-only">Résumé du graphique de main disponible après import.</p>
         </article>
         <article class="glass chart-panel wide">
-          <div class="section-head"><div><h2>Présence sur board</h2><p>Compare les personnages en jeu et le lore potentiel en fin de tour.</p></div></div>
-          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="boardPresenceChart"><span>Lecture du tour</span><strong>Survolez le board</strong><small>Personnages et lore potentiel apparaissent ici.</small></div><div class="chart-wrap"><canvas id="boardPresenceChart" role="img" aria-label="Comparaison de la présence sur board en fin de tour" aria-describedby="boardChartSummary"></canvas></div><p id="boardChartSummary" class="sr-only">Résumé du graphique de présence sur board disponible après import.</p>
+          <div class="section-head"><div><h2>Présence sur board</h2><p>Compare les personnages en jeu à la fin de chaque tour.</p></div></div>
+          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="boardPresenceChart"><span>Lecture du tour</span><strong>Survolez le board</strong><small>Personnages en jeu et pression lore apparaissent ici.</small></div><div class="chart-wrap"><canvas id="boardPresenceChart" role="img" aria-label="Comparaison de la présence sur board en fin de tour" aria-describedby="boardChartSummary"></canvas></div><p id="boardChartSummary" class="sr-only">Résumé du graphique de présence sur board disponible après import.</p>
         </article>
       </section>
 
