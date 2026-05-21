@@ -5992,36 +5992,52 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
     const sort = state.performanceCardSort || 'lore';
     const expanded = !!state.performanceExpandedLists?.cards || !!options.full;
-    const sorted = filterPerformanceCardsBySort(analytics.cards, sort).sort((a,b)=>comparePerformanceCards(a,b,sort));
+    const isDeadWeightSort = sort === 'blocked';
+    const sorted = isDeadWeightSort
+      ? performanceDeadWeightRows(analytics, expanded ? 80 : 4)
+      : filterPerformanceCardsBySort(analytics.cards, sort).sort((a,b)=>comparePerformanceCards(a,b,sort));
     const limit = expanded ? 80 : 4;
     const rows = sorted.slice(0, limit);
-    if(!rows.length) return '<div class="empty-line">Aucune statistique carte disponible pour ce deck. Réimportez et sauvegardez des matchs avec la V62+ pour alimenter ces signaux.</div>';
-    const deadWeightHtml = performanceDeadWeightHtml(analytics);
-    return `${deadWeightHtml}<div class="performance-block-toolbar">
+    const toolbarHtml = `<div class="performance-block-toolbar">
       <div class="sort-pills" aria-label="Trier les cartes clés">
         ${performanceSortButton('cards','lore','Lore',sort)}
         ${performanceSortButton('cards','played','Jouées',sort)}
         ${performanceSortButton('cards','inked','Encrées',sort)}
+        ${performanceSortButton('cards','blocked','Bloquées',sort)}
         ${performanceSortButton('cards','played_winrate','Winrate si jouée',sort)}
       </div>
       ${sorted.length > (expanded ? 4 : limit) ? `<button type="button" class="ghost-button compact" data-performance-full-list="cards">${expanded ? 'Réduire la liste' : `Voir les ${sorted.length} cartes`}</button>` : ''}
-    </div>
+    </div>`;
+    if(isDeadWeightSort){
+      const emptyHtml = performanceDeadWeightEmptyHtml(analytics);
+      const listHtml = rows.length
+        ? `<div class="performance-card-gallery key-card-gallery dead-weight-gallery ${expanded ? 'expanded' : ''}">${rows.map(row => performanceDeadWeightCardHtml(row)).join('')}</div>`
+        : emptyHtml;
+      return `${toolbarHtml}${listHtml}`;
+    }
+    if(!rows.length) return `${toolbarHtml}<div class="empty-line">Aucune statistique carte disponible pour ce deck. Réimportez et sauvegardez des matchs avec la V62+ pour alimenter ces signaux.</div>`;
+    return `${toolbarHtml}
     <div class="performance-card-gallery key-card-gallery ${expanded ? 'expanded' : ''}">${rows.map(card => performanceKeyCardHtml(card)).join('')}</div>`;
   }
 
 
-  function performanceDeadWeightHtml(analytics){
-    const rows = arrayify(analytics?.deadWeight)
+  function performanceDeadWeightRows(analytics, maxRows=80){
+    return arrayify(analytics?.deadWeight)
       .filter(row => n(row.maxHeldTurns) >= 3 || n(row.stuckEpisodes) > 0 || n(row.exits?.stillInHand) > 0)
       .sort((a,b)=>n(b.stuckEpisodes)-n(a.stuckEpisodes) || n(b.maxHeldTurns)-n(a.maxHeldTurns) || n(b.averageHeldTurns)-n(a.averageHeldTurns))
-      .slice(0, 6);
-    if(!rows.length){
-      const hasAny = arrayify(analytics?.deadWeight).length > 0;
-      return `<section class="performance-dead-weight-block is-empty">
-        <div class="performance-block-heading"><span>Cartes souvent bloquées</span></div>
-        <p class="performance-dead-weight-empty">${hasAny ? 'Aucune carte ne reste souvent bloquée dans l’échantillon filtré.' : 'Aucune donnée Dead Weight disponible pour cet échantillon. Importez puis sauvegardez des replays récents pour alimenter ce signal.'}</p>
-      </section>`;
-    }
+      .slice(0, maxRows);
+  }
+
+  function performanceDeadWeightEmptyHtml(analytics){
+    const hasAny = arrayify(analytics?.deadWeight).length > 0;
+    return `<section class="performance-dead-weight-block is-empty inline-empty">
+      <p class="performance-dead-weight-empty">${hasAny ? 'Aucune carte ne reste souvent bloquée dans l’échantillon filtré.' : 'Aucune donnée Dead Weight disponible pour cet échantillon. Importez puis sauvegardez des replays récents pour alimenter ce signal.'}</p>
+    </section>`;
+  }
+
+  function performanceDeadWeightHtml(analytics){
+    const rows = performanceDeadWeightRows(analytics, 6);
+    if(!rows.length) return performanceDeadWeightEmptyHtml(analytics);
     const reliability = reliabilityInfo(analytics?.games?.length || 0);
     return `<section class="performance-dead-weight-block">
       <div class="performance-block-heading">
@@ -6345,7 +6361,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       // Matchup and OTP/OTD now come from the global performance filters above.
       matchup:'all',
       play:'all',
-      recommendation:state.performanceMulliganRecommendationFilter || 'all'
+      recommendation:'all'
     };
     const sort = state.performanceMulliganSort || 'smart';
     const expanded = !!state.performanceExpandedLists?.mulligan || !!options.full;
@@ -6353,17 +6369,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     rows = filterMulliganCardsBySort(rows, sort).sort((a,b)=>compareMulliganCards(a,b,sort));
     const limit = expanded ? 80 : 10;
     const visible = rows.slice(0, limit);
-    const recButtons = [
-      mulliganLabButton('recommendation','all','Toutes',filters.recommendation),
-      mulliganLabButton('recommendation','keep','À garder',filters.recommendation),
-      mulliganLabButton('recommendation','throw','À renvoyer',filters.recommendation),
-      mulliganLabButton('recommendation','context','Contexte',filters.recommendation),
-      mulliganLabButton('recommendation','low_sample','À confirmer',filters.recommendation)
-    ].join('');
     const contextLabel = activePerformanceContextLabel();
-    const controlsHtml = `<div class="mulligan-lab-controls mulligan-lab-controls-compact global-context-only">
+    const controlsHtml = `<div class="mulligan-lab-controls mulligan-lab-controls-compact global-context-only context-only">
       <div><span>Contexte appliqué</span><p class="mulligan-lab-context-note">${esc(contextLabel)}</p></div>
-      <div><span>Signal</span><div class="mulligan-lab-row">${recButtons}</div></div>
     </div>`;
     const toolbarHtml = `<div class="performance-block-toolbar mulligan-lab-toolbar action-first">
       <div class="sort-pills" aria-label="Trier le guide mulligan">
@@ -6416,7 +6424,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         </div>
         <div class="mulligan-bar"><i style="width:${keep}%"></i><b style="width:${throwPct}%"></b></div>
         <div class="mulligan-bar-labels"><span>Garder ${keep}%</span><span>Renvoyer ${throwPct}%</span></div>
-        <div class="mulligan-bottom-tags"><span>${esc(wrBadge)}</span>${copyPattern.keptAndCut.length ? `<span>Doublon limité · ${copyPattern.keptAndCut.length}</span>` : ''}${deadWeightTag}</div>
+        <div class="mulligan-bottom-tags"><span>${esc(wrBadge)}</span>${deadWeightTag}</div>
       </div>
     </article>`;
   }

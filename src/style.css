@@ -12028,3 +12028,32 @@ body::after{
     line-height:1.35;
   }
 }
+
+/* V133.3B — Clean Cards & Mulligan UX */
+.performance-dead-weight-block.inline-empty{
+  margin:14px 0 0;
+}
+.performance-detail-panel .sort-pills .sort-pill[data-value="blocked"]{
+  white-space:nowrap;
+}
+.mulligan-lab-controls.context-only{
+  grid-template-columns:1fr!important;
+  margin-top:8px;
+}
+.mulligan-lab-controls.context-only > div > span{
+  margin-bottom:6px;
+}
+.mulligan-lab-action-first .mulligan-lab-toolbar{
+  margin-top:2px;
+}
+.mulligan-bottom-tags:empty{
+  display:none;
+}
+@media(max-width:560px){
+  .performance-dead-weight-block.inline-empty{
+    padding:14px;
+  }
+  .mulligan-lab-controls.context-only{
+    padding:14px;
+  }
+}
