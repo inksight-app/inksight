@@ -312,6 +312,30 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return response.arrayBuffer();
   }
 
+  function renderDuelinkImportProgress(rows, activeIndex=-1, done=0, failed=0){
+    if(!els.duelinkTestResult) return;
+    const total = rows.length;
+    const items = rows.map((row, index) => {
+      const game = row.game || row;
+      const replayId = String(game.replayId || game.id || `#${index + 1}`);
+      const title = game.opponent ? `vs ${esc(game.opponent)}` : `Match ${esc(replayId.slice(0, 10))}`;
+      let status = 'pending', label = 'En attente';
+      if(index < done) { status = 'done'; label = 'OK'; }
+      else if(index === activeIndex) { status = 'active'; label = 'En cours'; }
+      if(row.importError) { status = 'error'; label = 'Erreur'; }
+      return `<li class="duelink-import-step ${status}"><span class="bulk-status-dot"></span><div><strong>${title}</strong><small>${esc(label)} · replay ${esc(replayId.slice(0, 12))}</small></div></li>`;
+    }).join('');
+    const percent = total ? Math.round(((done + failed) / total) * 100) : 0;
+    const block = `<div class="duelink-import-progress" id="duelinkImportProgressBox">
+      <div class="duelink-import-progress-head"><strong>Import vers la file</strong><span>${done + failed}/${total}</span></div>
+      <div class="duelink-progressbar"><i style="width:${percent}%"></i></div>
+      <ul>${items}</ul>
+    </div>`;
+    const existing = document.getElementById('duelinkImportProgressBox');
+    if(existing) existing.outerHTML = block;
+    else els.duelinkTestResult.insertAdjacentHTML('afterbegin', block);
+  }
+
   async function importDuelinkPreviewToBulkQueue(){
     const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
     if(!token){
@@ -328,9 +352,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.duelinkImporting = true;
     if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Import en cours…'; }
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Import en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
-    if(els.duelinkTestResult){
-      els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty"><strong>Import Duel.ink en cours…</strong><span>${rows.length} replay${rows.length > 1 ? 's' : ''} vont être ajoutés à la file d’import. Rien n’est sauvegardé automatiquement.</span></div>`);
-    }
+    renderDuelinkImportProgress(rows, 0, 0, 0);
     try{
       const ids = rows.map(row => row.game.replayId);
       const manifestResponse = await fetch('/api/duelink-replays', {
@@ -350,7 +372,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         state.bulkQueue = [];
         state.activeBulkIndex = null;
       }
-      for(const row of rows){
+      let importedCount = 0;
+      let failedCount = 0;
+      for(let rowIndex = 0; rowIndex < rows.length; rowIndex += 1){
+        const row = rows[rowIndex];
+        renderDuelinkImportProgress(rows, rowIndex, importedCount, failedCount);
         const game = row.game;
         const replayId = String(game.replayId || '');
         const file = fileById.get(replayId) || { id:replayId, filename:`${replayId}.replay.gz` };
@@ -393,11 +419,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           item.duplicate = duplicate || null;
           item.status = duplicate ? 'duplicate' : 'ready';
           item.message = duplicate ? 'Déjà présent dans l’historique.' : 'Importé depuis Duel.ink. Prêt à sauvegarder.';
+          importedCount += 1;
+          renderDuelinkImportProgress(rows, rowIndex + 1, importedCount, failedCount);
         }catch(err){
           console.error(err);
           item.status = 'error';
           item.error = err;
           item.message = `Erreur Duel.ink : ${err.message}`;
+          row.importError = item.message;
+          failedCount += 1;
+          renderDuelinkImportProgress(rows, rowIndex + 1, importedCount, failedCount);
         }
         renderBulkQueue();
       }
@@ -405,6 +436,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const firstReady = state.bulkQueue.findIndex(item => item.merged && item.status !== 'error');
       if(firstReady >= 0) activateBulkItem(firstReady);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Import prêt'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
+      renderDuelinkImportProgress(rows, rows.length, importedCount, failedCount);
       if(els.duelinkTestResult){
         const ready = state.bulkQueue.filter(item => item.status === 'ready').length;
         const duplicates = state.bulkQueue.filter(item => item.status === 'duplicate').length;
@@ -1041,7 +1073,40 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const matchupLabel = formatMatchupLabel(inkProfiles);
     const opponentDeckEstimate = finalizeOpponentDeckEstimate(opponentDeckTracker);
 
-    return { fileName:file.name, fileSize:file.size, replaySha256:file.replaySha256 || '', data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate, handRetention:finalizeHandRetention(handLifecycle.mine), opponentHandRetention:finalizeHandRetention(handLifecycle.opponent) };
+    let mineHandRetention = finalizeHandRetention(handLifecycle.mine);
+    // Certains replays récupérés via API exposent mal les identifiants de main : si le suivi précis est vide,
+    // on reconstruit un signal prudent depuis la main de départ/résolue et le premier moment où la carte quitte la main.
+    if(!mineHandRetention.length && mulligan?.visible){
+      mineHandRetention = fallbackHandRetentionFromMulligan(mulligan, timeline, rows.mine, cards);
+    }
+    return { fileName:file.name, fileSize:file.size, replaySha256:file.replaySha256 || '', data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate, handRetention:mineHandRetention, opponentHandRetention:finalizeHandRetention(handLifecycle.opponent) };
+  }
+
+  function fallbackHandRetentionFromMulligan(mulligan, timeline=[], turnRows=[], cards=[]){
+    const split = splitMulliganInitialCards(mulligan);
+    const resolved = arrayify(split.resolvedCards || mulligan?.resolved).map(card => hydrateCard(card)).filter(card => cleanCardName(fullName(card)) !== 'Carte inconnue');
+    if(!resolved.length) return [];
+    const lastTurn = Math.max(1, ...arrayify(turnRows).map(row => n(row.turn)), ...arrayify(timeline).map(row => n(row.turn)));
+    const actions = arrayify(timeline).filter(row => row.owner === 'mine' && ['play','ink','discard'].includes(row.type));
+    const episodes = resolved.map(card => {
+      const key = statCardKey(card) || cardKey(card) || cleanCardName(fullName(card));
+      const name = cleanCardName(fullName(card));
+      const exit = actions.find(row => {
+        const rowKey = row.cardKey || statCardKey(row.card) || cardKey(row.card) || cleanCardName(row.cardName || row.title);
+        const rowName = cleanCardName(row.cardName || row.title || fullName(row.card || {}));
+        return (key && rowKey && key === rowKey) || (name && rowName && name === rowName);
+      });
+      const exitTurn = exit ? Math.max(1, n(exit.turn)) : lastTurn;
+      const exitReason = exit?.type === 'ink' ? 'inked' : exit?.type === 'play' ? 'played' : exit?.type === 'discard' ? 'discarded' : 'stillInHand';
+      return {
+        owner:'mine', trackingId:`fallback:${key}`,
+        card, cardKey:key, cardName:name,
+        inkable:cardIsInkable(card), cost:card.cost ?? null,
+        entryTurn:1, exitTurn, heldTurns:Math.max(0, exitTurn - 1),
+        entryReason:'openingHand', exitReason, stillInHand:exitReason === 'stillInHand'
+      };
+    }).filter(ep => ep.heldTurns > 0);
+    return mergeHandRetention(episodes);
   }
 
   function updateActionStatsFromFrame(frame, owner, seenCards, timeline, actionByTurn, row, snapshot, deckOwners, replayCardIndex, opponentDeckTracker=null){
@@ -8938,13 +9003,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const rows = (m.timeline || [])
       .filter(r => r.owner === owner && r.type === 'play')
       .map((r, index) => {
-        const card = r.card ? hydrateCard(r.card) : null;
-        const cardMeta = card ? [typeLabel(card.type), card.cost !== null && card.cost !== undefined ? `Coût ${card.cost}` : '', inkLabel(card.colors?.[0])].filter(Boolean).join(' · ') : 'Carte détectée dans le journal';
+        const cardCandidate = r.card || (r.cardName || r.title ? { fullName:r.cardName || r.title, cardName:r.cardName || r.title } : null);
+        const card = cardCandidate ? hydrateCard(cardCandidate) : null;
+        const hasUsableCard = card && cleanCardName(fullName(card)) !== 'Carte inconnue';
+        const cardMeta = hasUsableCard ? [typeLabel(card.type), card.cost !== null && card.cost !== undefined ? `Coût ${card.cost}` : '', inkLabel(card.colors?.[0])].filter(Boolean).join(' · ') : 'Carte détectée dans le journal';
         return {
-          card,
-          title:card ? fullName(card) : cleanCardName(r.cardName || r.title),
+          card:hasUsableCard ? card : null,
+          title:hasUsableCard ? fullName(card) : cleanCardName(r.cardName || r.title),
           meta:global ? `Game ${r.gameNumber || (n(r.gameIndex)+1) || '?'} · Tour ${r.turn} · ${cardMeta}` : `Tour ${r.turn} · ${cardMeta}`,
-          chips:[`#${index + 1}`, global ? `Game ${r.gameNumber || (n(r.gameIndex)+1) || '?'}` : `Tour ${r.turn}`, card ? typeLabel(card.type) : actionTypeLabel(r.type)]
+          chips:[`#${index + 1}`, global ? `Game ${r.gameNumber || (n(r.gameIndex)+1) || '?'}` : `Tour ${r.turn}`, hasUsableCard ? typeLabel(card.type) : actionTypeLabel(r.type)]
         };
       });
     renderStatCardList('playedSequence', els.playTimingTable, rows, {
