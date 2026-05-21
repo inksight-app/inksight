@@ -1,3 +1,5 @@
+import { resolveDuelinkToken } from './_duelink-token-store.js';
+
 const DUELINK_BASE_URL = 'https://duels.ink';
 
 function json(res, status, payload) {
@@ -43,10 +45,10 @@ export default async function handler(req, res) {
 
   try {
     const body = await readJsonBody(req);
-    const token = cleanToken(body.token);
+    const resolved = await resolveDuelinkToken(req, body);
+    const token = resolved.token;
     const ids = cleanIds(body.ids);
 
-    if (!token) return json(res, 400, { success: false, error: 'Token Duel.ink manquant.' });
     if (!ids.length) return json(res, 400, { success: false, error: 'Aucun replay id à importer.' });
 
     const response = await fetch(`${DUELINK_BASE_URL}/api/me/bulk-replays`, {

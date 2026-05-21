@@ -1,3 +1,5 @@
+import { resolveDuelinkToken } from './_duelink-token-store.js';
+
 const DUELINK_BASE_URL = 'https://duels.ink';
 
 function json(res, status, payload) {
@@ -233,6 +235,7 @@ export default async function handler(req, res) {
 
     return json(res, 200, {
       success: true,
+      tokenSource,
       count: games.length,
       next_cursor: payload?.next_cursor || payload?.nextCursor || null,
       games: summaries,
