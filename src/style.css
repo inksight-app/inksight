@@ -13464,3 +13464,110 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
     font-size:.82rem;
   }
 }
+
+/* V136.0B — Historique/Compte public-friendly cleanup */
+#dataQualitySummary:empty,
+#duplicateAuditList:empty,
+#postImportCleanupList:empty,
+.post-import-cleanup:has(#postImportCleanupList:empty){
+  display:none !important;
+}
+.history-primary-line .color-matchup-dots,
+.history-matchup-line.color-only .color-matchup-dots,
+.history-detail-head .color-matchup-dots{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  vertical-align:middle;
+}
+.color-matchup-dots .filter-ink-dots{
+  margin:0;
+}
+.ink-dot-placeholder{
+  width:18px;
+  height:18px;
+  border-radius:999px;
+  border:1px dashed rgba(255,255,255,.24);
+  display:inline-block;
+}
+.history-row-deck{
+  display:inline-flex;
+  width:max-content;
+  max-width:100%;
+  color:rgba(148,203,255,.86);
+  font-size:.88rem;
+  line-height:1.25;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.history-api-info.compact{
+  gap:16px;
+}
+.history-api-info.compact .history-api-info-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.api-decklist-section{
+  display:grid;
+  gap:10px;
+}
+.api-decklist-section h4{
+  margin:0;
+  color:#fff;
+  font-size:.95rem;
+  letter-spacing:.01em;
+}
+.api-decklist-panel{
+  display:grid;
+  gap:12px;
+}
+.api-decklist-head{
+  display:grid;
+  gap:5px;
+  margin-bottom:0;
+}
+.api-decklist-head strong{
+  font-size:1rem;
+  line-height:1.2;
+}
+.api-decklist-head span{
+  font-size:.8rem;
+  line-height:1.35;
+}
+.api-decklist-panel.muted{display:none;}
+.history-source-badge.decklist.estimated{display:none;}
+.history-detail-head p .color-matchup-dots{
+  margin-top:6px;
+}
+.duelink-status-chip.ok{
+  border-color:rgba(52,211,153,.38);
+  background:rgba(16,185,129,.12);
+  color:#baf7d2;
+}
+@media (max-width:760px){
+  .history-primary-line{
+    gap:8px;
+  }
+  .history-row-deck{
+    font-size:.82rem;
+  }
+  .history-api-info.compact .history-api-info-grid{
+    grid-template-columns:1fr;
+  }
+  .api-decklist-section h4{
+    font-size:.9rem;
+  }
+}
+
+/* V136.0B — Temporarily remove manual deck naming from public UI */
+.save-deck-fields,
+#performanceDeckFilter,
+#historyDeckFilter,
+#performanceVersionBlock,
+#historyVersionBlock,
+#bulkDeckTools,
+#deckManagerList,
+#deckManagerStatus,
+#deckManagerRefresh{
+  display:none !important;
+}

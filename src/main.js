@@ -466,22 +466,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function apiDecklistBadgesHtml(row){
     const sourceType = String(row?.source_type || row?.analysis_json?.source_type || '').toLowerCase();
     if(!sourceType.includes('duelink')) return '';
-    const mine = apiDecklistStatus(row, 'mine');
+    const badges = [];
     const opponent = apiDecklistStatus(row, 'opponent');
-    const opponentLabel = opponent.source === 'api'
-      ? `Deck adverse API · ${opponent.unique} cartes · ${opponent.copies} copies`
-      : 'Deck adverse estimé';
-    const mineLabel = mine.source === 'api'
-      ? `Votre deck API · ${mine.unique} cartes · ${mine.copies} copies`
-      : 'Votre deck estimé';
-    return `<span class="history-api-badges"><em class="history-source-badge decklist ${opponent.source === 'api' ? 'complete' : 'estimated'}">${esc(opponentLabel)}</em><em class="history-source-badge decklist ${mine.source === 'api' ? 'complete' : 'estimated'}">${esc(mineLabel)}</em></span>`;
+    const mine = apiDecklistStatus(row, 'mine');
+    if(opponent.source === 'api') badges.push(`<em class="history-source-badge decklist complete">Deck adverse complet · ${n(opponent.copies)} cartes</em>`);
+    if(mine.source === 'api') badges.push(`<em class="history-source-badge decklist complete">Votre deck complet · ${n(mine.copies)} cartes</em>`);
+    return badges.length ? `<span class="history-api-badges">${badges.join('')}</span>` : '';
   }
 
   function decklistPreviewHtml(title, status){
-    if(!status || !status.unique) return `<div class="api-decklist-panel muted"><strong>${esc(title)}</strong><span>Decklist complète non disponible pour cette analyse.</span></div>`;
+    if(!status || status.source !== 'api' || !status.unique) return '';
     const top = (status.cards || []).slice(0, 8).map(card => `<li><b>${n(card.count)}x</b><span>${esc(card.name || card.id)}</span></li>`).join('');
     return `<div class="api-decklist-panel">
-      <div class="api-decklist-head"><strong>${esc(title)}</strong><span>${n(status.unique)} cartes · ${n(status.copies)} copies · hash ${esc(status.hash.slice(0, 8))}</span></div>
+      <div class="api-decklist-head"><strong>${esc(title)}</strong><span>${n(status.unique)} cartes uniques · ${n(status.copies)} cartes au total</span></div>
       <ul>${top}</ul>
     </div>`;
   }
@@ -843,13 +840,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           duelinkGame:game
         };
         state.bulkQueue.push(item);
-        renderBulkQueue();
+        if(!options.autoSave) renderBulkQueue();
         try{
           // Le manifeste bulk peut refuser certains IDs alors que le téléchargement direct /r/{id}
           // reste parfois disponible. On tente donc le téléchargement direct au lieu de bloquer tout le lot.
           if(missingIds.has(replayId)){
             item.message = 'Replay absent du manifeste bulk · tentative directe…';
-            renderBulkQueue();
+            if(!options.autoSave) renderBulkQueue();
           }
           const buffer = await downloadDuelinkReplayBuffer(tokenPayload, replayId);
           item.fileSize = buffer.byteLength || 0;
@@ -896,7 +893,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           failedCount += 1;
           renderDuelinkImportProgress(rows, rowIndex + 1, importedCount, failedCount);
         }
-        renderBulkQueue();
+        if(!options.autoSave) renderBulkQueue();
       }
       state.matchMeta = previousMatchMeta;
       const firstReady = state.bulkQueue.findIndex(item => item.merged && item.status !== 'error');
@@ -1008,7 +1005,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.duelinkSyncSummary = null;
     syncDuelinkActionButtons(0);
     if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Importer 25'; }
-    if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = true; els.duelinkPreviewButton.textContent = 'Scan en cours…'; }
+    if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = true; els.duelinkPreviewButton.textContent = 'Synchronisation…'; }
     if(els.duelinkTestButton) els.duelinkTestButton.disabled = true;
     renderDuelinkScanProgress({ page:0, total:0 });
     const startedAt = new Date().toISOString();
@@ -1055,7 +1052,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         queuedCount:stats.queued.length,
         missingReplayCount:stats.missingReplay.length
       };
-      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Scan OK'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Duel.ink synchronisé'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
       renderDuelinkPreviewResult({ games:allGames, classified });
       await logDuelinkSyncRun({
         started_at:startedAt,
@@ -1082,7 +1079,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         details:{ mode:'full_history_scan' }
       }).catch(logErr => console.warn('Duel.ink scan log unavailable:', logErr));
     }finally{
-      if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = false; els.duelinkPreviewButton.textContent = 'Synchroniser Duel.ink'; }
+      if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = false; els.duelinkPreviewButton.textContent = state.duelinkSyncSummary?.total ? 'Duel.ink synchronisé' : 'Synchroniser Duel.ink'; }
       if(els.duelinkTestButton) els.duelinkTestButton.disabled = false;
       syncDuelinkActionButtons();
     }
@@ -1328,7 +1325,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         const duplicate = merged ? findDuplicateSavedMatchForData(merged) : null;
         item.duplicate = duplicate || null;
         item.status = duplicate ? 'duplicate' : 'ready';
-        item.message = duplicate ? 'Déjà présent dans l’historique.' : 'Prêt à sauvegarder. Deck à nommer plus tard depuis l’historique.';
+        item.message = duplicate ? 'Déjà présent dans l’historique.' : 'Prêt à sauvegarder.';
       }catch(err){
         console.error(err);
         item.status = 'error';
@@ -4668,7 +4665,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(status === 'complete') labels.push({ type:'complete', label:'Complète' });
     if(status === 'partial') labels.push({ type:'partial', label:'Partielle' });
     if(status === 'warning') labels.push({ type:'warning', label:'À vérifier' });
-    if(deckMissing) labels.push({ type:'warning', label:'Deck à nommer' });
     if(missingImages) labels.push({ type:'warning', label:`${missingImages} image${missingImages>1?'s':''}` });
     if(duplicate) labels.push({ type:'danger', label:'Doublon possible' });
     return { status, labels, issues:{...issues, missing_images:missingImages, deck_missing:deckMissing, duplicate} };
@@ -4692,33 +4688,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function renderDataQualityPanel(){
-    if(!els.dataQualityTitle || !els.dataQualityText || !els.dataQualitySummary) return;
-    if(!state.currentUser){
-      els.dataQualityTitle.textContent = '—';
-      els.dataQualityText.textContent = 'Connectez-vous pour voir l’état de vos sauvegardes.';
-      els.dataQualitySummary.innerHTML = '';
-      return;
-    }
-    const rows = state.savedMatches || [];
-    const detailedIds = new Set([
-      ...(state.savedAnalytics?.games || []).map(row => row.match_id),
-      ...(state.savedAnalytics?.cardStats || []).map(row => row.match_id),
-      ...(state.savedAnalytics?.turnStats || []).map(row => row.match_id),
-    ].filter(Boolean));
-    const qualityRows = rows.map(row => rowQualityInfo(row, detailedIds));
-    const complete = qualityRows.filter(info => info.status === 'complete').length;
-    const partial = qualityRows.filter(info => info.status === 'partial').length;
-    const warnings = qualityRows.filter(info => info.status === 'warning').length;
-    const missingImages = qualityRows.reduce((sum, info) => sum + n(info.issues.missing_images), 0);
-    const duplicates = duplicateGroups(rows).reduce((sum, group) => sum + Math.max(0, group.length - 1), 0);
-    els.dataQualityTitle.textContent = rows.length ? `${complete}/${rows.length} propres` : 'Aucune donnée';
-    els.dataQualityText.textContent = rows.length ? `${partial} partielle(s), ${warnings} à vérifier. Les statistiques avancées privilégient les sauvegardes complètes.` : 'Sauvegardez une analyse pour activer le contrôle qualité.';
-    els.dataQualitySummary.innerHTML = [
-      qualityBadge('Exploitables', complete, 'Analyses complètes, reliées aux tables détaillées.'),
-      qualityBadge('Partielles', partial, 'Anciennes sauvegardes ou tables détaillées absentes.'),
-      qualityBadge('Images manquantes', missingImages, 'Cartes sans URL image exploitable.'),
-      qualityBadge('Doublons potentiels', duplicates, 'À nettoyer avant de tirer des conclusions.'),
-    ].join('');
+    // V136.0B: le diagnostic qualité reste disponible dans les données,
+    // mais il est masqué de la page Compte pour ne pas noyer les joueurs.
+    if(els.dataQualityTitle) els.dataQualityTitle.textContent = '';
+    if(els.dataQualityText) els.dataQualityText.textContent = '';
+    if(els.dataQualitySummary) els.dataQualitySummary.innerHTML = '';
   }
 
   function qualityBadge(label, value, help){
@@ -4751,39 +4725,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function renderDuplicateAudit(){
-    if(!els.duplicateAuditList) return;
-    if(!state.currentUser){
-      els.duplicateAuditList.innerHTML = '<div class="empty-line">Connectez-vous pour vérifier vos sauvegardes.</div>';
-      return;
-    }
-    const rows = state.savedMatches || [];
-    const detailedIds = new Set([
-      ...(state.savedAnalytics?.games || []).map(row => row.match_id),
-      ...(state.savedAnalytics?.cardStats || []).map(row => row.match_id),
-      ...(state.savedAnalytics?.turnStats || []).map(row => row.match_id),
-    ].filter(Boolean));
-    const unnamed = rows.filter(row => rowQualityInfo(row, detailedIds).issues.deck_missing);
-    const partial = rows.filter(row => rowQualityInfo(row, detailedIds).status === 'partial');
-    const imageRows = rows.filter(row => n(rowQualityInfo(row, detailedIds).issues.missing_images) > 0);
-    const duplicates = duplicateGroups(rows);
-    const cards = [];
-    if(unnamed.length){
-      cards.push(maintenanceCardHtml('Decks à nommer', `${unnamed.length} analyse(s) sans version de deck fiable.`, unnamed.slice(0,4), 'Assigner un deck depuis l’historique.'));
-    }
-    if(partial.length){
-      cards.push(maintenanceCardHtml('Analyses partielles', `${partial.length} sauvegarde(s) ne remplissent pas toutes les tables détaillées.`, partial.slice(0,4), 'Réimport recommandé si vous voulez des stats deck précises.'));
-    }
-    if(imageRows.length){
-      cards.push(maintenanceCardHtml('Images manquantes', `${imageRows.length} analyse(s) contiennent au moins une carte sans visuel.`, imageRows.slice(0,4), 'Réimporter avec la base cartes actuelle peut corriger certains cas.'));
-    }
-    duplicates.forEach(group => {
-      cards.push(duplicateGroupHtml(group));
-    });
-    if(!cards.length){
-      els.duplicateAuditList.innerHTML = '<div class="data-clean-state"><strong>Base propre.</strong><span>Aucun doublon évident, aucun deck manquant et pas d’ancienne sauvegarde problématique détectée.</span></div>';
-      return;
-    }
-    els.duplicateAuditList.innerHTML = cards.join('');
+    // V136.0B: les cartes de maintenance (decks à nommer, images manquantes, analyses partielles)
+    // ne sont plus affichées dans l’interface principale.
+    if(els.duplicateAuditList) els.duplicateAuditList.innerHTML = '';
   }
 
   function maintenanceCardHtml(title, intro, rows=[], note=''){
@@ -5151,7 +5095,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const requiresDeck = ['cards','mulligan','matchups','curves'].includes(button.dataset.performanceDetail);
       button.classList.toggle('active', active);
       button.classList.toggle('requires-deck', requiresDeck && !deckScoped);
-      button.title = requiresDeck && !deckScoped ? 'Sélectionnez une bicolorité ou une version de deck pour lire cette section correctement.' : '';
+      button.title = requiresDeck && !deckScoped ? 'Sélectionnez une bicolorité pour lire cette section correctement.' : '';
       if(active) button.setAttribute('aria-current','page');
       else button.removeAttribute('aria-current');
     });
@@ -5364,6 +5308,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const values = arrayify(colors).map(inkKey).filter(Boolean).slice(0,2);
     if(!values.length) return '';
     return `<span class="filter-ink-dots" aria-hidden="true">${values.map(color => `<i class="ink-dot ink-${escAttr(color)}"></i>`).join('')}</span>`;
+  }
+
+  function colorMatchupDotsHtml(mine=[], opponent=[], label=''){
+    const mineDots = inkDotsHtml(mine);
+    const oppDots = inkDotsHtml(opponent);
+    if(!mineDots && !oppDots) return `<span class="color-matchup-text">${esc(label || 'Encres non détectées')}</span>`;
+    return `<span class="color-matchup-dots" aria-label="${escAttr(label || 'Bicolorité du match')}">${mineDots || '<span class="ink-dot-placeholder"></span>'}<span class="history-vs">vs</span>${oppDots || '<span class="ink-dot-placeholder"></span>'}</span>`;
   }
 
   function readSaveDeckSelection(){
@@ -6923,7 +6874,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <article class="glass deck-health-main neutral">
             <span>Santé du deck</span>
             <strong>—</strong>
-            <small>Choisissez une bicolorité ou une version</small>
+            <small>Choisissez une bicolorité</small>
             <div class="deck-health-status">À filtrer</div>
           </article>
           <article class="glass deck-health-details">
@@ -6938,9 +6889,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     if(!deckScoped){
       if(els.performanceCoachTitle) els.performanceCoachTitle.textContent = 'Choisissez un deck';
-      if(els.performanceCoachText) els.performanceCoachText.textContent = 'Le diagnostic devient utile uniquement quand les matchs appartiennent au même deck ou à la même bicolorité.';
+      if(els.performanceCoachText) els.performanceCoachText.textContent = 'Le diagnostic devient utile quand les matchs appartiennent à une même bicolorité.';
       if(els.performanceBestSignal) els.performanceBestSignal.textContent = '—';
-      if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = 'Sélectionnez une bicolorité ou une version.';
+      if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = 'Sélectionnez une bicolorité.';
       if(els.performanceWarningSignal) els.performanceWarningSignal.textContent = '—';
       if(els.performanceWarningSignalText) els.performanceWarningSignalText.textContent = 'Aucun signal exploitable pour l’instant.';
       return;
@@ -7165,7 +7116,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function renderPerformanceMatchups(rows, analytics, meta={}){
     if(!els.performanceMatchupBreakdown) return;
     if(!meta.deckScoped){
-      els.performanceMatchupBreakdown.innerHTML = '<div class="deck-required compact"><strong>Sélectionnez un deck ou une bicolorité</strong><span>Les matchups deviennent lisibles uniquement quand l’échantillon représente une stratégie cohérente.</span></div>';
+      els.performanceMatchupBreakdown.innerHTML = '<div class="deck-required compact"><strong>Sélectionnez une bicolorité</strong><span>Les matchups deviennent lisibles quand l’échantillon représente une stratégie cohérente.</span></div>';
       return;
     }
     const gamesByMatch = new Map();
@@ -7219,7 +7170,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function performanceCardImpactHtml(analytics, options={}){
     if(!isPerformanceDeckScoped()){
-      return '<div class="deck-required"><strong>Sélectionnez une bicolorité ou un deck</strong><span>Les cartes clés ne sont pas affichées sur “Toutes les bicolorités”, pour éviter de mélanger des listes et des synergies différentes.</span></div>';
+      return '<div class="deck-required"><strong>Sélectionnez une bicolorité</strong><span>Les cartes clés ne sont pas affichées sur “Toutes les bicolorités”, pour éviter de mélanger des listes trop différentes.</span></div>';
     }
     const sort = state.performanceCardSort || 'lore';
     const expanded = !!state.performanceExpandedLists?.cards || !!options.full;
@@ -7586,7 +7537,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function performanceMulliganHtml(analytics, options={}){
     if(!isPerformanceDeckScoped()){
-      return '<div class="deck-required"><strong>Sélectionnez une bicolorité ou un deck</strong><span>Le Mulligan Lab doit être lu deck par deck. Sur plusieurs listes, les recommandations deviennent trompeuses.</span></div>';
+      return '<div class="deck-required"><strong>Sélectionnez une bicolorité</strong><span>Le Mulligan Lab doit être lu par contexte cohérent. Sur plusieurs bicolorités, les tendances deviennent trompeuses.</span></div>';
     }
     const filters = {
       // Matchup and OTP/OTD now come from the global performance filters above.
@@ -7879,65 +7830,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function renderPostImportCleanup(){
-    if(!els.postImportCleanupList) return;
-    if(!state.currentUser){
-      els.postImportCleanupList.innerHTML = '<div class="empty-line">Connectez-vous pour vérifier les analyses à nommer.</div>';
-      return;
-    }
-    if(state.savedMatchesLoading){
-      els.postImportCleanupList.innerHTML = '<div class="empty-line">Chargement des analyses à ranger…</div>';
-      return;
-    }
-    const missingDeckRows = deckMissingRows();
-    const duplicates = duplicateGroups(state.savedMatches || []);
-    const partial = (state.savedMatches || []).filter(row => rowQualityInfo(row).status === 'partial');
-    if(!missingDeckRows.length && !duplicates.length && !partial.length){
-      els.postImportCleanupList.innerHTML = '<div class="cleanup-success"><strong>Tout est rangé.</strong><span>Aucune analyse sans deck, aucun doublon évident, aucune ancienne sauvegarde partielle détectée.</span></div>';
-      return;
-    }
-
-    const summary = `<div class="cleanup-summary">
-      <span><b>${missingDeckRows.length}</b> deck${missingDeckRows.length > 1 ? 's' : ''} à nommer</span>
-      <span><b>${duplicates.reduce((sum, group) => sum + Math.max(0, group.length - 1), 0)}</b> doublon${duplicates.length > 1 ? 's' : ''} potentiel${duplicates.length > 1 ? 's' : ''}</span>
-      <span><b>${partial.length}</b> analyse${partial.length > 1 ? 's' : ''} partielle${partial.length > 1 ? 's' : ''}</span>
-    </div>`;
-
-    const groups = cleanupGroupsByColor(missingDeckRows);
-    const groupHtml = groups.length ? groups.map(group => {
-      const colors = cleanupGroupColors(group.key);
-      const matchingProfiles = namedDeckProfiles().filter(profile => profileMatchesColorKey(profile, group.key));
-      const existing = matchingProfiles.length
-        ? matchingProfiles.map(profile => `<button type="button" class="cleanup-deck-pill" data-cleanup-assign-existing="${escAttr(group.key)}" data-profile-id="${escAttr(profile.id)}">${inkDotsHtml(profileColors(profile))}<span>${esc(profile.name)}</span></button>`).join('')
-        : '<span class="cleanup-muted">Aucune version existante pour cette bicolorité.</span>';
-      const samples = group.rows.slice(0,3).map(row => `<li>${esc(row.matchup_label || 'Matchup non renseigné')} · ${esc(row.result === 'win' ? 'Victoire' : 'Défaite')} ${esc(row.score_label || '')}</li>`).join('');
-      return `<article class="cleanup-group" data-cleanup-group="${escAttr(group.key)}">
-        <div class="cleanup-group-head">
-          <div>
-            <strong>${inkDotsHtml(colors)}<span>${esc(cleanupGroupLabel(group.key))}</span></strong>
-            <small>${group.rows.length} analyse${group.rows.length > 1 ? 's' : ''} sans version de deck</small>
-          </div>
-          <button type="button" class="ghost-button compact" data-cleanup-focus-group="${escAttr(group.key)}">Voir dans l’historique</button>
-        </div>
-        <ul class="cleanup-samples">${samples}</ul>
-        <div class="cleanup-existing-decks">${existing}</div>
-        <div class="cleanup-new-deck">
-          <input type="text" data-cleanup-new-deck-name="${escAttr(group.key)}" placeholder="Créer une version, ex. ${escAttr(cleanupGroupLabel(group.key))} Control" maxlength="80">
-          <button type="button" class="primary-button compact" data-cleanup-assign-new="${escAttr(group.key)}">Appliquer au groupe</button>
-        </div>
-      </article>`;
-    }).join('') : '<div class="empty-line">Aucune analyse sans deck à nommer.</div>';
-
-    const duplicateHtml = duplicates.length ? `<details class="cleanup-details">
-      <summary>Doublons potentiels détectés (${duplicates.length} groupe${duplicates.length > 1 ? 's' : ''})</summary>
-      <div class="cleanup-detail-list">${duplicates.slice(0,5).map(group => `<div><strong>${esc(group[0]?.matchup_label || 'Matchup non renseigné')}</strong><span>${group.length} analyses similaires · ouvrez la page Compte pour gérer la suppression.</span></div>`).join('')}</div>
-    </details>` : '';
-
-    const partialHtml = partial.length ? `<details class="cleanup-details">
-      <summary>Anciennes analyses partielles (${partial.length})</summary>
-      <p>Ces sauvegardes peuvent manquer de lignes détaillées pour les stats avancées. Elles restent visibles, mais les nouvelles analyses seront plus fiables.</p>
-    </details>` : '';
-
-    els.postImportCleanupList.innerHTML = summary + groupHtml + duplicateHtml + partialHtml;
+    // V136.0B: le nommage manuel des decks et les cartes de maintenance sont masqués.
+    // Les versions de deck seront déduites plus tard via decklist API + deck hash.
+    if(els.postImportCleanupList) els.postImportCleanupList.innerHTML = '';
   }
 
   async function handlePostImportCleanupClick(event){
@@ -8120,26 +8015,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const colorDots = inkDotsHtml(colors);
     const opponentDots = inkDotsHtml(opponentColors);
     const opponent = row.opponent_name ? `vs ${row.opponent_name}` : 'Adversaire non renseigné';
-    const deck = row.deck_name || row.analysis_json?.deck?.name || 'Deck à nommer';
+    const deck = row.deck_name || row.analysis_json?.deck?.name || '';
     const score = row.score_label || `${n(row.final_mine_lore)}-${n(row.final_opp_lore)}`;
     const games = Array.isArray(row.analysis_json?.games) ? row.analysis_json.games : [];
     const hasGames = format === 'BO3' && games.length > 1;
     const expanded = state.expandedSavedMatchId === row.id;
     const gamesHtml = expanded && hasGames ? savedGamesHtml(games) : '';
-    const editHtml = state.editingSavedMatchId === row.id ? savedMatchDeckEditHtml(row) : '';
+    const editHtml = '';
     const actionsOpen = state.activeHistoryActionsId === row.id;
     const compactActions = `<button type="button" class="ghost-button history-mini-button primary" data-load-saved="${escAttr(row.id)}">Voir l’analyse</button>
         <button type="button" class="ghost-button history-mini-button" data-select-saved="${escAttr(row.id)}">Détails</button>
-        <button type="button" class="ghost-button history-mini-button" data-edit-deck="${escAttr(row.id)}">Modifier deck</button>
         <button type="button" class="ghost-button history-mini-button danger" data-delete-saved="${escAttr(row.id)}">Supprimer</button>`;
     return `<article class="history-row ${isActive ? 'active' : ''} ${hasGames ? 'has-games' : ''} ${actionsOpen ? 'actions-open' : ''}" data-saved-id="${escAttr(row.id)}">
       <button type="button" class="history-row-main" data-select-saved="${escAttr(row.id)}" aria-expanded="${expanded && hasGames ? 'true' : 'false'}">
         <span class="history-result-dot ${resultClass}"></span>
         <span class="history-row-copy">
-          <strong class="history-primary-line"><em>${esc(format)}</em><span>${colorDots}<span class="history-vs">vs</span>${opponentDots}</span><b>${esc(result)} ${esc(score)}</b></strong>
+          <strong class="history-primary-line"><em>${esc(format)}</em>${colorMatchupDotsHtml(colors, opponentColors, matchup)}<b>${esc(result)} ${esc(score)}</b></strong>
           <span class="history-opponent-line">${esc(opponent)}</span>
-          <span class="history-matchup-line">${esc(matchup)}</span>
-          <span class="history-row-deck">Deck · ${esc(deck)}</span>
+          ${deck ? `<span class="history-row-deck">${esc(deck)}</span>` : ''}
           ${historySourceBadgesHtml(row)}
           ${apiDecklistBadgesHtml(row)}
           ${qualityBadgesHtml(row)}
@@ -8229,26 +8122,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         event.stopPropagation();
         const id = button.dataset.toggleHistoryActions;
         state.activeHistoryActionsId = state.activeHistoryActionsId === id ? null : id;
-        state.selectedSavedMatchId = id;
         renderPerformanceData();
       };
     });
 
-    document.querySelectorAll('[data-edit-deck]').forEach(button => {
-      button.onclick = event => {
-        event.stopPropagation();
-        const id = button.dataset.editDeck;
-        if(state.editingSavedMatchId === id){
-          state.editingSavedMatchId = null;
-        }else{
-          const row = state.savedMatches.find(item => item.id === id);
-          state.editingSavedMatchId = id;
-          state.pendingDeckSelection = { ...(state.pendingDeckSelection || {}), [id]: row?.deck_profile_id || '' };
-        }
-        state.selectedSavedMatchId = id;
-        renderPerformanceData();
-      };
-    });
     document.querySelectorAll('[data-cancel-deck-edit]').forEach(button => {
       button.onclick = () => {
         state.editingSavedMatchId = null;
@@ -8261,7 +8138,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         event.stopPropagation();
         const id = button.dataset.selectDeckProfile;
         state.pendingDeckSelection = { ...(state.pendingDeckSelection || {}), [id]: button.dataset.profileId || '' };
-        state.selectedSavedMatchId = id;
         renderPerformanceData();
       };
     });
@@ -8368,7 +8244,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const format = String(row.format || 'BO1').toUpperCase();
     const score = row.score_label || `${n(row.final_mine_lore)}-${n(row.final_opp_lore)}`;
     const games = Array.isArray(analysis.games) ? analysis.games : [];
-    const deckName = row.deck_name || analysis.deck?.name || 'Deck à nommer';
+    const deckName = row.deck_name || analysis.deck?.name || '';
     const opponentName = row.opponent_name || 'Adversaire non renseigné';
     const date = formatSavedDate(getSavedMatchPlayedAt(row));
     const turns = n(row.total_turns) || '—';
@@ -8378,18 +8254,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const apiMineDeck = apiDecklistStatus(row, 'mine');
     const apiOpponentDeck = apiDecklistStatus(row, 'opponent');
     const apiMeta = row.api_metadata || analysis.api_metadata || {};
-    const apiInfoHtml = String(row.source_type || analysis.source_type || '').toLowerCase().includes('duelink') ? `<div class="history-api-info">
-      <div class="history-api-info-head"><span>Informations Duel.ink</span><strong>${esc(duelinkSourceLabel(row.duelink_source || apiMeta.duelink_source || apiMeta.source || ''))}</strong></div>
+    const apiDecklistsHtml = [
+      decklistPreviewHtml('Votre deck Duel.ink', apiMineDeck),
+      decklistPreviewHtml('Deck adverse Duel.ink', apiOpponentDeck)
+    ].filter(Boolean).join('');
+    const apiInfoHtml = String(row.source_type || analysis.source_type || '').toLowerCase().includes('duelink') ? `<div class="history-api-info compact">
+      <div class="history-api-info-head"><span>Duel.ink</span><strong>${esc(duelinkSourceLabel(row.duelink_source || apiMeta.duelink_source || apiMeta.source || ''))}</strong></div>
       <div class="history-api-info-grid">
         <span><b>${esc(row.duelink_queue || apiMeta.duelink_queue || apiMeta.queue || '—')}</b><small>File</small></span>
         <span><b>${esc(formatShortDateTime(row.duelink_updated_at || apiMeta.duelink_updated_at || apiMeta.updatedAt || row.played_at))}</b><small>Date Duel.ink</small></span>
-        <span><b>${esc(apiMineDeck.hash ? apiMineDeck.hash.slice(0, 8) : '—')}</b><small>Hash deck</small></span>
-        <span><b>${esc(apiOpponentDeck.hash ? apiOpponentDeck.hash.slice(0, 8) : '—')}</b><small>Hash adverse</small></span>
       </div>
-      <div class="api-decklist-grid">
-        ${decklistPreviewHtml('Votre deck API', apiMineDeck)}
-        ${decklistPreviewHtml('Deck adverse API', apiOpponentDeck)}
-      </div>
+      ${apiDecklistsHtml ? `<div class="api-decklist-section"><h4>Decklists Duel.ink</h4><div class="api-decklist-grid">${apiDecklistsHtml}</div></div>` : ''}
     </div>` : '';
 
     const metricTile = (label, value, sub='', cls='') => `<div class="history-detail-metric ${cls}"><span>${esc(label)}</span><strong>${esc(value)}</strong>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
@@ -8412,7 +8287,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <div>
         <span class="history-detail-kicker">Analyse sauvegardée</span>
         <h2>${esc(format)} · ${esc(result)} ${esc(score)}</h2>
-        <p>${esc(row.matchup_label || 'Matchup non renseigné')}</p>
+        <p>${colorMatchupDotsHtml(rowMineColors(row), rowOpponentColors(row), row.matchup_label || '')}</p>
       </div>
       <div class="history-detail-actions">
         <small>${esc(date)}</small>
@@ -8422,8 +8297,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     <div class="history-detail-kpi-grid">
       ${metricTile('Résultat', result, score, resultTone)}
       ${metricTile('Tours', String(turns), format, '')}
-      ${metricTile('Deck', deckName, 'version associée', 'wide')}
-      ${metricTile('Adversaire', opponentName, row.matchup_label || '', 'wide')}
+      ${deckName ? metricTile('Deck', deckName, '', 'wide') : ''}
+      ${metricTile('Adversaire', opponentName, '', 'wide')}
     </div>
     ${narrative.title ? `<div class="history-narrative history-narrative-v112"><strong>${esc(narrative.title)}</strong><p>${esc(narrative.text || '')}</p></div>` : ''}
     ${apiInfoHtml}
@@ -8640,7 +8515,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function bulkItemDeckLabel(item){
     if(item?.assignedDeck?.name) return `Deck : ${item.assignedDeck.name}`;
-    return 'Deck à nommer plus tard';
+    return 'Deck automatique à venir';
   }
 
   function bulkGroupKeyForItem(item){
@@ -8756,7 +8631,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(bulkGroupKeyForItem(item) !== groupKey) return;
       item.assignedDeck = deck ? { ...deck } : null;
       if(item.status === 'ready' || item.status === 'warning'){
-        item.message = deck?.name ? `Prêt à sauvegarder avec le deck “${deck.name}”.` : 'Prêt à sauvegarder. Deck à nommer plus tard depuis l’historique.';
+        item.message = deck?.name ? `Prêt à sauvegarder avec le deck “${deck.name}”.` : 'Prêt à sauvegarder.';
       }
     });
     renderBulkQueue();
