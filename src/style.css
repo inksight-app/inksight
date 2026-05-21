@@ -12082,3 +12082,46 @@ body::after{
     grid-template-columns:1fr!important;
   }
 }
+
+/* V135.0 · Historique source/API badges */
+.history-source-badges{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:6px;
+}
+.history-source-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:22px;
+  padding:3px 9px;
+  border-radius:999px;
+  font-size:.72rem;
+  font-weight:850;
+  letter-spacing:.015em;
+  line-height:1;
+  color:rgba(255,255,255,.86);
+  background:rgba(255,255,255,.075);
+  border:1px solid rgba(255,255,255,.12);
+  font-style:normal;
+  white-space:nowrap;
+}
+.history-source-badge.manual{
+  color:rgba(255,255,255,.78);
+  background:rgba(255,255,255,.055);
+}
+.history-source-badge.api{
+  color:#d8f4ff;
+  background:rgba(76,175,255,.16);
+  border-color:rgba(76,175,255,.38);
+}
+.history-source-badge.mode,
+.history-source-badge.queue{
+  color:rgba(255,255,255,.72);
+  background:rgba(255,255,255,.05);
+}
+@media (max-width: 720px){
+  .history-source-badges{gap:5px;margin-top:7px;}
+  .history-source-badge{font-size:.7rem;min-height:24px;padding:4px 9px;}
+}

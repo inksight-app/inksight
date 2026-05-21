@@ -288,6 +288,15 @@ export async function listSavedMatches(limit = 100) {
       'deck_profile_id',
       'duelink_url',
       'played_at',
+      'source_type',
+      'duelink_match_id',
+      'duelink_source',
+      'duelink_queue',
+      'duelink_updated_at',
+      'replay_sha256',
+      'my_decklist',
+      'opponent_decklist',
+      'api_metadata',
       'replay_fingerprint',
       'data_quality',
       'quality_issues',
@@ -297,6 +306,7 @@ export async function listSavedMatches(limit = 100) {
       'final_opp_lore',
       'analysis_json',
     ].join(','))
+    .order('played_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
     .limit(limit);
 

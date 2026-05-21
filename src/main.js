@@ -401,9 +401,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   async function readReplayInputFile(file){
     const fileName = String(file.name || 'replay');
     if(/\.zip$/i.test(fileName)) return readMatchReplayZip(file);
-    const replay = await readReplayFile(file);
-    const session = parseReplay(replay, file);
-    return [{ file, replay, session }];
+    const imported = await readReplayFileWithMeta(file);
+    const enrichedFile = Object.assign(file, { replaySha256:imported.replaySha256 });
+    const session = parseReplay(imported.replay, enrichedFile);
+    session.replaySha256 = imported.replaySha256 || session.replaySha256 || '';
+    return [{ file:enrichedFile, replay:imported.replay, replaySha256:imported.replaySha256, session }];
   }
 
   async function readMatchReplayZip(file){
@@ -427,6 +429,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     for(let index = 0; index < replayEntries.length; index += 1){
       const entry = replayEntries[index];
       const buffer = await entry.async('arraybuffer');
+      const replaySha256 = await replaySha256FromBuffer(buffer);
       const replay = await readReplayBuffer(buffer, entry.name);
       const pseudoFile = {
         name: entry.name,
@@ -434,11 +437,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         parentName: file.name,
         isZipEntry:true,
         lastModified: 0,
-        playedAt: null
+        playedAt: null,
+        replaySha256
       };
       const session = parseReplay(replay, pseudoFile);
+      session.replaySha256 = replaySha256 || session.replaySha256 || '';
       enrichSessionWithMatchMeta(session, matchMeta, index);
-      imported.push({ file:pseudoFile, parentFile:file, replay, session, matchMeta });
+      imported.push({ file:pseudoFile, parentFile:file, replay, replaySha256, session, matchMeta });
     }
     return imported;
   }
@@ -460,9 +465,27 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     session.playedAt = session.playedAt || firstValidDate([info.playedAt, info.startedAt, info.createdAt, matchMeta.playedAt, matchMeta.startedAt, matchMeta.createdAt]);
   }
 
-  async function readReplayFile(file){
+  async function replaySha256FromBuffer(buf){
+    if(!buf) return '';
+    try{
+      const digest = await crypto.subtle.digest('SHA-256', buf instanceof ArrayBuffer ? buf : new Uint8Array(buf).buffer);
+      return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
+    }catch(err){
+      console.warn('SHA-256 indisponible pour ce replay', err);
+      return '';
+    }
+  }
+
+  async function readReplayFileWithMeta(file){
     const buf = await file.arrayBuffer();
-    return readReplayBuffer(buf, file.name || 'replay');
+    const replaySha256 = await replaySha256FromBuffer(buf);
+    const replay = await readReplayBuffer(buf, file.name || 'replay');
+    return { replay, replaySha256 };
+  }
+
+  async function readReplayFile(file){
+    const { replay } = await readReplayFileWithMeta(file);
+    return replay;
   }
 
   async function readReplayBuffer(buf, fileName='replay'){
@@ -658,7 +681,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const matchupLabel = formatMatchupLabel(inkProfiles);
     const opponentDeckEstimate = finalizeOpponentDeckEstimate(opponentDeckTracker);
 
-    return { fileName:file.name, fileSize:file.size, data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate, handRetention:finalizeHandRetention(handLifecycle.mine), opponentHandRetention:finalizeHandRetention(handLifecycle.opponent) };
+    return { fileName:file.name, fileSize:file.size, replaySha256:file.replaySha256 || '', data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate, handRetention:finalizeHandRetention(handLifecycle.mine), opponentHandRetention:finalizeHandRetention(handLifecycle.opponent) };
   }
 
   function updateActionStatsFromFrame(frame, owner, seenCards, timeline, actionByTurn, row, snapshot, deckOwners, replayCardIndex, opponentDeckTracker=null){
@@ -2669,6 +2692,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.matchMeta = item.matchMeta || null;
   }
 
+  function replaySha256ForSavedData(m){
+    const sessions = Array.isArray(m?.sessions) && m.sessions.length ? m.sessions : (m?.first ? [m.first] : []);
+    const hashes = sessions.map(session => session?.replaySha256).filter(Boolean);
+    if(hashes.length === 1) return hashes[0];
+    if(hashes.length > 1) return hashes.join(':');
+    return m?.replaySha256 || m?.first?.replaySha256 || '';
+  }
+
   function buildSavedMatchPayload(m, deckProfile={}, details={}){
     const global = !!(m?.isBO3 || isGlobalView());
     const format = global ? 'BO3' : 'BO1';
@@ -2699,6 +2730,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       deck_profile_id:deckProfile.id || null,
       duelink_url:null,
       played_at:playedAt,
+      source_type:'manual',
+      duelink_match_id:null,
+      duelink_source:null,
+      duelink_queue:null,
+      duelink_updated_at:null,
+      replay_sha256:replaySha256ForSavedData(m) || null,
+      my_decklist:null,
+      opponent_decklist:null,
+      api_metadata:null,
       replay_fingerprint:fingerprint || null,
       data_quality:quality.status,
       quality_issues:quality.issues,
@@ -2727,6 +2767,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         game_number:gameNumber,
         is_win:!!session.isWin,
         format:state.isBO3 ? 'BO3' : 'BO1',
+        played_at:session.playedAt || null,
+        source_type:'manual',
+        duelink_game_id:null,
+        duelink_replay_id:null,
+        duelink_gamelog_id:null,
+        duelink_source:null,
+        duelink_queue:null,
+        replay_sha256:session.replaySha256 || null,
+        my_decklist:null,
+        opponent_decklist:null,
+        api_row:null,
         otp:session.firstTurnPlayer === session.myPlayerNumber,
         first_turn_player:n(session.firstTurnPlayer),
         turn_count:n(session.turnCount),
@@ -2935,6 +2986,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       duplicate_signature:savedMatchSignatureFromM(m),
       data_quality:meta.quality || null,
       source:'lorcana-gto-replay-analyzer',
+      source_type:'manual',
+      replay_sha256:replaySha256ForSavedData(m) || null,
+      api_metadata:null,
       view_mode:state.viewMode,
       format:meta.format,
       result:{
@@ -3058,6 +3112,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return (sessions || []).map((session, index) => ({
       gameNumber:n(session.gameNumber || index + 1),
       playedAt:session.playedAt || session.matchGameInfo?.startedAt || session.matchGameInfo?.createdAt || null,
+      replaySha256:session.replaySha256 || null,
+      sourceType:'manual',
       isWin:!!session.isWin,
       firstTurnPlayer:session.firstTurnPlayer,
       otp:session.firstTurnPlayer === session.myPlayerNumber,
@@ -6876,6 +6932,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderPostImportCleanup();
   }
 
+  function historySourceBadgesHtml(row){
+    const sourceType = String(row?.source_type || row?.analysis_json?.source_type || 'manual').toLowerCase();
+    const sourceLabel = sourceType.includes('duelink') ? 'Duel.ink API' : 'Manuel';
+    const sourceClass = sourceType.includes('duelink') ? 'api' : 'manual';
+    const mode = String(row?.duelink_source || row?.analysis_json?.api_metadata?.source || '').trim();
+    const queue = String(row?.duelink_queue || row?.analysis_json?.api_metadata?.queue || '').trim();
+    const modeLabel = mode ? mode.replace(/_/g, ' ') : '';
+    const queueLabel = queue ? queue.replace(/_/g, ' ') : '';
+    return `<span class="history-source-badges"><em class="history-source-badge ${escAttr(sourceClass)}">${esc(sourceLabel)}</em>${modeLabel ? `<em class="history-source-badge mode">${esc(modeLabel)}</em>` : ''}${queueLabel ? `<em class="history-source-badge queue">${esc(queueLabel)}</em>` : ''}</span>`;
+  }
+
   function savedMatchRowHtml(row){
     const isActive = row.id === state.selectedSavedMatchId;
     const result = row.result === 'win' ? 'Victoire' : 'Défaite';
@@ -6908,6 +6975,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <span class="history-opponent-line">${esc(opponent)}</span>
           <span class="history-matchup-line">${esc(matchup)}</span>
           <span class="history-row-deck">Deck · ${esc(deck)}</span>
+          ${historySourceBadgesHtml(row)}
           ${qualityBadgesHtml(row)}
         </span>
         <span class="history-row-meta"><b>${hasGames ? `${games.length} manches` : `${esc(n(row.total_turns) || '—')} tours`}</b><small>${esc(date)}</small></span>
