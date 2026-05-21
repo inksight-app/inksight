@@ -136,6 +136,21 @@ function pickQueue(row) {
     || deepFind(row, (key) => /queue/i.test(key));
 }
 
+
+function pickDecklist(row, side) {
+  const prefixes = side === 'opponent'
+    ? ['opponentDecklist','opponent_decklist','opponent.decklist','opponent.deck_list','opponent.cards','enemyDecklist','enemy_decklist','enemy.decklist']
+    : ['myDecklist','my_decklist','playerDecklist','player_decklist','decklist','deck_list','player.decklist','player.deck_list','me.decklist'];
+  for (const path of prefixes) {
+    const value = getByPath(row, path);
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value.trim().startsWith('[')) {
+      try { const parsed = JSON.parse(value); if (Array.isArray(parsed)) return parsed; } catch {}
+    }
+  }
+  return null;
+}
+
 function pickResult(row) {
   return firstValue(row, ['result','outcome','winner','game.result','game.outcome','isWin','is_win','won']);
 }
@@ -157,6 +172,8 @@ function summarizeGame(row) {
     result: pickResult(row),
     updatedAt,
     dateSource: explicitDate ? 'api' : (updatedAt ? 'id' : 'unknown'),
+    myDecklist: pickDecklist(row, 'mine'),
+    opponentDecklist: pickDecklist(row, 'opponent'),
     rawKeys: row && typeof row === 'object' ? Object.keys(row).slice(0, 25) : [],
   };
 }
