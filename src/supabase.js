@@ -432,3 +432,35 @@ export async function getCurrentSession() {
 
   return session;
 }
+export async function logDuelinkSyncRun(run = {}) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error('Vous devez être connecté pour journaliser une synchronisation Duel.ink.');
+  }
+
+  const payload = {
+    user_id: user.id,
+    started_at: run.started_at || new Date().toISOString(),
+    finished_at: run.finished_at || null,
+    status: run.status || 'pending',
+    matches_seen: Number(run.matches_seen || 0),
+    matches_imported: Number(run.matches_imported || 0),
+    matches_skipped: Number(run.matches_skipped || 0),
+    matches_failed: Number(run.matches_failed || 0),
+    error: run.error || null,
+    details: run.details && typeof run.details === 'object' ? run.details : {},
+  };
+
+  const { data, error } = await supabase
+    .from('duelink_sync_runs')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
