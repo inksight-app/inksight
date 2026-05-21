@@ -188,15 +188,13 @@ export default async function handler(req, res) {
 
   try {
     const body = await readJsonBody(req);
-    const token = cleanToken(body.token);
     const limit = safeLimit(body.limit);
     const cursor = body.cursor ? String(body.cursor) : '';
     const source = body.source ? String(body.source) : '';
     const queue = body.queue ? String(body.queue) : '';
-
-    if (!token) {
-      return json(res, 400, { success: false, error: 'Token Duel.ink manquant.' });
-    }
+    const resolved = await resolveDuelinkToken(req, { token: cleanToken(body.token) });
+    const token = resolved.token;
+    const tokenSource = resolved.source || 'request';
 
     const url = new URL('/api/me/match-history', DUELINK_BASE_URL);
     url.searchParams.set('format', 'json');
@@ -242,7 +240,8 @@ export default async function handler(req, res) {
       sample: games.slice(0, Math.min(3, games.length)),
     });
   } catch (error) {
-    return json(res, 500, {
+    const status = error?.code === 'AUTH_REQUIRED' ? 401 : (error?.code === 'TOKEN_MISSING' ? 400 : 500);
+    return json(res, status, {
       success: false,
       error: error?.message || 'Erreur inconnue pendant le test Duel.ink.',
     });
