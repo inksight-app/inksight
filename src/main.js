@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set() };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set() };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -206,13 +206,37 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     };
   }
 
+  function collectSkippedDuelinkRefs(){
+    return {
+      gameIds: state.duelinkSkippedGameIds instanceof Set ? state.duelinkSkippedGameIds : new Set(),
+      replayIds: state.duelinkSkippedReplayIds instanceof Set ? state.duelinkSkippedReplayIds : new Set()
+    };
+  }
+
+  function duelinkGameId(game={}){
+    return game?.id || game?.game_id || game?.duelink_game_id || '';
+  }
+
+  function duelinkReplayId(game={}){
+    return game?.replayId || game?.replay_id || game?.duelink_replay_id || '';
+  }
+
   function markDuelinkRowAsPrepared(game={}){
-    const gameId = game?.id || game?.game_id || game?.duelink_game_id || '';
-    const replayId = game?.replayId || game?.replay_id || game?.duelink_replay_id || '';
+    const gameId = duelinkGameId(game);
+    const replayId = duelinkReplayId(game);
     if(!(state.duelinkPreparedGameIds instanceof Set)) state.duelinkPreparedGameIds = new Set();
     if(!(state.duelinkPreparedReplayIds instanceof Set)) state.duelinkPreparedReplayIds = new Set();
     if(gameId) state.duelinkPreparedGameIds.add(String(gameId));
     if(replayId) state.duelinkPreparedReplayIds.add(String(replayId));
+  }
+
+  function markDuelinkRowAsSkipped(game={}){
+    const gameId = duelinkGameId(game);
+    const replayId = duelinkReplayId(game);
+    if(!(state.duelinkSkippedGameIds instanceof Set)) state.duelinkSkippedGameIds = new Set();
+    if(!(state.duelinkSkippedReplayIds instanceof Set)) state.duelinkSkippedReplayIds = new Set();
+    if(gameId) state.duelinkSkippedGameIds.add(String(gameId));
+    if(replayId) state.duelinkSkippedReplayIds.add(String(replayId));
   }
 
   function collectDuelinkRefsFromBulkQueue(){
@@ -261,11 +285,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const saved = collectSavedDuelinkRefs();
     const queued = collectDuelinkRefsFromBulkQueue();
     const prepared = collectPreparedDuelinkRefs();
+    const skipped = collectSkippedDuelinkRefs();
     return {
       savedGameIds:saved.gameIds,
       savedReplayIds:saved.replayIds,
       queuedGameIds:new Set([...queued.gameIds, ...prepared.gameIds]),
       queuedReplayIds:new Set([...queued.replayIds, ...prepared.replayIds]),
+      skippedGameIds:skipped.gameIds,
+      skippedReplayIds:skipped.replayIds,
       queuedReplayHashes:queued.replayHashes
     };
   }
@@ -278,6 +305,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
     if((gameId && refs.queuedGameIds?.has(gameId)) || (replayId && refs.queuedReplayIds?.has(replayId))){
       return { key:'queued', label:'Déjà dans la file' };
+    }
+    if((gameId && refs.skippedGameIds?.has(gameId)) || (replayId && refs.skippedReplayIds?.has(replayId))){
+      return { key:'skipped', label:'Mis de côté' };
     }
     return { key:'new', label:'Nouveau' };
   }
@@ -340,14 +370,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const games = classified.map(row => row.game).filter(Boolean);
     const newRows = classified.filter(row => row.status.key === 'new');
     const newWithReplay = newRows.filter(row => row.game?.replayId);
-    const missingReplay = newRows.filter(row => !row.game?.replayId);
+    const skipped = classified.filter(row => row.status.key === 'skipped');
+    const missingReplay = [...newRows.filter(row => !row.game?.replayId), ...skipped];
     const existing = classified.filter(row => row.status.key === 'existing');
     const queued = classified.filter(row => row.status.key === 'queued');
     const replayCount = games.filter(game => game.replayId).length;
     const newest = games.slice().sort((a,b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0))[0];
     const oldest = games.slice().sort((a,b) => new Date(a.updatedAt || 0) - new Date(b.updatedAt || 0))[0];
     const sources = [...new Set(games.map(game => duelinkSourceLabel(game.source)).filter(Boolean))];
-    return { games, newRows, newWithReplay, missingReplay, existing, queued, replayCount, newest, oldest, sources };
+    return { games, newRows, newWithReplay, missingReplay, existing, queued, skipped, replayCount, newest, oldest, sources };
   }
 
   function renderDuelinkScanProgress({ page=0, total=0, cursor='', done=false, error='' }={}){
@@ -735,7 +766,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         state.bulkQueue.push(item);
         renderBulkQueue();
         try{
-          if(missingIds.has(replayId)) throw new Error('Replay non disponible dans le manifeste Duel.ink.');
+          // Le manifeste bulk peut refuser certains IDs alors que le téléchargement direct /r/{id}
+          // reste parfois disponible. On tente donc le téléchargement direct au lieu de bloquer tout le lot.
+          if(missingIds.has(replayId)){
+            item.message = 'Replay absent du manifeste bulk · tentative directe…';
+            renderBulkQueue();
+          }
           const buffer = await downloadDuelinkReplayBuffer(tokenPayload, replayId);
           item.fileSize = buffer.byteLength || 0;
           const replaySha256 = await replaySha256FromBuffer(buffer);
@@ -774,6 +810,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           item.error = err;
           item.message = `Erreur Duel.ink : ${err.message}`;
           row.importError = item.message;
+          // Important : une ligne en erreur est mise de côté pour cette session.
+          // Le prochain clic sur “Importer 25” doit continuer avec les parties suivantes.
+          markDuelinkRowAsSkipped(game);
+          row.status = { key:'skipped', label:'Mis de côté' };
           failedCount += 1;
           renderDuelinkImportProgress(rows, rowIndex + 1, importedCount, failedCount);
         }
@@ -875,6 +915,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(state.duelinkImporting || state.duelinkAutoSaving) return;
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Scan en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
     state.duelinkPreviewRows = [];
+    state.duelinkSkippedGameIds = new Set();
+    state.duelinkSkippedReplayIds = new Set();
     state.duelinkSyncSummary = null;
     syncDuelinkActionButtons(0);
     if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Importer 25'; }
