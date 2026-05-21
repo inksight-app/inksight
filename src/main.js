@@ -32,7 +32,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -7548,7 +7548,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(els.coachText) els.coachText.textContent='Le résumé du match apparaîtra ici une fois le replay chargé.';
       if(els.coachConfidence) els.coachConfidence.textContent='En attente';
       if(els.matchPills) els.matchPills.innerHTML=''; if(els.resultHero) els.resultHero.innerHTML=''; renderKeyMoments(null); if(els.nextAction) els.nextAction.innerHTML=''; renderMulligan(null);
-      renderLoreChart([]); renderActionChart([]); updateChartSummary('loreChartSummary','Résumé du graphique lore disponible après import.'); updateChartSummary('actionChartSummary','Résumé du graphique actions disponible après import.'); return;
+      renderLoreChart([]); updateChartSummary('loreChartSummary','Résumé du graphique lore disponible après import.'); return;
     }
     const total = m.wins + m.losses;
     const global = isGlobalView();
@@ -7573,14 +7573,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderMulligan(global ? null : m.first?.mulligan);
     if(global){
       renderLoreChart([]);
-      renderActionChart([]);
-      updateChartSummary('loreChartSummary','Les graphiques tour par tour sont masqués dans le résumé BO3.');
-      updateChartSummary('actionChartSummary','Les graphiques tour par tour sont masqués dans le résumé BO3.');
+      updateChartSummary('loreChartSummary','Le graphique de course au lore est masqué dans le résumé BO3.');
     }else{
-      renderLoreChart(m.loreSeries); renderActionChart(m.actionSeries);
+      renderLoreChart(m.loreSeries);
       syncChartsWithTheme(state.scope);
       updateChartSummary('loreChartSummary', summarizeLore(m.loreSeries));
-      updateChartSummary('actionChartSummary', summarizeActions(m.actionSeries));
     }
   }
 
@@ -8169,6 +8166,25 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderMulligan(getWorkingData()?.first?.mulligan);
   }
 
+  function actionSeriesForScope(data, scope='mine'){
+    const owner = scope === 'opponent' ? 'opponent' : 'mine';
+    const source = Array.isArray(data?.timeline) ? data.timeline : [];
+    const byTurn = new Map();
+    source.forEach(entry => {
+      if(entry?.owner !== owner) return;
+      const type = String(entry?.type || '');
+      if(!['ink','play','quest','challenge'].includes(type)) return;
+      const turn = n(entry.turn || 1);
+      const row = byTurn.get(turn) || { turn, ink:0, play:0, quest:0, challenge:0 };
+      if(type === 'ink') row.ink += 1;
+      if(type === 'play') row.play += 1;
+      if(type === 'quest') row.quest += 1;
+      if(type === 'challenge') row.challenge += 1;
+      byTurn.set(turn, row);
+    });
+    return [...byTurn.values()].sort((a,b)=>a.turn-b.turn);
+  }
+
   function renderStats(){
     const m = getWorkingData();
     if(!m){ renderEmptyStats(); return; }
@@ -8176,6 +8192,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const metrics = state.scope === 'mine' ? m.proMetrics : m.opponentProMetrics;
     els.statsScopeSubtitle.textContent = global ? 'Résumé macro du BO3 : moteurs de lore, cartes mortes et tendances cumulées.' : (state.scope === 'mine' ? 'Lecture de votre tempo, de votre main et de vos décisions.' : 'Lecture du rythme adverse, de sa pression et de ses fenêtres de tempo.');
     els.inkChartSubtitle.textContent = global ? 'Masqué dans le résumé BO3 : ouvrez une Game pour lire l’économie tour par tour.' : (state.scope === 'mine' ? 'Encre dépensée vs inutilisée pour vous.' : 'Encre dépensée vs inutilisée côté adversaire.');
+    if(els.actionChartTitle) els.actionChartTitle.textContent = state.scope === 'mine' ? 'Actions par tour' : 'Actions adverses par tour';
+    if(els.actionChartSubtitle) els.actionChartSubtitle.textContent = global ? 'Masqué dans le résumé BO3 : ouvrez une Game pour lire le rythme tour par tour.' : (state.scope === 'mine' ? 'Vos cartes encrées, jouées, quêtes et défis par tour.' : 'Actions adverses détectées pendant ses tours.');
     els.inkFloatTotal.textContent = round1(metrics.totalInkFloat);
     els.inkFloatAverage.textContent = `${round1(metrics.totalInkFloat)} encre non convertie en pression.`;
     const totalActions = metrics.questCount + metrics.challengeCount;
@@ -8193,9 +8211,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(els.playTimingHelp) els.playTimingHelp.textContent = global ? 'Les cartes jouées dans l’ordre, game par game, sans mélanger les courbes.' : 'Les cartes jouées dans l’ordre. Affichage compact, avec déroulé si besoin.';
     renderQuickInsights(m, metrics);
     const comparisonMetrics = state.scope === 'mine' ? m.opponentProMetrics : m.proMetrics;
-    renderInkChart(metrics.inkByTurn); renderQuestChart(metrics.questCount, metrics.challengeCount); renderHandChart(metrics.handByTurn, comparisonMetrics?.handByTurn || []); renderBoardChart(metrics.boardByTurn || [], comparisonMetrics?.boardByTurn || []);
+    const scopedActionSeries = global ? [] : actionSeriesForScope(m, state.scope);
+    renderInkChart(metrics.inkByTurn); renderActionChart(scopedActionSeries); renderQuestChart(metrics.questCount, metrics.challengeCount); renderHandChart(metrics.handByTurn, comparisonMetrics?.handByTurn || []); renderBoardChart(metrics.boardByTurn || [], comparisonMetrics?.boardByTurn || []);
     syncChartsWithTheme(state.scope);
     updateChartSummary('inkChartSummary', summarizeInk(metrics.inkByTurn));
+    updateChartSummary('actionChartSummary', global ? 'Les actions par tour sont disponibles au niveau d’une Game.' : summarizeActions(scopedActionSeries));
     updateChartSummary('questChartSummary', summarizeQuest(metrics.questCount, metrics.challengeCount));
     updateChartSummary('handChartSummary', summarizeHand(metrics.handByTurn, comparisonMetrics?.handByTurn || []));
     updateChartSummary('boardChartSummary', summarizeBoard(metrics.boardByTurn || [], comparisonMetrics?.boardByTurn || []));
@@ -8209,8 +8229,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     ['inkFloatTotal','actionRatioKpi','topDeckTurns','questChallengeCenter'].forEach(id => { if(els[id]) els[id].textContent='—'; });
     ['topQuestersTable','mostInkedTable','playTimingTable','challengeTable','deadWeightTable'].forEach(id => { if(els[id]) els[id].innerHTML='<div class="empty-line">Importez un replay.</div>'; });
     if(els.quickInsights) els.quickInsights.innerHTML='';
-    renderInkChart([]); renderQuestChart(0,0); renderHandChart([], []); renderBoardChart([], []);
+    renderInkChart([]); renderActionChart([]); renderQuestChart(0,0); renderHandChart([], []); renderBoardChart([], []);
     updateChartSummary('inkChartSummary','Résumé du graphique économie d’encre disponible après import.');
+    updateChartSummary('actionChartSummary','Résumé du graphique actions disponible après import.');
     updateChartSummary('questChartSummary','Résumé du graphique quête défi disponible après import.');
     updateChartSummary('handChartSummary','Résumé du graphique de main disponible après import.');
     updateChartSummary('boardChartSummary','Résumé du graphique de présence sur board disponible après import.');

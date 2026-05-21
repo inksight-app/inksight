@@ -12057,3 +12057,28 @@ body::after{
     padding:14px;
   }
 }
+
+/* V134.2 — Résumé & Stats structure cleanup */
+#tab-overview .overview-charts,
+#tab-overview .chart-grid.two.overview-charts{
+  grid-template-columns:1fr!important;
+}
+#tab-overview .overview-lore-panel{
+  width:100%;
+}
+@media (min-width:821px){
+  .stats-charts{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    align-items:stretch;
+  }
+  .stats-charts .chart-panel,
+  .stats-charts .wide,
+  .stats-charts .action-stats-panel{
+    grid-column:auto!important;
+  }
+}
+@media (max-width:820px){
+  .stats-charts{
+    grid-template-columns:1fr!important;
+  }
+}
