@@ -6557,7 +6557,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(charts.performanceAction){ charts.performanceAction.destroy(); charts.performanceAction = null; }
       return;
     }
-    const [mine, opp] = chartColorsForScope('mine');
+    const [mine, opp] = scopeChartPair('mine');
+    const perfActionColors = actionCategoryColors('mine');
     const isMobile = window.matchMedia?.('(max-width:820px)')?.matches === true;
     const maxLore = Math.max(21, ...rows.map(row => n(row.lore) + 2));
     const barMax = rows.length <= 12 ? (isMobile ? 22 : 46) : (rows.length <= 18 ? (isMobile ? 18 : 38) : (isMobile ? 15 : 34));
@@ -6603,12 +6604,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     charts.performanceAction = chart(charts.performanceAction, 'performanceActionAvgChart', 'bar', {
       labels,
       datasets:[
-        { label:'Encrées', data:rows.map(row => n(row.inked)), backgroundColor:'rgba(148,163,184,.58)', maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio },
-        { label:'Jouées', data:rows.map(row => n(row.played)), backgroundColor:hexToRgba(mine,.88), maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio },
-        { label:'Quêtes', data:rows.map(row => n(row.quests)), backgroundColor:hexToRgba(opp,.88), maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio },
-        { label:'Défis', data:rows.map(row => n(row.challenges)), backgroundColor:'rgba(251,113,133,.78)', maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio }
+        { label:'Encrées', data:rows.map(row => n(row.inked)), backgroundColor:hexToRgba(perfActionColors.ink,.92), borderColor:perfActionColors.ink, maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio },
+        { label:'Jouées', data:rows.map(row => n(row.played)), backgroundColor:hexToRgba(perfActionColors.play,.92), borderColor:perfActionColors.play, maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio },
+        { label:'Quêtes', data:rows.map(row => n(row.quests)), backgroundColor:hexToRgba(perfActionColors.quest,.86), borderColor:perfActionColors.quest, maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio },
+        { label:'Défis', data:rows.map(row => n(row.challenges)), backgroundColor:hexToRgba(perfActionColors.challenge,.86), borderColor:perfActionColors.challenge, maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio }
       ]
-    }, { scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 }, grid:{ display:true, color:'rgba(255,255,255,.07)' } } }, datasets:{ bar:{ maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio } } });
+    }, { scales:{ x:{ stacked:false }, y:{ stacked:false, beginAtZero:true, ticks:{ precision:0 }, grid:{ display:true, color:'rgba(255,255,255,.07)' } } }, datasets:{ bar:{ maxBarThickness:barMax, categoryPercentage:barCategory, barPercentage:barRatio } } });
   }
 
 
@@ -9144,22 +9145,47 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return `Présence sur board : pic à ${maxChars} personnage(s). Pression lore maximale du joueur affiché : ${maxPotential}.`;
   }
 
+  function scopeChartPair(scope=state.scope){
+    const base = getThemeColors(scope);
+    return distinctChartPalette(base, 2);
+  }
+
+  function actionCategoryColors(scope=state.scope){
+    const base = getThemeColors(scope);
+    const used = [];
+    const pick = (preferred, fallbackIndex=0) => {
+      const value = ensureChartContrast(preferred, used, fallbackIndex);
+      used.push(value);
+      return value;
+    };
+    return {
+      ink:pick(base[1] || INK_COLORS.amber, 1),
+      play:pick(base[0] || INK_COLORS.sapphire, 0),
+      quest:pick(INK_COLORS.emerald, 2),
+      challenge:pick(INK_COLORS.ruby, 3)
+    };
+  }
+
+  function applyDatasetColor(dataset, color, alpha=.9){
+    if(!dataset || !color) return;
+    dataset.backgroundColor = hexToRgba(color, alpha);
+    dataset.borderColor = color;
+    dataset._normalBarBg = hexToRgba(color, alpha);
+    dataset._normalBarBorder = color;
+  }
+
   function renderBoardChart(rows=[], comparisonRows=[]){
     setChartReadoutDefault('boardPresenceChart', summarizeDefaultBoardReadout(rows, comparisonRows));
     const rowMap = new Map((rows || []).map(r => [n(r.turn), r]));
     const comparisonMap = new Map((comparisonRows || []).map(r => [n(r.turn), r]));
     const turnValues = [...new Set([...rowMap.keys(), ...comparisonMap.keys()])].filter(Boolean).sort((a,b)=>a-b);
     const labels = turnValues.map(turn=>`T${turn}`);
-    const theme = cssThemeColors();
-    const mineColors = chartColorsForScope('mine');
-    const opponentColors = chartColorsForScope('opponent');
+    const activePair = scopeChartPair(state.scope);
     const viewedIsOpponent = state.scope === 'opponent';
-    const viewedColors = viewedIsOpponent ? opponentColors : mineColors;
-    const comparisonColors = viewedIsOpponent ? mineColors : opponentColors;
     const viewedLabel = viewedIsOpponent ? 'Persos adverses' : 'Vos persos';
     const comparisonLabel = viewedIsOpponent ? 'Vos persos' : 'Persos adverses';
-    const viewedColor = viewedColors[0] || theme[0];
-    const comparisonColor = ensureChartContrast(comparisonColors[0] || theme[1], [viewedColor]);
+    const viewedColor = activePair[0] || cssThemeColors()[0];
+    const comparisonColor = activePair[1] || cssThemeColors()[1];
     const datasets = [
       {
         label:viewedLabel,
@@ -9197,13 +9223,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function renderLoreChart(rows){
     setChartReadoutDefault('loreChart', summarizeDefaultLoreReadout(rows));
     const labels = rows.map(r=>`T${r.turn}`);
-    const mine = chartColorsForScope('mine');
-    const opponent = chartColorsForScope('opponent');
+    const pair = scopeChartPair(state.scope);
+    const mineColor = pair[0] || cssThemeColors()[0];
+    const opponentColor = pair[1] || cssThemeColors()[1];
     const highlights = detectLoreHighlights(rows);
-    const mineDataset = { label:'Vous', data:rows.map(r=>r.mine), tension:.48, borderWidth:2.75, pointRadius:0, pointHoverRadius:5, borderColor:mine[0], backgroundColor:hexToRgba(mine[0], .13), highlightMessages:makeHighlightMessages(rows.length, highlights.mine), highlightKinds:makeHighlightKinds(rows.length, highlights.mine), fill:false };
-    const opponentDataset = { label:'Adversaire', data:rows.map(r=>r.opponent), tension:.48, borderWidth:2.75, pointRadius:0, pointHoverRadius:5, borderColor:opponent[0], backgroundColor:hexToRgba(opponent[0], .11), highlightMessages:makeHighlightMessages(rows.length, highlights.opponent), highlightKinds:makeHighlightKinds(rows.length, highlights.opponent), fill:false };
-    stylePointHighlights(mineDataset, mine[0], mine[0], 'sprint');
-    stylePointHighlights(opponentDataset, opponent[0], opponent[0], 'sprint');
+    const mineDataset = { label:'Vous', data:rows.map(r=>r.mine), tension:.48, borderWidth:2.75, pointRadius:0, pointHoverRadius:5, borderColor:mineColor, backgroundColor:hexToRgba(mineColor, .13), pointBackgroundColor:mineColor, pointBorderColor:mineColor, highlightMessages:makeHighlightMessages(rows.length, highlights.mine), highlightKinds:makeHighlightKinds(rows.length, highlights.mine), fill:false };
+    const opponentDataset = { label:'Adversaire', data:rows.map(r=>r.opponent), tension:.48, borderWidth:2.75, pointRadius:0, pointHoverRadius:5, borderColor:opponentColor, backgroundColor:hexToRgba(opponentColor, .11), pointBackgroundColor:opponentColor, pointBorderColor:opponentColor, highlightMessages:makeHighlightMessages(rows.length, highlights.opponent), highlightKinds:makeHighlightKinds(rows.length, highlights.opponent), fill:false };
+    stylePointHighlights(mineDataset, mineColor, mineColor, 'sprint');
+    stylePointHighlights(opponentDataset, opponentColor, opponentColor, 'sprint');
     const datasets = [
       mineDataset,
       opponentDataset,
@@ -9215,14 +9242,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function renderActionChart(rows){
     setChartReadoutDefault('actionChart', summarizeDefaultActionReadout(rows));
     const labels = rows.map(r=>`T${r.turn}`);
-    const theme = cssThemeColors();
-    const palette = distinctChartPalette([theme[0], theme[1]], 4);
+    const actionColors = actionCategoryColors(state.scope);
     const boardHighlights = detectBoardControlHighlights(rows);
     const challengeDataset = {
       label:'Défis',
       data:rows.map(r=>r.challenge),
-      backgroundColor:hexToRgba(palette[3], .86),
-      borderColor:palette[3],
+      backgroundColor:hexToRgba(actionColors.challenge, .86),
+      borderColor:actionColors.challenge,
       borderWidth:0,
       highlightMessages:makeHighlightMessages(rows.length, boardHighlights),
       maxBarThickness:16,
@@ -9230,11 +9256,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       categoryPercentage:.76,
       barPercentage:.74
     };
-    styleBarHighlights(challengeDataset, hexToRgba(palette[3], .86), palette[3], 'board');
+    styleBarHighlights(challengeDataset, hexToRgba(actionColors.challenge, .86), actionColors.challenge, 'board');
     const datasets = [
-      { label:'Encrées', data:rows.map(r=>r.ink), backgroundColor:hexToRgba(palette[1], .92), borderColor:palette[1], maxBarThickness:16, borderWidth:0, borderRadius:0, categoryPercentage:.76, barPercentage:.74 },
-      { label:'Jouées', data:rows.map(r=>r.play), backgroundColor:hexToRgba(palette[0], .92), borderColor:palette[0], maxBarThickness:16, borderWidth:0, borderRadius:0, categoryPercentage:.76, barPercentage:.74 },
-      { label:'Quêtes', data:rows.map(r=>r.quest), backgroundColor:hexToRgba(palette[2], .86), borderColor:palette[2], maxBarThickness:16, borderWidth:0, borderRadius:0, categoryPercentage:.76, barPercentage:.74 },
+      { label:'Encrées', data:rows.map(r=>r.ink), backgroundColor:hexToRgba(actionColors.ink, .92), borderColor:actionColors.ink, maxBarThickness:16, borderWidth:0, borderRadius:0, categoryPercentage:.76, barPercentage:.74 },
+      { label:'Jouées', data:rows.map(r=>r.play), backgroundColor:hexToRgba(actionColors.play, .92), borderColor:actionColors.play, maxBarThickness:16, borderWidth:0, borderRadius:0, categoryPercentage:.76, barPercentage:.74 },
+      { label:'Quêtes', data:rows.map(r=>r.quest), backgroundColor:hexToRgba(actionColors.quest, .86), borderColor:actionColors.quest, maxBarThickness:16, borderWidth:0, borderRadius:0, categoryPercentage:.76, barPercentage:.74 },
       challengeDataset
     ];
     charts.action = chart(charts.action, 'actionChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:false }, y:{ stacked:false, beginAtZero:true, ticks:{ precision:0 } } } });
@@ -9268,11 +9294,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const turnValues = [...new Set([...rowMap.keys(), ...comparisonMap.keys()])].filter(Boolean).sort((a,b)=>a-b);
     const labels = turnValues.map(turn=>`T${turn}`);
     const theme = cssThemeColors();
-    const mineColors = chartColorsForScope('mine');
-    const opponentColors = chartColorsForScope('opponent');
+    const activePair = scopeChartPair(state.scope);
     const viewedIsOpponent = state.scope === 'opponent';
-    const viewedColors = viewedIsOpponent ? opponentColors : mineColors;
-    const comparisonColors = viewedIsOpponent ? mineColors : opponentColors;
+    const viewedColors = [activePair[0] || theme[0]];
+    const comparisonColors = [activePair[1] || theme[1]];
     const viewedLabel = viewedIsOpponent ? 'Adversaire' : 'Vous';
     const comparisonLabel = viewedIsOpponent ? 'Vous' : 'Adversaire';
     const highlights = detectHandHighlights(rows, state.scope);
@@ -9596,19 +9621,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function syncChartsWithTheme(scope=state.scope){
     const theme = cssThemeColors();
     if(charts.lore){
-      const mine = chartColorsForScope('mine');
-      const opponent = chartColorsForScope('opponent');
+      const pair = scopeChartPair(scope);
       const ds = charts.lore.data.datasets || [];
-      if(ds[0]){ ds[0].borderColor = mine[0]; ds[0].backgroundColor = hexToRgba(mine[0], .13); }
-      if(ds[1]){ ds[1].borderColor = opponent[0]; ds[1].backgroundColor = hexToRgba(opponent[0], .11); }
+      if(ds[0]){ ds[0].borderColor = pair[0]; ds[0].backgroundColor = hexToRgba(pair[0], .13); ds[0].pointBackgroundColor = pair[0]; ds[0].pointBorderColor = pair[0]; }
+      if(ds[1]){ ds[1].borderColor = pair[1]; ds[1].backgroundColor = hexToRgba(pair[1], .11); ds[1].pointBackgroundColor = pair[1]; ds[1].pointBorderColor = pair[1]; }
       charts.lore.update('active');
     }
     if(charts.action){
       const ds = charts.action.data.datasets || [];
-      if(ds[0]) ds[0].backgroundColor = theme[1];
-      if(ds[1]) ds[1].backgroundColor = theme[0];
-      if(ds[2]) ds[2].backgroundColor = hexToRgba(theme[0], .78);
-      if(ds[3]) ds[3].backgroundColor = hexToRgba(theme[1], .78);
+      const actionColors = actionCategoryColors(scope);
+      applyDatasetColor(ds[0], actionColors.ink, .92);
+      applyDatasetColor(ds[1], actionColors.play, .92);
+      applyDatasetColor(ds[2], actionColors.quest, .86);
+      applyDatasetColor(ds[3], actionColors.challenge, .86);
       charts.action.update('active');
     }
     if(charts.ink){
@@ -9627,11 +9652,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       charts.matrix.update('active');
     }
     if(charts.hand){
-      const mine = chartColorsForScope('mine');
-      const opponent = chartColorsForScope('opponent');
-      const viewedIsOpponent = scope === 'opponent';
-      const viewedColors = viewedIsOpponent ? opponent : mine;
-      const comparisonColors = viewedIsOpponent ? mine : opponent;
+      const pair = scopeChartPair(scope);
+      const viewedColors = [pair[0] || theme[0]];
+      const comparisonColors = [pair[1] || theme[1]];
       const ds = charts.hand.data.datasets || [];
       if(ds[0]){
         ds[0].borderColor = viewedColors[0];
