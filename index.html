@@ -331,9 +331,6 @@
               <span>Bicolorité</span>
               <div id="performanceColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div>
             </div>
-            <div id="performanceVersionBlock" class="filter-pill-block filter-wide">
-              <span>Version du deck</span>
-              <div id="performanceDeckPills" class="filter-pill-row" aria-label="Choisir une version de deck"></div>
             </div>
             <div class="filter-pill-block compact filter-matchups">
               <span>Matchup adverse</span>
@@ -542,8 +539,7 @@
               <option value="otd">OTD</option>
             </select>
             <div class="history-filter-pills">
-              <div class="filter-pill-block compact"><span>Bicolorité</span><div id="historyColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
-              <div id="historyVersionBlock" class="filter-pill-block compact"><span>Version du deck</span><div id="historyDeckPills" class="filter-pill-row" aria-label="Choisir une version"></div></div>
+              <div class="filter-pill-block compact"><span>Bicolorité</span><div id="historyColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div></div>
               <div class="filter-pill-block compact"><span>Adversaire</span><div id="historyOpponentColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité adverse"></div></div>
               <div class="filter-pill-block compact"><span>Résultat</span><div id="historyResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div></div>
               <div class="filter-pill-block compact"><span>Format</span><div id="historyFormatPills" class="filter-pill-row" aria-label="Choisir un format"></div></div>
@@ -559,19 +555,6 @@
         <div id="historyList" class="history-list glass">
           <div class="empty-line">Connectez-vous pour afficher vos matchs sauvegardés.</div>
         </div>
-
-        <article class="glass post-import-cleanup" aria-label="Nettoyage post-import">
-          <div class="section-head compact">
-            <div>
-              <div class="kicker">Nettoyage post-import</div>
-              <h2>Analyses à ranger</h2>
-              <p>À utiliser seulement quand un import n’a pas encore de deck propre ou semble être un doublon.</p>
-            </div>
-          </div>
-          <div id="postImportCleanupList" class="post-import-cleanup-list">
-            <div class="empty-line">Connectez-vous pour vérifier les analyses à nommer.</div>
-          </div>
-        </article>
 
         <aside id="historyDetail" class="history-detail glass" hidden></aside>
       </section>
@@ -633,12 +616,6 @@
                   </div>
                 </div>
 
-                <div class="account-menu-list" aria-label="Menu du compte">
-                  <button type="button" data-app-view="account">Mon compte</button>
-                  <button type="button" data-app-view="performances" data-perf-view="stats">Mes statistiques</button>
-                  <button type="button" data-app-view="performances" data-perf-view="history">Historique des matchs</button>
-                </div>
-
                 <button id="btnLogout" class="auth-btn auth-btn-danger" type="button">Se déconnecter</button>
               </div>
             </section>
@@ -646,79 +623,33 @@
         </div>
       </section>
 
-      <section class="account-grid account-grid-v71" data-auth-required>
-        <article class="glass account-card account-profile-card">
-          <span>Profil</span>
-          <h2 id="accountProfileTitle">Non connecté</h2>
-          <p id="accountProfileText">Connectez-vous pour associer vos analyses à un compte.</p>
-        </article>
-        <article class="glass account-card account-data-quality-card">
-          <span>Qualité des données</span>
-          <h2 id="dataQualityTitle">—</h2>
-          <p id="dataQualityText">Les contrôles apparaîtront après connexion.</p>
-          <div id="dataQualitySummary" class="data-quality-grid"></div>
-        </article>
-      </section>
-
-
       <section class="glass duelink-connect-section duelink-sync-card" data-auth-required aria-labelledby="duelinkConnectTitle">
         <div class="duelink-connect-head">
           <div class="duelink-title-block">
             <div class="kicker">Duel.ink API · synchronisation</div>
             <h2 id="duelinkConnectTitle">Connecter Duel.ink</h2>
-            <p>Connectez Duel.ink pour synchroniser tout votre historique disponible. InkSight récupère d’abord les données, puis les filtres se feront ensuite dans Historique et Performance.</p>
+            <p>Synchronisez vos parties Duel.ink. L’import ajoute directement les analyses à votre historique InkSight.</p>
           </div>
           <span class="duelink-status-chip" id="duelinkTokenStatus">Non testé</span>
-        </div>
-        <div class="duelink-workflow" aria-label="Étapes de synchronisation Duel.ink">
-          <span class="is-active">1 · Tester</span>
-          <span>2 · Scanner</span>
-          <span>3 · Importer</span>
-          <span>4 · Analyser</span>
         </div>
         <div class="duelink-token-form">
           <label>
             Token API Duel.ink
             <input id="duelinkTokenInput" type="password" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Bearer token Duel.ink" />
-            <small id="duelinkSavedTokenHint" class="duelink-token-hint">Optionnel : mémorisez la clé de manière chiffrée pour éviter de la recoller à chaque session.</small>
+            <small id="duelinkSavedTokenHint" class="duelink-token-hint">Mémorisez la clé pour synchroniser vos prochains matchs plus rapidement.</small>
           </label>
           <div class="duelink-token-actions">
-            <button id="duelinkTestButton" type="button" class="ghost-button compact">Tester</button>
-            <button id="duelinkPreviewButton" type="button" class="ghost-button compact">Synchroniser Duel.ink</button>
+            <button id="duelinkTestButton" type="button" class="ghost-button compact">Tester la clé</button>
+            <button id="duelinkPreviewButton" type="button" class="primary-button compact">Synchroniser</button>
             <button id="duelinkImportButton" type="button" class="ghost-button compact duelink-batch-button" disabled>Importer 25</button>
             <button id="duelinkImport50Button" type="button" class="ghost-button compact duelink-batch-button" disabled>Importer 50</button>
             <button id="duelinkImport100Button" type="button" class="ghost-button compact duelink-batch-button" disabled>Importer 100</button>
             <button id="duelinkImportAllButton" type="button" class="ghost-button compact duelink-batch-button subtle-danger" disabled>Tout importer</button>
-            <button id="duelinkSaveTokenButton" type="button" class="ghost-button compact">Mémoriser la clé chiffrée</button>
+            <button id="duelinkSaveTokenButton" type="button" class="ghost-button compact">Mémoriser</button>
             <button id="duelinkForgetTokenButton" type="button" class="ghost-button compact danger" hidden>Oublier la clé</button>
           </div>
         </div>
-        <div class="duelink-help-grid">
-          <div><strong>Sécurité</strong><span>Token utilisable ponctuellement ou chiffré côté serveur. 90 jours est un bon compromis.</span></div>
-          <div><strong>Lecture seule</strong><span>Accès à vos matchs, replays et logs uniquement.</span></div>
-          <div><strong>Synchronisation complète</strong><span>Le scan lit tout l’historique disponible. Les filtres seront appliqués ensuite dans InkSight.</span></div>
-        </div>
-        <div id="duelinkTestResult" class="duelink-test-result">Collez un token ou utilisez votre clé mémorisée, puis lancez la synchronisation Duel.ink.</div>
-      </section>
-
-      <section class="glass deck-manager-section" data-auth-required aria-labelledby="deckManagerTitle">
-        <div class="deck-manager-head">
-          <div>
-            <div class="kicker">Mes decks</div>
-            <h2 id="deckManagerTitle">Versions de decks</h2>
-            <p>Renommez, fusionnez ou archivez les versions utilisées pour filtrer vos statistiques.</p>
-          </div>
-          <button id="deckManagerRefresh" type="button" class="ghost-button compact">Actualiser</button>
-        </div>
-        <div id="deckManagerStatus" class="deck-manager-status">Connectez-vous pour gérer vos decks.</div>
-        <div id="deckManagerList" class="deck-manager-list"></div>
-      </section>
-
-      <section class="glass data-maintenance-section" data-auth-required aria-labelledby="dataMaintenanceTitle">
-        <div class="kicker">Maintenance</div>
-        <h2 id="dataMaintenanceTitle">Analyses à vérifier</h2>
-        <p>Repérez les anciennes sauvegardes partielles et les doublons potentiels avant d’ajouter de nouvelles statistiques avancées.</p>
-        <div id="duplicateAuditList" class="duplicate-audit-list"></div>
+        <div id="duelinkTestResult" class="duelink-test-result">Lancez la synchronisation pour trouver vos parties, puis importez les nouvelles analyses.</div>
       </section>
     </section>
   </main>
