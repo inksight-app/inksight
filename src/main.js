@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -553,9 +553,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const ready = state.bulkQueue.filter(item => item.status === 'ready').length;
       const duplicates = state.bulkQueue.filter(item => item.status === 'duplicate').length;
       const errors = state.bulkQueue.filter(item => item.status === 'error').length;
-      if(els.duelinkTestResult && !options.silentSuccess){
-        els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty ok"><strong>File d’import prête.</strong><span>${ready} prêt(s), ${duplicates} doublon(s), ${errors} erreur(s). Vérifiez puis sauvegardez les analyses depuis la page Analyse.</span><button type="button" class="primary-button compact" data-duelink-go-bulk>Voir la file d’import</button></div>`);
-      }
       return { imported:importedCount, duplicates, errors, ready };
     }catch(err){
       console.error(err);
@@ -1076,7 +1073,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function clearReplays(options={}){
     state.replays = []; state.sessions = []; state.merged = null; state.isBO3 = false; state.viewMode = 0; state.matchMeta = null; state.mulliganResolved = false; state.lastSavedMatchId = null; state.loadedSavedMatchId = null; state.statExpandedLists = {};
-    if(!options.keepBulk){ state.bulkQueue = []; state.activeBulkIndex = null; state.bulkSaving = false; }
+    if(!options.keepBulk){ state.bulkQueue = []; state.activeBulkIndex = null; state.bulkSaving = false; state.bulkSaveTotal = 0; state.bulkSaveDone = 0; }
     document.body.classList.add('empty-state'); document.body.classList.remove('has-results','bo3-global','bo3-game');
     if(els.fileInput) els.fileInput.value = '';
     if(els.dropzoneStatus) els.dropzoneStatus.textContent = 'Aucun replay chargé.';
@@ -3225,6 +3222,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
     state.bulkSaving = true;
+    state.bulkSaveTotal = candidates.length;
+    state.bulkSaveDone = 0;
     renderBulkQueue();
     try{
       await globalThis.INKSIGHT_refreshSavedMatches?.({ silent:true });
@@ -3240,6 +3239,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           item.duplicate = duplicate;
           item.message = 'Déjà présent dans l’historique. Aucun doublon créé.';
           duplicateCount += 1;
+          state.bulkSaveDone += 1;
+          renderBulkQueue();
           continue;
         }
         const previous = snapshotCurrentReplayState();
@@ -3261,6 +3262,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         }finally{
           restoreReplayStateSnapshot(previous);
         }
+        state.bulkSaveDone += 1;
         renderBulkQueue();
       }
       await refreshSavedMatches({ force:true, silent:true });
@@ -3270,9 +3272,18 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         state.activeBulkIndex = state.bulkQueue.findIndex(item => item?.merged && item.status !== 'error');
         if(state.activeBulkIndex < 0) state.activeBulkIndex = null;
       }
-      if(els.bulkImportStatus) els.bulkImportStatus.textContent = `${savedCount} analyse(s) sauvegardée(s). ${duplicateCount ? `${duplicateCount} doublon(s) ignoré(s).` : ''}`.trim();
+      const finalMessage = `${savedCount} analyse${savedCount > 1 ? 's' : ''} sauvegardée${savedCount > 1 ? 's' : ''}.${duplicateCount ? ` ${duplicateCount} doublon${duplicateCount > 1 ? 's' : ''} ignoré${duplicateCount > 1 ? 's' : ''}.` : ''}`.trim();
+      state.lastBulkSaveMessage = finalMessage;
+      if(els.bulkImportStatus) els.bulkImportStatus.textContent = finalMessage;
+      if(shouldCleanQueue && !state.bulkQueue.length){
+        clearReplays();
+        if(els.dropzoneStatus) els.dropzoneStatus.textContent = finalMessage;
+        if(els.statusText) els.statusText.textContent = finalMessage;
+      }
     }finally{
       state.bulkSaving = false;
+      state.bulkSaveTotal = 0;
+      state.bulkSaveDone = 0;
       renderBulkQueue();
     }
   }
@@ -8100,8 +8111,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const saved = queue.filter(item => item.status === 'saved').length;
     const duplicates = queue.filter(item => item.status === 'duplicate').length;
     const errors = queue.filter(item => item.status === 'error').length;
-    if(els.bulkImportStatus && !state.bulkSaving){
-      els.bulkImportStatus.textContent = `${queue.length} fichier(s) dans la file · ${valid} prêt(s) · ${saved} sauvegardé(s) · ${duplicates} doublon(s) · ${errors} erreur(s)`;
+    if(els.bulkImportStatus){
+      if(state.bulkSaving){
+        const total = Math.max(1, n(state.bulkSaveTotal));
+        const done = Math.min(total, n(state.bulkSaveDone));
+        const pct = Math.round((done / total) * 100);
+        els.bulkImportStatus.innerHTML = `<span>Sauvegarde en cours · ${done}/${total}</span><span class="bulk-save-progress" aria-hidden="true"><i style="width:${pct}%"></i></span>`;
+      }else{
+        els.bulkImportStatus.textContent = `${queue.length} fichier(s) dans la file · ${valid} prêt(s) · ${saved} sauvegardé(s) · ${duplicates} doublon(s) · ${errors} erreur(s)`;
+      }
     }
     if(els.bulkSaveAllButton){
       els.bulkSaveAllButton.disabled = state.bulkSaving || !valid || !state.currentUser;
@@ -9130,16 +9148,23 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       els.deadWeightTable.innerHTML = '';
       return;
     }
-    if(panel) panel.hidden = false;
     const rows = handRetentionForScope(m)
       .filter(row => n(row.maxHeldTurns) > 0 || n(row.averageHeldTurns) > 0)
       .sort((a,b) => n(b.maxHeldTurns) - n(a.maxHeldTurns) || n(b.averageHeldTurns) - n(a.averageHeldTurns));
+    // Si le replay API ne permet pas encore de reconstruire une main fiable, on masque le module.
+    // Mieux vaut ne rien afficher qu’annoncer à tort qu’aucune carte n’est restée longtemps en main.
+    if(!rows.length){
+      if(panel) panel.hidden = true;
+      els.deadWeightTable.innerHTML = '';
+      return;
+    }
+    if(panel) panel.hidden = false;
     if(els.deadWeightTitle) setPanelInfo(els.deadWeightTitle, 'Cartes restées en main', 'Repère les cartes qui ont occupé votre main longtemps avant d’être jouées, encrées ou conservées jusqu’à la fin. Le signal est calculé depuis la main visible du joueur analysé.');
     if(els.deadWeightHelp) els.deadWeightHelp.textContent = 'Cartes gardées longtemps.';
     const items = rows.map(row => deadWeightListItem(row));
     renderStatCardList('deadWeight', els.deadWeightTable, items, {
-      hideWhenEmpty:false,
-      empty:'Aucune carte restée longtemps en main détectée sur ce replay.',
+      hideWhenEmpty:true,
+      empty:'',
       collapsedLabel:'Voir toutes les cartes',
       expandedLabel:'Réduire la liste'
     });
