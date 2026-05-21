@@ -34,7 +34,7 @@
 
       <nav class="app-main-nav" aria-label="Navigation principale">
         <button type="button" class="app-nav-button active" data-app-view="analysis" aria-current="page">Analyse</button>
-        <button type="button" class="app-nav-button" data-app-view="performances">Performances</button>
+        <button type="button" class="app-nav-button" data-app-view="performances">Stats & historique</button>
         <button type="button" class="app-nav-button" data-app-view="account">Compte</button>
       </nav>
 
@@ -278,7 +278,7 @@
     <section id="view-performances" class="app-view app-view-page" data-app-panel="performances" hidden>
       <article class="glass app-page-hero performance-hero">
         <div>
-          <div class="kicker">Vos performances</div>
+          <div class="kicker">Vos analyses</div>
           <h1>Statistiques & historique</h1>
           <p>Retrouvez vos analyses sauvegardées, suivez votre progression et préparez les futurs filtres par deck, bicolorité et matchup.</p>
         </div>
@@ -690,7 +690,8 @@
         <div class="duelink-workflow" aria-label="Étapes de synchronisation Duel.ink">
           <span class="is-active">1 · Tester</span>
           <span>2 · Prévisualiser</span>
-          <span>3 · Importer dans la file</span>
+          <span>3 · Importer</span>
+          <span>4 · Sauvegarder</span>
         </div>
         <div class="duelink-token-form">
           <label>
@@ -700,7 +701,8 @@
           <div class="duelink-token-actions">
             <button id="duelinkTestButton" type="button" class="ghost-button compact">Tester</button>
             <button id="duelinkPreviewButton" type="button" class="ghost-button compact">Prévisualiser 25</button>
-            <button id="duelinkImportButton" type="button" class="primary-button compact" disabled>Importer les nouveaux</button>
+            <button id="duelinkImportButton" type="button" class="ghost-button compact" disabled>Importer les nouveaux</button>
+            <button id="duelinkImportSaveButton" type="button" class="primary-button compact" disabled>Importer + sauvegarder</button>
           </div>
         </div>
         <div class="duelink-help-grid">
