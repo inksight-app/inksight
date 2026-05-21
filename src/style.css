@@ -12909,3 +12909,35 @@ body:not(.is-authenticated) #view-performances::after {
   opacity: .45;
   cursor: not-allowed;
 }
+
+/* V135.5C · Auth and account access hardening */
+#authEmail,
+#authPassword,
+#btnLogin,
+#btnSignup,
+.auth-email-row,
+.auth-password-row,
+.auth-provider-separator,
+.auth-legacy-email,
+[data-auth-method="email"] {
+  display: none !important;
+}
+
+body:not(.is-authenticated) #view-account [data-auth-required] {
+  display: none !important;
+}
+
+body:not(.is-authenticated) #view-account .account-page-hero,
+body:not(.is-authenticated) #view-account .account-auth-wrapper {
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+body:not(.is-authenticated) #view-account .auth-card.account-auth-card {
+  border-radius: 28px;
+}
+
+body:not(.is-authenticated) #view-performances {
+  display: none !important;
+}

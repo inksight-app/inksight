@@ -10844,12 +10844,19 @@ function initAuthUI() {
   const authPillLabel = document.getElementById('authPillLabel');
   const authPillState = document.getElementById('authPillState');
 
-  const emailInput = document.getElementById('authEmail');
-  const passwordInput = document.getElementById('authPassword');
+  const legacyEmailControls = [
+    document.getElementById('authEmail'),
+    document.getElementById('authPassword'),
+    document.getElementById('btnLogin'),
+    document.getElementById('btnSignup'),
+  ].filter(Boolean);
+  legacyEmailControls.forEach((element) => {
+    const wrapper = element.closest('.auth-field, .auth-row, .auth-email-row, label') || element;
+    wrapper.hidden = true;
+    wrapper.setAttribute?.('aria-hidden', 'true');
+  });
 
   const btnDiscordLogin = document.getElementById('btnDiscordLogin');
-  const btnLogin = document.getElementById('btnLogin');
-  const btnSignup = document.getElementById('btnSignup');
   const btnLogout = document.getElementById('btnLogout');
 
   const userDisplay = document.getElementById('userDisplay');
@@ -10887,7 +10894,7 @@ function initAuthUI() {
   }
 
   function setLoading(isLoading) {
-    [btnDiscordLogin, btnLogin, btnSignup, btnLogout].forEach((button) => {
+    [btnDiscordLogin, btnLogout].forEach((button) => {
       if (!button) return;
       button.disabled = isLoading;
       button.style.opacity = isLoading ? '0.65' : '';
@@ -10965,10 +10972,6 @@ function initAuthUI() {
 
     if(authPanel.classList.contains('account-auth-card')) openPanel();
 
-    if (isLoggedIn && emailInput && passwordInput) {
-      emailInput.value = '';
-      passwordInput.value = '';
-    }
   }
 
   async function handleDiscordLogin() {
@@ -10978,57 +10981,6 @@ function initAuthUI() {
       await signInWithDiscord();
     } catch (err) {
       setMessage(`Connexion indisponible : ${err.message || 'Supabase semble bloqué sur ce réseau.'}`, 'error');
-      setLoading(false);
-    }
-  }
-
-  async function handleSignup() {
-    const email = emailInput?.value.trim();
-    const password = passwordInput?.value;
-
-    if (!email || !password) {
-      setMessage('Veuillez remplir les deux champs.', 'error');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setMessage('Création du compte…');
-
-      await signUpUser(email, password);
-
-      setMessage(
-        'Compte créé. Vérifiez votre email pour confirmer votre accès.',
-        'success'
-      );
-    } catch (err) {
-      setMessage(`Erreur d’inscription : ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleLogin() {
-    const email = emailInput?.value.trim();
-    const password = passwordInput?.value;
-
-    if (!email || !password) {
-      setMessage('Veuillez remplir les deux champs.', 'error');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setMessage('Connexion en cours…');
-
-      const data = await signInUser(email, password);
-
-      updateAuthUI(data.user);
-      setMessage('');
-      closePanel();
-    } catch (err) {
-      setMessage(`Connexion indisponible : ${err.message || 'Supabase semble bloqué sur ce réseau.'}`, 'error');
-    } finally {
       setLoading(false);
     }
   }
@@ -11052,16 +11004,7 @@ function initAuthUI() {
   authClose?.addEventListener('click', closePanel);
 
   btnDiscordLogin?.addEventListener('click', handleDiscordLogin);
-  btnSignup?.addEventListener('click', handleSignup);
-  btnLogin?.addEventListener('click', handleLogin);
   btnLogout?.addEventListener('click', handleLogout);
-
-  [emailInput, passwordInput].forEach((input) => {
-    input?.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') handleLogin();
-      if (event.key === 'Escape') closePanel();
-    });
-  });
 
   getCurrentUser()
     .then(updateAuthUI)
@@ -11128,8 +11071,26 @@ function initAppShell() {
     updateMobileBottomNav(document.body.dataset.appView || 'analysis', next);
   }
 
+  function isAuthenticatedForShell() {
+    return document.body.classList.contains('is-authenticated');
+  }
+
+  function showAccountLoginHint() {
+    const msg = document.getElementById('authMessage');
+    if (msg) {
+      msg.textContent = 'Connectez-vous avec Discord pour accéder aux statistiques, à l’historique et à Duel.ink.';
+      msg.classList.remove('is-success');
+      msg.classList.add('is-error');
+    }
+  }
+
   function setAppView(view = 'analysis', options = {}) {
-    const next = ['analysis', 'performances', 'account'].includes(view) ? view : 'analysis';
+    let next = ['analysis', 'performances', 'account'].includes(view) ? view : 'analysis';
+    const wantedProtectedView = next === 'performances';
+    if (wantedProtectedView && !isAuthenticatedForShell()) {
+      next = 'account';
+      showAccountLoginHint();
+    }
 
     appPanels.forEach((panel) => {
       const active = panel.dataset.appPanel === next;
