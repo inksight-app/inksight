@@ -12880,3 +12880,32 @@ body::after{
     grid-template-columns:1fr;
   }
 }
+
+
+/* V135.5B · Auth gates & Discord-only login */
+body:not(.is-authenticated) #view-account [data-auth-required],
+body:not(.is-authenticated) #view-performances .performance-content,
+body:not(.is-authenticated) #view-performances .performance-toolbar,
+body:not(.is-authenticated) #view-performances .performance-tabs {
+  display: none !important;
+}
+body:not(.is-authenticated) #view-performances::after {
+  content: "Connectez-vous avec Discord depuis Mon compte pour accéder à vos statistiques et à l’historique.";
+  display: block;
+  max-width: 720px;
+  margin: 24px auto;
+  padding: 20px 22px;
+  border: 1px solid var(--line, rgba(255,255,255,.12));
+  border-radius: 24px;
+  background: rgba(255,255,255,.06);
+  color: var(--muted, #a8adbd);
+  text-align: center;
+}
+.auth-form .auth-note {
+  margin-top: 12px;
+}
+#duelinkTokenInput:disabled,
+.duelink-token-actions button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}

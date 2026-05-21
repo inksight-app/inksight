@@ -10825,6 +10825,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
   function formatBytes(bytes){ const units=['B','KB','MB']; let v=n(bytes), i=0; while(v>=1024&&i<units.length-1){v/=1024;i++;} return `${v.toFixed(v>=10||i===0?0:1)} ${units[i]}`; }
   function deepClone(obj){ return JSON.parse(JSON.stringify(obj || {})); }
+  globalThis.INKSIGHT_markDuelinkConnectionDirty = () => { state.duelinkConnectionLoaded = false; };
   function deepMerge(a,b){ const out={...a}; for(const [k,v] of Object.entries(b||{})){ out[k] = v && typeof v==='object' && !Array.isArray(v) ? deepMerge(out[k]||{}, v) : v; } return out; }
 })();
 // =========================================================
@@ -10917,7 +10918,8 @@ function initAuthUI() {
 
   function updateAuthUI(user) {
     const isLoggedIn = Boolean(user);
-    state.duelinkConnectionLoaded = false;
+    document.body?.classList.toggle('is-authenticated', isLoggedIn);
+    globalThis.INKSIGHT_markDuelinkConnectionDirty?.();
     const accountProfileTitle = document.getElementById('accountProfileTitle');
     const accountProfileText = document.getElementById('accountProfileText');
 
@@ -10946,6 +10948,19 @@ function initAuthUI() {
       accountProfileText.textContent = isLoggedIn
         ? `${getLoginProviderLabel(user)} · ${getUserLabel(user)}.`
         : 'Connectez-vous pour associer vos analyses à un compte.';
+    }
+    document.querySelectorAll('[data-auth-required], #duelinkTokenInput, #duelinkTestButton, #duelinkPreviewButton, #duelinkImportButton, #duelinkSaveTokenButton, #duelinkForgetTokenButton').forEach((element) => {
+      if ('disabled' in element) element.disabled = !isLoggedIn;
+    });
+
+    const duelinkStatus = document.getElementById('duelinkTokenStatus');
+    const duelinkHint = document.getElementById('duelinkSavedTokenHint');
+    if (!isLoggedIn) {
+      if (duelinkStatus) {
+        duelinkStatus.textContent = 'Connexion requise';
+        duelinkStatus.className = 'duelink-status-chip';
+      }
+      if (duelinkHint) duelinkHint.textContent = 'Connectez-vous avec Discord avant de connecter Duel.ink.';
     }
 
     if(authPanel.classList.contains('account-auth-card')) openPanel();
