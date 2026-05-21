@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set() };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -199,6 +199,22 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
+  function collectPreparedDuelinkRefs(){
+    return {
+      gameIds: state.duelinkPreparedGameIds instanceof Set ? state.duelinkPreparedGameIds : new Set(),
+      replayIds: state.duelinkPreparedReplayIds instanceof Set ? state.duelinkPreparedReplayIds : new Set()
+    };
+  }
+
+  function markDuelinkRowAsPrepared(game={}){
+    const gameId = game?.id || game?.game_id || game?.duelink_game_id || '';
+    const replayId = game?.replayId || game?.replay_id || game?.duelink_replay_id || '';
+    if(!(state.duelinkPreparedGameIds instanceof Set)) state.duelinkPreparedGameIds = new Set();
+    if(!(state.duelinkPreparedReplayIds instanceof Set)) state.duelinkPreparedReplayIds = new Set();
+    if(gameId) state.duelinkPreparedGameIds.add(String(gameId));
+    if(replayId) state.duelinkPreparedReplayIds.add(String(replayId));
+  }
+
   function collectDuelinkRefsFromBulkQueue(){
     const gameIds = new Set();
     const replayIds = new Set();
@@ -244,18 +260,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function collectAllDuelinkRefs(){
     const saved = collectSavedDuelinkRefs();
     const queued = collectDuelinkRefsFromBulkQueue();
+    const prepared = collectPreparedDuelinkRefs();
     return {
       savedGameIds:saved.gameIds,
       savedReplayIds:saved.replayIds,
-      queuedGameIds:queued.gameIds,
-      queuedReplayIds:queued.replayIds,
+      queuedGameIds:new Set([...queued.gameIds, ...prepared.gameIds]),
+      queuedReplayIds:new Set([...queued.replayIds, ...prepared.replayIds]),
       queuedReplayHashes:queued.replayHashes
     };
   }
 
   function duelinkPreviewStatus(game, refs){
-    const gameId = game?.id ? String(game.id) : '';
-    const replayId = game?.replayId ? String(game.replayId) : '';
+    const gameId = game?.id || game?.game_id || game?.duelink_game_id ? String(game.id || game.game_id || game.duelink_game_id) : '';
+    const replayId = game?.replayId || game?.replay_id || game?.duelink_replay_id ? String(game.replayId || game.replay_id || game.duelink_replay_id) : '';
     if((gameId && refs.savedGameIds?.has(gameId)) || (replayId && refs.savedReplayIds?.has(replayId))){
       return { key:'existing', label:'Déjà présent' };
     }
@@ -747,6 +764,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           item.duplicate = duplicate || null;
           item.status = duplicate ? 'duplicate' : 'ready';
           item.message = duplicate ? 'Déjà présent dans l’historique.' : 'Importé depuis Duel.ink. Prêt à sauvegarder.';
+          markDuelinkRowAsPrepared(game);
           row.status = duplicate ? { key:'existing', label:'Déjà présent' } : { key:'queued', label:'Déjà dans la file' };
           importedCount += 1;
           renderDuelinkImportProgress(rows, rowIndex + 1, importedCount, failedCount);
@@ -766,6 +784,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(firstReady >= 0) activateBulkItem(firstReady);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Import prêt'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
       renderDuelinkImportProgress(rows, rows.length, importedCount, failedCount);
+      refreshDuelinkPreviewStatuses();
       const ready = state.bulkQueue.filter(item => item.status === 'ready').length;
       const duplicates = state.bulkQueue.filter(item => item.status === 'duplicate').length;
       const errors = state.bulkQueue.filter(item => item.status === 'error').length;
