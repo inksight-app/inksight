@@ -398,6 +398,94 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     </div>`;
   }
 
+
+  function stableJsonStringify(value){
+    if(value === null || value === undefined) return 'null';
+    if(Array.isArray(value)) return `[${value.map(stableJsonStringify).join(',')}]`;
+    if(typeof value === 'object'){
+      return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableJsonStringify(value[key])}`).join(',')}}`;
+    }
+    return JSON.stringify(value);
+  }
+
+  function simpleHashText(input=''){
+    let h = 2166136261;
+    const text = String(input || '');
+    for(let i = 0; i < text.length; i += 1){
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  function apiDecklistCardId(card={}){
+    return String(card.cardId || card.card_id || card.id || card.lorcanaId || card.name || card.cardName || card.fullName || '').trim();
+  }
+
+  function apiDecklistCardName(card={}){
+    return String(card.name || card.cardName || card.fullName || card.title || card.cardId || card.card_id || '').trim();
+  }
+
+  function apiDecklistCardCount(card={}){
+    const count = n(card.count ?? card.quantity ?? card.qty ?? card.copies ?? 1, 1);
+    return Math.max(1, count || 1);
+  }
+
+  function normalizeApiDecklist(decklist){
+    if(!Array.isArray(decklist)) return [];
+    const byId = new Map();
+    decklist.forEach(raw => {
+      if(!raw || typeof raw !== 'object') return;
+      const id = apiDecklistCardId(raw);
+      if(!id) return;
+      const previous = byId.get(id) || { id, name:apiDecklistCardName(raw) || id, count:0 };
+      previous.count += apiDecklistCardCount(raw);
+      if(!previous.name || previous.name === previous.id) previous.name = apiDecklistCardName(raw) || previous.id;
+      byId.set(id, previous);
+    });
+    return [...byId.values()].sort((a,b) => a.id.localeCompare(b.id));
+  }
+
+  function apiDecklistSummary(decklist){
+    const cards = normalizeApiDecklist(decklist);
+    const copies = cards.reduce((sum, card) => sum + n(card.count), 0);
+    const hash = cards.length ? simpleHashText(stableJsonStringify(cards.map(card => [card.id, card.count]))) : '';
+    return { cards, unique:cards.length, copies, hash };
+  }
+
+  function apiDecklistStatus(rowOrMeta={}, side='opponent'){
+    const meta = rowOrMeta?.api_metadata || rowOrMeta?.analysis_json?.api_metadata || rowOrMeta || {};
+    const direct = side === 'mine'
+      ? (rowOrMeta?.my_decklist || meta.my_decklist)
+      : (rowOrMeta?.opponent_decklist || meta.opponent_decklist);
+    const summary = apiDecklistSummary(direct);
+    if(summary.unique) return { ...summary, source:'api', label:'Decklist API complète' };
+    return { ...summary, source:'estimated', label:'Decklist estimée' };
+  }
+
+  function apiDecklistBadgesHtml(row){
+    const sourceType = String(row?.source_type || row?.analysis_json?.source_type || '').toLowerCase();
+    if(!sourceType.includes('duelink')) return '';
+    const mine = apiDecklistStatus(row, 'mine');
+    const opponent = apiDecklistStatus(row, 'opponent');
+    const opponentLabel = opponent.source === 'api'
+      ? `Deck adverse API · ${opponent.unique} cartes · ${opponent.copies} copies`
+      : 'Deck adverse estimé';
+    const mineLabel = mine.source === 'api'
+      ? `Votre deck API · ${mine.unique} cartes · ${mine.copies} copies`
+      : 'Votre deck estimé';
+    return `<span class="history-api-badges"><em class="history-source-badge decklist ${opponent.source === 'api' ? 'complete' : 'estimated'}">${esc(opponentLabel)}</em><em class="history-source-badge decklist ${mine.source === 'api' ? 'complete' : 'estimated'}">${esc(mineLabel)}</em></span>`;
+  }
+
+  function decklistPreviewHtml(title, status){
+    if(!status || !status.unique) return `<div class="api-decklist-panel muted"><strong>${esc(title)}</strong><span>Decklist complète non disponible pour cette analyse.</span></div>`;
+    const top = (status.cards || []).slice(0, 8).map(card => `<li><b>${n(card.count)}x</b><span>${esc(card.name || card.id)}</span></li>`).join('');
+    return `<div class="api-decklist-panel">
+      <div class="api-decklist-head"><strong>${esc(title)}</strong><span>${n(status.unique)} cartes · ${n(status.copies)} copies · hash ${esc(status.hash.slice(0, 8))}</span></div>
+      <ul>${top}</ul>
+    </div>`;
+  }
+
   function renderDuelinkPreviewResult(payload){
     if(!els.duelinkTestResult) return;
     const games = Array.isArray(payload?.games) ? payload.games : [];
@@ -441,6 +529,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     session.replaySha256 = replaySha256 || session.replaySha256 || '';
     session.myDecklist = Array.isArray(game.myDecklist) ? game.myDecklist : null;
     session.opponentDecklist = Array.isArray(game.opponentDecklist) ? game.opponentDecklist : null;
+    const myDeckSummary = apiDecklistSummary(session.myDecklist);
+    const opponentDeckSummary = apiDecklistSummary(session.opponentDecklist);
+    session.myDeckHash = myDeckSummary.hash || '';
+    session.opponentDeckHash = opponentDeckSummary.hash || '';
     session.apiRow = {
       id: game.id || null,
       replayId: game.replayId || null,
@@ -451,6 +543,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       format: game.format || null,
       opponent: game.opponent || null,
       result: game.result || null,
+      myDeckHash: myDeckSummary.hash || null,
+      opponentDeckHash: opponentDeckSummary.hash || null,
+      myDeckUniqueCards: myDeckSummary.unique || 0,
+      opponentDeckUniqueCards: opponentDeckSummary.unique || 0,
+      myDeckCopies: myDeckSummary.copies || 0,
+      opponentDeckCopies: opponentDeckSummary.copies || 0,
       raw: game.apiRow || null,
     };
     return session;
@@ -3658,6 +3756,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const sessions = Array.isArray(m?.sessions) && m.sessions.length ? m.sessions : (m?.first ? [m.first] : []);
     const first = sessions.find(session => session?.sourceType === 'duelink_api' || session?.duelinkGameId || session?.duelinkReplayId) || (m?.sourceType === 'duelink_api' ? m : null);
     if(!first) return null;
+    const myDeck = first.myDecklist || m?.myDecklist || null;
+    const opponentDeck = first.opponentDecklist || m?.opponentDecklist || null;
+    const mySummary = apiDecklistSummary(myDeck);
+    const opponentSummary = apiDecklistSummary(opponentDeck);
     return {
       source_type:'duelink_api',
       duelink_game_id:first.duelinkGameId || m?.duelinkGameId || null,
@@ -3666,8 +3768,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       duelink_queue:first.duelinkQueue || m?.duelinkQueue || null,
       duelink_format:first.duelinkFormat || m?.duelinkFormat || null,
       duelink_updated_at:first.duelinkUpdatedAt || m?.duelinkUpdatedAt || first.playedAt || null,
-      my_decklist:first.myDecklist || m?.myDecklist || null,
-      opponent_decklist:first.opponentDecklist || m?.opponentDecklist || null,
+      my_decklist:myDeck,
+      opponent_decklist:opponentDeck,
+      my_deck_hash:mySummary.hash || null,
+      opponent_deck_hash:opponentSummary.hash || null,
+      my_deck_unique_cards:mySummary.unique || 0,
+      opponent_deck_unique_cards:opponentSummary.unique || 0,
+      my_deck_copies:mySummary.copies || 0,
+      opponent_deck_copies:opponentSummary.copies || 0,
       api_row:first.apiRow || m?.apiRow || null
     };
   }
@@ -8033,6 +8141,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <span class="history-matchup-line">${esc(matchup)}</span>
           <span class="history-row-deck">Deck · ${esc(deck)}</span>
           ${historySourceBadgesHtml(row)}
+          ${apiDecklistBadgesHtml(row)}
           ${qualityBadgesHtml(row)}
         </span>
         <span class="history-row-meta"><b>${hasGames ? `${games.length} manches` : `${esc(n(row.total_turns) || '—')} tours`}</b><small>${esc(date)}</small></span>
@@ -8266,6 +8375,22 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const resultTone = row.result === 'win' ? 'positive' : 'negative';
     const detailGames = format === 'BO3' && games.length > 1 ? `<div class="history-detail-games"><span>Manches du BO3</span>${savedGamesHtml(games)}</div>` : '';
     const duelink = row.duelink_url ? `<a href="${escAttr(row.duelink_url)}" target="_blank" rel="noopener">Ouvrir Duel.ink</a>` : '<span>Non renseigné</span>';
+    const apiMineDeck = apiDecklistStatus(row, 'mine');
+    const apiOpponentDeck = apiDecklistStatus(row, 'opponent');
+    const apiMeta = row.api_metadata || analysis.api_metadata || {};
+    const apiInfoHtml = String(row.source_type || analysis.source_type || '').toLowerCase().includes('duelink') ? `<div class="history-api-info">
+      <div class="history-api-info-head"><span>Informations Duel.ink</span><strong>${esc(duelinkSourceLabel(row.duelink_source || apiMeta.duelink_source || apiMeta.source || ''))}</strong></div>
+      <div class="history-api-info-grid">
+        <span><b>${esc(row.duelink_queue || apiMeta.duelink_queue || apiMeta.queue || '—')}</b><small>File</small></span>
+        <span><b>${esc(formatShortDateTime(row.duelink_updated_at || apiMeta.duelink_updated_at || apiMeta.updatedAt || row.played_at))}</b><small>Date Duel.ink</small></span>
+        <span><b>${esc(apiMineDeck.hash ? apiMineDeck.hash.slice(0, 8) : '—')}</b><small>Hash deck</small></span>
+        <span><b>${esc(apiOpponentDeck.hash ? apiOpponentDeck.hash.slice(0, 8) : '—')}</b><small>Hash adverse</small></span>
+      </div>
+      <div class="api-decklist-grid">
+        ${decklistPreviewHtml('Votre deck API', apiMineDeck)}
+        ${decklistPreviewHtml('Deck adverse API', apiOpponentDeck)}
+      </div>
+    </div>` : '';
 
     const metricTile = (label, value, sub='', cls='') => `<div class="history-detail-metric ${cls}"><span>${esc(label)}</span><strong>${esc(value)}</strong>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     const cardTile = (label, card, value, sub='', cls='') => {
@@ -8301,6 +8426,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       ${metricTile('Adversaire', opponentName, row.matchup_label || '', 'wide')}
     </div>
     ${narrative.title ? `<div class="history-narrative history-narrative-v112"><strong>${esc(narrative.title)}</strong><p>${esc(narrative.text || '')}</p></div>` : ''}
+    ${apiInfoHtml}
     ${detailGames}
     <div class="history-detail-visual-grid">
       ${cardTile('Moteur de lore', topMineLore, topMineLore ? `${n(topMineLore.lore)} lore` : '', topMineLore ? `${n(topMineLore.played)} jouée(s)` : '', 'lore')}
