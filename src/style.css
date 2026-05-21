@@ -12125,3 +12125,114 @@ body::after{
   .history-source-badges{gap:5px;margin-top:7px;}
   .history-source-badge{font-size:.7rem;min-height:24px;padding:4px 9px;}
 }
+
+/* V135.1 · Duel.ink API token test */
+.duelink-connect-section {
+  display: grid;
+  gap: 18px;
+}
+.duelink-connect-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.duelink-connect-head h2 { margin: 0; }
+.duelink-connect-head p { max-width: 820px; }
+.duelink-status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 98px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.72);
+  font-size: .76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.duelink-status-chip.ok { color: #d1fae5; border-color: rgba(52,211,153,.34); background: rgba(52,211,153,.12); }
+.duelink-status-chip.pending { color: #fef3c7; border-color: rgba(246,197,77,.34); background: rgba(246,197,77,.12); }
+.duelink-status-chip.error { color: #fecaca; border-color: rgba(248,113,113,.34); background: rgba(248,113,113,.12); }
+.duelink-token-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+.duelink-token-form label {
+  display: grid;
+  gap: 7px;
+  color: rgba(255,255,255,.74);
+  font-size: .82rem;
+  font-weight: 700;
+}
+.duelink-token-form input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.28);
+  color: #fff;
+  padding: 0 14px;
+  outline: none;
+}
+.duelink-token-form input:focus { border-color: rgba(246,197,77,.5); box-shadow: 0 0 0 3px rgba(246,197,77,.12); }
+.duelink-help-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.duelink-help-grid > div,
+.duelink-test-result {
+  border: 1px solid rgba(255,255,255,.09);
+  background: rgba(255,255,255,.045);
+  border-radius: 18px;
+  padding: 13px 14px;
+}
+.duelink-help-grid strong,
+.duelink-result-summary strong,
+.duelink-result-empty strong {
+  display: block;
+  color: #fff;
+  font-size: .9rem;
+  margin-bottom: 4px;
+}
+.duelink-help-grid span,
+.duelink-result-summary span,
+.duelink-result-empty span {
+  display: block;
+  color: rgba(255,255,255,.64);
+  font-size: .78rem;
+  line-height: 1.45;
+}
+.duelink-help-grid code { font-family: var(--font-mono, monospace); font-size: .75em; color: #f6c54d; }
+.duelink-result-empty.error strong { color: #fecaca; }
+.duelink-result-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.duelink-result-list li {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) minmax(130px, auto);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255,255,255,.07);
+}
+.duelink-result-list strong { color: #fff; font-size: .78rem; }
+.duelink-result-list span { color: rgba(255,255,255,.82); font-size: .82rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.duelink-result-list em { color: rgba(255,255,255,.56); font-size: .76rem; font-style: normal; text-align: right; }
+@media (max-width: 760px) {
+  .duelink-connect-head,
+  .duelink-token-form { grid-template-columns: 1fr; display: grid; }
+  .duelink-status-chip { justify-self: start; }
+  .duelink-help-grid { grid-template-columns: 1fr; }
+  .duelink-result-list li { grid-template-columns: 1fr; gap: 4px; }
+  .duelink-result-list em { text-align: left; }
+}
