@@ -2740,6 +2740,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           victory_reason:session.victoryReason || '',
           mulligan:compactMulligan(session.mulligan),
           metrics:{ mine:compactMetrics(session.proMetrics), opponent:compactMetrics(session.opponentProMetrics) },
+          hand_retention:{ mine:compactHandRetention(session.handRetention), opponent:compactHandRetention(session.opponentHandRetention) },
+          handRetention:compactHandRetention(session.handRetention),
           lore_series:compactLoreSeries(session.loreSeries),
           action_series:compactActionSeries(session.actionSeries)
         }
@@ -4615,12 +4617,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const seenGames = new Set();
     const pushGameRows = (matchId, gameNumber, gameJson) => {
       const key = `${matchId || ''}::${n(gameNumber || 1)}`;
-      if(!matchId || seenGames.has(key)) return;
-      if(gameByKey?.size && !gameByKey.has(key)) return;
-      seenGames.add(key);
+      if(!matchId || seenGames.has(key)) return false;
+      if(gameByKey?.size && !gameByKey.has(key)) return false;
       const list = extractMineHandRetentionRows(gameJson);
-      if(!list.length) return;
+      if(!list.length) return false;
+      seenGames.add(key);
       list.forEach(row => out.push({ ...row, matchId, match_id:matchId, gameNumber:n(gameNumber || 1) }));
+      return true;
     };
 
     arrayify(detailedGameRows).forEach(row => {
@@ -5002,13 +5005,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         });
       }
     });
-    const seen = new Set();
-    return out.filter(row => {
+    const byGame = new Map();
+    out.forEach(row => {
       const key = `${row.match_id || ''}::${n(row.game_number || 1)}`;
-      if(seen.has(key)) return false;
-      seen.add(key);
-      return !!row.match_id && !!gameJsonFromDetailRow(row)?.mulligan;
+      const json = gameJsonFromDetailRow(row);
+      if(!row.match_id || !json?.mulligan) return;
+      const current = byGame.get(key);
+      const retentionCount = extractMineHandRetentionRows(json).length;
+      const currentRetentionCount = current ? extractMineHandRetentionRows(gameJsonFromDetailRow(current)).length : -1;
+      // Prefer the row that also carries Dead Weight / hand-retention data.
+      // Detailed Supabase game rows from older saves may contain mulligan but no hand_retention,
+      // while analysis_json.games contains both.
+      if(!current || retentionCount > currentRetentionCount) byGame.set(key, row);
     });
+    return [...byGame.values()];
   }
 
   function createMulliganCardSeed(card){
