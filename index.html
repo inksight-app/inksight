@@ -666,15 +666,15 @@
           <div class="duelink-title-block">
             <div class="kicker">Duel.ink API · synchronisation</div>
             <h2 id="duelinkConnectTitle">Connecter Duel.ink</h2>
-            <p>Collez un token Bearer pour lire vos derniers matchs. Vous pouvez l’utiliser une fois ou le mémoriser de manière chiffrée sur votre compte.</p>
+            <p>Connectez Duel.ink pour synchroniser tout votre historique disponible. InkSight récupère d’abord les données, puis les filtres se feront ensuite dans Historique et Performance.</p>
           </div>
           <span class="duelink-status-chip" id="duelinkTokenStatus">Non testé</span>
         </div>
         <div class="duelink-workflow" aria-label="Étapes de synchronisation Duel.ink">
           <span class="is-active">1 · Tester</span>
-          <span>2 · Prévisualiser</span>
+          <span>2 · Scanner</span>
           <span>3 · Importer</span>
-          <span>4 · Sauvegarder</span>
+          <span>4 · Analyser</span>
         </div>
         <div class="duelink-token-form">
           <label>
@@ -684,7 +684,7 @@
           </label>
           <div class="duelink-token-actions">
             <button id="duelinkTestButton" type="button" class="ghost-button compact">Tester</button>
-            <button id="duelinkPreviewButton" type="button" class="ghost-button compact">Prévisualiser 25</button>
+            <button id="duelinkPreviewButton" type="button" class="ghost-button compact">Synchroniser Duel.ink</button>
             <button id="duelinkImportButton" type="button" class="ghost-button compact" disabled>Importer les nouveaux</button>
             <button id="duelinkSaveTokenButton" type="button" class="ghost-button compact">Mémoriser la clé chiffrée</button>
             <button id="duelinkForgetTokenButton" type="button" class="ghost-button compact danger" hidden>Oublier la clé</button>
@@ -693,9 +693,9 @@
         <div class="duelink-help-grid">
           <div><strong>Sécurité</strong><span>Token utilisable ponctuellement ou chiffré côté serveur. 90 jours est un bon compromis.</span></div>
           <div><strong>Lecture seule</strong><span>Accès à vos matchs, replays et logs uniquement.</span></div>
-          <div><strong>Import contrôlé</strong><span>Les replays API arrivent dans la même file que vos imports manuels.</span></div>
+          <div><strong>Synchronisation complète</strong><span>Le scan lit tout l’historique disponible. Les filtres seront appliqués ensuite dans InkSight.</span></div>
         </div>
-        <div id="duelinkTestResult" class="duelink-test-result">Collez un token, testez la connexion, puis prévisualisez les matchs avant import.</div>
+        <div id="duelinkTestResult" class="duelink-test-result">Collez un token ou utilisez votre clé mémorisée, puis lancez la synchronisation Duel.ink.</div>
       </section>
 
       <section class="glass deck-manager-section" data-auth-required aria-labelledby="deckManagerTitle">
