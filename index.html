@@ -683,7 +683,7 @@
           <div class="duelink-title-block">
             <div class="kicker">Duel.ink API · synchronisation</div>
             <h2 id="duelinkConnectTitle">Connecter Duel.ink</h2>
-            <p>Collez temporairement un token Bearer pour lire vos derniers matchs. Le token n’est pas enregistré par InkSight à cette étape.</p>
+            <p>Collez un token Bearer pour lire vos derniers matchs. Vous pouvez l’utiliser une fois ou le mémoriser de manière chiffrée sur votre compte.</p>
           </div>
           <span class="duelink-status-chip" id="duelinkTokenStatus">Non testé</span>
         </div>
@@ -697,15 +697,18 @@
           <label>
             Token API Duel.ink
             <input id="duelinkTokenInput" type="password" inputmode="text" autocomplete="off" spellcheck="false" placeholder="Bearer token Duel.ink" />
+            <small id="duelinkSavedTokenHint" class="duelink-token-hint">Optionnel : mémorisez la clé de manière chiffrée pour éviter de la recoller à chaque session.</small>
           </label>
           <div class="duelink-token-actions">
             <button id="duelinkTestButton" type="button" class="ghost-button compact">Tester</button>
             <button id="duelinkPreviewButton" type="button" class="ghost-button compact">Prévisualiser 25</button>
             <button id="duelinkImportButton" type="button" class="ghost-button compact" disabled>Importer les nouveaux</button>
+            <button id="duelinkSaveTokenButton" type="button" class="ghost-button compact">Mémoriser la clé chiffrée</button>
+            <button id="duelinkForgetTokenButton" type="button" class="ghost-button compact danger" hidden>Oublier la clé</button>
           </div>
         </div>
         <div class="duelink-help-grid">
-          <div><strong>Sécurité</strong><span>Token temporaire, non stocké. 90 jours est un bon compromis.</span></div>
+          <div><strong>Sécurité</strong><span>Token utilisable ponctuellement ou chiffré côté serveur. 90 jours est un bon compromis.</span></div>
           <div><strong>Lecture seule</strong><span>Accès à vos matchs, replays et logs uniquement.</span></div>
           <div><strong>Import contrôlé</strong><span>Les replays API arrivent dans la même file que vos imports manuels.</span></div>
         </div>
