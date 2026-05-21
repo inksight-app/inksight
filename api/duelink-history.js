@@ -33,8 +33,8 @@ function cleanToken(value) {
 
 function safeLimit(value) {
   const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) return 5;
-  return Math.max(1, Math.min(50, parsed));
+  if (!Number.isFinite(parsed)) return 1000;
+  return Math.max(1, Math.min(1000, parsed));
 }
 
 function getByPath(obj, path) {
@@ -157,6 +157,17 @@ function pickResult(row) {
   return firstValue(row, ['result','outcome','winner','game.result','game.outcome','isWin','is_win','won']);
 }
 
+function pickFormat(row) {
+  const direct = firstValue(row, [
+    'format','match_format','matchFormat','game.format','queue.format','bestOf','best_of','bo','match.bestOf','match.best_of'
+  ]) || deepFind(row, (key) => /^(?:format|matchFormat|match_format|bestOf|best_of|bo)$/i.test(key));
+  if (direct === null || direct === undefined) return null;
+  const text = String(direct).trim();
+  if (/bo\s*3|best\s*of\s*3|bestof3|3/i.test(text)) return 'BO3';
+  if (/bo\s*1|best\s*of\s*1|bestof1|1/i.test(text)) return 'BO1';
+  return text;
+}
+
 function summarizeGame(row) {
   const id = pickGameId(row);
   const explicitDate = firstValue(row, [
@@ -172,11 +183,13 @@ function summarizeGame(row) {
     queue: pickQueue(row),
     opponent: pickOpponent(row),
     result: pickResult(row),
+    format: pickFormat(row),
     updatedAt,
     dateSource: explicitDate ? 'api' : (updatedAt ? 'id' : 'unknown'),
     myDecklist: pickDecklist(row, 'mine'),
     opponentDecklist: pickDecklist(row, 'opponent'),
     rawKeys: row && typeof row === 'object' ? Object.keys(row).slice(0, 25) : [],
+    apiRow: row || null,
   };
 }
 
@@ -192,6 +205,8 @@ export default async function handler(req, res) {
     const cursor = body.cursor ? String(body.cursor) : '';
     const source = body.source ? String(body.source) : '';
     const queue = body.queue ? String(body.queue) : '';
+    const from = body.from ? String(body.from) : '';
+    const to = body.to ? String(body.to) : '';
     const resolved = await resolveDuelinkToken(req, { token: cleanToken(body.token) });
     const token = resolved.token;
     const tokenSource = resolved.source || 'request';
@@ -202,6 +217,8 @@ export default async function handler(req, res) {
     if (cursor) url.searchParams.set('cursor', cursor);
     if (source) url.searchParams.set('source', source);
     if (queue) url.searchParams.set('queue', queue);
+    if (from) url.searchParams.set('from', from);
+    if (to) url.searchParams.set('to', to);
 
     const response = await fetch(url, {
       method: 'GET',

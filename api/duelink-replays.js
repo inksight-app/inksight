@@ -34,7 +34,7 @@ function cleanToken(value) {
 function cleanIds(ids) {
   return [...new Set((Array.isArray(ids) ? ids : [])
     .map(id => String(id || '').trim())
-    .filter(Boolean))].slice(0, 50);
+    .filter(Boolean))].slice(0, 1000);
 }
 
 export default async function handler(req, res) {
