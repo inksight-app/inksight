@@ -117,10 +117,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.deckManagerRefresh?.addEventListener('click', async () => { await refreshDeckProfiles({ force:true, silent:true }); await refreshSavedMatches({ force:true, silent:true }); renderAccountPage(); });
     els.duelinkTestButton?.addEventListener('click', testDuelinkToken);
     els.duelinkPreviewButton?.addEventListener('click', previewDuelinkMatches);
-    els.duelinkImportButton?.addEventListener('click', () => importDuelinkPreviewToBulkQueue({ limit:25 }));
-    els.duelinkImport50Button?.addEventListener('click', () => importDuelinkPreviewToBulkQueue({ limit:50 }));
-    els.duelinkImport100Button?.addEventListener('click', () => importDuelinkPreviewToBulkQueue({ limit:100 }));
-    els.duelinkImportAllButton?.addEventListener('click', () => importDuelinkPreviewToBulkQueue({ limit:'all' }));
+    els.duelinkImportButton?.addEventListener('click', () => importDuelinkPreviewAndSave({ limit:25 }));
+    els.duelinkImport50Button?.addEventListener('click', () => importDuelinkPreviewAndSave({ limit:50 }));
+    els.duelinkImport100Button?.addEventListener('click', () => importDuelinkPreviewAndSave({ limit:100 }));
+    els.duelinkImportAllButton?.addEventListener('click', () => importDuelinkPreviewAndSave({ limit:'all' }));
     els.duelinkSaveTokenButton?.addEventListener('click', saveDuelinkTokenForAccount);
     els.duelinkForgetTokenButton?.addEventListener('click', forgetDuelinkTokenForAccount);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
@@ -662,7 +662,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return `<li class="duelink-import-step ${status}"><span class="bulk-status-dot"></span><div><strong>${title}</strong><small>${esc(label)} · replay ${esc(replayId.slice(0, 12))}</small></div></li>`;
     }).join('');
     const block = `<div class="duelink-import-progress" id="duelinkImportProgressBox">
-      <div class="duelink-import-progress-head"><strong>Import vers la file</strong><span>${done + failed}/${total}</span></div>
+      <div class="duelink-import-progress-head"><strong>Traitement du lot</strong><span>${done + failed}/${total}</span></div>
       <div class="duelink-progressbar"><i style="width:${percent}%"></i></div>
       <ul>${items}</ul>
     </div>`;
@@ -711,8 +711,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     [els.duelinkImportButton, els.duelinkImport50Button, els.duelinkImport100Button, els.duelinkImportAllButton].forEach(button => {
       if(button){ button.disabled = true; }
     });
-    if(els.duelinkImportButton) els.duelinkImportButton.textContent = 'Import en cours…';
-    if(els.duelinkImportSaveButton){ els.duelinkImportSaveButton.disabled = true; els.duelinkImportSaveButton.textContent = options.autoSave ? 'Import + sauvegarde…' : 'Import en cours…'; }
+    if(els.duelinkImportButton) els.duelinkImportButton.textContent = options.autoSave ? 'Traitement…' : 'Import en cours…';
+    if(els.duelinkImportSaveButton){ els.duelinkImportSaveButton.disabled = true; els.duelinkImportSaveButton.textContent = options.autoSave ? 'Traitement…' : 'Import en cours…'; }
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Import en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
     renderDuelinkImportProgress(rows, 0, 0, 0);
     try{
@@ -828,8 +828,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const ready = state.bulkQueue.filter(item => item.status === 'ready').length;
       const duplicates = state.bulkQueue.filter(item => item.status === 'duplicate').length;
       const errors = state.bulkQueue.filter(item => item.status === 'error').length;
-      renderDuelinkPostBatchSummary({ imported:importedCount, duplicates, errors, ready, batchSize:rows.length });
-      return { imported:importedCount, duplicates, errors, ready };
+      if(!options.autoSave){
+        renderDuelinkPostBatchSummary({ imported:importedCount, duplicates, errors, ready, batchSize:rows.length });
+      }
+      return { imported:importedCount, duplicates, errors, ready, batchSize:rows.length }; 
     }catch(err){
       console.error(err);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec import'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
@@ -841,7 +843,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
   }
 
-  async function importDuelinkPreviewAndSave(){
+  async function importDuelinkPreviewAndSave(options={}){
     if(state.duelinkAutoSaving || state.duelinkImporting) return;
     if(!state.currentUser){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Connexion requise'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
@@ -855,25 +857,32 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
     state.duelinkAutoSaving = true;
-    if(els.duelinkImportSaveButton){ els.duelinkImportSaveButton.disabled = true; els.duelinkImportSaveButton.textContent = 'Import + sauvegarde…'; }
-    if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Sync contrôlée…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
+    [els.duelinkImportButton, els.duelinkImport50Button, els.duelinkImport100Button, els.duelinkImportAllButton].forEach(button => { if(button) button.disabled = true; });
+    if(els.duelinkImportButton) els.duelinkImportButton.textContent = 'Traitement…';
+    if(els.duelinkImportSaveButton){ els.duelinkImportSaveButton.disabled = true; els.duelinkImportSaveButton.textContent = 'Traitement…'; }
+    if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Traitement…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
     const startedAt = new Date().toISOString();
     let importSummary = { imported:0, duplicates:0, errors:0, ready:0 };
     try{
-      importSummary = await importDuelinkPreviewToBulkQueue({ autoSave:true, silentSuccess:true }) || importSummary;
+      importSummary = await importDuelinkPreviewToBulkQueue({ limit:options.limit || 25, autoSave:true, silentSuccess:true }) || importSummary;
       const readyBeforeSave = (state.bulkQueue || []).filter(item => item?.merged && ['ready','warning'].includes(item.status)).length;
       if(!readyBeforeSave){
         if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucune analyse à sauvegarder.</strong><span>Les replays étaient déjà présents ou en erreur. Rien n’a été ajouté à l’historique.</span></div>');
         return;
       }
-      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty pending"><strong>Sauvegarde contrôlée en cours.</strong><span>${readyBeforeSave} analyse(s) prête(s) vont être ajoutées à l’historique après dédoublonnage.</span></div>`);
+      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty pending"><strong>Sauvegarde en cours.</strong><span>${readyBeforeSave} analyse(s) vont être ajoutées à l’historique après dédoublonnage.</span></div>`);
       await saveBulkQueue();
       refreshDuelinkPreviewStatuses();
       const saved = (state.bulkQueue || []).filter(item => item.status === 'saved').length;
       const duplicates = (state.bulkQueue || []).filter(item => item.status === 'duplicate').length;
       const errors = (state.bulkQueue || []).filter(item => item.status === 'error').length;
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Sync terminée'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty ok"><strong>Synchronisation terminée.</strong><span>${saved} sauvegardée(s), ${duplicates} doublon(s), ${errors} erreur(s). Le token n’a pas été stocké.</span></div>`);
+      const remainingAfterSave = getDuelinkImportableRows().length;
+      if(els.duelinkTestResult){
+        const games = (state.duelinkPreviewRows || []).map(row => row.game).filter(Boolean);
+        renderDuelinkPreviewResult({ games, classified:state.duelinkPreviewRows || [] });
+        els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty ok duelink-batch-summary"><strong>${saved} partie${saved > 1 ? 's' : ''} ajoutée${saved > 1 ? 's' : ''} à InkSight.</strong><span>${remainingAfterSave} encore prête${remainingAfterSave > 1 ? 's' : ''} à importer · ${duplicates} doublon${duplicates > 1 ? 's' : ''} · ${errors} erreur${errors > 1 ? 's' : ''} mise${errors > 1 ? 's' : ''} de côté.</span></div>`);
+      }
       await logDuelinkSyncRun({
         started_at:startedAt,
         finished_at:new Date().toISOString(),
@@ -882,7 +891,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         matches_imported:saved,
         matches_skipped:duplicates,
         matches_failed:errors,
-        details:{ mode:'manual_token_controlled_autosave', imported:importSummary.imported, ready:importSummary.ready }
+        details:{ mode:'duelink_batch_import_save', limit:options.limit || 25, imported:importSummary.imported, ready:importSummary.ready }
       }).catch(err => console.warn('Duel.ink sync log unavailable:', err));
     }catch(err){
       console.error(err);
@@ -897,7 +906,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         matches_skipped:0,
         matches_failed:rows.length,
         error:String(err.message || err),
-        details:{ mode:'manual_token_controlled_autosave' }
+        details:{ mode:'duelink_batch_import_save', limit:options.limit || 25 }
       }).catch(logErr => console.warn('Duel.ink sync log unavailable:', logErr));
     }finally{
       state.duelinkAutoSaving = false;
