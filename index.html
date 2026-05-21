@@ -161,14 +161,14 @@
           </div>
           <div class="save-deck-fields" aria-label="Associer cette analyse à un deck">
             <div class="save-deck-picker">
-              <span>Version du deck</span>
+              <span>Version</span>
               <select id="saveDeckSelect" class="save-deck-select technical-select" aria-label="Choisir un deck existant">
                 <option value="">Choisir un deck existant</option>
               </select>
               <div id="saveDeckPills" class="filter-pill-row save-deck-pills" aria-label="Choisir une version de deck"></div>
             </div>
             <label>
-              Nouveau deck
+              Nom
               <input id="saveDeckNameInput" class="save-deck-input" type="text" placeholder="Ex. Saphir Ambre Control" maxlength="80" />
             </label>
             <small id="saveDeckHint">Les versions proposées correspondent à la bicolorité détectée du replay.</small>
@@ -280,7 +280,7 @@
         <div>
           <div class="kicker">Vos analyses</div>
           <h1>Statistiques & historique</h1>
-          <p>Retrouvez vos analyses sauvegardées, suivez votre progression et préparez les futurs filtres par deck, bicolorité et matchup.</p>
+          <p>Retrouvez vos analyses sauvegardées, suivez votre progression et préparez les futurs filtres par bicolorité et matchup.</p>
         </div>
         <button type="button" class="ghost-button app-page-cta" data-app-view="analysis">Analyser un replay</button>
       </article>
@@ -299,7 +299,7 @@
         <article class="glass performance-filter-bar performance-filter-bar-viz filters-open" aria-label="Filtres statistiques">
           <div class="filter-header-copy">
             <div class="kicker">Filtres</div>
-            <p>Choisissez un deck pour activer les statistiques cartes et mulligan vraiment exploitables.</p>
+            <p>Choisissez une bicolorité pour activer les statistiques cartes et mulligan vraiment exploitables.</p>
           </div>
           <button type="button" class="filter-toggle" data-filter-toggle="performance" aria-expanded="true">Masquer les filtres</button>
           <div class="performance-filter-controls performance-filter-controls-viz">
@@ -375,7 +375,7 @@
             <article class="glass performance-coach-card primary">
               <span>À retenir</span>
               <strong id="performanceCoachTitle">—</strong>
-              <p id="performanceCoachText">Sélectionnez une bicolorité ou une version pour obtenir une lecture claire du deck.</p>
+              <p id="performanceCoachText">Sélectionnez une bicolorité pour obtenir une lecture claire.</p>
             </article>
             <article class="glass performance-coach-card">
               <span>Point fort</span>
@@ -392,7 +392,7 @@
           <section id="performanceActionPlan" class="performance-action-plan" aria-label="Plan d’action performances">
             <article class="glass action-plan-card">
               <span>Plan d’action</span>
-              <strong>Sélectionnez un deck</strong>
+              <strong>Sélectionnez une bicolorité</strong>
               <p>Les priorités apparaîtront ici dès que l’échantillon représente une stratégie cohérente.</p>
             </article>
           </section>
@@ -401,12 +401,12 @@
             <article class="glass performance-trend-card card-signal-card">
               <span>Moteur de lore <button class="info-dot" type="button" data-info="La carte de votre deck qui a généré le plus de lore sur l’échantillon filtré. À lire uniquement après avoir choisi une bicolorité ou une version de deck.">?</button></span>
               <div id="performanceTopLore" class="mini-card-signal">—</div>
-              <small id="performanceTopLoreHelp">Sélectionnez un deck pour éviter de mélanger plusieurs listes.</small>
+              <small id="performanceTopLoreHelp">Sélectionnez une bicolorité pour éviter de mélanger plusieurs listes.</small>
             </article>
             <article class="glass performance-trend-card card-signal-card">
               <span>Carte souvent encrée <button class="info-dot" type="button" data-info="Carte que vous transformez souvent en ressource. Ce n’est pas toujours une erreur, mais si la même carte revient beaucoup, c’est un signal deckbuilding utile.">?</button></span>
               <div id="performanceMostInked" class="mini-card-signal">—</div>
-              <small id="performanceMostInkedHelp">Sélectionnez un deck pour lire ce signal correctement.</small>
+              <small id="performanceMostInkedHelp">Sélectionnez une bicolorité pour lire ce signal correctement.</small>
             </article>
             <article class="glass performance-trend-card otp-card">
               <span>Premier / Second <button class="info-dot" type="button" data-info="Compare votre winrate quand vous commencez la partie (OTP) et quand vous jouez en second (OTD). Une grosse différence indique souvent un deck trop dépendant du tempo initial.">?</button></span>
@@ -426,7 +426,7 @@
             <div class="section-head">
               <div>
                 <h2>Cartes du deck</h2>
-                <p>Cartes clés du deck : lore, jeu, encrage et impact en un coup d’œil.</p>
+                <p>Cartes clés de la bicolorité : lore, jeu, encrage et impact en un coup d’œil.</p>
               </div>
             </div>
             <div id="performanceCardImpactTable" class="table-zone visual-zone"></div>
@@ -462,7 +462,7 @@
             <div class="section-head">
               <div>
                 <h2>Courbes moyennes</h2>
-                <p>Rythme du deck sur l’échantillon filtré : progression au lore, main et actions par tour.</p>
+                <p>Rythme de jeu sur l’échantillon filtré : progression au lore, main et actions par tour.</p>
               </div>
             </div>
             <div id="performanceTurnCurveTable" class="performance-chart-zone"></div>
@@ -496,7 +496,7 @@
             <div class="placeholder-icon">▥</div>
             <div>
               <h2>Données détaillées</h2>
-              <p>Les statistiques avancées utilisent les tables analytiques V62+. Plus vous sauvegardez de matchs avec le même deck, plus les signaux cartes, mulligan et rythme deviennent fiables.</p>
+              <p>Les statistiques avancées utilisent les tables analytiques V62+. Plus vous sauvegardez de matchs avec la même bicolorité, plus les signaux cartes, mulligan et rythme deviennent fiables.</p>
             </div>
           </article>
         </section>
@@ -510,7 +510,7 @@
             <p id="historyStatus">Chargement de vos analyses…</p>
           </div>
           <div class="history-quick-actions">
-            <input id="historySearchInput" class="history-search" type="search" placeholder="Rechercher adversaire, deck, matchup…" aria-label="Rechercher dans l’historique">
+            <input id="historySearchInput" class="history-search" type="search" placeholder="Rechercher adversaire, matchup…" aria-label="Rechercher dans l’historique">
             <button type="button" class="filter-toggle" data-filter-toggle="history" aria-expanded="false">Filtres avancés</button>
           </div>
           <div class="history-controls history-controls-viz">
