@@ -511,6 +511,7 @@
           <div class="history-quick-actions">
             <input id="historySearchInput" class="history-search" type="search" placeholder="Rechercher adversaire, matchup…" aria-label="Rechercher dans l’historique">
             <button type="button" class="filter-toggle" data-filter-toggle="history" aria-expanded="false">Filtres avancés</button>
+            <button id="historyRefreshButton" type="button" class="ghost-button compact history-refresh-inline">Actualiser</button>
           </div>
           <div class="history-controls history-controls-viz">
             <select id="historyColorFilter" class="sort-select technical-select" aria-label="Filtrer l’historique par bicolorité">
@@ -538,15 +539,12 @@
               <option value="otd">OTD</option>
             </select>
             <div class="history-filter-pills">
-              <div class="filter-pill-block compact"><span>Bicolorité</span><div id="historyColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div></div>
+              <div class="filter-pill-block compact"><span>Bicolorité</span><div id="historyColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
               <div class="filter-pill-block compact"><span>Adversaire</span><div id="historyOpponentColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité adverse"></div></div>
               <div class="filter-pill-block compact"><span>Résultat</span><div id="historyResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div></div>
               <div class="filter-pill-block compact"><span>Format</span><div id="historyFormatPills" class="filter-pill-row" aria-label="Choisir un format"></div></div>
               <div class="filter-pill-block compact"><span>Départ</span><div id="historyTempoPills" class="filter-pill-row" aria-label="Choisir OTP ou OTD"></div></div>
               <div class="filter-pill-block compact filter-reset-block"><span>Action</span><button id="historyResetFilters" type="button" class="ghost-button compact">Réinitialiser</button></div>
-            </div>
-            <div class="history-search-row">
-              <button id="historyRefreshButton" type="button" class="ghost-button">Actualiser l’historique</button>
             </div>
           </div>
         </article>
