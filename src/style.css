@@ -13895,3 +13895,97 @@ html, body { overflow-x: hidden; }
     overflow: hidden;
   }
 }
+
+
+/* V136.0J · Scale and UX hotfix */
+.auth-card .auth-actions,
+.auth-card .auth-form {
+  width: min(100%, 520px);
+  margin-inline: auto;
+}
+.auth-btn-discord,
+.auth-card .auth-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+.app-main-nav,
+.app-nav,
+.segmented-control,
+.stats-history-toggle {
+  display: flex;
+  align-items: stretch;
+}
+.app-main-nav > button,
+.app-nav > button,
+.segmented-control > button,
+.stats-history-toggle > button {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  text-align: center;
+  justify-content: center;
+}
+.performance-filter-controls-viz,
+.filter-pill-row,
+.performance-detail-tabs,
+.card-filter-row,
+.mulligan-lab-row {
+  min-width: 0;
+  max-width: 100%;
+}
+.performance-filter-controls-viz .filter-pill-row:empty::after {
+  content: 'Aucune donnée disponible pour ce filtre.';
+  color: rgba(203,213,225,.52);
+  font-size: .82rem;
+}
+.duelink-import-progress,
+.bulk-import-list {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.duelink-import-progress .duelink-import-row,
+.bulk-import-row,
+.bulk-file-row {
+  min-width: 0;
+}
+.duelink-import-progress .duelink-import-row strong,
+.duelink-import-progress .duelink-import-row span,
+.bulk-import-row strong,
+.bulk-import-row span,
+.history-detail-card-copy strong,
+.history-detail-card-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.performance-card-tile,
+.mulligan-visual-card,
+.mulligan-lab-card,
+.performance-chart-card {
+  min-width: 0;
+  overflow: hidden;
+}
+.mulligan-lab-card .pill,
+.mulligan-lab-card .mulligan-retention-chip,
+.performance-stat-strip span {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 760px) {
+  .app-main-nav > button,
+  .app-nav > button,
+  .segmented-control > button,
+  .stats-history-toggle > button {
+    font-size: clamp(.78rem, 3vw, .98rem) !important;
+    padding-inline: .55rem !important;
+  }
+  .auth-card .auth-actions {
+    align-items: stretch;
+  }
+  .performance-filter-controls-viz {
+    gap: 18px;
+  }
+}

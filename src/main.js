@@ -955,7 +955,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       importSummary = await importDuelinkPreviewToBulkQueue({ limit:options.limit || 25, autoSave:true, silentSuccess:true }) || importSummary;
       const readyBeforeSave = (state.bulkQueue || []).filter(item => item?.merged && ['ready','warning'].includes(item.status)).length;
       if(!readyBeforeSave){
-        if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucune analyse à sauvegarder.</strong><span>Les replays étaient déjà présents ou en erreur. Rien n’a été ajouté à l’historique.</span></div>');
+        if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucune analyse à sauvegarder.</strong><span>Les replays étaient déjà présents ou temporairement inaccessibles. Ils ont été mis de côté et ne bloqueront pas un import manuel.</span></div>');
+        purgeDuelinkItemsFromBulkQueue();
         return;
       }
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty pending"><strong>Sauvegarde en cours.</strong><span>${readyBeforeSave} analyse(s) vont être ajoutées à l’historique après dédoublonnage.</span></div>`);
@@ -1000,6 +1001,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }).catch(logErr => console.warn('Duel.ink sync log unavailable:', logErr));
     }finally{
       state.duelinkAutoSaving = false;
+      // V136.0J: API import is a background workflow; do not leave its errors
+      // inside the manual replay import queue.
+      purgeDuelinkItemsFromBulkQueue();
       syncDuelinkActionButtons();
     }
   }
@@ -1193,6 +1197,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.cards = Array.isArray(payload) ? payload : (payload.cards || []);
       buildCardIndex();
       setApiStatus(`Base locale prête · ${state.cards.length} cartes`, 'ready');
+      // V136.0J: images in history/stats are hydrated from the local card database.
+      // Re-render once the dictionary is available so placeholders become card art.
+      try{ renderPerformanceData(); renderBulkQueue(); }catch(_err){}
     }catch(err){
       console.warn(err);
       setApiStatus('Base locale introuvable', 'error');
@@ -1212,6 +1219,27 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(state.cards?.length && state.index?.size) return;
     if(!state.cardLoadPromise) state.cardLoadPromise = loadLocalCards();
     await state.cardLoadPromise;
+  }
+
+  function resetBulkQueueState(reason=''){
+    state.bulkQueue = [];
+    state.activeBulkIndex = null;
+    state.bulkSaving = false;
+    state.bulkSaveTotal = 0;
+    state.bulkSaveDone = 0;
+    state.lastBulkSaveMessage = '';
+    if(els.bulkImportStatus && reason) els.bulkImportStatus.textContent = reason;
+    renderBulkQueue();
+  }
+
+  function purgeDuelinkItemsFromBulkQueue(){
+    const before = (state.bulkQueue || []).length;
+    state.bulkQueue = (state.bulkQueue || []).filter(item => !(item?.duelinkGame || item?.merged?.sourceType === 'duelink_api'));
+    if(before !== state.bulkQueue.length){
+      state.activeBulkIndex = state.bulkQueue.findIndex(item => item?.merged && item.status !== 'error');
+      if(state.activeBulkIndex < 0) state.activeBulkIndex = null;
+      renderBulkQueue();
+    }
   }
 
   function buildCardIndex(){
@@ -1278,10 +1306,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   async function handleFiles(files){
     if(!files.length) return;
     await ensureLocalCardsLoaded();
+    // V136.0J: manual imports must start from a clean queue.
+    // Failed Duel.ink API items should never leak into the manual import panel.
+    resetBulkQueueState('Nouvel import manuel. Ancienne file vidée.');
     const accepted = files.slice(0, MAX_FILES);
-    if(accepted.length > 1 || state.bulkQueue.length){
+    if(accepted.length > 1){
       try{
-        await handleBulkFiles(accepted, { append:!!state.bulkQueue.length });
+        await handleBulkFiles(accepted, { append:false });
       }finally{
         if(els.fileInput) els.fileInput.value = '';
       }
@@ -7773,8 +7804,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const saved = findSavedCardByPerformanceCard(card);
     const seed = saved || local || { id:card.key, fullName:card.name, name:card.name, type:card.type, colors:card.colors || [] };
     const hydrated = hydrateCard(seed);
-    const image = saved?.image || saved?.imageSmall || hydrated.image || hydrated.imageSmall || '';
-    const imageSmall = saved?.imageSmall || saved?.image || hydrated.imageSmall || hydrated.image || '';
+    const image = saved?.image || saved?.imageSmall || hydrated.image || hydrated.imageSmall || getCardImage(hydrated, 'normal') || '';
+    const imageSmall = saved?.imageSmall || saved?.image || hydrated.imageSmall || hydrated.image || getCardImage(hydrated, 'small') || image || '';
     const resolvedName = saved ? (saved.fullName || saved.name || fullName(saved)) : (local ? fullName(local) : fullName(hydrated));
     const displayName = cleanCardName(resolvedName && resolvedName !== 'Carte inconnue' ? resolvedName : (card.name || card.key || 'Carte inconnue'));
     return {
@@ -7821,12 +7852,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function findLocalCardByPerformanceCard(card){
-    const candidates = [card?.key, card?.name, slug(card?.name || '')].filter(Boolean);
+    const rawName = String(card?.name || card?.card_name || card?.fullName || '');
+    const baseName = rawName.split(' - ')[0] || rawName;
+    const candidates = [card?.key, card?.card_key, card?.id, card?.cardId, rawName, baseName, slug(rawName), slug(baseName)].filter(Boolean);
     for(const key of candidates){
       const direct = state.index.get(key) || state.index.get(slug(key));
       if(direct) return direct;
     }
-    const wanted = slug(card?.name || '');
+    const wanted = slug(rawName || baseName || '');
     if(!wanted) return null;
     const wantedCore = wanted.replace(/-+/g,'-');
     const seen = new Set();
@@ -8380,9 +8413,31 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const narrative = analysis.narrative || {};
     const mineCards = analysis.cards?.mine || [];
     const oppCards = analysis.cards?.opponent || [];
-    const topMineLore = [...mineCards].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest))[0];
-    const topInked = [...mineCards].sort((a,b)=>n(b.inked)-n(a.inked))[0];
-    const topOppLore = [...oppCards].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest))[0];
+    const detailCardRows = (state.savedAnalytics?.cardStats || []).filter(item => item.match_id === row.id);
+    const cardFromDetailRow = detail => {
+      const seed = {
+        key:detail.card_key || detail.card_name,
+        id:detail.card_key || '',
+        cardId:detail.card_key || '',
+        name:detail.card_name || detail.card_key || 'Carte inconnue',
+        fullName:detail.card_name || detail.card_key || 'Carte inconnue',
+        type:detail.card_type || '',
+        colors:detail.colors || [],
+        lore:n(detail.lore_generated),
+        quest:n(detail.quest_count),
+        played:n(detail.played),
+        inked:n(detail.inked),
+      };
+      const view = performanceCardView(seed);
+      return { ...view, ...seed, image:view.image, imageSmall:view.imageSmall };
+    };
+    const fallbackMineCards = detailCardRows.filter(item => item.owner === 'mine').map(cardFromDetailRow);
+    const fallbackOppCards = detailCardRows.filter(item => item.owner === 'opponent').map(cardFromDetailRow);
+    const minePool = mineCards.length ? mineCards : fallbackMineCards;
+    const oppPool = oppCards.length ? oppCards : fallbackOppCards;
+    const topMineLore = [...minePool].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest) || n(b.played)-n(a.played))[0];
+    const topInked = [...minePool].sort((a,b)=>n(b.inked)-n(a.inked) || n(b.played)-n(a.played))[0];
+    const topOppLore = [...oppPool].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest) || n(b.played)-n(a.played))[0];
     const result = row.result === 'win' ? 'Victoire' : 'Défaite';
     const resultClass = row.result === 'win' ? 'win' : 'loss';
     const format = String(row.format || 'BO1').toUpperCase();
@@ -8413,9 +8468,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     const metricTile = (label, value, sub='', cls='') => `<div class="history-detail-metric ${cls}"><span>${esc(label)}</span><strong>${esc(value)}</strong>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     const cardTile = (label, card, value, sub='', cls='') => {
-      const hasCard = !!card;
-      const name = hasCard ? fullName(card) : '—';
-      const thumb = hasCard ? cardThumbHtml(card, 'history-detail-card-img') : `<span class="history-detail-card-img thumb-placeholder">—</span>`;
+      const hydratedCard = card ? performanceCardView(card) : null;
+      const hasCard = !!hydratedCard;
+      const name = hasCard ? fullName(hydratedCard) : '—';
+      const thumb = hasCard ? cardThumbHtml(hydratedCard, 'history-detail-card-img') : `<span class="history-detail-card-img thumb-placeholder">—</span>`;
       return `<div class="history-detail-card-tile ${cls}">
         <div class="history-detail-card-art">${thumb}</div>
         <div class="history-detail-card-copy">

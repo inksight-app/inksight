@@ -373,34 +373,36 @@ export async function listSavedAnalyticsDetails(matchIds = []) {
     return { games: [], cardStats: [], turnStats: [] };
   }
 
-  const [gamesResult, cardsResult, turnsResult] = await Promise.all([
-    supabase
-      .from('saved_games')
-      .select('*')
-      .in('match_id', ids)
-      .order('game_number', { ascending: true }),
-    supabase
-      .from('saved_card_stats')
-      .select('*')
-      .in('match_id', ids)
-      .order('card_name', { ascending: true }),
-    supabase
-      .from('saved_turn_stats')
-      .select('*')
-      .in('match_id', ids)
-      .order('game_number', { ascending: true })
-      .order('turn', { ascending: true }),
-  ]);
+  // V136.0J: never request analytics for hundreds of matches in one huge URL.
+  // Supabase/PostgREST can timeout or truncate under scale; chunking keeps stats stable.
+  const chunkSize = 40;
+  const games = [];
+  const cardStats = [];
+  const turnStats = [];
 
-  if (gamesResult.error) throw gamesResult.error;
-  if (cardsResult.error) throw cardsResult.error;
-  if (turnsResult.error) throw turnsResult.error;
+  async function fetchChunk(table, idChunk, order = []) {
+    let query = supabase.from(table).select('*').in('match_id', idChunk);
+    order.forEach(([column, options]) => {
+      query = query.order(column, options || { ascending: true });
+    });
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  }
 
-  return {
-    games: gamesResult.data || [],
-    cardStats: cardsResult.data || [],
-    turnStats: turnsResult.data || [],
-  };
+  for (let index = 0; index < ids.length; index += chunkSize) {
+    const chunk = ids.slice(index, index + chunkSize);
+    const [gameRows, cardRows, turnRows] = await Promise.all([
+      fetchChunk('saved_games', chunk, [['game_number', { ascending: true }]]),
+      fetchChunk('saved_card_stats', chunk, [['card_name', { ascending: true }]]),
+      fetchChunk('saved_turn_stats', chunk, [['game_number', { ascending: true }], ['turn', { ascending: true }]]),
+    ]);
+    games.push(...gameRows);
+    cardStats.push(...cardRows);
+    turnStats.push(...turnRows);
+  }
+
+  return { games, cardStats, turnStats };
 }
 
 export async function signOutUser() {
