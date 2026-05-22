@@ -13726,3 +13726,172 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
     overflow:hidden!important;
   }
 }
+
+/* =========================================================
+   V136.0G · Auth/history stability + mobile overflow hardening
+   ========================================================= */
+html, body { overflow-x: hidden; }
+.app-shell,
+.app-view,
+.glass,
+.glass-primary,
+.stat-panel,
+.cards-panel,
+.chart-panel,
+.timeline-panel,
+.match-read,
+.account-card,
+.history-card,
+.history-row,
+.performance-coach-card,
+.performance-analytics-panel,
+.performance-card-tile,
+.mulligan-visual-card,
+.duelink-sync-card,
+.duelink-result-summary,
+.duelink-mini-stats,
+.api-decklist-panel {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.section-head,
+.section-head > div,
+.stats-header,
+.performance-panel-head,
+.performance-coach-card,
+.performance-chart-card,
+.performance-card-body,
+.mulligan-visual-body,
+.mulligan-card-head,
+.history-card-main,
+.history-row-main,
+.duelink-result-summary,
+.duelink-mini-stats span {
+  min-width: 0;
+}
+
+.section-head p,
+.stats-header p,
+.performance-panel-head p,
+.performance-chart-card p,
+.performance-coach-card p,
+.performance-card-body p,
+.matchup-breakdown-card p,
+.deck-required span,
+.duelink-result-summary span,
+.account-card p {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@supports (-webkit-line-clamp: 2) {
+  .section-head p,
+  .stats-header p,
+  .performance-panel-head p,
+  .performance-chart-card p,
+  .performance-coach-card p,
+  .deck-required span,
+  .duelink-result-summary > div > span,
+  .account-card p {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+
+.filter-pill-row,
+.performance-detail-tabs,
+.performance-tabs,
+.tab-strip,
+.sort-pills,
+.mulligan-lab-row,
+.card-filter-row {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.filter-pill-row::-webkit-scrollbar,
+.performance-detail-tabs::-webkit-scrollbar,
+.performance-tabs::-webkit-scrollbar,
+.tab-strip::-webkit-scrollbar,
+.sort-pills::-webkit-scrollbar,
+.mulligan-lab-row::-webkit-scrollbar,
+.card-filter-row::-webkit-scrollbar { display: none; }
+
+.filter-pill,
+.performance-detail-tab,
+.performance-tab,
+.card-filter,
+.sort-pill,
+.mulligan-lab-pill {
+  min-width: 0;
+  max-width: min(82vw, 360px);
+}
+.filter-pill span:not(.filter-ink-dots),
+.performance-detail-tab,
+.performance-tab,
+.card-filter,
+.sort-pill,
+.mulligan-lab-pill {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mulligan-bottom-tags,
+.mulligan-card-stats,
+.performance-stat-strip {
+  min-width: 0;
+  max-width: 100%;
+}
+.mulligan-bottom-tags span,
+.mulligan-dead-weight-tag,
+.mulligan-card-stats span,
+.performance-stat-strip span {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duelink-mini-stats {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 136px), 1fr)) !important;
+}
+.duelink-mini-stats span b {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .section-head p,
+  .stats-header p,
+  .performance-panel-head p,
+  .performance-chart-card p,
+  .performance-coach-card p {
+    font-size: .92rem;
+  }
+  .mulligan-bottom-tags {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mulligan-bottom-tags span,
+  .mulligan-dead-weight-tag {
+    justify-self: start;
+    max-width: 100%;
+  }
+  .performance-chart-card,
+  .performance-analytics-panel,
+  .performance-card-tile,
+  .mulligan-visual-card {
+    overflow: hidden;
+  }
+}

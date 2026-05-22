@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set() };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), authExplicitlySignedOut:false, authVerifyPending:false };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -505,9 +505,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <div class="duelink-mini-stats" aria-label="Résumé synchronisation Duel.ink">
           <span><b>${games.length}</b><small>trouvées</small></span>
           <span><b>${ready}</b><small>à importer</small></span>
-          <span><b>${already}</b><small>déjà dans InkSight</small></span>
+          <span><b>${already}</b><small>déjà</small></span>
           <span><b>${stats.missingReplay.length}</b><small>sans replay</small></span>
-          <span><b>${esc(formatShortDateTime(stats.newest?.updatedAt))}</b><small>plus récent</small></span>
+          <span><b>${esc(formatShortDateTime(stats.newest?.updatedAt))}</b><small>récent</small></span>
           <span><b>${esc(sourceSummary)}</b><small>sources</small></span>
         </div>
       </div>`;
@@ -3485,7 +3485,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function setCloudOffline(error=null){
     state.cloudOffline = true;
     state.cloudErrorMessage = cloudErrorMessage(error);
-    state.currentUser = null;
+    // V136.0G: ne pas effacer l'utilisateur ni l'historique sur une panne réseau temporaire.
+    // L'état doit seulement devenir "cloud indisponible"; seul SIGNED_OUT vide les données.
     syncSaveButton(state.cloudErrorMessage);
     renderCloudStatus();
     renderPerformanceData();
@@ -3503,6 +3504,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const { data } = await supabase.auth.getSession();
       const sessionUser = data?.session?.user || null;
       if(sessionUser){
+        state.authExplicitlySignedOut = false;
         state.currentUser = sessionUser;
         setCloudOnline();
         if(options.render){
@@ -3518,6 +3520,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const user = await getCurrentUser();
       if(user){
+        state.authExplicitlySignedOut = false;
         state.currentUser = user;
         setCloudOnline();
         if(options.render){
@@ -3566,6 +3569,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         // unless we receive an explicit SIGNED_OUT event. Otherwise the UI can flash
         // "no saved matches" even though data still exists in Supabase.
         if(event === 'SIGNED_OUT'){
+          state.authExplicitlySignedOut = true;
           state.currentUser = null;
           state.savedMatches = [];
           state.savedMatchesLoaded = false;
@@ -3580,6 +3584,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         }
 
         if(sessionUser){
+          state.authExplicitlySignedOut = false;
           state.currentUser = sessionUser;
           syncSaveButton();
           renderBulkQueue();
@@ -5447,10 +5452,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const nextRows = Array.isArray(rows) ? rows : [];
       // If a forced refresh returns an empty array immediately after a batch import while
       // we had visible rows, treat it as suspicious and keep the previous UI until retry.
-      if(options.keepVisible && previousRows.length && !nextRows.length){
+      if(previousRows.length && !nextRows.length && !options.allowEmpty){
         console.warn('Historique refresh returned 0 rows while previous rows exist; keeping visible rows for stability.');
         state.savedMatchesLoaded = true;
         if(els.historyStatus) els.historyStatus.textContent = 'Mise à jour de l’historique en cours…';
+        state.savedAnalytics = { ...(state.savedAnalytics || {}), loading:false, error:'Refresh temporaire incomplet.' };
         return previousRows;
       }
       state.savedMatches = nextRows;
@@ -6422,7 +6428,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     let tone = 'good';
     if(still > 0 || stuckRate >= 50 || avgHeld >= 4){ label = 'Keep risqué'; tone = 'danger'; }
     else if(stuckRate >= 25 || avgHeld >= 3 || (uninkable && avgHeld >= 2.5)){ label = 'Keep à surveiller'; tone = 'context'; }
-    const detail = `${avgHeld} tour${avgHeld > 1 ? 's' : ''} en main après keep · max ${maxHeld}T`;
+    const detail = `${avgHeld}T en main · max ${maxHeld}T`;
     return { hasSignal:true, label, detail, tone, avgHeld, stuckRate, maxHeld, stillInHand:still };
   }
 
@@ -8031,6 +8037,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!els.historyList) return;
     if(!state.currentUser && !(state.savedMatches || []).length){
       renderPostImportCleanup();
+      if(!state.authExplicitlySignedOut){
+        els.historyList.innerHTML = '<div class="empty-line"><strong>Vérification de la session…</strong><span>Vos matchs peuvent prendre quelques secondes à réapparaître après un import ou un rafraîchissement mobile.</span></div>';
+        if(els.historyStatus) els.historyStatus.textContent = 'Connexion en cours de vérification.';
+        if(!state.authVerifyPending){
+          state.authVerifyPending = true;
+          ensureInkSightUser({ render:false })
+            .then(user => user ? refreshSavedMatches({ force:true, silent:true, keepVisible:true }) : null)
+            .finally(() => { state.authVerifyPending = false; renderPerformanceData(); });
+        }
+        return;
+      }
       els.historyList.innerHTML = '<div class="empty-line">Connectez-vous avec Discord pour afficher vos matchs sauvegardés.</div>';
       if(els.historyStatus) els.historyStatus.textContent = 'Historique disponible après connexion.';
       if(els.historyDetail){ els.historyDetail.hidden = true; els.historyDetail.innerHTML = ''; }
@@ -11327,11 +11344,16 @@ function initAuthUI() {
   btnLogout?.addEventListener('click', handleLogout);
 
   getCurrentUser()
-    .then(updateAuthUI)
-    .catch(() => updateAuthUI(null));
+    .then((user) => { if (user) updateAuthUI(user); })
+    .catch(() => { /* ne pas afficher "déconnecté" sur un trou de session temporaire */ });
 
-  supabase.auth.onAuthStateChange((_event, session) => {
-    updateAuthUI(session?.user ?? null);
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      updateAuthUI(null);
+      return;
+    }
+    if (session?.user) updateAuthUI(session.user);
+    // V136.0G: ignorer les sessions nulles temporaires de Safari/Supabase.
   });
 }
 
