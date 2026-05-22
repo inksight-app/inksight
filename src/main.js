@@ -4855,7 +4855,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     event.stopPropagation();
     const pop = document.createElement('div');
     pop.className = 'info-popover-backdrop';
-    pop.innerHTML = `<div class="info-popover-modal" role="dialog" aria-modal="true" aria-label="Information"><button type="button" class="info-popover-close" aria-label="Fermer">×</button><p>${esc(button.dataset.info || '')}</p></div>`;
+    const title = button.dataset.infoTitle || button.closest('h1,h2,h3,.section-head,.performance-trend-card')?.querySelector('h1,h2,h3,span')?.textContent?.replace(/[?i]\s*$/,'').trim() || 'Information';
+    pop.innerHTML = `<div class="info-popover-modal" role="dialog" aria-modal="true" aria-label="Information"><button type="button" class="info-popover-close" aria-label="Fermer">×</button><h3>${esc(title)}</h3><p>${esc(button.dataset.info || '')}</p></div>`;
     document.body.appendChild(pop);
     pop.querySelector('.info-popover-close')?.focus();
     pop.addEventListener('click', e => {
@@ -7641,8 +7642,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const actionAxis = [['Tempo', actionTotals.play], ['Lore', actionTotals.quest], ['Board', actionTotals.challenge], ['Encrage', actionTotals.ink]].sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Plan';
     const actionHtml = `<span>Plan moyen</span><strong>${esc(actionAxis)} dominant</strong><small>${esc(`${round1(actionTotals.play)} jouées · ${round1(actionTotals.quest)} quêtes · ${round1(actionTotals.challenge)} défis`)}</small>`;
     return `<div class="performance-charts-grid">
-      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Lore & main moyenne <button class="info-dot" type="button" data-info="La courbe est calculée tour par tour uniquement avec les parties qui atteignent réellement le tour affiché. Le repère de vitesse indique à quel tour moyen le deck atteint les paliers de lore.">?</button></h3><p>Progression moyenne vers 20 lore, sans pénaliser les tours tardifs avec les parties déjà terminées.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceLoreAvgChart">${speedHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceLoreAvgChart" aria-label="Courbe moyenne de lore et de main"></canvas></div></article>
-      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Plan de jeu par tour <button class="info-dot" type="button" data-info="Chaque barre montre ce que le deck fait en moyenne à ce tour : encrer, jouer des cartes, quêter ou défier. Les tours tardifs utilisent uniquement les parties qui les atteignent réellement.">?</button></h3><p>Encrage, cartes jouées, quêtes et défis : le plan de jeu moyen tour par tour.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceActionAvgChart">${actionHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceActionAvgChart" aria-label="Actions moyennes par tour"></canvas></div></article>
+      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Lore & main moyenne <button class="info-dot" type="button" data-info="La courbe est calculée tour par tour uniquement avec les parties qui atteignent réellement le tour affiché. Le repère de vitesse indique à quel tour moyen le deck atteint les paliers de lore." aria-label="Infos sur Lore & main moyenne">i</button></h3></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceLoreAvgChart">${speedHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceLoreAvgChart" aria-label="Courbe moyenne de lore et de main"></canvas></div></article>
+      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Plan de jeu par tour <button class="info-dot" type="button" data-info="Chaque barre montre ce que le deck fait en moyenne à ce tour : encrer, jouer des cartes, quêter ou défier. Les tours tardifs utilisent uniquement les parties qui les atteignent réellement." aria-label="Infos sur Plan de jeu par tour">i</button></h3></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceActionAvgChart">${actionHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceActionAvgChart" aria-label="Actions moyennes par tour"></canvas></div></article>
     </div>`;
   }
 
@@ -11361,6 +11362,9 @@ function initAppShell() {
     });
 
     document.body.dataset.appView = next;
+    document.body.classList.toggle('is-account-view', next === 'account');
+    document.body.classList.toggle('is-analysis-view', next === 'analysis');
+    document.body.classList.toggle('is-performances-view', next === 'performances');
     document.body.classList.remove('mobile-nav-hidden');
 
     if (next === 'performances') {
