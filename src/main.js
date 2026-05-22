@@ -594,7 +594,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const hasTypedToken = Boolean(normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || ''));
     if(els.duelinkSavedTokenHint){
       els.duelinkSavedTokenHint.textContent = connected
-        ? `Connexion Duel.ink mémorisée (${connection.connection?.token_hint || 'clé chiffrée'}). Vous pouvez tester, prévisualiser et importer sans recoller la clé.`
+        ? 'Clé Duel.ink mémorisée. Vous pouvez synchroniser sans recoller la clé.'
         : 'Optionnel : mémorisez la clé de manière chiffrée pour éviter de la recoller à chaque session.';
     }
     if(els.duelinkTokenInput){
@@ -8049,9 +8049,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <button type="button" class="ghost-button history-mini-button danger" data-delete-saved="${escAttr(row.id)}">Supprimer</button>`;
     return `<article class="history-row ${isActive ? 'active' : ''} ${hasGames ? 'has-games' : ''} ${actionsOpen ? 'actions-open' : ''}" data-saved-id="${escAttr(row.id)}">
       <button type="button" class="history-row-main" data-select-saved="${escAttr(row.id)}" aria-expanded="${expanded && hasGames ? 'true' : 'false'}">
-        <span class="history-result-dot ${resultClass}"></span>
         <span class="history-row-copy">
-          <strong class="history-primary-line"><em>${esc(format)}</em>${colorMatchupDotsHtml(colors, opponentColors, matchup)}<b>${esc(result)} ${esc(score)}</b></strong>
+          <strong class="history-primary-line"><em>${esc(format)}</em><span class="history-result-dot ${resultClass}" aria-hidden="true"></span>${colorMatchupDotsHtml(colors, opponentColors, matchup)}<b>${esc(result)} ${esc(score)}</b></strong>
           <span class="history-opponent-line">${esc(opponent)}</span>
           ${deck ? `<span class="history-row-deck">${esc(deck)}</span>` : ''}
           ${historySourceBadgesHtml(row)}
@@ -9685,8 +9684,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const visible = expanded ? rows : rows.slice(0, limit);
     const total = rows.length;
     const listHtml = `<div class="match-card-list-v81 ${options.ordered ? 'is-sequence' : ''}">${visible.map((item, index) => statCardTileHtml(item, index, options)).join('')}</div>`;
-    const toggleHtml = total > limit ? `<button type="button" class="stat-list-toggle v81-toggle" data-stat-list-toggle="${escAttr(key)}" aria-expanded="${expanded ? 'true' : 'false'}"><span>${expanded ? esc(options.expandedLabel || 'Réduire la liste') : esc(options.collapsedLabel || 'Voir toute la liste')}</span><strong>${expanded ? '−' : total}</strong></button>` : '';
+    const collapsedLabel = statListToggleLabel(options.collapsedLabel || 'Voir toute la liste', total);
+    const toggleHtml = total > limit ? `<button type="button" class="stat-list-toggle v81-toggle" data-stat-list-toggle="${escAttr(key)}" aria-expanded="${expanded ? 'true' : 'false'}"><span>${expanded ? esc(options.expandedLabel || 'Réduire la liste') : esc(collapsedLabel)}</span></button>` : '';
     container.innerHTML = `${listHtml}${toggleHtml}`;
+  }
+
+
+
+  function statListToggleLabel(label, total){
+    const raw = String(label || '').trim();
+    const lower = raw.toLowerCase();
+    if(lower.includes('carte')) return `Voir les ${n(total)} cartes`;
+    if(lower.includes('défi') || lower.includes('defi')) return `Voir les ${n(total)} défis`;
+    if(lower.includes('chronologie')) return `Voir toute la chronologie`;
+    if(lower.includes('liste')) return `Voir les ${n(total)} éléments`;
+    return raw;
   }
 
   function statCardTileHtml(item, index, options={}){
