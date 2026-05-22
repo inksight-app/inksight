@@ -598,7 +598,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         : 'Optionnel : mémorisez la clé de manière chiffrée pour éviter de la recoller à chaque session.';
     }
     if(els.duelinkTokenInput){
-      els.duelinkTokenInput.placeholder = connected ? 'Clé déjà mémorisée — collez une nouvelle clé seulement pour la remplacer' : 'Bearer token Duel.ink';
+      els.duelinkTokenInput.placeholder = connected ? 'Clé mémorisée — nouvelle clé optionnelle' : 'Bearer token Duel.ink';
     }
     if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.hidden = !connected;
     if(els.duelinkSaveTokenButton){
@@ -1079,7 +1079,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         details:{ mode:'full_history_scan' }
       }).catch(logErr => console.warn('Duel.ink scan log unavailable:', logErr));
     }finally{
-      if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = false; els.duelinkPreviewButton.textContent = state.duelinkSyncSummary?.total ? 'Duel.ink synchronisé' : 'Synchroniser Duel.ink'; }
+      if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = false; els.duelinkPreviewButton.textContent = state.duelinkSyncSummary?.total ? 'Actualiser' : 'Synchroniser'; }
       if(els.duelinkTestButton) els.duelinkTestButton.disabled = false;
       syncDuelinkActionButtons();
     }
