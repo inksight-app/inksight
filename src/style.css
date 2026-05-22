@@ -14260,3 +14260,403 @@ button[data-auth-provider="discord"]{
   .performance-tabs{gap:6px!important;padding:6px!important;}
   .performance-tab{min-height:46px!important;font-size:.82rem!important;padding:.35rem .45rem!important;}
 }
+
+/* =========================================================
+   V136.0M — UI architecture + navigation + image stability
+   This final layer intentionally overrides V136.0J/K/L quick fixes.
+========================================================= */
+:root{
+  --app-shell-max:1280px;
+  --app-panel-max:1280px;
+  --app-narrow-max:760px;
+  --app-auth-max:420px;
+}
+
+html, body{
+  max-width:100%;
+  overflow-x:hidden;
+}
+
+.app-shell,
+.header-shell,
+.main-shell,
+.app-page-hero,
+.account-page-hero,
+.account-auth-wrapper,
+.duelink-account-card,
+.performance-hero,
+.performance-tabs,
+.performance-filter-bar-viz,
+.performance-panel,
+.history-toolbar,
+.history-list,
+.history-detail,
+.glass.app-page-hero{
+  width:min(calc(100% - 32px), var(--app-shell-max))!important;
+  max-width:var(--app-shell-max)!important;
+  margin-inline:auto!important;
+  box-sizing:border-box!important;
+}
+
+.header-bar.app-header-v54{
+  width:100%!important;
+  max-width:var(--app-shell-max)!important;
+  margin-inline:auto!important;
+  box-sizing:border-box!important;
+}
+
+/* Main top navigation: exactly 3 readable tabs */
+.app-main-nav,
+.app-nav{
+  width:min(calc(100% - 24px), 480px)!important;
+  max-width:480px!important;
+  min-width:min(100%, 300px)!important;
+  margin-inline:auto!important;
+  display:flex!important;
+  align-items:stretch!important;
+  justify-content:center!important;
+  gap:6px!important;
+  padding:6px!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+  border-radius:999px!important;
+}
+.app-main-nav > button,
+.app-nav > button,
+.app-nav-button{
+  flex:1 1 0!important;
+  min-width:0!important;
+  max-width:none!important;
+  width:auto!important;
+  height:44px!important;
+  min-height:44px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:0!important;
+  padding:.55rem .72rem!important;
+  white-space:nowrap!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  text-align:center!important;
+  font-size:clamp(.82rem, 1vw, .96rem)!important;
+  line-height:1!important;
+  letter-spacing:0!important;
+}
+.app-main-nav .app-nav-button[data-app-view="performances"]::before,
+.app-main-nav .app-nav-button[data-app-view="analysis"]::before,
+.app-main-nav .app-nav-button[data-app-view="account"]::before{content:none!important;}
+
+/* Mobile bottom nav: 3 equal app tabs, never 4, never overflowing */
+.mobile-bottom-nav{
+  position:fixed!important;
+  left:50%!important;
+  right:auto!important;
+  bottom:max(12px, env(safe-area-inset-bottom))!important;
+  transform:translateX(-50%)!important;
+  width:min(calc(100vw - 24px), 560px)!important;
+  max-width:560px!important;
+  display:flex!important;
+  align-items:stretch!important;
+  justify-content:center!important;
+  gap:0!important;
+  padding:8px!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+  border-radius:28px!important;
+  z-index:1000!important;
+}
+.mobile-bottom-tab{
+  flex:1 1 0!important;
+  min-width:0!important;
+  max-width:none!important;
+  width:auto!important;
+  min-height:64px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:5px!important;
+  padding:6px 4px!important;
+  overflow:hidden!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+}
+.mobile-bottom-tab span{
+  display:block!important;
+  flex:0 0 auto!important;
+  font-size:1.12rem!important;
+  line-height:1!important;
+}
+.mobile-bottom-tab strong{
+  display:block!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  font-size:clamp(.72rem, 2.7vw, .92rem)!important;
+  line-height:1.05!important;
+  letter-spacing:-.01em!important;
+}
+@media (min-width:821px){
+  .mobile-bottom-nav{display:none!important;}
+}
+@media (max-width:820px){
+  body{padding-bottom:calc(96px + env(safe-area-inset-bottom))!important;}
+  .app-main-nav{display:none!important;}
+}
+
+/* Stats / Historique segmented control: fixed two equal columns */
+.performance-tabs,
+.segmented-control,
+.stats-history-tabs,
+.stats-history-toggle{
+  display:flex!important;
+  align-items:stretch!important;
+  justify-content:center!important;
+  gap:8px!important;
+  overflow:hidden!important;
+  padding:8px!important;
+  box-sizing:border-box!important;
+}
+.performance-tabs > button,
+.performance-tab,
+.segmented-control > button,
+.stats-history-tabs > button,
+.stats-history-toggle > button{
+  flex:1 1 0!important;
+  min-width:0!important;
+  max-width:none!important;
+  width:auto!important;
+  height:46px!important;
+  min-height:46px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  padding:.55rem .75rem!important;
+  box-sizing:border-box!important;
+}
+.performance-tab .tab-label-mobile{display:none!important;}
+.performance-tab .tab-label-desktop{display:inline!important;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+@media(max-width:680px){
+  .performance-tab .tab-label-desktop{display:none!important;}
+  .performance-tab .tab-label-mobile{display:inline!important;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+}
+
+/* Account page grid and Discord auth card */
+#view-account .account-page-hero,
+#view-account .account-auth-wrapper,
+#view-account .duelink-account-card{
+  text-align:left!important;
+}
+#view-account .account-auth-wrapper{
+  width:min(calc(100% - 32px), var(--app-narrow-max))!important;
+  max-width:var(--app-narrow-max)!important;
+  margin-inline:auto!important;
+}
+#view-account .account-auth-zone,
+#view-account .auth-inner{
+  width:100%!important;
+  max-width:100%!important;
+  display:grid!important;
+  justify-items:center!important;
+}
+#view-account .auth-card,
+#view-account .account-auth-card,
+.auth-card.account-auth-card{
+  width:min(100%, var(--app-auth-max))!important;
+  max-width:var(--app-auth-max)!important;
+  margin-inline:auto!important;
+  text-align:center!important;
+  box-sizing:border-box!important;
+  align-items:center!important;
+}
+#view-account .auth-card-head,
+#view-account .auth-card-head p,
+#view-account .auth-card-head h2{
+  text-align:center!important;
+  max-width:100%!important;
+}
+#view-account .auth-form,
+#view-account .auth-actions,
+#view-account .account-auth-card form{
+  width:100%!important;
+  max-width:100%!important;
+  display:grid!important;
+  justify-items:center!important;
+}
+.auth-btn-discord,
+#btnDiscordLogin,
+#discordLoginButton,
+button[data-auth-provider="discord"]{
+  width:min(100%, 360px)!important;
+  max-width:360px!important;
+  margin-inline:auto!important;
+  display:flex!important;
+  justify-content:center!important;
+  align-items:center!important;
+  text-align:center!important;
+  box-sizing:border-box!important;
+}
+#view-account .auth-user-box{
+  width:100%!important;
+  max-width:100%!important;
+  text-align:left!important;
+}
+
+/* Filter collapse: no empty giant block when closed */
+.performance-filter-bar-viz:not(.filters-open) .performance-filter-controls-viz,
+.history-toolbar-viz:not(.filters-open) .history-controls-viz,
+.filters-card.is-collapsed .filters-content{
+  display:none!important;
+}
+.performance-filter-bar-viz:not(.filters-open),
+.history-toolbar-viz:not(.filters-open){
+  min-height:auto!important;
+  gap:0!important;
+}
+.performance-filter-bar-viz.filters-open .performance-filter-controls-viz,
+.history-toolbar-viz.filters-open .history-controls-viz{
+  display:grid!important;
+}
+
+/* Prevent horizontal content leaks */
+.card,
+.panel,
+.glass,
+.stat-card,
+.saved-match-card,
+.metric-card,
+.deck-card,
+.mulligan-card,
+.performance-card-tile,
+.mulligan-visual-card,
+.matchup-breakdown-card,
+.performance-chart-card,
+.performance-trend-card,
+.performance-coach-card,
+.history-card,
+.history-detail,
+.detail-panel,
+.duelink-sync-summary-card,
+.duelink-account-card,
+.bulk-import-panel{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+  box-sizing:border-box!important;
+}
+.card-title,
+.metric-title,
+.saved-match-title,
+.stat-card h3,
+.deck-card h3,
+.performance-card-body h3,
+.mulligan-card-head h3,
+.detail-title,
+.history-title,
+.performance-chart-card h3{
+  min-width:0!important;
+  overflow-wrap:anywhere!important;
+}
+.chip,
+.badge,
+.pill,
+.filter-pill,
+.status-badge,
+.performance-stat-strip span{
+  max-width:100%!important;
+  min-width:0!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.filter-pill-row,
+.card-filter-row,
+.sort-pills,
+.performance-detail-tabs{
+  max-width:100%!important;
+  min-width:0!important;
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  -webkit-overflow-scrolling:touch!important;
+  scrollbar-width:none!important;
+}
+.filter-pill-row::-webkit-scrollbar,
+.card-filter-row::-webkit-scrollbar,
+.sort-pills::-webkit-scrollbar,
+.performance-detail-tabs::-webkit-scrollbar{display:none!important;}
+
+/* Card images: stable sizing, no layout jump */
+.performance-card-thumb,
+.mulligan-visual-thumb,
+.mini-card-signal-thumb,
+.history-detail-card-art img,
+.match-card-thumb-v81,
+.card-image img{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+.card-image img{
+  object-fit:contain!important;
+}
+.thumb-placeholder,
+.card-art-placeholder{
+  display:grid!important;
+  place-items:center!important;
+  aspect-ratio:5/7!important;
+  min-width:0!important;
+  overflow:hidden!important;
+}
+
+/* Info dots: stable placement */
+.section-title-row,
+.section-head h2,
+.performance-chart-card h3{
+  display:flex!important;
+  align-items:center!important;
+  gap:.45rem!important;
+}
+.info-dot,
+.info-button{
+  flex:0 0 auto!important;
+}
+.section-head p .info-dot,
+.performance-chart-card p .info-dot{
+  display:none!important;
+}
+
+@media(max-width:760px){
+  .app-shell,
+  .header-shell,
+  .main-shell,
+  .app-page-hero,
+  .account-page-hero,
+  .account-auth-wrapper,
+  .duelink-account-card,
+  .performance-hero,
+  .performance-tabs,
+  .performance-filter-bar-viz,
+  .performance-panel,
+  .history-toolbar,
+  .history-list,
+  .history-detail{
+    width:min(calc(100% - 20px), var(--app-shell-max))!important;
+  }
+  .performance-card-gallery,
+  .performance-charts-grid,
+  .performance-trend-grid,
+  .summary-grid,
+  .detail-grid{
+    grid-template-columns:1fr!important;
+  }
+  .performance-tabs{gap:6px!important;padding:6px!important;}
+  .performance-tab{font-size:.92rem!important;padding-inline:.4rem!important;}
+  .auth-btn-discord,#btnDiscordLogin,#discordLoginButton{width:100%!important;max-width:360px!important;}
+}

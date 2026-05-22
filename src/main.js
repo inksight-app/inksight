@@ -5843,7 +5843,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       bindPerformanceCardTiles();
       bindPerformanceFullListButtons();
       hydrateVisibleCardImages();
-      hydratePerformanceImagesFromSavedAnalysis();
       return;
     }
     if(active === 'mulligan'){
@@ -5851,7 +5850,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       bindPerformanceCardTiles();
       bindPerformanceFullListButtons();
       hydrateVisibleCardImages();
-      hydratePerformanceImagesFromSavedAnalysis();
       return;
     }
     if(active === 'matchups'){
@@ -7840,8 +7838,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const saved = findSavedCardByPerformanceCard(card);
     const seed = saved || local || { id:card.key, fullName:card.name, name:card.name, type:card.type, colors:card.colors || [] };
     const hydrated = hydrateCard(seed);
-    const image = saved?.image || saved?.imageSmall || hydrated.image || hydrated.imageSmall || getCardImage(hydrated, 'normal') || '';
-    const imageSmall = saved?.imageSmall || saved?.image || hydrated.imageSmall || hydrated.image || getCardImage(hydrated, 'small') || image || '';
+    const image = getCardImageLocal(saved || hydrated || card, { highRes:true }) || saved?.image || saved?.imageSmall || hydrated.image || hydrated.imageSmall || '';
+    const imageSmall = getCardImageLocal(saved || hydrated || card, { highRes:false }) || saved?.imageSmall || saved?.image || hydrated.imageSmall || hydrated.image || image || '';
     const resolvedName = saved ? (saved.fullName || saved.name || fullName(saved)) : (local ? fullName(local) : fullName(hydrated));
     const displayName = cleanCardName(resolvedName && resolvedName !== 'Carte inconnue' ? resolvedName : (card.name || card.key || 'Carte inconnue'));
     return {
@@ -10154,7 +10152,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function cardDetailHtml(c){
     const color = inkKey(c.colors?.[0] || c.color);
     const text = formatCardText(c.text || abilityText(c));
-    const detailImage = c.image || c.imageSmall;
+    const detailImage = getCardImageLocal(c, { highRes:true }) || c.image || c.imageSmall;
     const lookup = lorcastLookupParams(c);
     const lookupAttrs = lookup ? ` data-lorcast-set="${escAttr(lookup.setNum)}" data-lorcast-number="${escAttr(lookup.number)}" data-card-label="${escAttr(fullName(c))}"` : '';
     const imageHtml = detailImage ? `<img src="${esc(detailImage)}" alt="${esc(fullName(c))}" loading="lazy">` : `<div class="card-art-placeholder lorcast-image-placeholder"${lookupAttrs}><strong>${esc(initials(fullName(c)))}</strong><span>${esc(fullName(c))}</span><small>Image indisponible</small></div>`;
@@ -10199,10 +10197,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function cardThumbHtml(c, cls='thumb'){
-    const img = c.imageSmall || c.image;
-    const label = fullName(c) || 'Carte Lorcana';
+    const label = fullName(c) || c?.name || c?.cardName || 'Carte Lorcana';
+    const img = getCardImageLocal(c, { highRes:false }) || c.imageSmall || c.image;
     if(img) return `<img class="${esc(cls)}" src="${esc(img)}" alt="${escAttr(label)}" loading="lazy">`;
-    const lookup = lorcastLookupParams(c);
+    const lookup = lorcastLookupParams(c) || lorcastLookupParams(findLocalCardByPerformanceCard?.(c) || {});
     const attrs = lookup ? ` data-lorcast-set="${escAttr(lookup.setNum)}" data-lorcast-number="${escAttr(lookup.number)}" data-card-label="${escAttr(label)}"` : '';
     return `<span class="${esc(cls)} thumb-placeholder lorcast-image-placeholder"${attrs} aria-label="Image indisponible pour ${escAttr(label)}">${esc(initials(label))}</span>`;
   }
@@ -10221,7 +10219,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       fetch(`https://api.lorcast.com/v0/cards/${encodeURIComponent(node.dataset.lorcastSet)}/${encodeURIComponent(node.dataset.lorcastNumber)}`)
         .then(res => res.ok ? res.json() : null)
         .then(card => {
-          const url = getCardImage(card || {}, 'small') || getCardImage(card || {}, 'normal') || '';
+          const preferred = node.classList.contains('card-art-placeholder') ? 'normal' : 'small';
+          const url = getCardImage(card || {}, preferred) || getCardImage(card || {}, 'normal') || getCardImage(card || {}, 'small') || '';
           state.lorcastImageCache.set(key, url);
           document.querySelectorAll(`.lorcast-image-placeholder[data-lorcast-set="${CSS.escape(node.dataset.lorcastSet)}"][data-lorcast-number="${CSS.escape(node.dataset.lorcastNumber)}"]`).forEach(el => {
             if(url) replacePlaceholderWithImage(el, url);
@@ -11293,6 +11292,65 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return firstImageUrl([direct, preferredUris, faces.map(face => getCardImage(face, preferred))]);
   }
 
+  // V136.0M — image resolver stable.
+  // It never queries Supabase/analysis_json to display an image.
+  // It uses direct card data, the local card index, then the Lorcast cache if already available.
+  function getCardImageLocal(cardNameOrId, options = {}){
+    const highRes = options?.highRes === true;
+    const preferred = highRes ? 'normal' : 'small';
+    const input = cardNameOrId && typeof cardNameOrId === 'object' ? cardNameOrId : { fullName:String(cardNameOrId || ''), name:String(cardNameOrId || '') };
+
+    const direct = getCardImage(input, preferred) || (highRes ? getCardImage(input, 'small') : getCardImage(input, 'normal'));
+    if(direct) return direct;
+
+    const candidates = new Set();
+    const add = value => { const raw = String(value || '').trim(); if(raw){ candidates.add(raw); candidates.add(slug(raw)); } };
+    add(input.id); add(input.cardId); add(input.card_id); add(input.key); add(input.cardKey); add(input.card_key);
+    add(input.fullName); add(input.cardName); add(input.name); add(input.version);
+    add([input.name, input.version].filter(Boolean).join(' - '));
+    cardReferenceKeys(input).forEach(add);
+
+    let local = null;
+    for(const key of candidates){
+      local = state.index.get(key) || state.index.get(slug(key));
+      if(local) break;
+    }
+    if(!local){
+      const wanted = slug(input.fullName || input.cardName || input.name || '');
+      if(wanted){
+        const seen = new Set();
+        for(const card of state.index.values()){
+          if(!card || seen.has(card)) continue;
+          seen.add(card);
+          const localFull = slug(fullName(card));
+          const localName = slug(card.name || '');
+          if(localFull === wanted || localName === wanted || localFull.includes(wanted) || wanted.includes(localFull)){
+            local = card; break;
+          }
+        }
+      }
+    }
+
+    if(local){
+      const localDirect = getCardImage(local, preferred) || (highRes ? getCardImage(local, 'small') : getCardImage(local, 'normal'));
+      if(localDirect) return localDirect;
+      const lookup = lorcastLookupParams(local);
+      if(lookup){
+        const cacheKey = `${lookup.setNum}/${lookup.number}`;
+        const cached = state.lorcastImageCache?.get(cacheKey);
+        if(cached) return cached;
+      }
+    }
+
+    const lookup = lorcastLookupParams(input);
+    if(lookup){
+      const cacheKey = `${lookup.setNum}/${lookup.number}`;
+      const cached = state.lorcastImageCache?.get(cacheKey);
+      if(cached) return cached;
+    }
+    return '';
+  }
+
   function formatCardText(text){
     const source = cleanSymbols(text || '');
     return source.split(/\n+/).map(line => {
@@ -11617,11 +11675,9 @@ function initAppShell() {
   }
 
   function updateMobileBottomNav(appView = document.body.dataset.appView || 'analysis', perfView = null) {
-    const activePerf = perfView || document.body.dataset.performanceView || 'stats';
     document.querySelectorAll('.mobile-bottom-tab').forEach((button) => {
       const targetApp = button.dataset.appView || 'analysis';
-      const targetPerf = button.dataset.perfView || button.dataset.performanceView || '';
-      const active = targetApp === appView && (targetApp !== 'performances' || !targetPerf || targetPerf === activePerf);
+      const active = targetApp === appView;
       button.classList.toggle('active', active);
       if(active) button.setAttribute('aria-current','page');
       else button.removeAttribute('aria-current');
@@ -11712,9 +11768,6 @@ function initAppShell() {
   perfButtons.forEach((button) => {
     button.addEventListener('click', () => {
       setPerformanceView(button.dataset.performanceView);
-      if(button.dataset.performanceView === 'history'){
-        globalThis.INKSIGHT_refreshSavedMatches?.({ silent:true });
-      }
     });
   });
 
