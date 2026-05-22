@@ -268,7 +268,6 @@ async function insertMany(table, rows, chunkSize = 500) {
 }
 
 export async function listSavedMatches(limit = 100) {
-  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
   const { data, error } = await supabase
     .from('saved_matches')
     .select([
@@ -305,10 +304,11 @@ export async function listSavedMatches(limit = 100) {
       'avg_turns',
       'final_mine_lore',
       'final_opp_lore',
+      'analysis_json',
     ].join(','))
     .order('played_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
-    .limit(safeLimit);
+    .limit(limit);
 
   if (error) throw error;
 
@@ -373,36 +373,34 @@ export async function listSavedAnalyticsDetails(matchIds = []) {
     return { games: [], cardStats: [], turnStats: [] };
   }
 
-  // V136.0J: never request analytics for hundreds of matches in one huge URL.
-  // Supabase/PostgREST can timeout or truncate under scale; chunking keeps stats stable.
-  const chunkSize = 40;
-  const games = [];
-  const cardStats = [];
-  const turnStats = [];
+  const [gamesResult, cardsResult, turnsResult] = await Promise.all([
+    supabase
+      .from('saved_games')
+      .select('*')
+      .in('match_id', ids)
+      .order('game_number', { ascending: true }),
+    supabase
+      .from('saved_card_stats')
+      .select('*')
+      .in('match_id', ids)
+      .order('card_name', { ascending: true }),
+    supabase
+      .from('saved_turn_stats')
+      .select('*')
+      .in('match_id', ids)
+      .order('game_number', { ascending: true })
+      .order('turn', { ascending: true }),
+  ]);
 
-  async function fetchChunk(table, idChunk, order = []) {
-    let query = supabase.from(table).select('*').in('match_id', idChunk);
-    order.forEach(([column, options]) => {
-      query = query.order(column, options || { ascending: true });
-    });
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
-  }
+  if (gamesResult.error) throw gamesResult.error;
+  if (cardsResult.error) throw cardsResult.error;
+  if (turnsResult.error) throw turnsResult.error;
 
-  for (let index = 0; index < ids.length; index += chunkSize) {
-    const chunk = ids.slice(index, index + chunkSize);
-    const [gameRows, cardRows, turnRows] = await Promise.all([
-      fetchChunk('saved_games', chunk, [['game_number', { ascending: true }]]),
-      fetchChunk('saved_card_stats', chunk, [['card_name', { ascending: true }]]),
-      fetchChunk('saved_turn_stats', chunk, [['game_number', { ascending: true }], ['turn', { ascending: true }]]),
-    ]);
-    games.push(...gameRows);
-    cardStats.push(...cardRows);
-    turnStats.push(...turnRows);
-  }
-
-  return { games, cardStats, turnStats };
+  return {
+    games: gamesResult.data || [],
+    cardStats: cardsResult.data || [],
+    turnStats: turnsResult.data || [],
+  };
 }
 
 export async function signOutUser() {
