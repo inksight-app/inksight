@@ -13585,431 +13585,959 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
 @media (max-width:720px){.performance-filter-bar-viz .filter-pill.color-badge-pill,.history-toolbar-viz .filter-pill.color-badge-pill{padding-inline:.85rem}.performance-chart-card{padding:1rem;border-radius:1.4rem}.performance-chart-card .section-head.compact h3{font-size:clamp(1.55rem,8vw,2.55rem)}.performance-chart-card .section-head.compact p{font-size:.95rem;line-height:1.45}.chart-fixed-readout{padding:.85rem}.chart-fixed-readout strong{font-size:1.15rem}.chart-fixed-readout small{font-size:.82rem;line-height:1.45}.deck-required{padding:1rem}.history-summary-strip{grid-template-columns:1fr 1fr}.history-row-main{min-width:0}.history-primary-line{gap:.35rem;flex-wrap:wrap}.history-row-copy{min-width:0}.history-row-deck{display:none}.info-popover-modal{border-radius:1.25rem;padding:1.2rem}}
 
 /* =========================================================
-   V136.0C-Mobile-UI1 — ciblage mobile uniquement
-   Objectif : corriger les masquages par la bottom nav, les onglets coupés,
-   les descriptions qui débordent, et clarifier Duel.ink sans refonte desktop.
-   ========================================================= */
-@media (max-width: 760px){
-  :root{
-    --mobile-nav-reserve: calc(152px + env(safe-area-inset-bottom, 0px));
-    --mobile-section-gap: 18px;
+   V136.0F · Mobile text containment + info modal polish
+   Objectif : aucune phrase ne sort des cartes Stats / Historique.
+   Les explications longues passent par les bulles d’info.
+========================================================= */
+.section-head,
+.stats-header,
+.performance-panel-head,
+.performance-analytics-panel .section-head,
+.performance-chart-card .section-head,
+.performance-matchup-panel .section-head{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+.section-head > div,
+.stats-header > div,
+.performance-panel-head > div,
+.performance-analytics-panel .section-head > div,
+.performance-chart-card .section-head > div,
+.performance-matchup-panel .section-head > div{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+.section-head p,
+.stats-header p,
+.performance-panel-head p,
+.performance-analytics-panel .section-head p,
+.performance-chart-card p,
+.performance-matchup-panel .section-head p,
+.performance-overview-title + p,
+.performance-card-body p,
+.mulligan-visual-card small,
+.deck-required span{
+  max-width:100%!important;
+  min-width:0!important;
+  overflow:hidden!important;
+  overflow-wrap:anywhere!important;
+  word-break:normal!important;
+}
+.performance-analytics-panel .section-head p,
+.performance-chart-card p,
+.performance-matchup-panel .section-head p{
+  min-height:0!important;
+  display:flex!important;
+  align-items:center!important;
+  gap:.35rem!important;
+  white-space:normal!important;
+  line-height:1.45!important;
+}
+.performance-card-body h3,
+.mulligan-visual-head h3,
+.performance-chart-card h3,
+.section-head h2,
+.stat-panel h2{
+  max-width:100%!important;
+  overflow-wrap:anywhere!important;
+}
+.info-dot{
+  flex:0 0 auto!important;
+  width:1.45em!important;
+  height:1.45em!important;
+  min-width:1.45em!important;
+  min-height:1.45em!important;
+  padding:0!important;
+  border-radius:999px!important;
+  display:inline-grid!important;
+  place-items:center!important;
+  vertical-align:middle!important;
+  line-height:1!important;
+  font-size:.72em!important;
+  font-weight:850!important;
+  white-space:nowrap!important;
+}
+.info-popover-backdrop{
+  position:fixed!important;
+  inset:0!important;
+  z-index:9999!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:clamp(18px,4vw,40px)!important;
+  background:rgba(0,0,0,.58)!important;
+  backdrop-filter:blur(12px) saturate(140%)!important;
+  -webkit-backdrop-filter:blur(12px) saturate(140%)!important;
+}
+.info-popover-modal{
+  width:min(520px,100%)!important;
+  border-radius:24px!important;
+  border:1px solid rgba(255,255,255,.16)!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.055)),rgba(8,10,14,.96)!important;
+  box-shadow:0 28px 90px rgba(0,0,0,.62)!important;
+  padding:22px!important;
+  color:#f8fafc!important;
+}
+.info-popover-modal p{
+  margin:0!important;
+  color:rgba(226,232,240,.88)!important;
+  line-height:1.62!important;
+  font-size:1rem!important;
+  overflow-wrap:anywhere!important;
+}
+.info-popover-close{
+  float:right!important;
+  width:34px!important;
+  height:34px!important;
+  margin:-6px -6px 10px 14px!important;
+  border-radius:999px!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  background:rgba(255,255,255,.07)!important;
+  color:#fff!important;
+  font-size:1.25rem!important;
+  line-height:1!important;
+}
+@media(max-width:760px){
+  .performance-analytics-panel .section-head,
+  .performance-chart-card .section-head,
+  .performance-matchup-panel .section-head,
+  .stat-panel .section-head{
+    min-height:0!important;
+    gap:.45rem!important;
   }
-
-  html,
-  body{
-    width:100%!important;
-    max-width:100%!important;
-    overflow-x:hidden!important;
-  }
-
-  .main-shell,
-  .app-view,
-  .app-view-page,
-  .app-view-analysis,
-  [data-app-panel]{
-    padding-bottom:var(--mobile-nav-reserve)!important;
-    box-sizing:border-box!important;
-  }
-  .main-shell > .app-view:last-child,
-  .app-view > section:last-child,
-  .app-view > article:last-child,
-  .performance-detail-panel > article:last-child,
-  #historyList,
-  #duelinkTestResult{
-    margin-bottom:calc(28px + env(safe-area-inset-bottom,0px))!important;
-  }
-
-  /* Barre d’onglets : scroll assumé, jamais compressé/coupé par manque de padding. */
-  .tabs,
-  #analysisTabs,
-  .performance-detail-tabs,
-  .bo3-nav,
-  .card-tabs,
-  .scope-switch{
-    width:100%!important;
-    max-width:100%!important;
-    min-width:0!important;
-    display:flex!important;
-    flex-wrap:nowrap!important;
-    justify-content:flex-start!important;
-    gap:8px!important;
-    overflow-x:auto!important;
-    overflow-y:hidden!important;
-    padding:8px 16px!important;
-    scroll-padding-inline:16px!important;
-    scroll-snap-type:x proximity!important;
-    scrollbar-width:none!important;
-    -webkit-overflow-scrolling:touch!important;
-  }
-  .tabs::-webkit-scrollbar,
-  #analysisTabs::-webkit-scrollbar,
-  .performance-detail-tabs::-webkit-scrollbar,
-  .bo3-nav::-webkit-scrollbar,
-  .card-tabs::-webkit-scrollbar,
-  .scope-switch::-webkit-scrollbar{display:none!important;}
-  .tabs::after,
-  #analysisTabs::after,
-  .performance-detail-tabs::after,
-  .bo3-nav::after,
-  .card-tabs::after,
-  .scope-switch::after{
-    content:"";
-    flex:0 0 16px;
-  }
-  .tab-button,
-  .performance-detail-tab,
-  .card-filter,
-  .scope-button{
-    flex:0 0 auto!important;
-    max-width:none!important;
-    white-space:nowrap!important;
-    scroll-snap-align:start!important;
-  }
-
-  /* Descriptions mobiles : pas de sortie de cadre. */
-  .section-head p,
-  .stats-header p,
-  .performance-analytics-panel > .section-head p,
-  .performance-matchup-panel > .section-head p,
+  .performance-analytics-panel .section-head p,
   .performance-chart-card p,
-  .chart-panel p,
-  .match-read-top + p,
-  .coach-copy{
-    display:-webkit-box!important;
-    -webkit-line-clamp:2!important;
-    -webkit-box-orient:vertical!important;
-    overflow:hidden!important;
-    max-width:100%!important;
-    line-height:1.45!important;
-    overflow-wrap:normal!important;
+  .performance-matchup-panel .section-head p,
+  .section-head p,
+  .stats-header p{
+    font-size:.88rem!important;
+    line-height:1.42!important;
+    max-height:2.9em!important;
   }
-
-  /* Import mobile : action plus visible, moins de hauteur perdue. */
-  .upload-grid{
-    gap:14px!important;
-  }
-  .upload-card,
-  .loaded-card{
-    border-radius:26px!important;
-  }
-  .dropzone{
-    min-height:auto!important;
-    padding:22px!important;
-    gap:18px!important;
-  }
-  .drop-top{
-    display:flex!important;
-    flex-direction:column!important;
-    align-items:flex-start!important;
-    gap:10px!important;
-  }
-  .drop-top small{
-    white-space:normal!important;
-    overflow:visible!important;
-    text-overflow:clip!important;
-    line-height:1.35!important;
-  }
-  .drop-center{
-    gap:12px!important;
-    align-items:flex-start!important;
-    text-align:left!important;
-  }
-  .drop-center h2{
-    font-size:clamp(2rem, 9vw, 2.8rem)!important;
+  .performance-chart-card h3{
+    font-size:clamp(1.45rem,8vw,2.35rem)!important;
     line-height:1.02!important;
-    letter-spacing:-.06em!important;
   }
-  .drop-center p{
-    font-size:1rem!important;
-    line-height:1.45!important;
-  }
-  .drop-icon{
-    width:58px!important;
-    height:58px!important;
-    border-radius:18px!important;
-    font-size:2rem!important;
-  }
-  #browseButton.primary-button{
-    width:100%!important;
-    min-height:54px!important;
-  }
-
-  /* Replay chargé : état compact, l’analyse devient prioritaire. */
-  .loaded-card{
-    padding:20px!important;
-  }
-  .loaded-card .section-head.compact{
-    display:grid!important;
-    grid-template-columns:minmax(0,1fr) auto!important;
-    align-items:start!important;
-    gap:12px!important;
-  }
-  .loaded-card .section-head.compact h2{
-    font-size:clamp(1.9rem, 8vw, 2.65rem)!important;
-    line-height:.98!important;
-    letter-spacing:-.07em!important;
-  }
-  .loaded-card .section-head.compact p{
-    font-size:.95rem!important;
-    -webkit-line-clamp:1!important;
-  }
-  .loaded-card .import-again-button{
-    width:auto!important;
-    min-width:0!important;
-    padding:.65rem .9rem!important;
-    min-height:40px!important;
-    font-size:.82rem!important;
-    border-radius:999px!important;
-  }
-  .file-list .file-item,
-  .file-item{
-    min-width:0!important;
-  }
-  .file-name,
-  .file-item strong{
-    min-width:0!important;
-    white-space:nowrap!important;
+  .performance-chart-card,
+  .performance-analytics-panel,
+  .performance-matchup-panel{
     overflow:hidden!important;
-    text-overflow:ellipsis!important;
-  }
-
-  /* Compte / Duel.ink : état = badge, action = boutons d’import. */
-  #duelinkTokenInput{
-    width:100%!important;
-    max-width:100%!important;
-    min-width:0!important;
-    box-sizing:border-box!important;
-    white-space:nowrap!important;
-    overflow:hidden!important;
-    text-overflow:ellipsis!important;
-  }
-  .duelink-token-card,
-  .duelink-panel,
-  .duelink-card,
-  .account-duelink-card{
-    min-width:0!important;
-    overflow:hidden!important;
-  }
-  #duelinkSavedTokenHint{
-    display:block!important;
-    max-width:100%!important;
-    font-size:.9rem!important;
-    line-height:1.4!important;
-    overflow-wrap:normal!important;
-  }
-  #duelinkTokenStatus.duelink-status-chip.ok{
-    display:inline-flex!important;
-    width:auto!important;
-    max-width:100%!important;
-    min-height:34px!important;
-    padding:.42rem .75rem!important;
-    border-radius:999px!important;
-    font-size:.78rem!important;
-    font-weight:800!important;
-  }
-  #duelinkPreviewButton.primary-button{
-    background:rgba(255,255,255,.045)!important;
-    border:1px solid rgba(255,255,255,.12)!important;
-    color:rgba(255,255,255,.88)!important;
-    box-shadow:none!important;
-    min-height:46px!important;
-  }
-  .duelink-actions,
-  .duelink-token-actions,
-  .account-duelink-actions{
-    display:grid!important;
-    grid-template-columns:1fr!important;
-    gap:10px!important;
-    width:100%!important;
-  }
-  .duelink-batch-button,
-  #duelinkImportButton,
-  #duelinkImport50Button,
-  #duelinkImport100Button,
-  #duelinkImportAllButton,
-  #duelinkForgetTokenButton,
-  #duelinkSaveTokenButton,
-  #duelinkTestButton,
-  #duelinkPreviewButton{
-    width:100%!important;
-    max-width:100%!important;
-    min-width:0!important;
-  }
-
-  /* Titres/stat cards : éviter les mots cassés et garder le contenu dans la card. */
-  .performance-chart-card .section-head.compact h3,
-  .performance-chart-card h3,
-  .performance-analytics-panel .section-head h2,
-  .performance-matchup-panel .section-head h2{
-    overflow-wrap:normal!important;
-    word-break:normal!important;
-    hyphens:none!important;
-  }
-  .performance-chart-card .section-head.compact h3{
-    font-size:clamp(2rem, 9vw, 2.65rem)!important;
-  }
-  .performance-matchup-panel .section-head h2,
-  .performance-analytics-panel > .section-head h2{
-    font-size:clamp(2rem, 9vw, 2.75rem)!important;
-    line-height:1!important;
-  }
-
-  /* Historique : action et cartes non masquées par la nav. */
-  .history-list,
-  .history-row,
-  .history-detail{
-    min-width:0!important;
-  }
-  .history-row{
-    margin-bottom:16px!important;
-  }
-  .history-row-actions,
-  .history-actions{
-    padding-bottom:4px!important;
   }
 }
 
 /* =========================================================
-   V136.0C Mobile UI2 — nav spacing, readable subtitles,
-   cleaner history rows and simpler mobile actions
+   V136.0G · Auth/history stability + mobile overflow hardening
    ========================================================= */
-@media (max-width:820px){
-  /* UI1 avait une double réserve basse. On garde juste la place réelle
-     de la bottom nav + safe area pour éviter le grand vide final. */
-  body{
-    padding-bottom:0!important;
-  }
-  .main-shell{
-    padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;
-  }
-  .app-view:last-child,
-  .performance-panel:last-child,
-  .glass-primary:last-child,
-  .glass:last-child{
-    margin-bottom:0!important;
-  }
+html, body { overflow-x: hidden; }
+.app-shell,
+.app-view,
+.glass,
+.glass-primary,
+.stat-panel,
+.cards-panel,
+.chart-panel,
+.timeline-panel,
+.match-read,
+.account-card,
+.history-card,
+.history-row,
+.performance-coach-card,
+.performance-analytics-panel,
+.performance-card-tile,
+.mulligan-visual-card,
+.duelink-sync-card,
+.duelink-result-summary,
+.duelink-mini-stats,
+.api-decklist-panel {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
 
-  /* Les explications mobiles ne disparaissent plus en fondu.
-     Elles sont raccourcies dans le HTML sur les blocs Stats, et les
-     détails longs passent dans le bouton info. */
+.section-head,
+.section-head > div,
+.stats-header,
+.performance-panel-head,
+.performance-coach-card,
+.performance-chart-card,
+.performance-card-body,
+.mulligan-visual-body,
+.mulligan-card-head,
+.history-card-main,
+.history-row-main,
+.duelink-result-summary,
+.duelink-mini-stats span {
+  min-width: 0;
+}
+
+.section-head p,
+.stats-header p,
+.performance-panel-head p,
+.performance-chart-card p,
+.performance-coach-card p,
+.performance-card-body p,
+.matchup-breakdown-card p,
+.deck-required span,
+.duelink-result-summary span,
+.account-card p {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@supports (-webkit-line-clamp: 2) {
   .section-head p,
   .stats-header p,
-  .performance-analytics-panel > .section-head p,
-  .performance-matchup-panel > .section-head p,
+  .performance-panel-head p,
   .performance-chart-card p,
-  .chart-panel p,
-  .match-read-top + p,
-  .coach-copy{
-    display:block!important;
-    -webkit-line-clamp:unset!important;
-    -webkit-box-orient:unset!important;
-    overflow:visible!important;
-    text-overflow:clip!important;
-    max-width:100%!important;
-    line-height:1.42!important;
-    overflow-wrap:normal!important;
+  .performance-coach-card p,
+  .deck-required span,
+  .duelink-result-summary > div > span,
+  .account-card p {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+
+.filter-pill-row,
+.performance-detail-tabs,
+.performance-tabs,
+.tab-strip,
+.sort-pills,
+.mulligan-lab-row,
+.card-filter-row {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.filter-pill-row::-webkit-scrollbar,
+.performance-detail-tabs::-webkit-scrollbar,
+.performance-tabs::-webkit-scrollbar,
+.tab-strip::-webkit-scrollbar,
+.sort-pills::-webkit-scrollbar,
+.mulligan-lab-row::-webkit-scrollbar,
+.card-filter-row::-webkit-scrollbar { display: none; }
+
+.filter-pill,
+.performance-detail-tab,
+.performance-tab,
+.card-filter,
+.sort-pill,
+.mulligan-lab-pill {
+  min-width: 0;
+  max-width: min(82vw, 360px);
+}
+.filter-pill span:not(.filter-ink-dots),
+.performance-detail-tab,
+.performance-tab,
+.card-filter,
+.sort-pill,
+.mulligan-lab-pill {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mulligan-bottom-tags,
+.mulligan-card-stats,
+.performance-stat-strip {
+  min-width: 0;
+  max-width: 100%;
+}
+.mulligan-bottom-tags span,
+.mulligan-dead-weight-tag,
+.mulligan-card-stats span,
+.performance-stat-strip span {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duelink-mini-stats {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 136px), 1fr)) !important;
+}
+.duelink-mini-stats span b {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .section-head p,
+  .stats-header p,
+  .performance-panel-head p,
+  .performance-chart-card p,
+  .performance-coach-card p {
+    font-size: .92rem;
+  }
+  .mulligan-bottom-tags {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mulligan-bottom-tags span,
+  .mulligan-dead-weight-tag {
+    justify-self: start;
+    max-width: 100%;
+  }
+  .performance-chart-card,
+  .performance-analytics-panel,
+  .performance-card-tile,
+  .mulligan-visual-card {
+    overflow: hidden;
+  }
+}
+
+
+/* V136.0J · Scale and UX hotfix */
+.auth-card .auth-actions,
+.auth-card .auth-form {
+  width: min(100%, 520px);
+  margin-inline: auto;
+}
+.auth-btn-discord,
+.auth-card .auth-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+.app-main-nav,
+.app-nav,
+.segmented-control,
+.stats-history-toggle {
+  display: flex;
+  align-items: stretch;
+}
+.app-main-nav > button,
+.app-nav > button,
+.segmented-control > button,
+.stats-history-toggle > button {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  text-align: center;
+  justify-content: center;
+}
+.performance-filter-controls-viz,
+.filter-pill-row,
+.performance-detail-tabs,
+.card-filter-row,
+.mulligan-lab-row {
+  min-width: 0;
+  max-width: 100%;
+}
+.performance-filter-controls-viz .filter-pill-row:empty::after {
+  content: 'Aucune donnée disponible pour ce filtre.';
+  color: rgba(203,213,225,.52);
+  font-size: .82rem;
+}
+.duelink-import-progress,
+.bulk-import-list {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+.duelink-import-progress .duelink-import-row,
+.bulk-import-row,
+.bulk-file-row {
+  min-width: 0;
+}
+.duelink-import-progress .duelink-import-row strong,
+.duelink-import-progress .duelink-import-row span,
+.bulk-import-row strong,
+.bulk-import-row span,
+.history-detail-card-copy strong,
+.history-detail-card-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.performance-card-tile,
+.mulligan-visual-card,
+.mulligan-lab-card,
+.performance-chart-card {
+  min-width: 0;
+  overflow: hidden;
+}
+.mulligan-lab-card .pill,
+.mulligan-lab-card .mulligan-retention-chip,
+.performance-stat-strip span {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 760px) {
+  .app-main-nav > button,
+  .app-nav > button,
+  .segmented-control > button,
+  .stats-history-toggle > button {
+    font-size: clamp(.78rem, 3vw, .98rem) !important;
+    padding-inline: .55rem !important;
+  }
+  .auth-card .auth-actions {
+    align-items: stretch;
+  }
+  .performance-filter-controls-viz {
+    gap: 18px;
+  }
+}
+
+/* V136.0K — performance + desktop/mobile UI stabilization */
+.app-nav-button[data-app-view="performances"]{
+  white-space:nowrap!important;
+}
+.performance-tabs{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:.45rem!important;
+  align-items:stretch!important;
+}
+.performance-tabs .performance-tab{
+  min-width:0!important;
+  width:100%!important;
+  flex:1 1 0!important;
+  justify-content:center!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.performance-filter-bar-viz:not(.filters-open) .performance-filter-controls-viz,
+.history-toolbar-viz:not(.filters-open) .history-controls-viz{
+  display:none!important;
+}
+.performance-filter-bar-viz{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:1rem!important;
+}
+.performance-filter-bar-viz .performance-filter-controls-viz{
+  grid-column:1 / -1!important;
+}
+.auth-card,
+.account-auth-card{
+  align-items:center!important;
+  text-align:center!important;
+}
+.auth-card .auth-actions,
+.account-auth-card .auth-actions{
+  width:100%!important;
+  display:flex!important;
+  justify-content:center!important;
+}
+.auth-btn-discord,
+.auth-card .primary-button,
+.account-auth-card .primary-button,
+#authDiscordButton{
+  max-width:320px!important;
+  width:100%!important;
+  margin-inline:auto!important;
+  justify-content:center!important;
+}
+.section-head h2,
+.performance-chart-card h3{
+  display:flex!important;
+  align-items:center!important;
+  gap:.45rem!important;
+  min-width:0!important;
+}
+.section-head h2 .info-dot,
+.performance-chart-card h3 .info-dot{
+  flex:0 0 auto!important;
+}
+.section-head p .info-dot,
+.performance-chart-card p .info-dot{
+  display:none!important;
+}
+.performance-card-gallery,
+.mulligan-visual-list,
+.matchup-breakdown-list,
+.performance-charts-grid{
+  contain:layout style;
+}
+.performance-card-thumb,
+.mulligan-visual-thumb,
+.match-card-thumb-v81,
+.history-detail-card-art img,
+.card-image img{
+  display:block;
+  width:100%;
+  height:auto;
+}
+.performance-card-art .thumb-placeholder,
+.mulligan-visual-art .thumb-placeholder,
+.performance-card-thumb.thumb-placeholder,
+.mulligan-visual-thumb.thumb-placeholder{
+  display:grid!important;
+  place-items:center!important;
+  aspect-ratio:5/7!important;
+  height:auto!important;
+  min-height:0!important;
+}
+.performance-detail-tabs{
+  overflow-x:auto!important;
+  overscroll-behavior-inline:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  scrollbar-width:none!important;
+}
+.performance-detail-tabs::-webkit-scrollbar{display:none!important;}
+.performance-detail-tab{flex:0 0 auto!important;white-space:nowrap!important;}
+@media (min-width: 900px){
+  .performance-detail-tabs{flex-wrap:wrap!important;}
+}
+@media (max-width: 760px){
+  .performance-filter-bar-viz{
+    grid-template-columns:1fr!important;
+  }
+  .performance-filter-bar-viz .filter-toggle{
+    width:100%!important;
+  }
+  .performance-tabs .performance-tab{
+    font-size:.95rem!important;
+    padding-inline:.65rem!important;
+  }
+}
+
+/* =========================================================
+   V136.0L — final UI stability overrides
+   Corrige les derniers effets de bord V136.0J/K : navigation, tabs, auth, filtres, textes.
+========================================================= */
+.app-main-nav,
+.app-nav{
+  display:inline-grid!important;
+  grid-auto-flow:column!important;
+  grid-auto-columns:minmax(0,1fr)!important;
+  width:min(100%, 360px)!important;
+  gap:4px!important;
+  padding:4px!important;
+}
+.app-nav-button{
+  min-width:0!important;
+  width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  text-align:center!important;
+  font-size:clamp(.68rem, 1.7vw, .82rem)!important;
+  padding:.46rem .55rem!important;
+}
+.performance-tabs{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  width:100%!important;
+  gap:8px!important;
+}
+.performance-tab{
+  width:100%!important;
+  min-width:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  text-align:center!important;
+}
+.account-auth-card,
+.auth-card,
+#accountAuthCard,
+#accountLoginCard{
+  width:min(100%, 760px)!important;
+  margin-inline:auto!important;
+  text-align:center!important;
+}
+.account-auth-card .auth-actions,
+.auth-card .auth-actions,
+.account-auth-card form,
+.auth-card form{
+  display:grid!important;
+  justify-items:center!important;
+}
+.auth-btn-discord,
+#discordLoginButton,
+button[data-auth-provider="discord"]{
+  width:min(100%, 420px)!important;
+  max-width:420px!important;
+  margin-inline:auto!important;
+  justify-content:center!important;
+  text-align:center!important;
+}
+.performance-filter-bar-viz:not(.filters-open) .performance-filter-controls-viz{
+  display:none!important;
+}
+.performance-filter-bar-viz.filters-open .performance-filter-controls-viz{
+  display:grid!important;
+}
+.performance-filter-bar-viz:not(.filters-open){
+  gap:0!important;
+}
+.performance-filter-controls-viz,
+.filter-pill-block,
+.filter-pill-row,
+.performance-detail-tabs,
+.performance-tabs,
+.performance-card-gallery,
+.performance-charts-grid{
+  min-width:0!important;
+  max-width:100%!important;
+}
+.performance-card-tile,
+.mulligan-visual-card,
+.matchup-breakdown-card,
+.performance-chart-card,
+.metric-card,
+.performance-trend-card,
+.performance-coach-card,
+.detail-panel,
+.history-detail,
+.duelink-sync-summary-card,
+.duelink-account-card{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+.performance-card-body,
+.mulligan-visual-body,
+.mini-card-signal-copy,
+.matchup-breakdown-title,
+.section-head,
+.section-head > div,
+.performance-chart-card p,
+.performance-card-body h3,
+.mulligan-card-head h3,
+.detail-title,
+.history-title{
+  min-width:0!important;
+  max-width:100%!important;
+}
+.performance-card-body h3,
+.mulligan-card-head h3,
+.performance-chart-card h3,
+.section-head h2,
+.section-head h3,
+.detail-title,
+.history-title,
+.metric-card strong,
+.performance-trend-card strong{
+  overflow-wrap:anywhere!important;
+  word-break:normal!important;
+}
+.performance-chart-card p,
+.section-head p,
+.performance-subtitle,
+.performance-panel p,
+.performance-filter-bar-viz p{
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  display:-webkit-box!important;
+  -webkit-line-clamp:2!important;
+  -webkit-box-orient:vertical!important;
+}
+.card-art-placeholder.lorcast-image-placeholder,
+.thumb-placeholder.lorcast-image-placeholder{
+  display:grid!important;
+  place-items:center!important;
+  text-align:center!important;
+  overflow:hidden!important;
+}
+.card-art-placeholder.lorcast-image-placeholder img,
+.thumb-placeholder.lorcast-image-placeholder img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+@media(max-width:780px){
+  .app-main-nav,.app-nav{width:min(100%, 280px)!important;}
+  .app-nav-button{font-size:.68rem!important;padding:.42rem .36rem!important;}
+  .performance-tabs{gap:6px!important;padding:6px!important;}
+  .performance-tab{min-height:46px!important;font-size:.82rem!important;padding:.35rem .45rem!important;}
+}
+
+/* =========================================================
+   V136.0Q — Mobile UX cleanup: infos, filters, margins, account isolation
+   ========================================================= */
+:root{
+  --mobile-screen-padding:16px;
+  --bottom-nav-height:92px;
+}
+html,body{overflow-x:hidden!important;}
+*,*::before,*::after{box-sizing:border-box;}
+body{
+  padding-bottom:calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 16px)!important;
+}
+
+/* App-view safety: account/perf never leak into Analyse, even if an old rule overrides [hidden]. */
+body[data-app-view="analysis"] #view-performances,
+body[data-app-view="analysis"] #view-account,
+body[data-app-view="performances"] #view-analysis,
+body[data-app-view="performances"] #view-account,
+body[data-app-view="account"] #view-analysis,
+body[data-app-view="account"] #view-performances,
+.app-view[hidden]{
+  display:none!important;
+}
+
+/* Unified mobile shell width. */
+@media (max-width:820px){
+  .app-shell,
+  .main-shell,
+  .app-view,
+  .hero-section,
+  .upload-grid,
+  .bulk-import-panel,
+  .tabs,
+  .bo3-nav,
+  .match-read,
+  .summary-grid,
+  .chart-grid,
+  .insight-grid,
+  .cards-panel,
+  .timeline-panel,
+  .app-page-hero,
+  .performance-tabs,
+  .performance-filter-bar,
+  .performance-stats-grid,
+  .performance-overview-grid,
+  .performance-detail-grid,
+  .performance-analytics-panel,
+  .history-toolbar,
+  .history-list,
+  .history-detail,
+  .account-auth-wrapper,
+  .duelink-sync-card,
+  #view-account > .glass,
+  #view-performances > .glass,
+  #view-analysis > .glass{
+    width:calc(100% - (var(--mobile-screen-padding) * 2))!important;
+    max-width:calc(100% - (var(--mobile-screen-padding) * 2))!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
   }
 
-  /* Titres de sections stats plus compacts sur mobile. */
-  .performance-matchup-panel .section-head h2,
-  .performance-analytics-panel > .section-head h2,
-  .performance-chart-card .section-head.compact h3,
-  .performance-chart-card h3{
-    font-size:clamp(1.8rem,7.2vw,2.35rem)!important;
-    line-height:1.02!important;
-    letter-spacing:-.06em!important;
+  /* Tabs remain horizontally scrollable without cutting content. */
+  .tabs,
+  .performance-detail-tabs,
+  .performance-tabs,
+  .card-tabs{
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    flex-wrap:nowrap!important;
+    scrollbar-width:none!important;
+    -webkit-overflow-scrolling:touch;
   }
+  .tabs::-webkit-scrollbar,
+  .performance-detail-tabs::-webkit-scrollbar,
+  .performance-tabs::-webkit-scrollbar,
+  .card-tabs::-webkit-scrollbar{display:none!important;}
+  .tabs button,
+  .performance-detail-tabs button,
+  .performance-tabs button,
+  .card-tabs button{
+    flex:0 0 auto!important;
+    white-space:nowrap!important;
+  }
+
+  /* Descriptions longues : plus de texte coupé sous les titres. Les infos passent dans le bouton i. */
+  .section-head p.mobile-info-source,
+  .section-head > div > p.mobile-info-source,
+  .performance-chart-card .section-head p.mobile-info-source,
+  .cards-head p.mobile-info-source,
+  .filter-header-copy p{
+    display:none!important;
+  }
+  .section-head,
+  .section-head.compact,
+  .cards-head{
+    display:flex!important;
+    align-items:flex-start!important;
+    justify-content:space-between!important;
+    gap:12px!important;
+    min-width:0!important;
+  }
+  .section-head > div,
+  .section-head h2,
+  .section-head h3,
+  .cards-head > div{
+    min-width:0!important;
+    max-width:100%!important;
+  }
+  .section-head h2,
+  .section-head h3,
   .performance-chart-card .section-head.compact h3{
     display:flex!important;
-    align-items:center!important;
-    gap:.45rem!important;
+    align-items:flex-start!important;
+    justify-content:space-between!important;
+    gap:8px!important;
+    width:100%!important;
+    line-height:1.06!important;
+    overflow:visible!important;
     overflow-wrap:normal!important;
+    word-break:normal!important;
   }
-  .performance-chart-card .section-head.compact h3 .info-dot,
-  .section-head h2 .info-dot{
-    flex:0 0 auto!important;
-    width:24px!important;
-    height:24px!important;
-    margin-left:4px!important;
-    font-size:.72rem!important;
-    vertical-align:middle!important;
+  .section-head h2 .info-dot,
+  .section-head h3 .info-dot,
+  .performance-chart-card h3 .info-dot{
+    flex:0 0 28px!important;
+    width:28px!important;
+    height:28px!important;
+    min-width:28px!important;
+    margin:2px 0 0 6px!important;
+    font-size:.82rem!important;
+    cursor:pointer!important;
+    opacity:.9!important;
+  }
+  .performance-chart-card .section-head.compact h3{
+    font-size:clamp(2rem, 9vw, 3.4rem)!important;
   }
 
-  /* Historique : la pastille résultat vit dans la première ligne.
-     Elle ne crée plus une colonne vide qui décale toute la carte. */
+  /* Modale d'information propre et lisible. */
+  .info-popover-backdrop{
+    position:fixed!important;
+    inset:0!important;
+    z-index:99999!important;
+    display:grid!important;
+    place-items:center!important;
+    padding:16px!important;
+    background:rgba(0,0,0,.58)!important;
+    backdrop-filter:blur(12px) saturate(135%)!important;
+    -webkit-backdrop-filter:blur(12px) saturate(135%)!important;
+  }
+  .info-popover-modal{
+    width:min(calc(100vw - 32px),520px)!important;
+    max-height:calc(100dvh - 48px)!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    padding:24px!important;
+    border-radius:24px!important;
+    border:1px solid rgba(255,255,255,.16)!important;
+    background:linear-gradient(180deg,rgba(34,35,41,.97),rgba(8,9,12,.98))!important;
+    color:#f8fafc!important;
+  }
+  .info-popover-modal h3{
+    margin:0 44px 12px 0!important;
+    font-size:1.25rem!important;
+    line-height:1.15!important;
+    letter-spacing:-.02em!important;
+  }
+  .info-popover-modal p{
+    margin:0!important;
+    padding:0!important;
+    font-size:1rem!important;
+    line-height:1.6!important;
+    color:rgba(226,232,240,.86)!important;
+    overflow-wrap:normal!important;
+    word-break:normal!important;
+  }
+
+  /* Filters: same collapse behavior for Stats and History. */
+  .performance-filter-bar-viz:not(.filters-open) .performance-filter-controls-viz,
+  .performance-filter-bar-viz:not(.filters-open) .filter-pill-block,
+  .performance-filter-bar-viz:not(.filters-open) .filter-pill-row,
+  .history-toolbar-viz:not(.filters-open) .history-controls-viz,
+  .history-toolbar-viz:not(.filters-open) .history-filter-pills,
+  .history-toolbar-viz:not(.filters-open) .history-search-row{
+    display:none!important;
+  }
+  .performance-filter-bar-viz:not(.filters-open),
+  .history-toolbar-viz:not(.filters-open){
+    padding-bottom:18px!important;
+  }
+  .filter-toggle{
+    width:100%!important;
+    min-height:54px!important;
+  }
+
+  /* History actions: remove the fake left column created by the result dot when the menu is open. */
+  .history-row{
+    position:relative!important;
+    padding:18px!important;
+    overflow:hidden!important;
+  }
   .history-row-main{
     display:grid!important;
     grid-template-columns:1fr!important;
-    gap:12px!important;
-    padding:0!important;
-    text-align:left!important;
-  }
-  .history-row-copy{
+    gap:10px!important;
+    padding-left:0!important;
     width:100%!important;
-    min-width:0!important;
   }
   .history-result-dot{
-    position:static!important;
-    margin:0!important;
-    width:12px!important;
-    height:12px!important;
-    flex:0 0 12px!important;
-    box-shadow:0 0 16px currentColor!important;
+    position:absolute!important;
+    top:22px!important;
+    left:18px!important;
+    width:16px!important;
+    height:16px!important;
   }
-  .history-primary-line{
-    display:flex!important;
-    align-items:center!important;
-    flex-wrap:wrap!important;
-    gap:7px!important;
-    width:100%!important;
+  .history-row-copy{
+    padding-left:28px!important;
+    min-width:0!important;
   }
   .history-row-meta{
-    padding-top:2px!important;
-    align-self:auto!important;
+    padding-left:28px!important;
     justify-self:start!important;
-    display:flex!important;
-    align-items:baseline!important;
+    text-align:left!important;
+  }
+  .history-actions-mobile-panel{
+    width:100%!important;
+    margin:18px 0 0!important;
+    padding:14px 0 0!important;
+    border-top:1px solid rgba(255,255,255,.08)!important;
+    display:grid!important;
     gap:10px!important;
   }
-  .history-row-meta small{
-    margin:0!important;
-  }
-
-  /* Les boutons “Voir toutes les cartes + badge” deviennent un seul CTA. */
-  .stat-list-toggle.v81-toggle{
+  .history-actions-mobile-panel[hidden]{display:none!important;}
+  .history-actions-mobile-panel .history-mini-button,
+  .history-options-button{
+    width:100%!important;
+    margin-inline:0!important;
     justify-content:center!important;
-    gap:0!important;
   }
-  .stat-list-toggle.v81-toggle strong{
-    display:none!important;
-  }
-  .stat-list-toggle.v81-toggle span{
-    padding:0!important;
-    background:transparent!important;
-    border:0!important;
+
+  /* Neutral “voir toutes les cartes” button, no odd highlight behind the text. */
+  .show-more-button,
+  .performance-show-more,
+  [data-full-list],
+  [data-performance-full-list],
+  .full-list-button{
+    background:rgba(255,255,255,.055)!important;
+    border:1px solid rgba(255,255,255,.12)!important;
     box-shadow:none!important;
+    color:rgba(255,255,255,.9)!important;
+    text-shadow:none!important;
+  }
+  .show-more-button span,
+  .performance-show-more span,
+  .full-list-button span{
+    background:rgba(255,255,255,.10)!important;
+    border:1px solid rgba(255,255,255,.12)!important;
+    color:#fff!important;
   }
 
-  /* Duel.ink : phrase plus lisible, sans hint technique. */
+  /* Technical Duel.ink strings should not force ugly wrapped lines. */
+  .duelink-saved-token-hint,
   #duelinkSavedTokenHint{
-    font-size:.95rem!important;
-    line-height:1.42!important;
-    font-weight:650!important;
+    overflow-wrap:normal!important;
+    word-break:normal!important;
+    line-height:1.45!important;
   }
 
-  /* Onglets horizontaux : le dernier item peut apparaître entièrement. */
-  #analysisTabs,
-  .performance-detail-tabs,
-  .performance-tabs,
-  .card-tabs,
-  .scope-switch{
-    padding-right:28px!important;
-    scroll-padding-inline:16px 28px!important;
+  /* Avoid one giant empty tail below the last block. */
+  .app-view,
+  .app-view-page,
+  .app-view-analysis,
+  .main-shell{
+    padding-bottom:calc(var(--bottom-nav-height) + env(safe-area-inset-bottom,0px) + 12px)!important;
   }
-
-  /* Graphiques : éviter que la légende soit trop proche de la bottom nav. */
-  .performance-chart-card,
-  .chart-panel{
-    padding-bottom:22px!important;
+  .app-view > :last-child,
+  .performance-panel > :last-child,
+  #view-account > :last-child{
+    margin-bottom:0!important;
   }
 }

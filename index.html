@@ -34,7 +34,7 @@
 
       <nav class="app-main-nav" aria-label="Navigation principale">
         <button type="button" class="app-nav-button active" data-app-view="analysis" aria-current="page">Analyse</button>
-        <button type="button" class="app-nav-button" data-app-view="performances">Stats & historique</button>
+        <button type="button" class="app-nav-button" data-app-view="performances">Stats</button>
         <button type="button" class="app-nav-button" data-app-view="account">Compte</button>
       </nav>
 
@@ -279,7 +279,7 @@
       <article class="glass app-page-hero performance-hero">
         <div>
           <div class="kicker">Vos analyses</div>
-          <h1>Statistiques & historique</h1>
+          <h1>Performances</h1>
           <p>Retrouvez vos analyses sauvegardées, suivez votre progression et préparez les futurs filtres par bicolorité et matchup.</p>
         </div>
         <button type="button" class="ghost-button app-page-cta" data-app-view="analysis">Analyser un replay</button>
@@ -330,7 +330,6 @@
             <div class="filter-pill-block filter-wide">
               <span>Bicolorité</span>
               <div id="performanceColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div>
-            </div>
             </div>
             <div class="filter-pill-block compact filter-matchups">
               <span>Matchup adverse</span>
@@ -425,8 +424,8 @@
           <article class="glass stat-panel performance-analytics-panel">
             <div class="section-head">
               <div>
-                <h2>Cartes du deck</h2>
-                <p>Cartes clés de la bicolorité : lore, jeu, encrage et impact en un coup d’œil.</p>
+                <h2>Cartes du deck <button class="info-dot" type="button" data-info="Cette section résume les cartes importantes de votre deck dans le contexte choisi : lore généré, cartes jouées, cartes encrées, cartes bloquées en main et impact observé. Les détails complets restent dans les cartes et les listes ouvertes.">?</button></h2>
+                <p>Cartes clés du contexte filtré.</p>
               </div>
             </div>
             <div id="performanceCardImpactTable" class="table-zone visual-zone"></div>
@@ -437,8 +436,8 @@
           <article class="glass stat-panel performance-analytics-panel">
             <div class="section-head">
               <div>
-                <h2>Mulligan Lab</h2>
-                <p>Lecture actionnable des mains de départ : garder, renvoyer ou limiter les doublons.</p>
+                <h2>Mulligan Lab <button class="info-dot" type="button" data-info="Le Mulligan Lab analyse les cartes gardées ou renvoyées en main de départ. Les résultats doivent être lus comme des tendances : une carte peut dépendre du matchup, du départ OTP/OTD et de la composition globale de la main.">?</button></h2>
+                <p>Tendances de main de départ.</p>
               </div>
             </div>
             <div id="performanceMulliganTable" class="table-zone visual-zone"></div>
@@ -449,8 +448,8 @@
           <article class="glass stat-panel performance-matchup-panel">
             <div class="section-head">
               <div>
-                <h2>Matchups rencontrés</h2>
-                <p>Lecture rapide par bicolorité adverse : volume, winrate et nombre de games.</p>
+                <h2>Matchups rencontrés <button class="info-dot" type="button" data-info="Cette section regroupe vos résultats par bicolorité adverse : volume de matchs, winrate match et winrate game. Elle sert à repérer les matchups qui méritent plus de tests ou une adaptation du plan de jeu.">?</button></h2>
+                <p>Lecture par matchup adverse.</p>
               </div>
             </div>
             <div id="performanceMatchupBreakdown" class="matchup-breakdown-list"></div>
@@ -461,8 +460,8 @@
           <article class="glass stat-panel performance-analytics-panel wide">
             <div class="section-head">
               <div>
-                <h2>Courbes moyennes</h2>
-                <p>Rythme de jeu sur l’échantillon filtré : progression au lore, main et actions par tour.</p>
+                <h2>Courbes moyennes <button class="info-dot" type="button" data-info="Les courbes résument le rythme moyen des parties filtrées : progression au lore, taille de main et actions par tour. Les moyennes sont utiles pour repérer une tendance, mais elles ne remplacent pas l’analyse d’un replay précis.">?</button></h2>
+                <p>Rythme moyen du deck.</p>
               </div>
             </div>
             <div id="performanceTurnCurveTable" class="performance-chart-zone"></div>

@@ -1,5 +1,5 @@
 import './style.css';
-import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatches, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatches, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
 
 (() => {
   'use strict';
@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set() };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), authExplicitlySignedOut:false, authVerifyPending:false, lorcastImageCache:new Map(), lorcastImagePending:new Set(), performanceImageCache:new Map(), performanceImagePending:new Set(), performanceRenderScheduled:false };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -29,6 +29,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     bindUI();
     initSaveIntegration();
     scheduleLocalCardLoad();
+    normalizeMobileInfoHeadings(document);
   }
 
   function collectEls(){
@@ -125,7 +126,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.duelinkForgetTokenButton?.addEventListener('click', forgetDuelinkTokenForAccount);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
     els.duelinkTokenInput?.addEventListener('input', updateDuelinkStoredTokenUi);
-    [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
+    [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', schedulePerformanceRender));
     document.addEventListener('click', handlePerformanceFilterClick);
     document.addEventListener('click', handleAccountDeckManagerClick);
     document.addEventListener('click', handlePerformanceSortClick);
@@ -139,7 +140,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.addEventListener('click', handleDuelinkNavigationClick);
     document.addEventListener('click', handleInfoDotClick);
     [els.saveDeckSelect, els.saveDeckNameInput].forEach(el => el?.addEventListener('input', () => syncSaveButton()));
-    document.querySelectorAll('[data-app-view="performances"], [data-performance-view]').forEach(btn => btn.addEventListener('click', () => refreshSavedMatches({ silent:true })));
+    // V136.0K: do not refresh Supabase on every tab click; it caused INP spikes.
     els.cardModal?.addEventListener('click', e => { if(e.target === els.cardModal) closeCardModal(); });
     document.addEventListener('keydown', handleModalKeydown);
   }
@@ -505,9 +506,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <div class="duelink-mini-stats" aria-label="Résumé synchronisation Duel.ink">
           <span><b>${games.length}</b><small>trouvées</small></span>
           <span><b>${ready}</b><small>à importer</small></span>
-          <span><b>${already}</b><small>déjà dans InkSight</small></span>
+          <span><b>${already}</b><small>déjà</small></span>
           <span><b>${stats.missingReplay.length}</b><small>sans replay</small></span>
-          <span><b>${esc(formatShortDateTime(stats.newest?.updatedAt))}</b><small>plus récent</small></span>
+          <span><b>${esc(formatShortDateTime(stats.newest?.updatedAt))}</b><small>récent</small></span>
           <span><b>${esc(sourceSummary)}</b><small>sources</small></span>
         </div>
       </div>`;
@@ -568,13 +569,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
-  async function duelinkAuthHeaders(extra={}){
-    const headers = { ...extra };
+  async function getSupabaseAccessTokenForApi({ required=false }={}){
     try{
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data?.session?.access_token;
-      if(accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    }catch(err){ console.warn('Session Supabase indisponible pour Duel.ink', err); }
+      const { data, error } = await supabase.auth.getSession();
+      if(error) throw error;
+      const accessToken = data?.session?.access_token || '';
+      if(accessToken) return accessToken;
+    }catch(err){
+      console.warn('Session Supabase indisponible pour Duel.ink', err);
+      if(required) throw new Error('Connexion InkSight requise pour utiliser la clé Duel.ink mémorisée. Rechargez la page puis reconnectez-vous si nécessaire.');
+    }
+    if(required) throw new Error('Session InkSight introuvable. Rechargez la page avant de relancer l’import Duel.ink.');
+    return '';
+  }
+
+  async function duelinkAuthHeaders(extra={}, options={}){
+    const headers = { ...extra };
+    const accessToken = await getSupabaseAccessTokenForApi({ required:Boolean(options.required) });
+    if(accessToken) headers.Authorization = `Bearer ${accessToken}`;
     return headers;
   }
 
@@ -594,11 +606,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const hasTypedToken = Boolean(normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || ''));
     if(els.duelinkSavedTokenHint){
       els.duelinkSavedTokenHint.textContent = connected
-        ? 'Clé Duel.ink mémorisée. Vous pouvez synchroniser sans recoller la clé.'
+        ? 'Connexion Duel.ink mémorisée. Vous pouvez synchroniser vos parties sans recoller la clé.'
         : 'Optionnel : mémorisez la clé de manière chiffrée pour éviter de la recoller à chaque session.';
     }
     if(els.duelinkTokenInput){
-      els.duelinkTokenInput.placeholder = connected ? 'Clé mémorisée — nouvelle clé optionnelle' : 'Bearer token Duel.ink';
+      els.duelinkTokenInput.placeholder = connected ? 'Clé déjà mémorisée — collez une nouvelle clé seulement pour la remplacer' : 'Bearer token Duel.ink';
     }
     if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.hidden = !connected;
     if(els.duelinkSaveTokenButton){
@@ -621,7 +633,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const response = await fetch('/api/duelink-token', {
         method:'GET',
-        headers: await duelinkAuthHeaders(),
+        headers: await duelinkAuthHeaders({}, { required:true }),
       });
       const payload = await response.json().catch(() => ({}));
       if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
@@ -652,7 +664,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const response = await fetch('/api/duelink-token', {
         method:'POST',
-        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }, { required:true }),
         body: JSON.stringify({ token })
       });
       const payload = await response.json().catch(() => ({}));
@@ -676,7 +688,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const response = await fetch('/api/duelink-token', {
         method:'DELETE',
-        headers: await duelinkAuthHeaders(),
+        headers: await duelinkAuthHeaders({}, { required:true }),
       });
       const payload = await response.json().catch(() => ({}));
       if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
@@ -693,7 +705,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   async function downloadDuelinkReplayBuffer(tokenPayload, replayId){
     const response = await fetch('/api/duelink-download', {
       method:'POST',
-      headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+      headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }, { required:!tokenPayload?.token }),
       body:JSON.stringify({ ...(tokenPayload || {}), id:replayId })
     });
     if(!response.ok){
@@ -795,12 +807,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const ids = rows.map(row => row.game.replayId);
       const fileById = new Map();
       const missingIds = new Set();
-      const chunkSize = 1000;
+      const chunkSize = 10;
       for(let offset = 0; offset < ids.length; offset += chunkSize){
         const chunkIds = ids.slice(offset, offset + chunkSize);
         const manifestResponse = await fetch('/api/duelink-replays', {
           method:'POST',
-          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }, { required:!tokenPayload.token }),
           body:JSON.stringify({ ...tokenPayload, ids:chunkIds })
         });
         const manifest = await manifestResponse.json().catch(() => ({}));
@@ -921,7 +933,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function importDuelinkPreviewAndSave(options={}){
     if(state.duelinkAutoSaving || state.duelinkImporting) return;
-    if(!state.currentUser){
+    const user = await ensureInkSightUser({ render:true });
+    if(!user){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Connexion requise'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty error"><strong>Connectez-vous avant la sauvegarde.</strong><span>Le test et l’import sont possibles sans stockage du token, mais la sauvegarde dans l’historique nécessite votre compte InkSight.</span></div>');
       syncDuelinkActionButtons();
@@ -943,11 +956,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       importSummary = await importDuelinkPreviewToBulkQueue({ limit:options.limit || 25, autoSave:true, silentSuccess:true }) || importSummary;
       const readyBeforeSave = (state.bulkQueue || []).filter(item => item?.merged && ['ready','warning'].includes(item.status)).length;
       if(!readyBeforeSave){
-        if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucune analyse à sauvegarder.</strong><span>Les replays étaient déjà présents ou en erreur. Rien n’a été ajouté à l’historique.</span></div>');
+        if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucune analyse à sauvegarder.</strong><span>Les replays étaient déjà présents ou temporairement inaccessibles. Ils ont été mis de côté et ne bloqueront pas un import manuel.</span></div>');
+        purgeDuelinkItemsFromBulkQueue();
         return;
       }
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty pending"><strong>Sauvegarde en cours.</strong><span>${readyBeforeSave} analyse(s) vont être ajoutées à l’historique après dédoublonnage.</span></div>`);
       const saveSummary = await saveBulkQueue() || {};
+      // V136.0E: make the new saves visible before the user goes to History/Stats.
+      await refreshSavedMatches({ force:true, silent:true, keepVisible:true });
       refreshDuelinkPreviewStatuses();
       const saved = n(saveSummary.saved);
       const duplicates = n(saveSummary.duplicates);
@@ -986,6 +1002,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }).catch(logErr => console.warn('Duel.ink sync log unavailable:', logErr));
     }finally{
       state.duelinkAutoSaving = false;
+      // V136.0J: API import is a background workflow; do not leave its errors
+      // inside the manual replay import queue.
+      purgeDuelinkItemsFromBulkQueue();
       syncDuelinkActionButtons();
     }
   }
@@ -1021,7 +1040,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         page += 1;
         const response = await fetch('/api/duelink-history', {
           method:'POST',
-          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }, { required:!tokenPayload.token }),
           body:JSON.stringify({ ...tokenPayload, limit:1000, cursor })
         });
         const payload = await response.json().catch(() => ({}));
@@ -1079,7 +1098,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         details:{ mode:'full_history_scan' }
       }).catch(logErr => console.warn('Duel.ink scan log unavailable:', logErr));
     }finally{
-      if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = false; els.duelinkPreviewButton.textContent = state.duelinkSyncSummary?.total ? 'Actualiser' : 'Synchroniser'; }
+      if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = false; els.duelinkPreviewButton.textContent = state.duelinkSyncSummary?.total ? 'Duel.ink synchronisé' : 'Synchroniser Duel.ink'; }
       if(els.duelinkTestButton) els.duelinkTestButton.disabled = false;
       syncDuelinkActionButtons();
     }
@@ -1100,7 +1119,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const response = await fetch('/api/duelink-history', {
         method:'POST',
-        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }, { required:!tokenPayload.token }),
         body:JSON.stringify({ ...tokenPayload, limit:5 })
       });
       const payload = await response.json().catch(() => ({}));
@@ -1179,6 +1198,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.cards = Array.isArray(payload) ? payload : (payload.cards || []);
       buildCardIndex();
       setApiStatus(`Base locale prête · ${state.cards.length} cartes`, 'ready');
+      // V136.0J: images in history/stats are hydrated from the local card database.
+      // Re-render once the dictionary is available so placeholders become card art.
+      try{ schedulePerformanceRender(); renderBulkQueue(); hydrateVisibleCardImages(); }catch(_err){}
     }catch(err){
       console.warn(err);
       setApiStatus('Base locale introuvable', 'error');
@@ -1190,14 +1212,35 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const start = () => {
       if(!state.cardLoadPromise) state.cardLoadPromise = loadLocalCards();
     };
-    if('requestIdleCallback' in window) window.requestIdleCallback(start, { timeout:1800 });
-    else window.setTimeout(start, 900);
+    if('requestIdleCallback' in window) window.requestIdleCallback(start, { timeout:4200 });
+    else window.setTimeout(start, 2400);
   }
 
   async function ensureLocalCardsLoaded(){
     if(state.cards?.length && state.index?.size) return;
     if(!state.cardLoadPromise) state.cardLoadPromise = loadLocalCards();
     await state.cardLoadPromise;
+  }
+
+  function resetBulkQueueState(reason=''){
+    state.bulkQueue = [];
+    state.activeBulkIndex = null;
+    state.bulkSaving = false;
+    state.bulkSaveTotal = 0;
+    state.bulkSaveDone = 0;
+    state.lastBulkSaveMessage = '';
+    if(els.bulkImportStatus && reason) els.bulkImportStatus.textContent = reason;
+    renderBulkQueue();
+  }
+
+  function purgeDuelinkItemsFromBulkQueue(){
+    const before = (state.bulkQueue || []).length;
+    state.bulkQueue = (state.bulkQueue || []).filter(item => !(item?.duelinkGame || item?.merged?.sourceType === 'duelink_api'));
+    if(before !== state.bulkQueue.length){
+      state.activeBulkIndex = state.bulkQueue.findIndex(item => item?.merged && item.status !== 'error');
+      if(state.activeBulkIndex < 0) state.activeBulkIndex = null;
+      renderBulkQueue();
+    }
   }
 
   function buildCardIndex(){
@@ -1264,10 +1307,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   async function handleFiles(files){
     if(!files.length) return;
     await ensureLocalCardsLoaded();
+    // V136.0J: manual imports must start from a clean queue.
+    // Failed Duel.ink API items should never leak into the manual import panel.
+    resetBulkQueueState('Nouvel import manuel. Ancienne file vidée.');
     const accepted = files.slice(0, MAX_FILES);
-    if(accepted.length > 1 || state.bulkQueue.length){
+    if(accepted.length > 1){
       try{
-        await handleBulkFiles(accepted, { append:!!state.bulkQueue.length });
+        await handleBulkFiles(accepted, { append:false });
       }finally{
         if(els.fileInput) els.fileInput.value = '';
       }
@@ -3469,6 +3515,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderBo3Selector();
     document.querySelectorAll('[data-card-filter]').forEach(b=>b.classList.toggle('active', b.dataset.cardFilter === state.cardFilter));
     renderFiles(); renderBulkQueue(); renderDetected(); renderOverview(); renderStats(); renderCards(); renderTimeline(); renderDeckOptions(); syncSaveButton();
+    normalizeMobileInfoHeadings(document);
   }
 
   function cloudErrorMessage(error){
@@ -3482,7 +3529,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function setCloudOffline(error=null){
     state.cloudOffline = true;
     state.cloudErrorMessage = cloudErrorMessage(error);
-    state.currentUser = null;
+    // V136.0G: ne pas effacer l'utilisateur ni l'historique sur une panne réseau temporaire.
+    // L'état doit seulement devenir "cloud indisponible"; seul SIGNED_OUT vide les données.
     syncSaveButton(state.cloudErrorMessage);
     renderCloudStatus();
     renderPerformanceData();
@@ -3492,6 +3540,44 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.cloudOffline = false;
     state.cloudErrorMessage = '';
     renderCloudStatus();
+  }
+
+  async function ensureInkSightUser(options={}){
+    if(state.currentUser) return state.currentUser;
+    try{
+      const { data } = await supabase.auth.getSession();
+      const sessionUser = data?.session?.user || null;
+      if(sessionUser){
+        state.authExplicitlySignedOut = false;
+        state.currentUser = sessionUser;
+        setCloudOnline();
+        if(options.render){
+          syncSaveButton();
+          renderBulkQueue();
+          renderPerformanceData();
+        }
+        return sessionUser;
+      }
+    }catch(err){
+      console.warn('Session Supabase temporairement indisponible', err);
+    }
+    try{
+      const user = await getCurrentUser();
+      if(user){
+        state.authExplicitlySignedOut = false;
+        state.currentUser = user;
+        setCloudOnline();
+        if(options.render){
+          syncSaveButton();
+          renderBulkQueue();
+          renderPerformanceData();
+        }
+        return user;
+      }
+    }catch(err){
+      console.warn('Utilisateur Supabase temporairement indisponible', err);
+    }
+    return null;
   }
 
   function renderCloudStatus(){
@@ -3518,25 +3604,43 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       .catch(error => { setCloudOffline(error); });
 
     try{
-      supabase.auth.onAuthStateChange((_event, session) => {
+      supabase.auth.onAuthStateChange((event, session) => {
         setCloudOnline();
-        state.currentUser = session?.user || null;
-        syncSaveButton();
-        renderBulkQueue();
-        if(state.currentUser){
-          refreshDeckProfiles({ force:true, silent:true }).catch(setCloudOffline);
-          refreshSavedMatches({ force:true, silent:true }).catch(setCloudOffline);
-        }
-        else {
+        const sessionUser = session?.user || null;
+
+        // V136.0E: Supabase can briefly emit an empty session while refreshing tokens,
+        // especially after heavy imports on mobile Safari. Do not clear local history/stats
+        // unless we receive an explicit SIGNED_OUT event. Otherwise the UI can flash
+        // "no saved matches" even though data still exists in Supabase.
+        if(event === 'SIGNED_OUT'){
+          state.authExplicitlySignedOut = true;
+          state.currentUser = null;
           state.savedMatches = [];
           state.savedMatchesLoaded = false;
           state.selectedSavedMatchId = null;
           state.deckProfiles = [];
           state.deckProfilesLoaded = false;
           renderDeckOptions();
+          syncSaveButton();
           renderBulkQueue();
           renderPerformanceData();
+          return;
         }
+
+        if(sessionUser){
+          state.authExplicitlySignedOut = false;
+          state.currentUser = sessionUser;
+          syncSaveButton();
+          renderBulkQueue();
+          refreshDeckProfiles({ force:true, silent:true }).catch(setCloudOffline);
+          refreshSavedMatches({ force:true, silent:true, keepVisible:true }).catch(setCloudOffline);
+          return;
+        }
+
+        // Temporary auth gap: keep the last visible data and only update controls.
+        syncSaveButton();
+        renderBulkQueue();
+        renderPerformanceData();
       });
     }catch(error){
       setCloudOffline(error);
@@ -3641,9 +3745,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function saveBulkQueue(){
     if(state.bulkSaving) return { saved:0, duplicates:0, errors:0 };
-    if(!state.currentUser){
+    const user = await ensureInkSightUser({ render:true });
+    if(!user){
       if(els.bulkImportStatus) els.bulkImportStatus.textContent = 'Connectez-vous avec Discord avant de sauvegarder un lot.';
-      return;
+      return { saved:0, duplicates:0, errors:0 };
     }
     const queue = state.bulkQueue || [];
     const candidates = queue.filter(item => item.merged && ['ready','warning'].includes(item.status));
@@ -3696,7 +3801,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         state.bulkSaveDone += 1;
         renderBulkQueue();
       }
-      await refreshSavedMatches({ force:true, silent:true });
+      // V136.0E: refresh history after saves, but keep the existing list visible if
+      // Supabase/session needs a moment to settle after a large batch.
+      await refreshSavedMatches({ force:true, silent:true, keepVisible:true });
       const errorCountBeforeCleanup = queue.filter(item => item.status === 'error').length;
       const shouldCleanQueue = queue.length > 1 || queue.some(item => item?.duelinkGame || item?.merged?.sourceType === 'duelink_api');
       if(shouldCleanQueue){
@@ -4249,23 +4356,41 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }));
   }
 
-  function loadSavedAnalysis(row){
-    if(!row || !row.analysis_json){
+  async function ensureFullSavedMatch(row){
+    if(!row?.id) return row;
+    if(row.analysis_json) return row;
+    if(els.historyStatus) els.historyStatus.textContent = 'Chargement de l’analyse complète…';
+    const fullRow = await getSavedMatch(row.id);
+    if(fullRow?.id){
+      state.savedMatches = (state.savedMatches || []).map(item => item.id === fullRow.id ? { ...item, ...fullRow } : item);
+      if(state.selectedSavedMatchId === fullRow.id) renderPerformanceData();
+      return { ...row, ...fullRow };
+    }
+    return row;
+  }
+
+  async function loadSavedAnalysis(row){
+    if(!row){
       if(els.historyStatus) els.historyStatus.textContent = 'Analyse sauvegardée introuvable.';
       return;
     }
     try{
-      const runtime = savedRowToRuntimeState(row);
+      const fullRow = await ensureFullSavedMatch(row);
+      if(!fullRow?.analysis_json){
+        if(els.historyStatus) els.historyStatus.textContent = 'Analyse complète indisponible pour ce match.';
+        return;
+      }
+      const runtime = savedRowToRuntimeState(fullRow);
       state.replays = runtime.replays;
       state.sessions = runtime.sessions;
       state.merged = runtime.merged;
       state.isBO3 = runtime.isBO3;
       state.viewMode = runtime.isBO3 ? 'global' : 0;
-      state.matchMeta = { source:'saved_match', id:row.id, created_at:row.created_at };
+      state.matchMeta = { source:'saved_match', id:fullRow.id, created_at:fullRow.created_at };
       state.mulliganResolved = false;
-      state.lastSavedMatchId = row.id;
-      state.loadedSavedMatchId = row.id;
-      state.selectedSavedMatchId = row.id;
+      state.lastSavedMatchId = fullRow.id;
+      state.loadedSavedMatchId = fullRow.id;
+      state.selectedSavedMatchId = fullRow.id;
       if(state.isBO3) state.cardFilter = 'opponent';
       document.body.classList.toggle('empty-state', !state.sessions.length);
       document.body.classList.toggle('has-results', !!state.sessions.length);
@@ -4853,13 +4978,41 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!button) return;
     event.preventDefault();
     event.stopPropagation();
+    const title = button.dataset.infoTitle || button.closest('.section-head, .section-title-row, article')?.querySelector('h2,h3')?.textContent?.replace(/[?i]\s*$/,'').trim() || 'Information';
     const pop = document.createElement('div');
     pop.className = 'info-popover-backdrop';
-    pop.innerHTML = `<div class="info-popover-modal" role="dialog" aria-modal="true" aria-label="Information"><button type="button" class="info-popover-close" aria-label="Fermer">×</button><p>${esc(button.dataset.info || '')}</p></div>`;
+    pop.innerHTML = `<div class="info-popover-modal" role="dialog" aria-modal="true" aria-label="Information"><button type="button" class="info-popover-close" aria-label="Fermer">×</button><h3>${esc(title)}</h3><p>${esc(button.dataset.info || '')}</p></div>`;
     document.body.appendChild(pop);
     pop.querySelector('.info-popover-close')?.focus();
     pop.addEventListener('click', e => {
       if(e.target === pop || e.target.closest('.info-popover-close')) pop.remove();
+    });
+  }
+
+  function normalizeMobileInfoHeadings(root=document){
+    const selectors = [
+      '.section-head:not([data-info-normalized])',
+      '.performance-chart-card .section-head:not([data-info-normalized])',
+      '.cards-head:not([data-info-normalized])'
+    ].join(',');
+    root.querySelectorAll?.(selectors).forEach(head => {
+      head.dataset.infoNormalized = '1';
+      const copy = head.querySelector('p:not(.sr-only):not(.auth-note):not(.auth-message)');
+      const title = head.querySelector('h2, h3');
+      if(!copy || !title) return;
+      const info = String(copy.textContent || '').trim();
+      if(!info) return;
+      copy.classList.add('mobile-info-source');
+      if(title.querySelector('.info-dot[data-info]')) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'info-dot mobile-info-dot';
+      btn.dataset.info = info;
+      btn.dataset.infoTitle = title.textContent.trim();
+      btn.setAttribute('aria-label', `Plus d’informations sur ${title.textContent.trim()}`);
+      btn.textContent = 'i';
+      title.appendChild(document.createTextNode(' '));
+      title.appendChild(btn);
     });
   }
 
@@ -5061,7 +5214,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       toggleMultiFilterValue(targetId, btn.dataset.value);
       if(targetId === 'performanceColorFilter') clearSelectedFilterValues('performanceDeckFilter');
       if(targetId === 'historyColorFilter') clearSelectedFilterValues('historyDeckFilter');
-      renderPerformanceData();
+      schedulePerformanceRender();
       return;
     }
 
@@ -5079,7 +5232,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.performanceMulliganPlayFilter = 'all';
     state.performanceMulliganRecommendationFilter = 'all';
     state.performanceExpandedLists = { cards:false, mulligan:false };
-    renderPerformanceData();
+    schedulePerformanceRender();
   }
 
   function resetHistoryFilters(){
@@ -5088,7 +5241,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       clearSelectedFilterValues(id);
     });
     if(els.historySearchInput) els.historySearchInput.value = '';
-    renderPerformanceData();
+    schedulePerformanceRender();
   }
 
   function handlePerformanceDetailClick(event){
@@ -5098,6 +5251,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const allowed = ['overview','cards','mulligan','matchups','curves','data'];
     state.performanceDetailTab = allowed.includes(btn.dataset.performanceDetail) ? btn.dataset.performanceDetail : 'overview';
     renderPerformanceDetailPanels();
+    renderActivePerformanceDetailContent(state.lastPerformanceAnalytics || { turnCurve:[] });
   }
 
   function renderPerformanceDetailPanels(){
@@ -5361,13 +5515,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function refreshSavedMatches(options={}){
     if(!state.currentUser){
-      state.savedMatches = [];
-      state.savedMatchesLoaded = false;
-      state.selectedSavedMatchId = null;
-      state.expandedSavedMatchId = null;
-      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' };
-      renderPerformanceData();
-      return [];
+      const user = await ensureInkSightUser();
+      if(!user){
+        // V136.0E: never clear the visible history on a transient auth/session gap.
+        // Only SIGNED_OUT clears data. This prevents the terrifying "everything vanished" state.
+        if((state.savedMatches || []).length){
+          renderPerformanceData();
+          return state.savedMatches;
+        }
+        state.savedMatchesLoaded = false;
+        state.savedAnalytics = { ...(state.savedAnalytics || {}), loading:false, error:'Session en cours de vérification.' };
+        renderPerformanceData();
+        return state.savedMatches || [];
+      }
     }
     if(state.savedMatchesLoading) return state.savedMatches;
     if(state.savedMatchesLoaded && !options.force){
@@ -5378,19 +5538,33 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       state.savedMatchesLoading = true;
       if(!options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
-      const rows = await listSavedMatches(5000);
-      state.savedMatches = Array.isArray(rows) ? rows : [];
+      const previousRows = Array.isArray(state.savedMatches) ? state.savedMatches : [];
+      const rows = await listSavedMatches(500);
+      const nextRows = Array.isArray(rows) ? rows : [];
+      // If a forced refresh returns an empty array immediately after a batch import while
+      // we had visible rows, treat it as suspicious and keep the previous UI until retry.
+      if(previousRows.length && !nextRows.length && !options.allowEmpty){
+        console.warn('Historique refresh returned 0 rows while previous rows exist; keeping visible rows for stability.');
+        state.savedMatchesLoaded = true;
+        if(els.historyStatus) els.historyStatus.textContent = 'Mise à jour de l’historique en cours…';
+        state.savedAnalytics = { ...(state.savedAnalytics || {}), loading:false, error:'Refresh temporaire incomplet.' };
+        return previousRows;
+      }
+      state.savedMatches = nextRows;
       state.savedMatchesLoaded = true;
       if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
       await refreshSavedAnalytics(state.savedMatches, { force:!!options.force });
     }catch(err){
       console.error(err);
-      state.savedMatches = [];
+      // V136.0D: ne jamais effacer l'historique visible si Supabase a un problème temporaire
+      // après un gros import ou un refresh de session. On garde les données déjà chargées.
       state.savedMatchesLoaded = true;
-      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:err.message || 'Historique indisponible.' };
-      if(els.historyStatus) els.historyStatus.textContent = `Erreur historique : ${err.message || err}`;
-      if(els.historyList) els.historyList.innerHTML = `<div class="history-empty-state"><strong>Impossible de charger l’historique.</strong><span>${esc(err.message || err)}. Vérifiez la connexion puis réessayez.</span><button type="button" class="ghost-button compact" id="historyRetryInline">Réessayer</button></div>`;
-      document.getElementById('historyRetryInline')?.addEventListener('click', () => refreshSavedMatches({ force:true }));
+      state.savedAnalytics = { ...(state.savedAnalytics || {}), loading:false, error:err.message || 'Historique indisponible.' };
+      if(els.historyStatus) els.historyStatus.textContent = `Historique temporairement indisponible : ${err.message || err}`;
+      if(!(state.savedMatches || []).length && els.historyList){
+        els.historyList.innerHTML = `<div class="history-empty-state"><strong>Impossible de charger l’historique.</strong><span>${esc(err.message || err)}. Vérifiez la connexion puis réessayez.</span><button type="button" class="ghost-button compact" id="historyRetryInline">Réessayer</button></div>`;
+        document.getElementById('historyRetryInline')?.addEventListener('click', () => refreshSavedMatches({ force:true }));
+      }
     }finally{
       state.savedMatchesLoading = false;
       renderPerformanceData();
@@ -5496,6 +5670,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     safe('statistiques', renderSavedStats);
     safe('historique', renderSavedHistory);
     safe('compte', renderAccountPage);
+    normalizeMobileInfoHeadings(document);
   }
 
   function selectedValuesForMode(mode, key){
@@ -5674,16 +5849,51 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     renderPerformanceCoach(analytics, { total, wins, bo1, bo3, deckScoped });
     renderPerformanceActionPlan(analytics, { rows, total, wins, bo1, bo3, deckScoped });
-    renderPerformanceMatchups(rows, analytics, { deckScoped });
 
-    renderPerformanceTable(els.performanceCardImpactTable, performanceCardImpactHtml(analytics));
-    renderPerformanceTable(els.performanceMulliganTable, performanceMulliganHtml(analytics));
-    renderPerformanceTable(els.performanceTurnCurveTable, performanceTurnCurveHtml(analytics));
+    state.lastPerformanceRows = rows;
     state.lastPerformanceAnalytics = deckScoped ? analytics : { ...analytics, turnCurve:[] };
-    renderPerformanceCharts(state.lastPerformanceAnalytics);
     renderPerformanceDetailPanels();
-    bindPerformanceCardTiles();
-    bindPerformanceFullListButtons();
+    renderActivePerformanceDetailContent(state.lastPerformanceAnalytics, { rows, deckScoped });
+  }
+
+  function schedulePerformanceRender(){
+    if(state.performanceRenderScheduled) return;
+    state.performanceRenderScheduled = true;
+    requestAnimationFrame(() => {
+      state.performanceRenderScheduled = false;
+      renderPerformanceData();
+    });
+  }
+
+  function renderActivePerformanceDetailContent(analytics, meta={}){
+    const active = state.performanceDetailTab || 'overview';
+    const rows = meta.rows || state.lastPerformanceRows || filteredSavedMatches('stats');
+    const deckScoped = meta.deckScoped ?? isPerformanceDataScoped();
+    if(active === 'cards'){
+      renderPerformanceTable(els.performanceCardImpactTable, performanceCardImpactHtml(analytics));
+      bindPerformanceCardTiles();
+      bindPerformanceFullListButtons();
+      hydrateVisibleCardImages();
+      hydratePerformanceImagesFromSavedAnalysis();
+      return;
+    }
+    if(active === 'mulligan'){
+      renderPerformanceTable(els.performanceMulliganTable, performanceMulliganHtml(analytics));
+      bindPerformanceCardTiles();
+      bindPerformanceFullListButtons();
+      hydrateVisibleCardImages();
+      hydratePerformanceImagesFromSavedAnalysis();
+      return;
+    }
+    if(active === 'matchups'){
+      renderPerformanceMatchups(rows, analytics, { deckScoped });
+      return;
+    }
+    if(active === 'curves'){
+      renderPerformanceTable(els.performanceTurnCurveTable, performanceTurnCurveHtml(analytics));
+      requestAnimationFrame(() => renderPerformanceCharts(analytics));
+      return;
+    }
   }
 
   function isPerformanceDeckScoped(){
@@ -6345,7 +6555,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     let tone = 'good';
     if(still > 0 || stuckRate >= 50 || avgHeld >= 4){ label = 'Keep risqué'; tone = 'danger'; }
     else if(stuckRate >= 25 || avgHeld >= 3 || (uninkable && avgHeld >= 2.5)){ label = 'Keep à surveiller'; tone = 'context'; }
-    const detail = `${avgHeld} tour${avgHeld > 1 ? 's' : ''} en main après keep · max ${maxHeld}T`;
+    const detail = `${avgHeld}T en main · max ${maxHeld}T`;
     return { hasSignal:true, label, detail, tone, avgHeld, stuckRate, maxHeld, stillInHand:still };
   }
 
@@ -7182,7 +7392,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function performanceMiniCardSignalHtml(card, meta=''){
     const view = performanceCardView(card);
-    return `<button type="button" class="mini-card-signal-btn" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}">
+    return `<button type="button" class="mini-card-signal-btn" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}" data-performance-match-ids="${escAttr((card.samples || []).map(s => s.matchId).filter(Boolean).slice(0,3).join(','))}">
       <span class="mini-card-signal-art">${cardThumbHtml(view, 'mini-card-signal-thumb')}</span>
       <span class="mini-card-signal-copy"><strong>${esc(card.name || 'Carte')}</strong><small>${esc(meta)}</small></span>
     </button>`;
@@ -7332,7 +7542,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const winLabel = card.gamesPlayed ? (sampleWeak ? 'À confirmer' : `${card.playedWr}% WR`) : 'Peu jouée';
     const inkPercent = Math.min(100, Math.round((n(card.inked) / Math.max(1, n(card.seen))) * 100));
     const badges = performanceCardStatusBadges(card);
-    return `<article class="performance-card-tile performance-card-tile-v2 is-clickable" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}">
+    return `<article class="performance-card-tile performance-card-tile-v2 is-clickable" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}" data-performance-match-ids="${escAttr((card.samples || []).map(s => s.matchId).filter(Boolean).slice(0,3).join(','))}">
       <div class="performance-card-art">${cardThumbHtml(view, 'performance-card-thumb')}</div>
       <div class="performance-card-body">
         <h3>${esc(performanceDisplayName(card))}</h3>
@@ -7358,7 +7568,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(filter === 'play') state.performanceMulliganPlayFilter = value;
     if(filter === 'recommendation') state.performanceMulliganRecommendationFilter = value;
     state.performanceExpandedLists = { ...(state.performanceExpandedLists || {}), mulligan:false };
-    renderPerformanceData();
+    schedulePerformanceRender();
   }
 
   function buildMulliganLabMeta(cards=[], games=[]){
@@ -7617,7 +7827,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const decisionTag = deadWeight.hasSignal && deadWeight.tone === 'danger' && keep >= 45 ? deadWeight.label : mulliganShortTag(recommendation, keep, throwPct, copyPattern);
     const wrBadge = card.keptGames >= 8 ? `${card.keptWr}% WR gardée` : `${n(card.opening)} mains`;
     const deadWeightTag = deadWeight.hasSignal ? `<span class="mulligan-dead-weight-tag ${escAttr(deadWeight.tone)}">${esc(deadWeight.detail)}</span>` : '';
-    return `<article class="mulligan-visual-card mulligan-lab-card mulligan-lab-card-v2 is-clickable ${escAttr(deadWeight.hasSignal && deadWeight.tone === 'danger' ? 'danger' : (recommendation.tone || 'neutral'))}" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(displayName)}">
+    return `<article class="mulligan-visual-card mulligan-lab-card mulligan-lab-card-v2 is-clickable ${escAttr(deadWeight.hasSignal && deadWeight.tone === 'danger' ? 'danger' : (recommendation.tone || 'neutral'))}" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(displayName)}" data-performance-match-ids="${escAttr((card.samples || []).map(s => s.matchId).filter(Boolean).slice(0,3).join(','))}">
       <div class="mulligan-visual-art">${cardThumbHtml(view, 'mulligan-visual-thumb')}</div>
       <div class="mulligan-visual-body">
         <div class="mulligan-card-head"><h3>${esc(displayName)}</h3><span class="mulligan-rec ${escAttr(recommendation.tone || 'neutral')}">${esc(decisionTag)}</span></div>
@@ -7641,8 +7851,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const actionAxis = [['Tempo', actionTotals.play], ['Lore', actionTotals.quest], ['Board', actionTotals.challenge], ['Encrage', actionTotals.ink]].sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Plan';
     const actionHtml = `<span>Plan moyen</span><strong>${esc(actionAxis)} dominant</strong><small>${esc(`${round1(actionTotals.play)} jouées · ${round1(actionTotals.quest)} quêtes · ${round1(actionTotals.challenge)} défis`)}</small>`;
     return `<div class="performance-charts-grid">
-      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Lore & main moyenne <button class="info-dot" type="button" data-info="La courbe est calculée tour par tour uniquement avec les parties qui atteignent réellement le tour affiché. Le repère de vitesse indique à quel tour moyen le deck atteint les paliers de lore.">?</button></h3><p>Progression moyenne vers 20 lore, sans pénaliser les tours tardifs avec les parties déjà terminées.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceLoreAvgChart">${speedHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceLoreAvgChart" aria-label="Courbe moyenne de lore et de main"></canvas></div></article>
-      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Plan de jeu par tour <button class="info-dot" type="button" data-info="Chaque barre montre ce que le deck fait en moyenne à ce tour : encrer, jouer des cartes, quêter ou défier. Les tours tardifs utilisent uniquement les parties qui les atteignent réellement.">?</button></h3><p>Encrage, cartes jouées, quêtes et défis : le plan de jeu moyen tour par tour.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceActionAvgChart">${actionHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceActionAvgChart" aria-label="Actions moyennes par tour"></canvas></div></article>
+      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Lore & main moyenne <button class="info-dot" type="button" data-info="La courbe est calculée tour par tour uniquement avec les parties qui atteignent réellement le tour affiché. Le repère de vitesse indique à quel tour moyen le deck atteint les paliers de lore. Les tours tardifs peuvent être moins représentatifs s’ils concernent peu de parties.">?</button></h3><p>Progression lore / main.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceLoreAvgChart">${speedHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceLoreAvgChart" aria-label="Courbe moyenne de lore et de main"></canvas></div></article>
+      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Plan de jeu par tour <button class="info-dot" type="button" data-info="Chaque barre montre ce que le deck fait en moyenne à ce tour : encrer, jouer des cartes, quêter ou défier. Les tours tardifs utilisent uniquement les parties qui les atteignent réellement.">?</button></h3><p>Actions moyennes.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceActionAvgChart">${actionHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceActionAvgChart" aria-label="Actions moyennes par tour"></canvas></div></article>
     </div>`;
   }
 
@@ -7661,8 +7871,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const saved = findSavedCardByPerformanceCard(card);
     const seed = saved || local || { id:card.key, fullName:card.name, name:card.name, type:card.type, colors:card.colors || [] };
     const hydrated = hydrateCard(seed);
-    const image = saved?.image || saved?.imageSmall || hydrated.image || hydrated.imageSmall || '';
-    const imageSmall = saved?.imageSmall || saved?.image || hydrated.imageSmall || hydrated.image || '';
+    const image = saved?.image || saved?.imageSmall || hydrated.image || hydrated.imageSmall || getCardImage(hydrated, 'normal') || '';
+    const imageSmall = saved?.imageSmall || saved?.image || hydrated.imageSmall || hydrated.image || getCardImage(hydrated, 'small') || image || '';
     const resolvedName = saved ? (saved.fullName || saved.name || fullName(saved)) : (local ? fullName(local) : fullName(hydrated));
     const displayName = cleanCardName(resolvedName && resolvedName !== 'Carte inconnue' ? resolvedName : (card.name || card.key || 'Carte inconnue'));
     return {
@@ -7709,12 +7919,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function findLocalCardByPerformanceCard(card){
-    const candidates = [card?.key, card?.name, slug(card?.name || '')].filter(Boolean);
+    const rawName = String(card?.name || card?.card_name || card?.fullName || '');
+    const baseName = rawName.split(' - ')[0] || rawName;
+    const candidates = [card?.key, card?.card_key, card?.id, card?.cardId, rawName, baseName, slug(rawName), slug(baseName)].filter(Boolean);
     for(const key of candidates){
       const direct = state.index.get(key) || state.index.get(slug(key));
       if(direct) return direct;
     }
-    const wanted = slug(card?.name || '');
+    const wanted = slug(rawName || baseName || '');
     if(!wanted) return null;
     const wantedCore = wanted.replace(/-+/g,'-');
     const seen = new Set();
@@ -7952,8 +8164,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderSavedHistory(){
     if(!els.historyList) return;
-    if(!state.currentUser){
+    if(!state.currentUser && !(state.savedMatches || []).length){
       renderPostImportCleanup();
+      if(!state.authExplicitlySignedOut){
+        els.historyList.innerHTML = '<div class="empty-line"><strong>Vérification de la session…</strong><span>Vos matchs peuvent prendre quelques secondes à réapparaître après un import ou un rafraîchissement mobile.</span></div>';
+        if(els.historyStatus) els.historyStatus.textContent = 'Connexion en cours de vérification.';
+        if(!state.authVerifyPending){
+          state.authVerifyPending = true;
+          ensureInkSightUser({ render:false })
+            .then(user => user ? refreshSavedMatches({ force:true, silent:true, keepVisible:true }) : null)
+            .finally(() => { state.authVerifyPending = false; renderPerformanceData(); });
+        }
+        return;
+      }
       els.historyList.innerHTML = '<div class="empty-line">Connectez-vous avec Discord pour afficher vos matchs sauvegardés.</div>';
       if(els.historyStatus) els.historyStatus.textContent = 'Historique disponible après connexion.';
       if(els.historyDetail){ els.historyDetail.hidden = true; els.historyDetail.innerHTML = ''; }
@@ -8049,8 +8272,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <button type="button" class="ghost-button history-mini-button danger" data-delete-saved="${escAttr(row.id)}">Supprimer</button>`;
     return `<article class="history-row ${isActive ? 'active' : ''} ${hasGames ? 'has-games' : ''} ${actionsOpen ? 'actions-open' : ''}" data-saved-id="${escAttr(row.id)}">
       <button type="button" class="history-row-main" data-select-saved="${escAttr(row.id)}" aria-expanded="${expanded && hasGames ? 'true' : 'false'}">
+        <span class="history-result-dot ${resultClass}"></span>
         <span class="history-row-copy">
-          <strong class="history-primary-line"><em>${esc(format)}</em><span class="history-result-dot ${resultClass}" aria-hidden="true"></span>${colorMatchupDotsHtml(colors, opponentColors, matchup)}<b>${esc(result)} ${esc(score)}</b></strong>
+          <strong class="history-primary-line"><em>${esc(format)}</em>${colorMatchupDotsHtml(colors, opponentColors, matchup)}<b>${esc(result)} ${esc(score)}</b></strong>
           <span class="history-opponent-line">${esc(opponent)}</span>
           ${deck ? `<span class="history-row-deck">${esc(deck)}</span>` : ''}
           ${historySourceBadgesHtml(row)}
@@ -8130,9 +8354,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       };
     });
     document.querySelectorAll('[data-load-saved]').forEach(button => {
-      button.onclick = () => {
+      button.onclick = async () => {
         const row = state.savedMatches.find(item => item.id === button.dataset.loadSaved);
-        loadSavedAnalysis(row);
+        await loadSavedAnalysis(row);
       };
     });
 
@@ -8256,9 +8480,31 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const narrative = analysis.narrative || {};
     const mineCards = analysis.cards?.mine || [];
     const oppCards = analysis.cards?.opponent || [];
-    const topMineLore = [...mineCards].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest))[0];
-    const topInked = [...mineCards].sort((a,b)=>n(b.inked)-n(a.inked))[0];
-    const topOppLore = [...oppCards].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest))[0];
+    const detailCardRows = (state.savedAnalytics?.cardStats || []).filter(item => item.match_id === row.id);
+    const cardFromDetailRow = detail => {
+      const seed = {
+        key:detail.card_key || detail.card_name,
+        id:detail.card_key || '',
+        cardId:detail.card_key || '',
+        name:detail.card_name || detail.card_key || 'Carte inconnue',
+        fullName:detail.card_name || detail.card_key || 'Carte inconnue',
+        type:detail.card_type || '',
+        colors:detail.colors || [],
+        lore:n(detail.lore_generated),
+        quest:n(detail.quest_count),
+        played:n(detail.played),
+        inked:n(detail.inked),
+      };
+      const view = performanceCardView(seed);
+      return { ...view, ...seed, image:view.image, imageSmall:view.imageSmall };
+    };
+    const fallbackMineCards = detailCardRows.filter(item => item.owner === 'mine').map(cardFromDetailRow);
+    const fallbackOppCards = detailCardRows.filter(item => item.owner === 'opponent').map(cardFromDetailRow);
+    const minePool = mineCards.length ? mineCards : fallbackMineCards;
+    const oppPool = oppCards.length ? oppCards : fallbackOppCards;
+    const topMineLore = [...minePool].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest) || n(b.played)-n(a.played))[0];
+    const topInked = [...minePool].sort((a,b)=>n(b.inked)-n(a.inked) || n(b.played)-n(a.played))[0];
+    const topOppLore = [...oppPool].sort((a,b)=>n(b.lore)-n(a.lore) || n(b.quest)-n(a.quest) || n(b.played)-n(a.played))[0];
     const result = row.result === 'win' ? 'Victoire' : 'Défaite';
     const resultClass = row.result === 'win' ? 'win' : 'loss';
     const format = String(row.format || 'BO1').toUpperCase();
@@ -8289,9 +8535,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     const metricTile = (label, value, sub='', cls='') => `<div class="history-detail-metric ${cls}"><span>${esc(label)}</span><strong>${esc(value)}</strong>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     const cardTile = (label, card, value, sub='', cls='') => {
-      const hasCard = !!card;
-      const name = hasCard ? fullName(card) : '—';
-      const thumb = hasCard ? cardThumbHtml(card, 'history-detail-card-img') : `<span class="history-detail-card-img thumb-placeholder">—</span>`;
+      const hydratedCard = card ? performanceCardView(card) : null;
+      const hasCard = !!hydratedCard;
+      const name = hasCard ? fullName(hydratedCard) : '—';
+      const thumb = hasCard ? cardThumbHtml(hydratedCard, 'history-detail-card-img') : `<span class="history-detail-card-img thumb-placeholder">—</span>`;
       return `<div class="history-detail-card-tile ${cls}">
         <div class="history-detail-card-art">${thumb}</div>
         <div class="history-detail-card-copy">
@@ -8336,7 +8583,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       </div>
     </div>`;
     els.historyDetail.querySelectorAll('[data-load-saved]').forEach(button => {
-      button.onclick = () => loadSavedAnalysis(row);
+      button.onclick = async () => loadSavedAnalysis(row);
     });
   }
 
@@ -9684,21 +9931,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const visible = expanded ? rows : rows.slice(0, limit);
     const total = rows.length;
     const listHtml = `<div class="match-card-list-v81 ${options.ordered ? 'is-sequence' : ''}">${visible.map((item, index) => statCardTileHtml(item, index, options)).join('')}</div>`;
-    const collapsedLabel = statListToggleLabel(options.collapsedLabel || 'Voir toute la liste', total);
-    const toggleHtml = total > limit ? `<button type="button" class="stat-list-toggle v81-toggle" data-stat-list-toggle="${escAttr(key)}" aria-expanded="${expanded ? 'true' : 'false'}"><span>${expanded ? esc(options.expandedLabel || 'Réduire la liste') : esc(collapsedLabel)}</span></button>` : '';
+    const toggleHtml = total > limit ? `<button type="button" class="stat-list-toggle v81-toggle" data-stat-list-toggle="${escAttr(key)}" aria-expanded="${expanded ? 'true' : 'false'}"><span>${expanded ? esc(options.expandedLabel || 'Réduire la liste') : esc(options.collapsedLabel || 'Voir toute la liste')}</span><strong>${expanded ? '−' : total}</strong></button>` : '';
     container.innerHTML = `${listHtml}${toggleHtml}`;
-  }
-
-
-
-  function statListToggleLabel(label, total){
-    const raw = String(label || '').trim();
-    const lower = raw.toLowerCase();
-    if(lower.includes('carte')) return `Voir les ${n(total)} cartes`;
-    if(lower.includes('défi') || lower.includes('defi')) return `Voir les ${n(total)} défis`;
-    if(lower.includes('chronologie')) return `Voir toute la chronologie`;
-    if(lower.includes('liste')) return `Voir les ${n(total)} éléments`;
-    return raw;
   }
 
   function statCardTileHtml(item, index, options={}){
@@ -9941,7 +10175,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const c = hydrateCard(card);
     els.modalBody.innerHTML = cardDetailHtml(c);
     els.cardModal.classList.add('active'); els.cardModal.setAttribute('aria-hidden','false');
-    setTimeout(() => { els.cardModal.querySelector('.modal-card')?.focus(); }, 0);
+    setTimeout(() => { els.cardModal.querySelector('.modal-card')?.focus(); hydrateVisibleCardImages(els.cardModal); }, 0);
   }
   function closeCardModal(){
     els.cardModal.classList.remove('active'); els.cardModal.setAttribute('aria-hidden','true'); els.modalBody.innerHTML='';
@@ -9952,7 +10186,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const color = inkKey(c.colors?.[0] || c.color);
     const text = formatCardText(c.text || abilityText(c));
     const detailImage = c.image || c.imageSmall;
-    const imageHtml = detailImage ? `<img src="${esc(detailImage)}" alt="${esc(fullName(c))}" loading="lazy">` : `<div class="card-art-placeholder"><strong>${esc(initials(fullName(c)))}</strong><span>${esc(fullName(c))}</span><small>Image indisponible</small></div>`;
+    const lookup = lorcastLookupParams(c);
+    const lookupAttrs = lookup ? ` data-lorcast-set="${escAttr(lookup.setNum)}" data-lorcast-number="${escAttr(lookup.number)}" data-card-label="${escAttr(fullName(c))}"` : '';
+    const imageHtml = detailImage ? `<img src="${esc(detailImage)}" alt="${esc(fullName(c))}" loading="lazy">` : `<div class="card-art-placeholder lorcast-image-placeholder"${lookupAttrs}><strong>${esc(initials(fullName(c)))}</strong><span>${esc(fullName(c))}</span><small>Image indisponible</small></div>`;
     const universe = cardUniverse(c);
     const artists = cardArtists(c);
     return `<div class="card-detail"><div class="card-image">${imageHtml}</div><div class="card-detail-main"><section class="detail-panel"><div class="kicker">Carte</div><h2 class="detail-title"><span class="ink-dot ink-${color}"></span>${esc(fullName(c))}</h2><div class="chip-row"><span class="chip">${esc(setLabel(c) || 'Chapitre inconnu')}</span><span class="chip">${esc(rarityLabel(c.rarity) || 'Rareté —')}</span><span class="chip">#${esc(c.number || '—')}</span><span class="chip">${esc(inkLabel(c.colors?.[0]) || 'Encre —')}</span></div><div class="detail-grid" style="margin-top:1rem">${field('Type', typeLabel(c.type))}${field('Coût', c.cost ?? '—')}${field('Encrable', c.inkable === true ? 'Oui' : c.inkable === false ? 'Non' : '—')}${field('Rareté', rarityLabel(c.rarity) || '—')}${field('Force', c.strength ?? '—')}${field('Volonté', c.willpower ?? '—')}${field('Lore', c.lore ?? '—')}</div></section><section class="detail-panel detail-panel-info"><div class="kicker">Informations</div><div class="detail-grid">${field('Chapitre', setLabel(c) || '—')}${field('Univers', universe)}${field('Artiste(s)', artists)}</div></section>${text ? `<section class="detail-panel"><div class="kicker">Texte de carte</div><div class="card-text">${text}</div></section>` : ''}<section class="detail-panel"><div class="kicker">Classifications</div><div class="chip-row">${(c.classifications || []).length ? c.classifications.map(x=>`<span class="chip">${esc(x)}</span>`).join('') : '<span class="chip">—</span>'}</div></section></div></div>`;
@@ -9984,7 +10220,117 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
   function field(label, value){ return `<div class="detail-field"><small>${esc(label)}</small><strong>${esc(value)}</strong></div>`; }
   function initials(name){ return String(name || '?').split(/\s+|-+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?'; }
-  function cardThumbHtml(c, cls='thumb'){ const img = c.imageSmall || c.image; const label = fullName(c) || 'Carte Lorcana'; return img ? `<img class="${esc(cls)}" src="${esc(img)}" alt="${escAttr(label)}" loading="lazy">` : `<span class="${esc(cls)} thumb-placeholder" aria-label="Image indisponible pour ${escAttr(label)}">${esc(initials(label))}</span>`; }
+
+  function lorcastLookupParams(c={}){
+    const hydrated = c || {};
+    const code = normalizeSetCode(hydrated.setCode || hydrated.set || hydrated.raw?.setCodes?.[0] || hydrated.raw?.set || '');
+    const setNum = SET_CODE_TO_NUM[code] || (String(code || '').match(/^\d+$/) ? code : '');
+    const number = strip0(hydrated.number || hydrated.cardNumber || hydrated.collector_number || hydrated.raw?.number || hydrated.raw?.cardNumber || '');
+    return setNum && number ? { setNum, number } : null;
+  }
+
+  function cardThumbHtml(c, cls='thumb'){
+    const img = c.imageSmall || c.image;
+    const label = fullName(c) || 'Carte Lorcana';
+    if(img) return `<img class="${esc(cls)}" src="${esc(img)}" alt="${escAttr(label)}" loading="lazy">`;
+    const lookup = lorcastLookupParams(c);
+    const attrs = lookup ? ` data-lorcast-set="${escAttr(lookup.setNum)}" data-lorcast-number="${escAttr(lookup.number)}" data-card-label="${escAttr(label)}"` : '';
+    return `<span class="${esc(cls)} thumb-placeholder lorcast-image-placeholder"${attrs} aria-label="Image indisponible pour ${escAttr(label)}">${esc(initials(label))}</span>`;
+  }
+
+  function hydrateVisibleCardImages(root=document){
+    const nodes = [...root.querySelectorAll('.lorcast-image-placeholder[data-lorcast-set][data-lorcast-number]')].slice(0, 80);
+    nodes.forEach(node => {
+      const key = `${node.dataset.lorcastSet}/${node.dataset.lorcastNumber}`;
+      if(state.lorcastImageCache?.has(key)){
+        const url = state.lorcastImageCache.get(key);
+        if(url) replacePlaceholderWithImage(node, url);
+        return;
+      }
+      if(state.lorcastImagePending?.has(key)) return;
+      state.lorcastImagePending.add(key);
+      fetch(`https://api.lorcast.com/v0/cards/${encodeURIComponent(node.dataset.lorcastSet)}/${encodeURIComponent(node.dataset.lorcastNumber)}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(card => {
+          const url = getCardImage(card || {}, 'small') || getCardImage(card || {}, 'normal') || '';
+          state.lorcastImageCache.set(key, url);
+          document.querySelectorAll(`.lorcast-image-placeholder[data-lorcast-set="${CSS.escape(node.dataset.lorcastSet)}"][data-lorcast-number="${CSS.escape(node.dataset.lorcastNumber)}"]`).forEach(el => {
+            if(url) replacePlaceholderWithImage(el, url);
+          });
+        })
+        .catch(() => state.lorcastImageCache.set(key, ''))
+        .finally(() => state.lorcastImagePending.delete(key));
+    });
+  }
+
+  function hydratePerformanceImagesFromSavedAnalysis(root=document){
+    const nodes = [...root.querySelectorAll('[data-performance-card-name], [data-performance-card-key]')].filter(node => node.querySelector?.('.thumb-placeholder, .lorcast-image-placeholder'));
+    nodes.slice(0, 24).forEach(node => {
+      const cardName = cleanCardName(node.dataset.performanceCardName || '');
+      const cardKeyValue = String(node.dataset.performanceCardKey || '');
+      const matchIds = String(node.dataset.performanceMatchIds || '').split(',').map(v => v.trim()).filter(Boolean).slice(0, 2);
+      const cacheKey = slug(cardKeyValue || cardName);
+      if(!cacheKey || !matchIds.length) return;
+      const cached = state.performanceImageCache?.get(cacheKey);
+      if(cached){
+        node.querySelectorAll('.thumb-placeholder, .lorcast-image-placeholder').forEach(el => replacePlaceholderWithImage(el, cached));
+        return;
+      }
+      if(state.performanceImagePending?.has(cacheKey)) return;
+      state.performanceImagePending.add(cacheKey);
+      supabase.from('saved_matches').select('id,analysis_json').in('id', matchIds).limit(matchIds.length)
+        .then(({ data }) => {
+          const rows = Array.isArray(data) ? data : [];
+          let found = null;
+          for(const row of rows){
+            found = findCardImageInAnalysis(row.analysis_json, { cardName, cardKey:cardKeyValue });
+            if(found) break;
+          }
+          if(found){
+            state.performanceImageCache.set(cacheKey, found);
+            node.querySelectorAll('.thumb-placeholder, .lorcast-image-placeholder').forEach(el => replacePlaceholderWithImage(el, found));
+          }
+        })
+        .catch(() => {})
+        .finally(() => state.performanceImagePending.delete(cacheKey));
+    });
+  }
+
+  function findCardImageInAnalysis(analysisJson, target={}){
+    const analysis = parseStoredJson(analysisJson);
+    const wantedName = slug(target.cardName || '');
+    const wantedKey = slug(target.cardKey || '');
+    const pools = [];
+    const push = value => { if(Array.isArray(value)) pools.push(value); };
+    push(analysis?.cards?.mine); push(analysis?.cards?.opponent); push(analysis?.cardStats);
+    push(analysis?.mulligan?.initial); push(analysis?.mulligan?.kept); push(analysis?.mulligan?.replaced);
+    (analysis?.games || []).forEach(game => {
+      push(game?.cards?.mine); push(game?.cards?.opponent); push(game?.mulligan?.initial); push(game?.mulligan?.kept); push(game?.mulligan?.replaced);
+    });
+    for(const cards of pools){
+      for(const raw of cards || []){
+        const card = hydrateCard(raw);
+        const name = slug(fullName(card) || raw?.cardName || raw?.name || '');
+        const key = slug(cardKey(card) || raw?.cardKey || raw?.key || '');
+        if((wantedName && (name === wantedName || name.includes(wantedName) || wantedName.includes(name))) || (wantedKey && key === wantedKey)){
+          const url = card.imageSmall || card.image || getCardImage(card, 'small') || getCardImage(card, 'normal');
+          if(url) return url;
+        }
+      }
+    }
+    return '';
+  }
+
+  function replacePlaceholderWithImage(node, url){
+    if(!node || !url || node.dataset.hydratedImage === '1') return;
+    node.dataset.hydratedImage = '1';
+    const img = document.createElement('img');
+    img.className = node.className.replace('thumb-placeholder','').replace('lorcast-image-placeholder','').trim() || 'thumb';
+    img.src = url;
+    img.alt = node.dataset.cardLabel || node.getAttribute('aria-label') || 'Carte Lorcana';
+    img.loading = 'lazy';
+    node.replaceWith(img);
+  }
 
   function cssThemeColors(){
     const styles = getComputedStyle(document.documentElement);
@@ -11262,11 +11608,16 @@ function initAuthUI() {
   btnLogout?.addEventListener('click', handleLogout);
 
   getCurrentUser()
-    .then(updateAuthUI)
-    .catch(() => updateAuthUI(null));
+    .then((user) => { if (user) updateAuthUI(user); })
+    .catch(() => { /* ne pas afficher "déconnecté" sur un trou de session temporaire */ });
 
-  supabase.auth.onAuthStateChange((_event, session) => {
-    updateAuthUI(session?.user ?? null);
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      updateAuthUI(null);
+      return;
+    }
+    if (session?.user) updateAuthUI(session.user);
+    // V136.0G: ignorer les sessions nulles temporaires de Safari/Supabase.
   });
 }
 
