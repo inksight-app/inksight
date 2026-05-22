@@ -13989,3 +13989,119 @@ html, body { overflow-x: hidden; }
     gap: 18px;
   }
 }
+
+/* V136.0K — performance + desktop/mobile UI stabilization */
+.app-nav-button[data-app-view="performances"]{
+  white-space:nowrap!important;
+}
+.performance-tabs{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:.45rem!important;
+  align-items:stretch!important;
+}
+.performance-tabs .performance-tab{
+  min-width:0!important;
+  width:100%!important;
+  flex:1 1 0!important;
+  justify-content:center!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+.performance-filter-bar-viz:not(.filters-open) .performance-filter-controls-viz,
+.history-toolbar-viz:not(.filters-open) .history-controls-viz{
+  display:none!important;
+}
+.performance-filter-bar-viz{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:1rem!important;
+}
+.performance-filter-bar-viz .performance-filter-controls-viz{
+  grid-column:1 / -1!important;
+}
+.auth-card,
+.account-auth-card{
+  align-items:center!important;
+  text-align:center!important;
+}
+.auth-card .auth-actions,
+.account-auth-card .auth-actions{
+  width:100%!important;
+  display:flex!important;
+  justify-content:center!important;
+}
+.auth-btn-discord,
+.auth-card .primary-button,
+.account-auth-card .primary-button,
+#authDiscordButton{
+  max-width:320px!important;
+  width:100%!important;
+  margin-inline:auto!important;
+  justify-content:center!important;
+}
+.section-head h2,
+.performance-chart-card h3{
+  display:flex!important;
+  align-items:center!important;
+  gap:.45rem!important;
+  min-width:0!important;
+}
+.section-head h2 .info-dot,
+.performance-chart-card h3 .info-dot{
+  flex:0 0 auto!important;
+}
+.section-head p .info-dot,
+.performance-chart-card p .info-dot{
+  display:none!important;
+}
+.performance-card-gallery,
+.mulligan-visual-list,
+.matchup-breakdown-list,
+.performance-charts-grid{
+  contain:layout style;
+}
+.performance-card-thumb,
+.mulligan-visual-thumb,
+.match-card-thumb-v81,
+.history-detail-card-art img,
+.card-image img{
+  display:block;
+  width:100%;
+  height:auto;
+}
+.performance-card-art .thumb-placeholder,
+.mulligan-visual-art .thumb-placeholder,
+.performance-card-thumb.thumb-placeholder,
+.mulligan-visual-thumb.thumb-placeholder{
+  display:grid!important;
+  place-items:center!important;
+  aspect-ratio:5/7!important;
+  height:auto!important;
+  min-height:0!important;
+}
+.performance-detail-tabs{
+  overflow-x:auto!important;
+  overscroll-behavior-inline:contain!important;
+  -webkit-overflow-scrolling:touch!important;
+  scrollbar-width:none!important;
+}
+.performance-detail-tabs::-webkit-scrollbar{display:none!important;}
+.performance-detail-tab{flex:0 0 auto!important;white-space:nowrap!important;}
+@media (min-width: 900px){
+  .performance-detail-tabs{flex-wrap:wrap!important;}
+}
+@media (max-width: 760px){
+  .performance-filter-bar-viz{
+    grid-template-columns:1fr!important;
+  }
+  .performance-filter-bar-viz .filter-toggle{
+    width:100%!important;
+  }
+  .performance-tabs .performance-tab{
+    font-size:.95rem!important;
+    padding-inline:.65rem!important;
+  }
+}

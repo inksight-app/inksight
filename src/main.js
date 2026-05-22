@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), authExplicitlySignedOut:false, authVerifyPending:false };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), authExplicitlySignedOut:false, authVerifyPending:false, lorcastImageCache:new Map(), lorcastImagePending:new Set(), performanceRenderScheduled:false };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -125,7 +125,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.duelinkForgetTokenButton?.addEventListener('click', forgetDuelinkTokenForAccount);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
     els.duelinkTokenInput?.addEventListener('input', updateDuelinkStoredTokenUi);
-    [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
+    [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', schedulePerformanceRender));
     document.addEventListener('click', handlePerformanceFilterClick);
     document.addEventListener('click', handleAccountDeckManagerClick);
     document.addEventListener('click', handlePerformanceSortClick);
@@ -139,7 +139,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.addEventListener('click', handleDuelinkNavigationClick);
     document.addEventListener('click', handleInfoDotClick);
     [els.saveDeckSelect, els.saveDeckNameInput].forEach(el => el?.addEventListener('input', () => syncSaveButton()));
-    document.querySelectorAll('[data-app-view="performances"], [data-performance-view]').forEach(btn => btn.addEventListener('click', () => refreshSavedMatches({ silent:true })));
+    // V136.0K: do not refresh Supabase on every tab click; it caused INP spikes.
     els.cardModal?.addEventListener('click', e => { if(e.target === els.cardModal) closeCardModal(); });
     document.addEventListener('keydown', handleModalKeydown);
   }
@@ -1199,7 +1199,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       setApiStatus(`Base locale prête · ${state.cards.length} cartes`, 'ready');
       // V136.0J: images in history/stats are hydrated from the local card database.
       // Re-render once the dictionary is available so placeholders become card art.
-      try{ renderPerformanceData(); renderBulkQueue(); }catch(_err){}
+      try{ schedulePerformanceRender(); renderBulkQueue(); hydrateVisibleCardImages(); }catch(_err){}
     }catch(err){
       console.warn(err);
       setApiStatus('Base locale introuvable', 'error');
@@ -1211,8 +1211,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const start = () => {
       if(!state.cardLoadPromise) state.cardLoadPromise = loadLocalCards();
     };
-    if('requestIdleCallback' in window) window.requestIdleCallback(start, { timeout:1800 });
-    else window.setTimeout(start, 900);
+    if('requestIdleCallback' in window) window.requestIdleCallback(start, { timeout:4200 });
+    else window.setTimeout(start, 2400);
   }
 
   async function ensureLocalCardsLoaded(){
@@ -5184,7 +5184,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       toggleMultiFilterValue(targetId, btn.dataset.value);
       if(targetId === 'performanceColorFilter') clearSelectedFilterValues('performanceDeckFilter');
       if(targetId === 'historyColorFilter') clearSelectedFilterValues('historyDeckFilter');
-      renderPerformanceData();
+      schedulePerformanceRender();
       return;
     }
 
@@ -5202,7 +5202,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.performanceMulliganPlayFilter = 'all';
     state.performanceMulliganRecommendationFilter = 'all';
     state.performanceExpandedLists = { cards:false, mulligan:false };
-    renderPerformanceData();
+    schedulePerformanceRender();
   }
 
   function resetHistoryFilters(){
@@ -5211,7 +5211,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       clearSelectedFilterValues(id);
     });
     if(els.historySearchInput) els.historySearchInput.value = '';
-    renderPerformanceData();
+    schedulePerformanceRender();
   }
 
   function handlePerformanceDetailClick(event){
@@ -5221,6 +5221,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const allowed = ['overview','cards','mulligan','matchups','curves','data'];
     state.performanceDetailTab = allowed.includes(btn.dataset.performanceDetail) ? btn.dataset.performanceDetail : 'overview';
     renderPerformanceDetailPanels();
+    renderActivePerformanceDetailContent(state.lastPerformanceAnalytics || { turnCurve:[] });
   }
 
   function renderPerformanceDetailPanels(){
@@ -5817,16 +5818,49 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     renderPerformanceCoach(analytics, { total, wins, bo1, bo3, deckScoped });
     renderPerformanceActionPlan(analytics, { rows, total, wins, bo1, bo3, deckScoped });
-    renderPerformanceMatchups(rows, analytics, { deckScoped });
 
-    renderPerformanceTable(els.performanceCardImpactTable, performanceCardImpactHtml(analytics));
-    renderPerformanceTable(els.performanceMulliganTable, performanceMulliganHtml(analytics));
-    renderPerformanceTable(els.performanceTurnCurveTable, performanceTurnCurveHtml(analytics));
+    state.lastPerformanceRows = rows;
     state.lastPerformanceAnalytics = deckScoped ? analytics : { ...analytics, turnCurve:[] };
-    renderPerformanceCharts(state.lastPerformanceAnalytics);
     renderPerformanceDetailPanels();
-    bindPerformanceCardTiles();
-    bindPerformanceFullListButtons();
+    renderActivePerformanceDetailContent(state.lastPerformanceAnalytics, { rows, deckScoped });
+  }
+
+  function schedulePerformanceRender(){
+    if(state.performanceRenderScheduled) return;
+    state.performanceRenderScheduled = true;
+    requestAnimationFrame(() => {
+      state.performanceRenderScheduled = false;
+      renderPerformanceData();
+    });
+  }
+
+  function renderActivePerformanceDetailContent(analytics, meta={}){
+    const active = state.performanceDetailTab || 'overview';
+    const rows = meta.rows || state.lastPerformanceRows || filteredSavedMatches('stats');
+    const deckScoped = meta.deckScoped ?? isPerformanceDataScoped();
+    if(active === 'cards'){
+      renderPerformanceTable(els.performanceCardImpactTable, performanceCardImpactHtml(analytics));
+      bindPerformanceCardTiles();
+      bindPerformanceFullListButtons();
+      hydrateVisibleCardImages();
+      return;
+    }
+    if(active === 'mulligan'){
+      renderPerformanceTable(els.performanceMulliganTable, performanceMulliganHtml(analytics));
+      bindPerformanceCardTiles();
+      bindPerformanceFullListButtons();
+      hydrateVisibleCardImages();
+      return;
+    }
+    if(active === 'matchups'){
+      renderPerformanceMatchups(rows, analytics, { deckScoped });
+      return;
+    }
+    if(active === 'curves'){
+      renderPerformanceTable(els.performanceTurnCurveTable, performanceTurnCurveHtml(analytics));
+      requestAnimationFrame(() => renderPerformanceCharts(analytics));
+      return;
+    }
   }
 
   function isPerformanceDeckScoped(){
@@ -7501,7 +7535,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(filter === 'play') state.performanceMulliganPlayFilter = value;
     if(filter === 'recommendation') state.performanceMulliganRecommendationFilter = value;
     state.performanceExpandedLists = { ...(state.performanceExpandedLists || {}), mulligan:false };
-    renderPerformanceData();
+    schedulePerformanceRender();
   }
 
   function buildMulliganLabMeta(cards=[], games=[]){
@@ -7784,8 +7818,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const actionAxis = [['Tempo', actionTotals.play], ['Lore', actionTotals.quest], ['Board', actionTotals.challenge], ['Encrage', actionTotals.ink]].sort((a,b)=>b[1]-a[1])[0]?.[0] || 'Plan';
     const actionHtml = `<span>Plan moyen</span><strong>${esc(actionAxis)} dominant</strong><small>${esc(`${round1(actionTotals.play)} jouées · ${round1(actionTotals.quest)} quêtes · ${round1(actionTotals.challenge)} défis`)}</small>`;
     return `<div class="performance-charts-grid">
-      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Lore & main moyenne <button class="info-dot" type="button" data-info="La courbe est calculée tour par tour uniquement avec les parties qui atteignent réellement le tour affiché. Le repère de vitesse indique à quel tour moyen le deck atteint les paliers de lore. Les tours tardifs peuvent être moins représentatifs s’ils concernent peu de parties.">?</button></h3><p>Progression lore / main. <button class="info-dot" type="button" data-info="Cette courbe compare le lore moyen et la taille de main moyenne sur les parties filtrées. Elle sert à voir quand le deck accélère, s’essouffle ou atteint ses paliers de victoire.">?</button></p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceLoreAvgChart">${speedHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceLoreAvgChart" aria-label="Courbe moyenne de lore et de main"></canvas></div></article>
-      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Plan de jeu par tour <button class="info-dot" type="button" data-info="Chaque barre montre ce que le deck fait en moyenne à ce tour : encrer, jouer des cartes, quêter ou défier. Les tours tardifs utilisent uniquement les parties qui les atteignent réellement.">?</button></h3><p>Actions moyennes. <button class="info-dot" type="button" data-info="Cette courbe aide à lire le rythme du deck : combien de cartes sont encrées, jouées, envoyées à l’aventure ou utilisées en défi à chaque tour moyen.">?</button></p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceActionAvgChart">${actionHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceActionAvgChart" aria-label="Actions moyennes par tour"></canvas></div></article>
+      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Lore & main moyenne <button class="info-dot" type="button" data-info="La courbe est calculée tour par tour uniquement avec les parties qui atteignent réellement le tour affiché. Le repère de vitesse indique à quel tour moyen le deck atteint les paliers de lore. Les tours tardifs peuvent être moins représentatifs s’ils concernent peu de parties.">?</button></h3><p>Progression lore / main.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceLoreAvgChart">${speedHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceLoreAvgChart" aria-label="Courbe moyenne de lore et de main"></canvas></div></article>
+      <article class="performance-chart-card"><div class="section-head compact"><div><h3>Plan de jeu par tour <button class="info-dot" type="button" data-info="Chaque barre montre ce que le deck fait en moyenne à ce tour : encrer, jouer des cartes, quêter ou défier. Les tours tardifs utilisent uniquement les parties qui les atteignent réellement.">?</button></h3><p>Actions moyennes.</p></div></div><div class="chart-fixed-readout" data-chart-readout-for="performanceActionAvgChart">${actionHtml}</div><div class="chart-wrap performance-chart-wrap"><canvas id="performanceActionAvgChart" aria-label="Actions moyennes par tour"></canvas></div></article>
     </div>`;
   }
 
@@ -10151,7 +10185,59 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
   function field(label, value){ return `<div class="detail-field"><small>${esc(label)}</small><strong>${esc(value)}</strong></div>`; }
   function initials(name){ return String(name || '?').split(/\s+|-+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?'; }
-  function cardThumbHtml(c, cls='thumb'){ const img = c.imageSmall || c.image; const label = fullName(c) || 'Carte Lorcana'; return img ? `<img class="${esc(cls)}" src="${esc(img)}" alt="${escAttr(label)}" loading="lazy">` : `<span class="${esc(cls)} thumb-placeholder" aria-label="Image indisponible pour ${escAttr(label)}">${esc(initials(label))}</span>`; }
+
+  function lorcastLookupParams(c={}){
+    const hydrated = c || {};
+    const code = normalizeSetCode(hydrated.setCode || hydrated.set || hydrated.raw?.setCodes?.[0] || hydrated.raw?.set || '');
+    const setNum = SET_CODE_TO_NUM[code] || (String(code || '').match(/^\d+$/) ? code : '');
+    const number = strip0(hydrated.number || hydrated.cardNumber || hydrated.collector_number || hydrated.raw?.number || hydrated.raw?.cardNumber || '');
+    return setNum && number ? { setNum, number } : null;
+  }
+
+  function cardThumbHtml(c, cls='thumb'){
+    const img = c.imageSmall || c.image;
+    const label = fullName(c) || 'Carte Lorcana';
+    if(img) return `<img class="${esc(cls)}" src="${esc(img)}" alt="${escAttr(label)}" loading="lazy">`;
+    const lookup = lorcastLookupParams(c);
+    const attrs = lookup ? ` data-lorcast-set="${escAttr(lookup.setNum)}" data-lorcast-number="${escAttr(lookup.number)}" data-card-label="${escAttr(label)}"` : '';
+    return `<span class="${esc(cls)} thumb-placeholder lorcast-image-placeholder"${attrs} aria-label="Image indisponible pour ${escAttr(label)}">${esc(initials(label))}</span>`;
+  }
+
+  function hydrateVisibleCardImages(root=document){
+    const nodes = [...root.querySelectorAll('.lorcast-image-placeholder[data-lorcast-set][data-lorcast-number]')].slice(0, 24);
+    nodes.forEach(node => {
+      const key = `${node.dataset.lorcastSet}/${node.dataset.lorcastNumber}`;
+      if(state.lorcastImageCache?.has(key)){
+        const url = state.lorcastImageCache.get(key);
+        if(url) replacePlaceholderWithImage(node, url);
+        return;
+      }
+      if(state.lorcastImagePending?.has(key)) return;
+      state.lorcastImagePending.add(key);
+      fetch(`https://api.lorcast.com/v0/cards/${encodeURIComponent(node.dataset.lorcastSet)}/${encodeURIComponent(node.dataset.lorcastNumber)}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(card => {
+          const url = getCardImage(card || {}, 'small') || getCardImage(card || {}, 'normal') || '';
+          state.lorcastImageCache.set(key, url);
+          document.querySelectorAll(`.lorcast-image-placeholder[data-lorcast-set="${CSS.escape(node.dataset.lorcastSet)}"][data-lorcast-number="${CSS.escape(node.dataset.lorcastNumber)}"]`).forEach(el => {
+            if(url) replacePlaceholderWithImage(el, url);
+          });
+        })
+        .catch(() => state.lorcastImageCache.set(key, ''))
+        .finally(() => state.lorcastImagePending.delete(key));
+    });
+  }
+
+  function replacePlaceholderWithImage(node, url){
+    if(!node || !url || node.dataset.hydratedImage === '1') return;
+    node.dataset.hydratedImage = '1';
+    const img = document.createElement('img');
+    img.className = node.className.replace('thumb-placeholder','').replace('lorcast-image-placeholder','').trim() || 'thumb';
+    img.src = url;
+    img.alt = node.dataset.cardLabel || node.getAttribute('aria-label') || 'Carte Lorcana';
+    img.loading = 'lazy';
+    node.replaceWith(img);
+  }
 
   function cssThemeColors(){
     const styles = getComputedStyle(document.documentElement);
