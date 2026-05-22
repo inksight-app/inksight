@@ -20,7 +20,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), authExplicitlySignedOut:false, authVerifyPending:false, lorcastImageCache:new Map(), lorcastImagePending:new Set(), performanceRenderScheduled:false };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), authExplicitlySignedOut:false, authVerifyPending:false, lorcastImageCache:new Map(), lorcastImagePending:new Set(), performanceImageCache:new Map(), performanceImagePending:new Set(), performanceRenderScheduled:false };
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -5843,6 +5843,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       bindPerformanceCardTiles();
       bindPerformanceFullListButtons();
       hydrateVisibleCardImages();
+      hydratePerformanceImagesFromSavedAnalysis();
       return;
     }
     if(active === 'mulligan'){
@@ -5850,6 +5851,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       bindPerformanceCardTiles();
       bindPerformanceFullListButtons();
       hydrateVisibleCardImages();
+      hydratePerformanceImagesFromSavedAnalysis();
       return;
     }
     if(active === 'matchups'){
@@ -7359,7 +7361,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function performanceMiniCardSignalHtml(card, meta=''){
     const view = performanceCardView(card);
-    return `<button type="button" class="mini-card-signal-btn" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}">
+    return `<button type="button" class="mini-card-signal-btn" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}" data-performance-match-ids="${escAttr((card.samples || []).map(s => s.matchId).filter(Boolean).slice(0,3).join(','))}">
       <span class="mini-card-signal-art">${cardThumbHtml(view, 'mini-card-signal-thumb')}</span>
       <span class="mini-card-signal-copy"><strong>${esc(card.name || 'Carte')}</strong><small>${esc(meta)}</small></span>
     </button>`;
@@ -7509,7 +7511,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const winLabel = card.gamesPlayed ? (sampleWeak ? 'À confirmer' : `${card.playedWr}% WR`) : 'Peu jouée';
     const inkPercent = Math.min(100, Math.round((n(card.inked) / Math.max(1, n(card.seen))) * 100));
     const badges = performanceCardStatusBadges(card);
-    return `<article class="performance-card-tile performance-card-tile-v2 is-clickable" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}">
+    return `<article class="performance-card-tile performance-card-tile-v2 is-clickable" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}" data-performance-match-ids="${escAttr((card.samples || []).map(s => s.matchId).filter(Boolean).slice(0,3).join(','))}">
       <div class="performance-card-art">${cardThumbHtml(view, 'performance-card-thumb')}</div>
       <div class="performance-card-body">
         <h3>${esc(performanceDisplayName(card))}</h3>
@@ -7794,7 +7796,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const decisionTag = deadWeight.hasSignal && deadWeight.tone === 'danger' && keep >= 45 ? deadWeight.label : mulliganShortTag(recommendation, keep, throwPct, copyPattern);
     const wrBadge = card.keptGames >= 8 ? `${card.keptWr}% WR gardée` : `${n(card.opening)} mains`;
     const deadWeightTag = deadWeight.hasSignal ? `<span class="mulligan-dead-weight-tag ${escAttr(deadWeight.tone)}">${esc(deadWeight.detail)}</span>` : '';
-    return `<article class="mulligan-visual-card mulligan-lab-card mulligan-lab-card-v2 is-clickable ${escAttr(deadWeight.hasSignal && deadWeight.tone === 'danger' ? 'danger' : (recommendation.tone || 'neutral'))}" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(displayName)}">
+    return `<article class="mulligan-visual-card mulligan-lab-card mulligan-lab-card-v2 is-clickable ${escAttr(deadWeight.hasSignal && deadWeight.tone === 'danger' ? 'danger' : (recommendation.tone || 'neutral'))}" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(displayName)}" data-performance-match-ids="${escAttr((card.samples || []).map(s => s.matchId).filter(Boolean).slice(0,3).join(','))}">
       <div class="mulligan-visual-art">${cardThumbHtml(view, 'mulligan-visual-thumb')}</div>
       <div class="mulligan-visual-body">
         <div class="mulligan-card-head"><h3>${esc(displayName)}</h3><span class="mulligan-rec ${escAttr(recommendation.tone || 'neutral')}">${esc(decisionTag)}</span></div>
@@ -10142,7 +10144,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const c = hydrateCard(card);
     els.modalBody.innerHTML = cardDetailHtml(c);
     els.cardModal.classList.add('active'); els.cardModal.setAttribute('aria-hidden','false');
-    setTimeout(() => { els.cardModal.querySelector('.modal-card')?.focus(); }, 0);
+    setTimeout(() => { els.cardModal.querySelector('.modal-card')?.focus(); hydrateVisibleCardImages(els.cardModal); }, 0);
   }
   function closeCardModal(){
     els.cardModal.classList.remove('active'); els.cardModal.setAttribute('aria-hidden','true'); els.modalBody.innerHTML='';
@@ -10153,7 +10155,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const color = inkKey(c.colors?.[0] || c.color);
     const text = formatCardText(c.text || abilityText(c));
     const detailImage = c.image || c.imageSmall;
-    const imageHtml = detailImage ? `<img src="${esc(detailImage)}" alt="${esc(fullName(c))}" loading="lazy">` : `<div class="card-art-placeholder"><strong>${esc(initials(fullName(c)))}</strong><span>${esc(fullName(c))}</span><small>Image indisponible</small></div>`;
+    const lookup = lorcastLookupParams(c);
+    const lookupAttrs = lookup ? ` data-lorcast-set="${escAttr(lookup.setNum)}" data-lorcast-number="${escAttr(lookup.number)}" data-card-label="${escAttr(fullName(c))}"` : '';
+    const imageHtml = detailImage ? `<img src="${esc(detailImage)}" alt="${esc(fullName(c))}" loading="lazy">` : `<div class="card-art-placeholder lorcast-image-placeholder"${lookupAttrs}><strong>${esc(initials(fullName(c)))}</strong><span>${esc(fullName(c))}</span><small>Image indisponible</small></div>`;
     const universe = cardUniverse(c);
     const artists = cardArtists(c);
     return `<div class="card-detail"><div class="card-image">${imageHtml}</div><div class="card-detail-main"><section class="detail-panel"><div class="kicker">Carte</div><h2 class="detail-title"><span class="ink-dot ink-${color}"></span>${esc(fullName(c))}</h2><div class="chip-row"><span class="chip">${esc(setLabel(c) || 'Chapitre inconnu')}</span><span class="chip">${esc(rarityLabel(c.rarity) || 'Rareté —')}</span><span class="chip">#${esc(c.number || '—')}</span><span class="chip">${esc(inkLabel(c.colors?.[0]) || 'Encre —')}</span></div><div class="detail-grid" style="margin-top:1rem">${field('Type', typeLabel(c.type))}${field('Coût', c.cost ?? '—')}${field('Encrable', c.inkable === true ? 'Oui' : c.inkable === false ? 'Non' : '—')}${field('Rareté', rarityLabel(c.rarity) || '—')}${field('Force', c.strength ?? '—')}${field('Volonté', c.willpower ?? '—')}${field('Lore', c.lore ?? '—')}</div></section><section class="detail-panel detail-panel-info"><div class="kicker">Informations</div><div class="detail-grid">${field('Chapitre', setLabel(c) || '—')}${field('Univers', universe)}${field('Artiste(s)', artists)}</div></section>${text ? `<section class="detail-panel"><div class="kicker">Texte de carte</div><div class="card-text">${text}</div></section>` : ''}<section class="detail-panel"><div class="kicker">Classifications</div><div class="chip-row">${(c.classifications || []).length ? c.classifications.map(x=>`<span class="chip">${esc(x)}</span>`).join('') : '<span class="chip">—</span>'}</div></section></div></div>`;
@@ -10204,7 +10208,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function hydrateVisibleCardImages(root=document){
-    const nodes = [...root.querySelectorAll('.lorcast-image-placeholder[data-lorcast-set][data-lorcast-number]')].slice(0, 24);
+    const nodes = [...root.querySelectorAll('.lorcast-image-placeholder[data-lorcast-set][data-lorcast-number]')].slice(0, 80);
     nodes.forEach(node => {
       const key = `${node.dataset.lorcastSet}/${node.dataset.lorcastNumber}`;
       if(state.lorcastImageCache?.has(key)){
@@ -10226,6 +10230,64 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         .catch(() => state.lorcastImageCache.set(key, ''))
         .finally(() => state.lorcastImagePending.delete(key));
     });
+  }
+
+  function hydratePerformanceImagesFromSavedAnalysis(root=document){
+    const nodes = [...root.querySelectorAll('[data-performance-card-name], [data-performance-card-key]')].filter(node => node.querySelector?.('.thumb-placeholder, .lorcast-image-placeholder'));
+    nodes.slice(0, 24).forEach(node => {
+      const cardName = cleanCardName(node.dataset.performanceCardName || '');
+      const cardKeyValue = String(node.dataset.performanceCardKey || '');
+      const matchIds = String(node.dataset.performanceMatchIds || '').split(',').map(v => v.trim()).filter(Boolean).slice(0, 2);
+      const cacheKey = slug(cardKeyValue || cardName);
+      if(!cacheKey || !matchIds.length) return;
+      const cached = state.performanceImageCache?.get(cacheKey);
+      if(cached){
+        node.querySelectorAll('.thumb-placeholder, .lorcast-image-placeholder').forEach(el => replacePlaceholderWithImage(el, cached));
+        return;
+      }
+      if(state.performanceImagePending?.has(cacheKey)) return;
+      state.performanceImagePending.add(cacheKey);
+      supabase.from('saved_matches').select('id,analysis_json').in('id', matchIds).limit(matchIds.length)
+        .then(({ data }) => {
+          const rows = Array.isArray(data) ? data : [];
+          let found = null;
+          for(const row of rows){
+            found = findCardImageInAnalysis(row.analysis_json, { cardName, cardKey:cardKeyValue });
+            if(found) break;
+          }
+          if(found){
+            state.performanceImageCache.set(cacheKey, found);
+            node.querySelectorAll('.thumb-placeholder, .lorcast-image-placeholder').forEach(el => replacePlaceholderWithImage(el, found));
+          }
+        })
+        .catch(() => {})
+        .finally(() => state.performanceImagePending.delete(cacheKey));
+    });
+  }
+
+  function findCardImageInAnalysis(analysisJson, target={}){
+    const analysis = parseStoredJson(analysisJson);
+    const wantedName = slug(target.cardName || '');
+    const wantedKey = slug(target.cardKey || '');
+    const pools = [];
+    const push = value => { if(Array.isArray(value)) pools.push(value); };
+    push(analysis?.cards?.mine); push(analysis?.cards?.opponent); push(analysis?.cardStats);
+    push(analysis?.mulligan?.initial); push(analysis?.mulligan?.kept); push(analysis?.mulligan?.replaced);
+    (analysis?.games || []).forEach(game => {
+      push(game?.cards?.mine); push(game?.cards?.opponent); push(game?.mulligan?.initial); push(game?.mulligan?.kept); push(game?.mulligan?.replaced);
+    });
+    for(const cards of pools){
+      for(const raw of cards || []){
+        const card = hydrateCard(raw);
+        const name = slug(fullName(card) || raw?.cardName || raw?.name || '');
+        const key = slug(cardKey(card) || raw?.cardKey || raw?.key || '');
+        if((wantedName && (name === wantedName || name.includes(wantedName) || wantedName.includes(name))) || (wantedKey && key === wantedKey)){
+          const url = card.imageSmall || card.image || getCardImage(card, 'small') || getCardImage(card, 'normal');
+          if(url) return url;
+        }
+      }
+    }
+    return '';
   }
 
   function replacePlaceholderWithImage(node, url){

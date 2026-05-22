@@ -14105,3 +14105,158 @@ html, body { overflow-x: hidden; }
     padding-inline:.65rem!important;
   }
 }
+
+/* =========================================================
+   V136.0L — final UI stability overrides
+   Corrige les derniers effets de bord V136.0J/K : navigation, tabs, auth, filtres, textes.
+========================================================= */
+.app-main-nav,
+.app-nav{
+  display:inline-grid!important;
+  grid-auto-flow:column!important;
+  grid-auto-columns:minmax(0,1fr)!important;
+  width:min(100%, 360px)!important;
+  gap:4px!important;
+  padding:4px!important;
+}
+.app-nav-button{
+  min-width:0!important;
+  width:100%!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  text-align:center!important;
+  font-size:clamp(.68rem, 1.7vw, .82rem)!important;
+  padding:.46rem .55rem!important;
+}
+.performance-tabs{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  width:100%!important;
+  gap:8px!important;
+}
+.performance-tab{
+  width:100%!important;
+  min-width:0!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  text-align:center!important;
+}
+.account-auth-card,
+.auth-card,
+#accountAuthCard,
+#accountLoginCard{
+  width:min(100%, 760px)!important;
+  margin-inline:auto!important;
+  text-align:center!important;
+}
+.account-auth-card .auth-actions,
+.auth-card .auth-actions,
+.account-auth-card form,
+.auth-card form{
+  display:grid!important;
+  justify-items:center!important;
+}
+.auth-btn-discord,
+#discordLoginButton,
+button[data-auth-provider="discord"]{
+  width:min(100%, 420px)!important;
+  max-width:420px!important;
+  margin-inline:auto!important;
+  justify-content:center!important;
+  text-align:center!important;
+}
+.performance-filter-bar-viz:not(.filters-open) .performance-filter-controls-viz{
+  display:none!important;
+}
+.performance-filter-bar-viz.filters-open .performance-filter-controls-viz{
+  display:grid!important;
+}
+.performance-filter-bar-viz:not(.filters-open){
+  gap:0!important;
+}
+.performance-filter-controls-viz,
+.filter-pill-block,
+.filter-pill-row,
+.performance-detail-tabs,
+.performance-tabs,
+.performance-card-gallery,
+.performance-charts-grid{
+  min-width:0!important;
+  max-width:100%!important;
+}
+.performance-card-tile,
+.mulligan-visual-card,
+.matchup-breakdown-card,
+.performance-chart-card,
+.metric-card,
+.performance-trend-card,
+.performance-coach-card,
+.detail-panel,
+.history-detail,
+.duelink-sync-summary-card,
+.duelink-account-card{
+  min-width:0!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+.performance-card-body,
+.mulligan-visual-body,
+.mini-card-signal-copy,
+.matchup-breakdown-title,
+.section-head,
+.section-head > div,
+.performance-chart-card p,
+.performance-card-body h3,
+.mulligan-card-head h3,
+.detail-title,
+.history-title{
+  min-width:0!important;
+  max-width:100%!important;
+}
+.performance-card-body h3,
+.mulligan-card-head h3,
+.performance-chart-card h3,
+.section-head h2,
+.section-head h3,
+.detail-title,
+.history-title,
+.metric-card strong,
+.performance-trend-card strong{
+  overflow-wrap:anywhere!important;
+  word-break:normal!important;
+}
+.performance-chart-card p,
+.section-head p,
+.performance-subtitle,
+.performance-panel p,
+.performance-filter-bar-viz p{
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  display:-webkit-box!important;
+  -webkit-line-clamp:2!important;
+  -webkit-box-orient:vertical!important;
+}
+.card-art-placeholder.lorcast-image-placeholder,
+.thumb-placeholder.lorcast-image-placeholder{
+  display:grid!important;
+  place-items:center!important;
+  text-align:center!important;
+  overflow:hidden!important;
+}
+.card-art-placeholder.lorcast-image-placeholder img,
+.thumb-placeholder.lorcast-image-placeholder img{
+  width:100%!important;
+  height:100%!important;
+  object-fit:cover!important;
+}
+@media(max-width:780px){
+  .app-main-nav,.app-nav{width:min(100%, 280px)!important;}
+  .app-nav-button{font-size:.68rem!important;padding:.42rem .36rem!important;}
+  .performance-tabs{gap:6px!important;padding:6px!important;}
+  .performance-tab{min-height:46px!important;font-size:.82rem!important;padding:.35rem .45rem!important;}
+}
