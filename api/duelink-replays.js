@@ -86,7 +86,6 @@ export default async function handler(req, res) {
       missing,
     });
   } catch (error) {
-    const status = error?.code === 'AUTH_REQUIRED' || error?.code === 'TOKEN_MISSING' ? 401 : 500;
-    return json(res, status, { success: false, error: error?.message || 'Erreur inconnue pendant la récupération des replays Duel.ink.' });
+    return json(res, 500, { success: false, error: error?.message || 'Erreur inconnue pendant la récupération des replays Duel.ink.' });
   }
 }
