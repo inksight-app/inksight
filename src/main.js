@@ -568,13 +568,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
-  async function duelinkAuthHeaders(extra={}){
-    const headers = { ...extra };
+  async function getSupabaseAccessTokenForApi({ required=false }={}){
     try{
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data?.session?.access_token;
-      if(accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    }catch(err){ console.warn('Session Supabase indisponible pour Duel.ink', err); }
+      const { data, error } = await supabase.auth.getSession();
+      if(error) throw error;
+      const accessToken = data?.session?.access_token || '';
+      if(accessToken) return accessToken;
+    }catch(err){
+      console.warn('Session Supabase indisponible pour Duel.ink', err);
+      if(required) throw new Error('Connexion InkSight requise pour utiliser la clé Duel.ink mémorisée. Rechargez la page puis reconnectez-vous si nécessaire.');
+    }
+    if(required) throw new Error('Session InkSight introuvable. Rechargez la page avant de relancer l’import Duel.ink.');
+    return '';
+  }
+
+  async function duelinkAuthHeaders(extra={}, options={}){
+    const headers = { ...extra };
+    const accessToken = await getSupabaseAccessTokenForApi({ required:Boolean(options.required) });
+    if(accessToken) headers.Authorization = `Bearer ${accessToken}`;
     return headers;
   }
 
@@ -621,7 +632,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const response = await fetch('/api/duelink-token', {
         method:'GET',
-        headers: await duelinkAuthHeaders(),
+        headers: await duelinkAuthHeaders({}, { required:true }),
       });
       const payload = await response.json().catch(() => ({}));
       if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
@@ -652,7 +663,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const response = await fetch('/api/duelink-token', {
         method:'POST',
-        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }, { required:true }),
         body: JSON.stringify({ token })
       });
       const payload = await response.json().catch(() => ({}));
@@ -676,7 +687,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const response = await fetch('/api/duelink-token', {
         method:'DELETE',
-        headers: await duelinkAuthHeaders(),
+        headers: await duelinkAuthHeaders({}, { required:true }),
       });
       const payload = await response.json().catch(() => ({}));
       if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
@@ -693,7 +704,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   async function downloadDuelinkReplayBuffer(tokenPayload, replayId){
     const response = await fetch('/api/duelink-download', {
       method:'POST',
-      headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+      headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }, { required:!tokenPayload?.token }),
       body:JSON.stringify({ ...(tokenPayload || {}), id:replayId })
     });
     if(!response.ok){
@@ -800,7 +811,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         const chunkIds = ids.slice(offset, offset + chunkSize);
         const manifestResponse = await fetch('/api/duelink-replays', {
           method:'POST',
-          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }, { required:!tokenPayload.token }),
           body:JSON.stringify({ ...tokenPayload, ids:chunkIds })
         });
         const manifest = await manifestResponse.json().catch(() => ({}));
@@ -1024,7 +1035,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         page += 1;
         const response = await fetch('/api/duelink-history', {
           method:'POST',
-          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }, { required:!tokenPayload.token }),
           body:JSON.stringify({ ...tokenPayload, limit:1000, cursor })
         });
         const payload = await response.json().catch(() => ({}));
@@ -1103,7 +1114,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const response = await fetch('/api/duelink-history', {
         method:'POST',
-        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }, { required:!tokenPayload.token }),
         body:JSON.stringify({ ...tokenPayload, limit:5 })
       });
       const payload = await response.json().catch(() => ({}));
