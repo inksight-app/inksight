@@ -1,5 +1,5 @@
 import './style.css';
-import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatches, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatches, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
 
 (() => {
   'use strict';
@@ -795,7 +795,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const ids = rows.map(row => row.game.replayId);
       const fileById = new Map();
       const missingIds = new Set();
-      const chunkSize = 1000;
+      const chunkSize = 10;
       for(let offset = 0; offset < ids.length; offset += chunkSize){
         const chunkIds = ids.slice(offset, offset + chunkSize);
         const manifestResponse = await fetch('/api/duelink-replays', {
@@ -4312,23 +4312,41 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }));
   }
 
-  function loadSavedAnalysis(row){
-    if(!row || !row.analysis_json){
+  async function ensureFullSavedMatch(row){
+    if(!row?.id) return row;
+    if(row.analysis_json) return row;
+    if(els.historyStatus) els.historyStatus.textContent = 'Chargement de l’analyse complète…';
+    const fullRow = await getSavedMatch(row.id);
+    if(fullRow?.id){
+      state.savedMatches = (state.savedMatches || []).map(item => item.id === fullRow.id ? { ...item, ...fullRow } : item);
+      if(state.selectedSavedMatchId === fullRow.id) renderPerformanceData();
+      return { ...row, ...fullRow };
+    }
+    return row;
+  }
+
+  async function loadSavedAnalysis(row){
+    if(!row){
       if(els.historyStatus) els.historyStatus.textContent = 'Analyse sauvegardée introuvable.';
       return;
     }
     try{
-      const runtime = savedRowToRuntimeState(row);
+      const fullRow = await ensureFullSavedMatch(row);
+      if(!fullRow?.analysis_json){
+        if(els.historyStatus) els.historyStatus.textContent = 'Analyse complète indisponible pour ce match.';
+        return;
+      }
+      const runtime = savedRowToRuntimeState(fullRow);
       state.replays = runtime.replays;
       state.sessions = runtime.sessions;
       state.merged = runtime.merged;
       state.isBO3 = runtime.isBO3;
       state.viewMode = runtime.isBO3 ? 'global' : 0;
-      state.matchMeta = { source:'saved_match', id:row.id, created_at:row.created_at };
+      state.matchMeta = { source:'saved_match', id:fullRow.id, created_at:fullRow.created_at };
       state.mulliganResolved = false;
-      state.lastSavedMatchId = row.id;
-      state.loadedSavedMatchId = row.id;
-      state.selectedSavedMatchId = row.id;
+      state.lastSavedMatchId = fullRow.id;
+      state.loadedSavedMatchId = fullRow.id;
+      state.selectedSavedMatchId = fullRow.id;
       if(state.isBO3) state.cardFilter = 'opponent';
       document.body.classList.toggle('empty-state', !state.sessions.length);
       document.body.classList.toggle('has-results', !!state.sessions.length);
@@ -5448,7 +5466,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.savedMatchesLoading = true;
       if(!options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
       const previousRows = Array.isArray(state.savedMatches) ? state.savedMatches : [];
-      const rows = await listSavedMatches(5000);
+      const rows = await listSavedMatches(500);
       const nextRows = Array.isArray(rows) ? rows : [];
       // If a forced refresh returns an empty array immediately after a batch import while
       // we had visible rows, treat it as suspicious and keep the previous UI until retry.
@@ -8225,9 +8243,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       };
     });
     document.querySelectorAll('[data-load-saved]').forEach(button => {
-      button.onclick = () => {
+      button.onclick = async () => {
         const row = state.savedMatches.find(item => item.id === button.dataset.loadSaved);
-        loadSavedAnalysis(row);
+        await loadSavedAnalysis(row);
       };
     });
 
@@ -8431,7 +8449,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       </div>
     </div>`;
     els.historyDetail.querySelectorAll('[data-load-saved]').forEach(button => {
-      button.onclick = () => loadSavedAnalysis(row);
+      button.onclick = async () => loadSavedAnalysis(row);
     });
   }
 

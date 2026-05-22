@@ -268,6 +268,7 @@ async function insertMany(table, rows, chunkSize = 500) {
 }
 
 export async function listSavedMatches(limit = 100) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 500);
   const { data, error } = await supabase
     .from('saved_matches')
     .select([
@@ -304,11 +305,10 @@ export async function listSavedMatches(limit = 100) {
       'avg_turns',
       'final_mine_lore',
       'final_opp_lore',
-      'analysis_json',
     ].join(','))
     .order('played_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
-    .limit(limit);
+    .limit(safeLimit);
 
   if (error) throw error;
 
