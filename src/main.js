@@ -7023,32 +7023,32 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         tone:'primary',
         label:'Priorité',
         title:'Renforcer l’échantillon',
-        text:'Augmentez le volume avant de tirer des conclusions fortes sur les cartes et les matchups.',
-        meta:'Axe de test'
+        text:`${total} analyse${total > 1 ? 's' : ''} seulement : les tendances sont utiles, mais pas encore assez solides pour conclure.`,
+        meta:'Objectif : 10 à 15 games'
       });
     }else if(wr < 45){
       actions.push({
         tone:'danger',
         label:'Priorité',
         title:'Identifier la cause des défaites',
-        text:'Commencez par les matchups faibles et les tours où la main s’épuise.',
-        meta:'Axe de test'
+        text:`${wr}% de winrate sur l’échantillon filtré. Commencez par les matchups faibles et les tours où la main s’épuise.`,
+        meta:`${wins}/${total} victoires`
       });
     }else if(wr >= 60){
       actions.push({
         tone:'success',
         label:'Priorité',
         title:'Conserver le plan actuel',
-        text:'Le deck performe sur ce contexte. Cherchez plutôt les ajustements matchup par matchup que les gros changements.',
-        meta:'Axe de test'
+        text:`${wr}% de winrate : le deck performe. Cherchez plutôt les ajustements matchup par matchup que les gros changements.`,
+        meta:`${wins}/${total} victoires`
       });
     }else{
       actions.push({
         tone:'primary',
         label:'Priorité',
         title:'Stabiliser les matchups',
-        text:'Le deck est jouable. Les écarts par matchup et OTP/OTD doivent guider les prochains tests.',
-        meta:'Axe de test'
+        text:`${wr}% de winrate : le deck est jouable, mais les écarts par matchup et OTP/OTD doivent guider les prochains tests.`,
+        meta:`${wins}/${total} victoires`
       });
     }
 
@@ -8049,9 +8049,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function historySourceBadgesHtml(row){
     const sourceType = String(row?.source_type || row?.analysis_json?.source_type || 'manual').toLowerCase();
-    const sourceLabel = sourceType.includes('duelink') ? 'Duel.ink' : 'Manuel';
+    const sourceLabel = sourceType.includes('duelink') ? 'Duel.ink API' : 'Manuel';
     const sourceClass = sourceType.includes('duelink') ? 'api' : 'manual';
-    return `<span class="history-source-badges"><em class="history-source-badge ${escAttr(sourceClass)}">${esc(sourceLabel)}</em></span>`;
+    const mode = String(row?.duelink_source || row?.analysis_json?.api_metadata?.source || '').trim();
+    const queue = String(row?.duelink_queue || row?.analysis_json?.api_metadata?.queue || '').trim();
+    const modeLabel = mode ? mode.replace(/_/g, ' ') : '';
+    const queueLabel = queue ? queue.replace(/_/g, ' ') : '';
+    return `<span class="history-source-badges"><em class="history-source-badge ${escAttr(sourceClass)}">${esc(sourceLabel)}</em>${modeLabel ? `<em class="history-source-badge mode">${esc(modeLabel)}</em>` : ''}${queueLabel ? `<em class="history-source-badge queue">${esc(queueLabel)}</em>` : ''}</span>`;
   }
 
   function savedMatchRowHtml(row){
