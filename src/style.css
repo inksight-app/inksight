@@ -15065,3 +15065,155 @@ button[data-performance-full-list]::after,
   .mobile-bottom-nav{display:none!important;}
   .main-shell{padding-bottom:24px!important;}
 }
+
+/* =========================================================
+   V136.0X — Correctif ciblé largeur mobile + stats lisibles
+   Base : V136.0W. Aucun calcul, Supabase, Duel.ink ou image modifié.
+   ========================================================= */
+@media (max-width: 820px){
+  :root{
+    --v136x-mobile-x: 16px;
+    --v136x-panel-w: calc(100vw - (var(--v136x-mobile-x) * 2));
+    --v136x-panel-gap: 18px;
+  }
+
+  html,
+  body{
+    overflow-x:hidden!important;
+    max-width:100vw!important;
+  }
+
+  .app-shell,
+  .main-shell,
+  .app-view,
+  .app-view-page,
+  .tab-section,
+  .performance-panel,
+  .performance-detail-panel{
+    width:100%!important;
+    max-width:100vw!important;
+    min-width:0!important;
+    overflow-x:hidden!important;
+    box-sizing:border-box!important;
+  }
+
+  .main-shell{
+    padding-inline:0!important;
+  }
+
+  /* Règle mère : tous les grands blocs mobiles se calent sur les mêmes bords. */
+  #view-analysis > .hero-section,
+  #view-analysis > .upload-grid,
+  #view-analysis > #analysisTabs,
+  #tab-overview > *,
+  #tab-stats > *,
+  #tab-cards > *,
+  #tab-timeline > *,
+  #view-performances > .app-page-hero,
+  #view-performances > .performance-tabs,
+  #view-performances > .performance-login-hint,
+  #performance-stats > *,
+  #performance-history > *,
+  #view-account > .app-page-hero,
+  #view-account > .account-auth-wrapper,
+  #view-account > .duelink-connect-section,
+  #view-account > .duelink-sync-card,
+  #view-account > .deck-manager-section{
+    width:var(--v136x-panel-w)!important;
+    max-width:var(--v136x-panel-w)!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    box-sizing:border-box!important;
+    justify-self:center!important;
+  }
+
+  /* Les panneaux internes ne doivent pas recréer une largeur différente. */
+  .upload-card,
+  .loaded-card,
+  .match-read,
+  .stats-header,
+  .cards-panel,
+  .timeline-panel,
+  .stat-panel,
+  .chart-panel,
+  .mulligan-panel,
+  .performance-filter-bar-viz,
+  .performance-analytics-panel,
+  .performance-matchup-panel,
+  .performance-chart-card,
+  .history-toolbar-viz,
+  .history-list,
+  .history-detail,
+  .account-card,
+  .duelink-sync-card{
+    max-width:100%!important;
+    box-sizing:border-box!important;
+    overflow-x:hidden!important;
+  }
+
+  /* Le bloc Replays importés reste lisible et moins écrasé. */
+  .loaded-card .section-head.compact h2{
+    font-size:clamp(2rem,9vw,2.7rem)!important;
+    max-width:100%!important;
+  }
+  .loaded-card .section-head.compact,
+  .loaded-card .file-list{
+    min-width:0!important;
+    max-width:100%!important;
+  }
+
+  /* Les onglets d’analyse gardent les mêmes marges que les cartes. */
+  #analysisTabs{
+    padding-inline:0!important;
+  }
+
+  /* Journal : le sous-texte ne doit plus sortir du panneau. */
+  .timeline-panel .section-head p{
+    display:none!important;
+  }
+  .section-head p,
+  .stats-header p,
+  .cards-panel .section-head p,
+  .chart-panel .section-head p,
+  .stat-panel .section-head p{
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    max-width:100%!important;
+    word-break:normal!important;
+    overflow-wrap:break-word!important;
+  }
+
+  /* Vue d’ensemble Stats : éviter les doublons visibles sur mobile.
+     On garde les 2 signaux essentiels : volume + winrate. */
+  #performance-stats .performance-kpis .performance-context-card,
+  #performance-stats .performance-deck-coach{
+    display:none!important;
+  }
+  #performance-stats .performance-kpis{
+    grid-template-columns:1fr!important;
+    gap:var(--v136x-panel-gap)!important;
+  }
+
+  /* Empêcher les titres/chiffres de pousser les cartes hors écran. */
+  .metric-card,
+  .pro-card{
+    min-width:0!important;
+    overflow:hidden!important;
+  }
+  .metric-card strong,
+  .pro-card strong{
+    max-width:100%!important;
+    overflow-wrap:normal!important;
+    word-break:normal!important;
+  }
+
+  /* Rythme vertical homogène entre les blocs après uniformisation. */
+  #view-analysis:not([hidden]),
+  #view-performances:not([hidden]),
+  #view-account:not([hidden]),
+  .tab-section.active,
+  .performance-panel.active{
+    row-gap:var(--v136x-panel-gap)!important;
+  }
+}
