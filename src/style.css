@@ -14868,3 +14868,358 @@ button[data-performance-full-list]::after,
   #view-account > :last-child{margin-bottom:0!important;}
 }
 .history-actions-desktop{display:none!important;}
+
+
+/* ==========================================================
+   V136.0V — Mobile density, hierarchy and card/history cleanup
+   Objectif: corriger sans refonte lourde les largeurs irrégulières,
+   les répétitions de KPI, les cartes trop chargées et l’historique.
+   ========================================================== */
+
+:root{
+  --mobile-panel-width: min(calc(100vw - 32px), 760px);
+  --mobile-panel-gap: 18px;
+}
+
+@media (max-width: 820px){
+  html, body{ overflow-x:hidden!important; }
+
+  /* Une seule grille mobile cohérente sur toutes les vues. */
+  .app-shell,
+  .main-shell,
+  .app-view-page,
+  .upload-grid,
+  .tab-section,
+  .performance-panel,
+  #performance-stats,
+  #performance-history,
+  #view-account{
+    width:100%!important;
+    max-width:none!important;
+    padding-left:0!important;
+    padding-right:0!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+
+  .hero-section,
+  .app-page-hero,
+  .upload-card,
+  .loaded-card,
+  .bulk-import-panel,
+  .tabs,
+  .analysis-tabs,
+  .match-read,
+  .save-analysis-panel,
+  .mulligan-panel,
+  .stats-header,
+  .cards-panel,
+  .timeline-panel,
+  .chart-panel,
+  .stat-panel,
+  .performance-hero,
+  .performance-segment,
+  .performance-filter-bar-viz,
+  .performance-detail-tabs,
+  .performance-detail-panel > .glass,
+  .performance-kpis,
+  .performance-deck-coach,
+  .performance-action-plan,
+  .performance-trend-grid,
+  .history-toolbar,
+  .history-list-head,
+  .history-compact-list,
+  .history-day-group,
+  .history-detail,
+  .account-auth-wrapper,
+  .account-card,
+  .duelink-connect-section,
+  .duelink-sync-card,
+  .deck-manager-section,
+  .data-maintenance-section{
+    width:var(--mobile-panel-width)!important;
+    max-width:var(--mobile-panel-width)!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+  }
+
+  .performance-panel,
+  .app-view-page,
+  #view-account{
+    gap:var(--mobile-panel-gap)!important;
+  }
+
+  .performance-detail-panel,
+  .tab-section{
+    gap:var(--mobile-panel-gap)!important;
+  }
+
+  /* Bas de page: juste l’espace utile pour la nav mobile, pas de grand vide. */
+  body{
+    padding-bottom:calc(102px + env(safe-area-inset-bottom,0px))!important;
+  }
+  .main-shell,
+  .app-view-page,
+  .performance-panel,
+  #view-account{
+    padding-bottom:18px!important;
+  }
+  .main-shell > :last-child,
+  .app-view-page > :last-child,
+  .performance-panel > :last-child{
+    margin-bottom:0!important;
+  }
+
+  /* Bloc Replays importés: en mobile on empile au lieu de compresser le titre + CTA. */
+  .loaded-card{
+    padding:20px!important;
+    border-radius:26px!important;
+  }
+  .loaded-card .section-head.compact{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    align-items:start!important;
+    gap:12px!important;
+  }
+  .loaded-card .section-head.compact h2{
+    font-size:clamp(2rem,10vw,3rem)!important;
+    line-height:.92!important;
+    letter-spacing:-.07em!important;
+    max-width:10ch!important;
+  }
+  .loaded-card #statusText{
+    max-width:100%!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+  }
+  .loaded-card .import-again-button,
+  .loaded-card #clearButton{
+    width:100%!important;
+    justify-content:center!important;
+    min-height:52px!important;
+  }
+  body.has-results .loaded-card .section-head.compact h2{
+    max-width:none!important;
+    font-size:clamp(1.8rem,8vw,2.6rem)!important;
+  }
+
+  /* Vue d’ensemble stats: deux KPI utiles, pas de doublon de contexte. */
+  .performance-kpis-lean,
+  .performance-kpis{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:14px!important;
+  }
+  .performance-kpis-lean .metric-card{
+    min-height:108px!important;
+    padding:22px!important;
+  }
+  .performance-kpis-lean .metric-card strong{
+    font-size:clamp(2.6rem,14vw,4.4rem)!important;
+    line-height:.9!important;
+  }
+  .performance-context-card,
+  .format-card{
+    display:none!important;
+  }
+
+  /* Les cartes d’action restent utiles, mais ne doivent pas répéter les gros KPI. */
+  .performance-action-plan{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:14px!important;
+  }
+  .action-plan-card-v2{
+    padding:18px!important;
+    display:grid!important;
+    grid-template-columns:auto minmax(0,1fr)!important;
+    gap:14px!important;
+    align-items:center!important;
+  }
+  .action-plan-card-v2:not(.with-card){ grid-template-columns:1fr!important; }
+  .action-plan-card-v2 p{
+    margin-top:8px!important;
+    font-size:.95rem!important;
+    line-height:1.45!important;
+  }
+  .action-plan-badges{gap:6px!important;}
+  .action-plan-badges em{font-size:.72rem!important;}
+
+  /* Cartes statistiques: un composant compact, plus de carte-dans-carte visuelle. */
+  .performance-card-gallery,
+  .key-card-gallery{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:14px!important;
+  }
+  .performance-card-tile-v2{
+    width:100%!important;
+    max-width:100%!important;
+    display:grid!important;
+    grid-template-columns:92px minmax(0,1fr)!important;
+    gap:14px!important;
+    align-items:center!important;
+    padding:16px!important;
+    min-height:0!important;
+    overflow:hidden!important;
+  }
+  .performance-card-tile-v2 .performance-card-art{
+    width:92px!important;
+    min-width:92px!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    align-self:center!important;
+  }
+  .performance-card-tile-v2 .performance-card-thumb,
+  .performance-card-tile-v2 .performance-card-art img{
+    width:92px!important;
+    height:128px!important;
+    object-fit:cover!important;
+    border-radius:12px!important;
+  }
+  .performance-card-body{
+    min-width:0!important;
+    display:grid!important;
+    gap:9px!important;
+    align-content:center!important;
+  }
+  .performance-card-tile-v2 h3{
+    margin:0!important;
+    font-size:clamp(1rem,5vw,1.28rem)!important;
+    line-height:1.1!important;
+    letter-spacing:-.035em!important;
+    display:-webkit-box!important;
+    -webkit-box-orient:vertical!important;
+    -webkit-line-clamp:2!important;
+    overflow:hidden!important;
+    text-align:left!important;
+    max-width:100%!important;
+  }
+  .card-status-row,
+  .performance-stat-strip,
+  .stat-token-strip{
+    display:flex!important;
+    flex-wrap:wrap!important;
+    gap:7px!important;
+    min-width:0!important;
+    max-width:100%!important;
+  }
+  .card-status-row .card-status-badge:nth-child(n+3),
+  .stat-token-strip .stat-token:nth-child(n+5){
+    display:none!important;
+  }
+  .stat-token,
+  .card-status-badge,
+  .mulligan-dead-weight-tag{
+    max-width:100%!important;
+    min-width:0!important;
+    white-space:nowrap!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+  }
+  .tiny-meter,
+  .card-ink-meter{width:100%!important;max-width:100%!important;}
+
+  /* Tuiles “mini-card” dans la vue d’ensemble: pas de sous-boîte inutile. */
+  .mini-card-signal-btn{
+    width:100%!important;
+    display:grid!important;
+    grid-template-columns:82px minmax(0,1fr)!important;
+    gap:14px!important;
+    align-items:center!important;
+    padding:0!important;
+    background:transparent!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+  .mini-card-signal-art{width:82px!important;min-width:82px!important;}
+  .mini-card-signal-thumb{width:82px!important;height:114px!important;object-fit:cover!important;border-radius:10px!important;}
+  .mini-card-signal-copy strong{font-size:1.05rem!important;line-height:1.12!important;}
+
+  /* Historique: usage principal = reconnaître et rouvrir un match. On cache le bruit technique. */
+  .history-summary-strip{display:none!important;}
+  .history-row{
+    grid-template-columns:minmax(0,1fr) 52px!important;
+    gap:10px!important;
+    padding:16px 14px 16px 22px!important;
+    border-radius:24px!important;
+    overflow:hidden!important;
+  }
+  .history-result-rail{width:6px!important;}
+  .history-row-main{
+    display:block!important;
+    min-width:0!important;
+    overflow:hidden!important;
+  }
+  .history-row-copy{display:grid!important;gap:8px!important;min-width:0!important;}
+  .history-line-top{
+    display:flex!important;
+    flex-wrap:wrap!important;
+    align-items:center!important;
+    gap:7px!important;
+    min-width:0!important;
+  }
+  .history-line-top b{
+    min-width:0!important;
+    max-width:100%!important;
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    font-size:1.05rem!important;
+    line-height:1.18!important;
+  }
+  .history-opponent-line{
+    white-space:normal!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    font-size:1.1rem!important;
+    line-height:1.15!important;
+  }
+  .history-row-submeta{font-size:.84rem!important;gap:8px!important;}
+  .history-source-badge.mode,
+  .history-source-badge.queue,
+  .history-api-badges,
+  .history-row-badges .history-source-badge.queue,
+  .history-row-badges .history-source-badge.mode{display:none!important;}
+  .history-row-badges{gap:6px!important;}
+  .history-kebab-button{
+    width:48px!important;
+    height:48px!important;
+    align-self:end!important;
+    border-radius:16px!important;
+  }
+  .history-actions-mobile-panel{
+    grid-column:1 / -1!important;
+    display:grid!important;
+    gap:10px!important;
+    padding:12px 0 0!important;
+    margin:6px 0 0!important;
+  }
+  .history-actions-mobile-panel[hidden]{display:none!important;}
+  .history-actions-mobile-panel .history-mini-button{
+    width:100%!important;
+    min-height:48px!important;
+  }
+
+  /* Paysage mobile: ne pas afficher deux navigations. */
+  @media (orientation:landscape){
+    .mobile-bottom-nav{display:none!important;}
+    .header-shell{display:block!important;}
+  }
+
+  /* Compte: blocs séparés et même largeur que le reste. */
+  #view-account .app-page-hero,
+  #view-account .account-auth-wrapper,
+  #view-account .duelink-connect-section,
+  #view-account .duelink-sync-card,
+  #view-account .deck-manager-section{
+    margin-bottom:var(--mobile-panel-gap)!important;
+  }
+  #view-account .account-auth-wrapper + .duelink-connect-section,
+  #view-account .account-card + .duelink-connect-section,
+  #view-account .app-page-hero + .account-auth-wrapper{
+    margin-top:0!important;
+  }
+}
