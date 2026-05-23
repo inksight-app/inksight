@@ -5637,11 +5637,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const sampleGames = analytics.games.length;
     const sampleWins = analytics.games.filter(game => game.isWin).length;
     const reliability = reliabilityInfo(sampleGames || total);
-    if(els.performanceSavedCount) els.performanceSavedCount.textContent = loggedIn ? String(total) : '—';
+    if(els.performanceSavedCount) els.performanceSavedCount.textContent = loggedIn ? String(sampleGames || total) : '—';
     if(els.performanceWinrate) els.performanceWinrate.textContent = loggedIn && sampleGames ? `${Math.round((sampleWins / sampleGames) * 100)}%` : (loggedIn && total ? `${Math.round((wins / total) * 100)}%` : '—');
     if(els.performanceBo3Count) els.performanceBo3Count.textContent = loggedIn ? String(bo3) : '—';
-    if(els.performanceSampleLabel) els.performanceSampleLabel.textContent = loggedIn ? `${sampleGames || total} ${sampleGames ? 'game' : 'analyse'}${(sampleGames || total) > 1 ? 's' : ''}` : '—';
-    if(els.performanceSampleHelp) els.performanceSampleHelp.textContent = loggedIn ? `${sampleGames || 0} game(s) · ${bo3} BO3 · ${bo1} BO1 · ${reliability.label}` : 'Connectez-vous pour activer l’historique.';
+    if(els.performanceSampleLabel) els.performanceSampleLabel.textContent = loggedIn ? reliability.label : '—';
+    if(els.performanceSampleHelp) els.performanceSampleHelp.textContent = loggedIn ? `${bo1} BO1${bo3 ? ` · ${bo3} BO3` : ''}` : 'Connectez-vous pour activer l’historique.';
 
     document.querySelectorAll('.card-signal-card').forEach(card => card.classList.toggle('is-muted', loggedIn && !deckScoped));
     if(!deckScoped){
@@ -6346,7 +6346,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     let tone = 'good';
     if(still > 0 || stuckRate >= 50 || avgHeld >= 4){ label = 'Keep risqué'; tone = 'danger'; }
     else if(stuckRate >= 25 || avgHeld >= 3 || (uninkable && avgHeld >= 2.5)){ label = 'Keep à surveiller'; tone = 'context'; }
-    const detail = `${avgHeld} tour${avgHeld > 1 ? 's' : ''} en main après keep · max ${maxHeld}T`;
+    const detail = `Après keep : ${avgHeld}T`; // Version mobile courte : l’explication complète reste dans le détail / info.
     return { hasSignal:true, label, detail, tone, avgHeld, stuckRate, maxHeld, stillInHand:still };
   }
 
@@ -7951,6 +7951,39 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
+  function savedMatchDayKey(row){
+    const value = getSavedMatchPlayedAt(row) || row?.created_at || '';
+    const date = new Date(value);
+    if(Number.isNaN(date.getTime())) return 'unknown';
+    return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+  }
+
+  function savedMatchDayLabel(row){
+    const value = getSavedMatchPlayedAt(row) || row?.created_at || '';
+    const date = new Date(value);
+    if(Number.isNaN(date.getTime())) return 'Date inconnue';
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate()-1);
+    const yesterdayKey = `${yesterday.getFullYear()}-${String(yesterday.getMonth()+1).padStart(2,'0')}-${String(yesterday.getDate()).padStart(2,'0')}`;
+    const key = savedMatchDayKey(row);
+    if(key === todayKey) return "Aujourd’hui";
+    if(key === yesterdayKey) return 'Hier';
+    return date.toLocaleDateString('fr-CH', { day:'2-digit', month:'short', year:'numeric' }).replace('.', '');
+  }
+
+  function savedMatchGroupedRowsHtml(rows=[]){
+    const groups = [];
+    rows.forEach(row => {
+      const key = savedMatchDayKey(row);
+      let group = groups.find(item => item.key === key);
+      if(!group){ group = { key, label:savedMatchDayLabel(row), rows:[] }; groups.push(group); }
+      group.rows.push(row);
+    });
+    return groups.map(group => `<section class="history-day-group"><div class="history-day-separator"><strong>${esc(group.label)}</strong><span>${group.rows.length} partie${group.rows.length > 1 ? 's' : ''}</span></div>${group.rows.map(row => savedMatchRowHtml(row)).join('')}</section>`).join('');
+  }
+
   function renderSavedHistory(){
     if(!els.historyList) return;
     if(!state.currentUser){
@@ -8008,7 +8041,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const loadMore = remaining
       ? `<button type="button" class="history-load-more" data-history-load-more>Afficher 5 matchs de plus <span>${remaining} restant(s)</span></button>`
       : `<div class="history-end-note">Tous les matchs filtrés sont affichés.</div>`;
-    els.historyList.innerHTML = `${listHead}<div class="history-compact-list">${visibleRows.map(row => savedMatchRowHtml(row)).join('')}</div>${loadMore}`;
+    els.historyList.innerHTML = `${listHead}<div class="history-compact-list history-compact-list-grouped">${savedMatchGroupedRowsHtml(visibleRows)}</div>${loadMore}`;
     bindSavedMatchButtons();
     renderSavedMatchDetail(rows.find(row => row.id === state.selectedSavedMatchId) || rows[0]);
     renderPostImportCleanup();
@@ -8034,8 +8067,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const matchup = row.matchup_label || 'Matchup non renseigné';
     const colors = rowMineColors(row);
     const opponentColors = rowOpponentColors(row);
-    const colorDots = inkDotsHtml(colors);
-    const opponentDots = inkDotsHtml(opponentColors);
     const opponent = row.opponent_name ? `vs ${row.opponent_name}` : 'Adversaire non renseigné';
     const deck = row.deck_name || row.analysis_json?.deck?.name || '';
     const score = row.score_label || `${n(row.final_mine_lore)}-${n(row.final_opp_lore)}`;
@@ -8043,28 +8074,25 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const hasGames = format === 'BO3' && games.length > 1;
     const expanded = state.expandedSavedMatchId === row.id;
     const gamesHtml = expanded && hasGames ? savedGamesHtml(games) : '';
-    const editHtml = '';
     const actionsOpen = state.activeHistoryActionsId === row.id;
+    const turnsLabel = hasGames ? `${games.length} manches` : `${n(row.total_turns) || '—'} tours`;
     const compactActions = `<button type="button" class="ghost-button history-mini-button primary" data-load-saved="${escAttr(row.id)}">Voir l’analyse</button>
         <button type="button" class="ghost-button history-mini-button" data-select-saved="${escAttr(row.id)}">Détails</button>
         <button type="button" class="ghost-button history-mini-button danger" data-delete-saved="${escAttr(row.id)}">Supprimer</button>`;
-    return `<article class="history-row ${isActive ? 'active' : ''} ${hasGames ? 'has-games' : ''} ${actionsOpen ? 'actions-open' : ''}" data-saved-id="${escAttr(row.id)}">
+    return `<article class="history-row ${escAttr(resultClass)} ${isActive ? 'active' : ''} ${hasGames ? 'has-games' : ''} ${actionsOpen ? 'actions-open' : ''}" data-saved-id="${escAttr(row.id)}">
+      <span class="history-result-rail ${escAttr(resultClass)}" aria-hidden="true"></span>
       <button type="button" class="history-row-main" data-select-saved="${escAttr(row.id)}" aria-expanded="${expanded && hasGames ? 'true' : 'false'}">
         <span class="history-row-copy">
-          <strong class="history-primary-line"><em>${esc(format)}</em><span class="history-result-dot ${resultClass}" aria-hidden="true"></span>${colorMatchupDotsHtml(colors, opponentColors, matchup)}<b>${esc(result)} ${esc(score)}</b></strong>
+          <span class="history-line-top"><em>${esc(format)}</em>${colorMatchupDotsHtml(colors, opponentColors, matchup)}<b>${esc(result)} ${esc(score)}</b></span>
           <span class="history-opponent-line">${esc(opponent)}</span>
-          ${deck ? `<span class="history-row-deck">${esc(deck)}</span>` : ''}
-          ${historySourceBadgesHtml(row)}
-          ${apiDecklistBadgesHtml(row)}
-          ${qualityBadgesHtml(row)}
+          <span class="history-row-submeta"><i>${esc(turnsLabel)}</i><i>${esc(date)}</i>${deck ? `<i>${esc(deck)}</i>` : ''}</span>
+          <span class="history-row-badges">${historySourceBadgesHtml(row)}${apiDecklistBadgesHtml(row)}${qualityBadgesHtml(row)}</span>
         </span>
-        <span class="history-row-meta"><b>${hasGames ? `${games.length} manches` : `${esc(n(row.total_turns) || '—')} tours`}</b><small>${esc(date)}</small></span>
       </button>
+      <button type="button" class="history-kebab-button" data-toggle-history-actions="${escAttr(row.id)}" aria-expanded="${actionsOpen ? 'true' : 'false'}" aria-label="Options du match">⋯</button>
       <div class="history-row-actions history-actions-desktop">${compactActions}</div>
-      <button type="button" class="history-options-button" data-toggle-history-actions="${escAttr(row.id)}" aria-expanded="${actionsOpen ? 'true' : 'false'}">${actionsOpen ? 'Fermer' : 'Options'}</button>
       <div class="history-actions-mobile-panel" ${actionsOpen ? '' : 'hidden'}>${compactActions}</div>
       ${gamesHtml}
-      ${editHtml}
     </article>`;
   }
 
