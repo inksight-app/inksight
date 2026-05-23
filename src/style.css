@@ -15217,3 +15217,33 @@ button[data-performance-full-list]::after,
     row-gap:var(--v136x-panel-gap)!important;
   }
 }
+
+/* =========================================================
+   V136.0Z — Correctif ultra ciblé : espace Compte caché hors Analyse
+   Base : V136.0X. Aucun changement UI/UX ailleurs.
+   ========================================================= */
+body:not([data-app-view="account"]) #view-account.app-view-page,
+body:not([data-app-view="account"]) #view-account.app-view-page[hidden],
+body:not([data-app-view="account"]) section#view-account.app-view-page{
+  display:none!important;
+  visibility:hidden!important;
+  min-height:0!important;
+  height:0!important;
+  max-height:0!important;
+  padding:0!important;
+  margin:0!important;
+  overflow:hidden!important;
+}
+
+@media (max-width:820px){
+  body:not([data-app-view="account"]) #view-account.app-view-page,
+  body:not([data-app-view="account"]) #view-account.app-view-page[hidden],
+  body:not([data-app-view="account"]) section#view-account.app-view-page{
+    display:none!important;
+    min-height:0!important;
+    height:0!important;
+    max-height:0!important;
+    padding:0!important;
+    margin:0!important;
+  }
+}
