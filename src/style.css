@@ -15217,3 +15217,61 @@ button[data-performance-full-list]::after,
     row-gap:var(--v136x-panel-gap)!important;
   }
 }
+
+/* =========================================================
+   V136.0Y — Correctif ciblé : espace vide mobile hors Compte
+   Base : V136.0X. Aucun calcul, Supabase, Duel.ink ou image modifié.
+   ========================================================= */
+@media (max-width: 820px){
+  :root{
+    --v136y-bottom-reserve: calc(86px + env(safe-area-inset-bottom, 0px) + 12px);
+  }
+
+  /* Une seule réserve basse : le body et les vues ne doivent plus cumuler
+     des paddings hérités des anciens correctifs mobiles. */
+  body{
+    padding-bottom:0!important;
+  }
+
+  .main-shell{
+    padding-bottom:var(--v136y-bottom-reserve)!important;
+  }
+
+  .app-view,
+  .app-view-page,
+  .app-view-analysis,
+  [data-app-panel],
+  .tab-section,
+  .performance-panel,
+  .performance-detail-panel{
+    padding-bottom:0!important;
+    min-height:0!important;
+  }
+
+  /* Le compte est vraiment hors flux en dehors de l’onglet Compte.
+     Cela évite l’effet “bloc supprimé mais espace encore réservé”. */
+  body:not([data-app-view="account"]) #view-account,
+  body:not([data-app-view="account"]) .account-page-hero,
+  body:not([data-app-view="account"]) .account-auth-wrapper,
+  body:not([data-app-view="account"]) .duelink-connect-section,
+  body:not([data-app-view="account"]) .duelink-sync-card,
+  body:not([data-app-view="account"]) .deck-manager-section,
+  body:not([data-app-view="account"]) #authPanel{
+    display:none!important;
+    height:0!important;
+    min-height:0!important;
+    max-height:0!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:hidden!important;
+  }
+
+  /* Sur l’accueil sans replay, le dernier bloc doit s’arrêter proprement :
+     on garde seulement la place utile pour la bottom nav. */
+  body.empty-state #view-analysis,
+  body.empty-state #view-analysis > :last-child,
+  body.empty-state .upload-grid{
+    margin-bottom:0!important;
+    padding-bottom:0!important;
+  }
+}
