@@ -439,6 +439,38 @@ export async function deleteSavedMatch(matchId) {
 }
 
 
+async function selectAllByMatchIds(table, ids, applyOrder = query => query, chunkSize = 75) {
+  const all = [];
+  const cleanIds = [...new Set((ids || []).filter(Boolean))];
+  const pageSize = 1000;
+
+  for (let index = 0; index < cleanIds.length; index += chunkSize) {
+    const chunk = cleanIds.slice(index, index + chunkSize);
+    let from = 0;
+
+    while (true) {
+      let query = supabase
+        .from(table)
+        .select('*')
+        .in('match_id', chunk)
+        .range(from, from + pageSize - 1);
+
+      query = applyOrder(query);
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const rows = data || [];
+      all.push(...rows);
+
+      if (rows.length < pageSize) break;
+      from += pageSize;
+    }
+  }
+
+  return all;
+}
+
 export async function listSavedAnalyticsDetails(matchIds = []) {
   const ids = [...new Set((matchIds || []).filter(Boolean))];
 
@@ -446,33 +478,20 @@ export async function listSavedAnalyticsDetails(matchIds = []) {
     return { games: [], cardStats: [], turnStats: [] };
   }
 
-  const [gamesResult, cardsResult, turnsResult] = await Promise.all([
-    supabase
-      .from('saved_games')
-      .select('*')
-      .in('match_id', ids)
-      .order('game_number', { ascending: true }),
-    supabase
-      .from('saved_card_stats')
-      .select('*')
-      .in('match_id', ids)
-      .order('card_name', { ascending: true }),
-    supabase
-      .from('saved_turn_stats')
-      .select('*')
-      .in('match_id', ids)
-      .order('game_number', { ascending: true })
-      .order('turn', { ascending: true }),
+  // PostgREST/Supabase may cap a single select to 1000 rows. A large history can easily
+  // contain more card/turn-stat rows than that, which would make the dashboard render
+  // partial and therefore false signals. Fetch in ID chunks + pages so the background
+  // analytics load is complete before it is displayed.
+  const [games, cardStats, turnStats] = await Promise.all([
+    selectAllByMatchIds('saved_games', ids, query => query.order('game_number', { ascending: true })),
+    selectAllByMatchIds('saved_card_stats', ids, query => query.order('card_name', { ascending: true })),
+    selectAllByMatchIds('saved_turn_stats', ids, query => query.order('game_number', { ascending: true }).order('turn', { ascending: true })),
   ]);
 
-  if (gamesResult.error) throw gamesResult.error;
-  if (cardsResult.error) throw cardsResult.error;
-  if (turnsResult.error) throw turnsResult.error;
-
   return {
-    games: (gamesResult.data || []).map(sanitizeSavedMatchRow),
-    cardStats: cardsResult.data || [],
-    turnStats: turnsResult.data || [],
+    games: games.map(sanitizeSavedMatchRow),
+    cardStats,
+    turnStats,
   };
 }
 

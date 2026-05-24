@@ -5417,6 +5417,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       state.savedMatchesLoading = true;
       if(!options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
+      renderPerformanceData();
       const rows = await listSavedMatchSummaries(5000);
       state.savedMatches = Array.isArray(rows) ? rows : [];
       state.savedMatchesLoaded = true;
@@ -5653,6 +5654,58 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return { tone:'empty', label:'Aucune donnée' };
   }
 
+  function savedAnalyticsKeyForRows(rows=[]){
+    return [...new Set((rows || []).map(row => row.id).filter(Boolean))].sort().join('|');
+  }
+
+  function isSavedAnalyticsLoadingForRows(rows=[]){
+    const key = savedAnalyticsKeyForRows(rows);
+    return !!(key && state.savedAnalytics?.loading && state.savedAnalytics?.key === key);
+  }
+
+  function performanceAnalyticsLoadingHtml(){
+    return '<div class="deck-required"><strong>Chargement des statistiques détaillées…</strong><span>L’historique est affiché, mais les signaux cartes / mulligan / courbes sont encore en cours de récupération. Ils apparaîtront dès que les données complètes seront chargées.</span></div>';
+  }
+
+  function renderPerformanceInitialLoadingState(){
+    const loadingTitle = 'Chargement…';
+    const loadingHelp = 'InkSight récupère vos analyses sauvegardées. Les statistiques apparaîtront dès que l’historique est prêt.';
+    if(els.performanceSavedCount) els.performanceSavedCount.textContent = '…';
+    if(els.performanceWinrate) els.performanceWinrate.textContent = '…';
+    if(els.performanceBo3Count) els.performanceBo3Count.textContent = '…';
+    if(els.performanceFavoriteMatchup) els.performanceFavoriteMatchup.textContent = '…';
+    if(els.performanceSampleLabel) els.performanceSampleLabel.textContent = 'Chargement';
+    if(els.performanceSampleHelp) els.performanceSampleHelp.textContent = 'Historique InkSight en cours de récupération.';
+    if(els.performanceCoachTitle) els.performanceCoachTitle.textContent = loadingTitle;
+    if(els.performanceCoachText) els.performanceCoachText.textContent = loadingHelp;
+    if(els.performanceBestSignal) els.performanceBestSignal.textContent = loadingTitle;
+    if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = loadingHelp;
+    if(els.performanceWarningSignal) els.performanceWarningSignal.textContent = loadingTitle;
+    if(els.performanceWarningSignalText) els.performanceWarningSignalText.textContent = loadingHelp;
+    if(els.performanceActionPlan) els.performanceActionPlan.innerHTML = '<div class="deck-required"><strong>Chargement de l’historique…</strong><span>Les données enregistrées arrivent depuis Supabase. Aucune statistique partielle n’est affichée pendant cette étape.</span></div>';
+    if(els.performanceTopLore) els.performanceTopLore.textContent = loadingTitle;
+    if(els.performanceTopLoreHelp) els.performanceTopLoreHelp.textContent = loadingHelp;
+    if(els.performanceMostInked) els.performanceMostInked.textContent = loadingTitle;
+    if(els.performanceMostInkedHelp) els.performanceMostInkedHelp.textContent = loadingHelp;
+    if(els.performanceOtpSplit) els.performanceOtpSplit.innerHTML = loadingTitle;
+    if(els.performanceOtpSplitHelp) els.performanceOtpSplitHelp.textContent = loadingHelp;
+    if(els.performanceFormatSplit) els.performanceFormatSplit.innerHTML = loadingTitle;
+    if(els.performanceFormatSplitHelp) els.performanceFormatSplitHelp.textContent = loadingHelp;
+    if(els.performanceAvgTurns) els.performanceAvgTurns.textContent = loadingTitle;
+    if(els.performanceAvgTurnsHelp) els.performanceAvgTurnsHelp.textContent = loadingHelp;
+    if(els.performanceTopDeckAvg) els.performanceTopDeckAvg.textContent = loadingTitle;
+    if(els.performanceTopDeckAvgHelp) els.performanceTopDeckAvgHelp.textContent = loadingHelp;
+    if(els.performanceAvgLore) els.performanceAvgLore.textContent = loadingTitle;
+    if(els.performanceAvgLoreHelp) els.performanceAvgLoreHelp.textContent = loadingHelp;
+    if(els.performanceDataQuality) els.performanceDataQuality.textContent = '…';
+    if(els.performanceDataQualityHelp) els.performanceDataQualityHelp.textContent = loadingHelp;
+    const html = '<div class="deck-required"><strong>Chargement de l’historique…</strong><span>InkSight prépare les statistiques enregistrées. Cette attente évite d’afficher des zéros ou des cartes incorrectes.</span></div>';
+    renderPerformanceTable(els.performanceMatchupBreakdown, html);
+    renderPerformanceTable(els.performanceCardImpactTable, html);
+    renderPerformanceTable(els.performanceMulliganTable, html);
+    renderPerformanceTable(els.performanceTurnCurveTable, html);
+  }
+
   function renderSavedStats(){
     const loggedIn = !!state.currentUser;
     if(els.performanceLoginHint){
@@ -5667,6 +5720,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(span) span.textContent = 'Vos matchs sauvegardés sont liés à votre compte Discord.';
       }
     }
+    if(loggedIn && state.savedMatchesLoading && !state.savedMatchesLoaded){
+      applyPerformanceTheme();
+      renderPerformanceInitialLoadingState();
+      return;
+    }
     const rows = filteredSavedMatches('stats');
     const total = rows.length;
     const wins = rows.filter(row => row.result === 'win').length;
@@ -5674,10 +5732,55 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const bo1 = rows.filter(row => String(row.format || '').toUpperCase() !== 'BO3').length;
     const deckScoped = isPerformanceDataScoped();
     applyPerformanceTheme();
+    const analyticsLoading = loggedIn && rows.length > 0 && isSavedAnalyticsLoadingForRows(rows);
+    document.querySelectorAll('.card-signal-card').forEach(card => { card.hidden = !deckScoped; });
+
+    if(analyticsLoading){
+      const reliability = reliabilityInfo(total);
+      if(els.performanceSavedCount) els.performanceSavedCount.textContent = String(total);
+      if(els.performanceWinrate) els.performanceWinrate.textContent = total ? `${Math.round((wins / total) * 100)}%` : '—';
+      if(els.performanceBo3Count) els.performanceBo3Count.textContent = String(bo3);
+      if(els.performanceSampleLabel) els.performanceSampleLabel.textContent = reliability.label;
+      if(els.performanceSampleHelp) els.performanceSampleHelp.textContent = `${bo1} BO1${bo3 ? ` · ${bo3} BO3` : ''}`;
+
+      document.querySelectorAll('.card-signal-card').forEach(card => card.classList.toggle('is-muted', true));
+      const loadingText = 'Chargement…';
+      const loadingHelp = 'Les données détaillées Supabase sont encore en cours de récupération. Les signaux seront affichés uniquement quand l’échantillon complet sera disponible.';
+      if(els.performanceTopLore) els.performanceTopLore.textContent = deckScoped ? loadingText : 'Choisissez un deck';
+      if(els.performanceTopLoreHelp) els.performanceTopLoreHelp.textContent = deckScoped ? loadingHelp : 'Ce signal devient pertinent quand les matchs appartiennent au même deck.';
+      if(els.performanceMostInked) els.performanceMostInked.textContent = deckScoped ? loadingText : 'Choisissez un deck';
+      if(els.performanceMostInkedHelp) els.performanceMostInkedHelp.textContent = deckScoped ? loadingHelp : 'Évite de mélanger des cartes issues de stratégies différentes.';
+      if(els.performanceOtpSplit) els.performanceOtpSplit.innerHTML = loadingText;
+      if(els.performanceOtpSplitHelp) els.performanceOtpSplitHelp.textContent = loadingHelp;
+      if(els.performanceFormatSplit) els.performanceFormatSplit.innerHTML = formatSplitBarsHtml(bo1, bo3);
+      if(els.performanceFormatSplitHelp) els.performanceFormatSplitHelp.textContent = 'Répartition de vos analyses sauvegardées.';
+      if(els.performanceAvgTurns) els.performanceAvgTurns.textContent = loadingText;
+      if(els.performanceAvgTurnsHelp) els.performanceAvgTurnsHelp.textContent = loadingHelp;
+      if(els.performanceTopDeckAvg) els.performanceTopDeckAvg.textContent = loadingText;
+      if(els.performanceTopDeckAvgHelp) els.performanceTopDeckAvgHelp.textContent = loadingHelp;
+      if(els.performanceAvgLore) els.performanceAvgLore.textContent = loadingText;
+      if(els.performanceAvgLoreHelp) els.performanceAvgLoreHelp.textContent = loadingHelp;
+      const scopedQuality = rows.map(row => rowQualityInfo(row));
+      const scopedComplete = scopedQuality.filter(info => info.status === 'complete').length;
+      const scopedPartial = scopedQuality.filter(info => info.status === 'partial').length;
+      if(els.performanceDataQuality) els.performanceDataQuality.textContent = `${scopedComplete}/${rows.length || 0}`;
+      if(els.performanceDataQualityHelp) els.performanceDataQualityHelp.textContent = rows.length ? `${scopedPartial} analyse(s) partielle(s) dans l’échantillon filtré.` : 'Aucune sauvegarde dans l’échantillon.';
+
+      const loadingHtml = performanceAnalyticsLoadingHtml();
+      renderPerformanceTable(els.performanceCardImpactTable, loadingHtml);
+      renderPerformanceTable(els.performanceMulliganTable, loadingHtml);
+      renderPerformanceTable(els.performanceTurnCurveTable, loadingHtml);
+      const emptyAnalytics = { rows, games:[], cardRows:[], turnRows:[], cards:[], cardSignals:{ topLore:null, topInked:null }, playDraw:{ total:0 }, turnCurve:[], loreMilestones:[], mulliganLab:{}, deadWeight:[] };
+      state.lastPerformanceAnalytics = emptyAnalytics;
+      renderPerformanceCharts(emptyAnalytics);
+      renderPerformanceDetailPanels();
+      bindPerformanceFullListButtons();
+      return;
+    }
+
     const analytics = buildPerformanceAnalytics(rows);
     const cardSignals = analytics.cardSignals;
     const playDraw = analytics.playDraw;
-    document.querySelectorAll('.card-signal-card').forEach(card => { card.hidden = !deckScoped; });
 
     const sampleGames = analytics.games.length;
     const sampleWins = analytics.games.filter(game => game.isWin).length;
