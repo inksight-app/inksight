@@ -1,5 +1,5 @@
 import './style.css';
-import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatches, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchSummaries, listSavedMatches, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
 
 (() => {
   'use strict';
@@ -4276,23 +4276,34 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }));
   }
 
-  function loadSavedAnalysis(row){
-    if(!row || !row.analysis_json){
+  async function loadSavedAnalysis(row){
+    if(!row){
       if(els.historyStatus) els.historyStatus.textContent = 'Analyse sauvegardée introuvable.';
       return;
     }
     try{
-      const runtime = savedRowToRuntimeState(row);
+      let hydratedRow = row;
+      if(!hydratedRow.analysis_json && hydratedRow.id){
+        if(els.historyStatus) els.historyStatus.textContent = 'Chargement de l’analyse sauvegardée…';
+        hydratedRow = await getSavedMatch(hydratedRow.id);
+        const index = state.savedMatches.findIndex(item => item.id === hydratedRow.id);
+        if(index >= 0) state.savedMatches[index] = { ...state.savedMatches[index], ...hydratedRow };
+      }
+      if(!hydratedRow || !hydratedRow.analysis_json){
+        if(els.historyStatus) els.historyStatus.textContent = 'Analyse sauvegardée introuvable.';
+        return;
+      }
+      const runtime = savedRowToRuntimeState(hydratedRow);
       state.replays = runtime.replays;
       state.sessions = runtime.sessions;
       state.merged = runtime.merged;
       state.isBO3 = runtime.isBO3;
       state.viewMode = runtime.isBO3 ? 'global' : 0;
-      state.matchMeta = { source:'saved_match', id:row.id, created_at:row.created_at };
+      state.matchMeta = { source:'saved_match', id:hydratedRow.id, created_at:hydratedRow.created_at };
       state.mulliganResolved = false;
-      state.lastSavedMatchId = row.id;
-      state.loadedSavedMatchId = row.id;
-      state.selectedSavedMatchId = row.id;
+      state.lastSavedMatchId = hydratedRow.id;
+      state.loadedSavedMatchId = hydratedRow.id;
+      state.selectedSavedMatchId = hydratedRow.id;
       if(state.isBO3) state.cardFilter = 'opponent';
       document.body.classList.toggle('empty-state', !state.sessions.length);
       document.body.classList.toggle('has-results', !!state.sessions.length);
@@ -5406,11 +5417,18 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       state.savedMatchesLoading = true;
       if(!options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
-      const rows = await listSavedMatches(5000);
+      const rows = await listSavedMatchSummaries(5000);
       state.savedMatches = Array.isArray(rows) ? rows : [];
       state.savedMatchesLoaded = true;
       if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
-      await refreshSavedAnalytics(state.savedMatches, { force:!!options.force });
+      const shouldLoadDetails = options.details === true || options.loadDetails === true;
+      if(shouldLoadDetails){
+        await refreshSavedAnalytics(state.savedMatches, { force:!!options.force });
+      }else{
+        refreshSavedAnalytics(state.savedMatches, { force:!!options.force, background:true })
+          .then(() => renderPerformanceData())
+          .catch(err => console.warn('Détails analytiques indisponibles en arrière-plan', err));
+      }
     }catch(err){
       console.error(err);
       state.savedMatches = [];

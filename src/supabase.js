@@ -295,6 +295,52 @@ async function insertMany(table, rows, chunkSize = 500) {
   return inserted;
 }
 
+
+export async function listSavedMatchSummaries(limit = 5000) {
+  const { data, error } = await supabase
+    .from('saved_matches')
+    .select([
+      'id',
+      'created_at',
+      'updated_at',
+      'title',
+      'format',
+      'result',
+      'wins',
+      'losses',
+      'score_label',
+      'matchup_label',
+      'mine_colors',
+      'opponent_colors',
+      'opponent_name',
+      'deck_name',
+      'deck_profile_id',
+      'duelink_url',
+      'played_at',
+      'source_type',
+      'duelink_match_id',
+      'duelink_source',
+      'duelink_queue',
+      'duelink_updated_at',
+      'replay_sha256',
+      'api_metadata',
+      'replay_fingerprint',
+      'data_quality',
+      'quality_issues',
+      'total_turns',
+      'avg_turns',
+      'final_mine_lore',
+      'final_opp_lore',
+    ].join(','))
+    .order('played_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  return (data || []).map(sanitizeSavedMatchRow);
+}
+
 export async function listSavedMatches(limit = 100) {
   const { data, error } = await supabase
     .from('saved_matches')
