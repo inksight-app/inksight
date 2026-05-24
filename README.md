@@ -2,7 +2,7 @@
 
 InkSight est une application web de replay analysis pensée pour les joueurs de **Disney Lorcana** qui veulent comprendre pourquoi une partie a été gagnée ou perdue.
 
-Le projet transforme des fichiers de replay Duel.ink en tableaux de bord lisibles : mulligan, économie d’encre, course au lore, cartes clés, cartes encrées, cartes bloquées en main, présence sur board, matchups et historique de performance.
+Le projet transforme des fichiers de replay Duels.ink en tableaux de bord lisibles : mulligan, économie d’encre, course au lore, cartes clés, cartes encrées, cartes bloquées en main, présence sur board, matchups et historique de performance.
 
 👉 Application en ligne : https://inksight-omega.vercel.app/
 
@@ -51,7 +51,7 @@ Ils peuvent l’utiliser comme outil de testing pour :
 
 ## Fonctionnement général
 
-L’utilisateur importe un ou plusieurs fichiers de replay issus de Duel.ink.
+L’utilisateur importe un ou plusieurs fichiers de replay issus de Duels.ink.
 
 Formats visés :
 
@@ -264,7 +264,7 @@ Exemple : si une ancienne analyse a été sauvegardée avant l’ajout du Dead W
 
 ## Limites actuelles
 
-InkSight dépend fortement des informations disponibles dans les fichiers Duel.ink.
+InkSight dépend fortement des informations disponibles dans les fichiers Duels.ink.
 
 Certaines zones sont privées ou partiellement cachées :
 
@@ -421,7 +421,7 @@ Ne jamais commiter de fichier `.env` contenant de vraies clés.
 
 Le projet a besoin de développeurs capables d’aider sur plusieurs axes.
 
-### 1. Fiabilisation du parser Duel.ink
+### 1. Fiabilisation du parser Duels.ink
 
 C’est le chantier le plus important.
 
@@ -442,7 +442,7 @@ Aide recherchée :
 
 - écrire des tests unitaires ;
 - créer des replays de référence ;
-- comparer les résultats InkSight avec les logs Duel.ink ;
+- comparer les résultats InkSight avec les logs Duels.ink ;
 - documenter les cas ambigus.
 
 ### 3. UX / UI responsive
@@ -557,7 +557,7 @@ Si vous êtes développeur, vous pouvez aider en priorité sur ces points :
 3. Vérifier les calculs sur plusieurs matchups.
 4. Améliorer la gestion des fichiers `.replay.gz` sur mobile.
 5. Nettoyer la structure UI pour faciliter les futures évolutions.
-6. Documenter les cas où Duel.ink ne révèle pas assez d’informations.
+6. Documenter les cas où Duels.ink ne révèle pas assez d’informations.
 
 ---
 
@@ -575,6 +575,6 @@ Le projet cherche à devenir un outil fiable, lisible et utile pour les joueurs 
 
 InkSight est un projet fan-made.
 
-Il n’est pas affilié à Disney, Ravensburger, Disney Lorcana, Duel.ink, Supabase, Vercel ou Groq.
+Il n’est pas affilié à Disney, Ravensburger, Disney Lorcana, Duels.ink, Supabase, Vercel ou Groq.
 
 Les noms de cartes, images et données liées à Disney Lorcana appartiennent à leurs ayants droit respectifs.

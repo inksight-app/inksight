@@ -150,7 +150,7 @@ https://inksight-omega.vercel.app/
 
 Planned or explored improvements:
 
-- Duel.ink API auto-sync;
+- Duels.ink API auto-sync;
 - larger coach commentary database;
 - opening explorer / sequence tree;
 - dead-weight card detection;
@@ -165,4 +165,4 @@ Planned or explored improvements:
 
 InkSight is a personal fan project for replay analysis and competitive testing.
 
-It is not affiliated with Disney, Ravensburger, Disney Lorcana, Duel.ink, Supabase, Vercel or Groq.
+It is not affiliated with Disney, Ravensburger, Disney Lorcana, Duels.ink, Supabase, Vercel or Groq.
