@@ -20,7 +20,7 @@ function getSecret() {
 
 export function encryptToken(token) {
   const clean = cleanDuelinkToken(token);
-  if (!clean) throw new Error('Token Duel.ink manquant.');
+  if (!clean) throw new Error('Token Duels.ink manquant.');
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', getSecret(), iv);
   const encrypted = Buffer.concat([cipher.update(clean, 'utf8'), cipher.final()]);
@@ -87,7 +87,7 @@ export async function resolveDuelinkToken(req, body = {}) {
   if (direct) return { token: direct, source: 'request' };
   const saved = await getSavedDuelinkToken(req);
   if (!saved.token) {
-    const err = new Error('Token Duel.ink manquant. Collez un token ou mémorisez-le sur votre compte.');
+    const err = new Error('Token Duels.ink manquant. Collez un token ou mémorisez-le sur votre compte.');
     err.code = 'TOKEN_MISSING';
     throw err;
   }

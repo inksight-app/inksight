@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const body = await readJsonBody(req);
       const token = cleanDuelinkToken(body.token);
-      if (!token) return json(res, 400, { success: false, error: 'Token Duel.ink manquant.' });
+      if (!token) return json(res, 400, { success: false, error: 'Token Duels.ink manquant.' });
       const row = {
         user_id: user.id,
         provider: 'duelink',
@@ -78,6 +78,6 @@ export default async function handler(req, res) {
     return json(res, 405, { success: false, error: 'Méthode non autorisée.' });
   } catch (error) {
     const status = error?.code === 'AUTH_REQUIRED' ? 401 : (error?.code === 'CONFIG_MISSING' ? 500 : 500);
-    return json(res, status, { success: false, error: error?.message || 'Erreur Duel.ink token.' });
+    return json(res, status, { success: false, error: error?.message || 'Erreur Duels.ink token.' });
   }
 }

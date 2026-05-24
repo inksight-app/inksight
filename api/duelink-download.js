@@ -58,10 +58,15 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      return json(res, response.status === 401 || response.status === 403 ? 401 : 502, {
+      const retryAfter = response.headers.get('retry-after');
+      const mappedStatus = response.status === 401 || response.status === 403 ? 401 : (response.status === 429 ? 429 : 502);
+      return json(res, mappedStatus, {
         success: false,
         status: response.status,
-        error: `Impossible de télécharger le replay ${id}. Duel.ink a répondu ${response.status}.`,
+        retryAfter: retryAfter ? Number(retryAfter) || retryAfter : null,
+        error: response.status === 429
+          ? 'Limite Duels.ink atteinte. Réessayez dans quelques secondes.'
+          : `Impossible de télécharger le replay ${id}. Duels.ink a répondu ${response.status}.`,
       });
     }
 
@@ -72,6 +77,6 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     res.end(buffer);
   } catch (error) {
-    return json(res, 500, { success: false, error: error?.message || 'Erreur inconnue pendant le téléchargement Duel.ink.' });
+    return json(res, 500, { success: false, error: error?.message || 'Erreur inconnue pendant le téléchargement Duels.ink.' });
   }
 }

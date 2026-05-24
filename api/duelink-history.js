@@ -72,6 +72,25 @@ function deepFind(row, matcher, depth = 0, seen = new Set()) {
 }
 
 
+function stripSensitiveOpponentDeckData(value, seen = new WeakSet()) {
+  const sensitiveKeys = new Set([
+    'opponentDecklist', 'opponent_decklist', 'oppDecklist', 'opp_decklist',
+    'enemyDecklist', 'enemy_decklist', 'opponentDeck', 'opponent_deck',
+    'opponentCards', 'opponent_cards', 'enemyDeck', 'enemy_deck'
+  ]);
+  if (!value || typeof value !== 'object') return value;
+  if (seen.has(value)) return null;
+  seen.add(value);
+  if (Array.isArray(value)) return value.map(item => stripSensitiveOpponentDeckData(item, seen));
+  const clean = {};
+  for (const [key, nested] of Object.entries(value)) {
+    if (sensitiveKeys.has(key) || /^opp(?:onent)?_?deck(list)?$/i.test(key) || /^enemy_?deck(list)?$/i.test(key)) continue;
+    clean[key] = stripSensitiveOpponentDeckData(nested, seen);
+  }
+  return clean;
+}
+
+
 function dateFromUuidLike(value) {
   const text = String(value || '').trim();
   const compact = text.replace(/-/g, '');
@@ -79,7 +98,7 @@ function dateFromUuidLike(value) {
   try {
     const ms = Number.parseInt(compact.slice(0, 12), 16);
     if (!Number.isFinite(ms)) return null;
-    // UUIDv7 ids used by Duel.ink start with a millisecond timestamp.
+    // UUIDv7 ids used by Duels.ink start with a millisecond timestamp.
     // Guard against random legacy ids by accepting only plausible recent dates.
     const min = Date.UTC(2023, 0, 1);
     const max = Date.now() + 1000 * 60 * 60 * 24 * 30;
@@ -187,9 +206,11 @@ function summarizeGame(row) {
     updatedAt,
     dateSource: explicitDate ? 'api' : (updatedAt ? 'id' : 'unknown'),
     myDecklist: pickDecklist(row, 'mine'),
-    opponentDecklist: pickDecklist(row, 'opponent'),
-    rawKeys: row && typeof row === 'object' ? Object.keys(row).slice(0, 25) : [],
-    apiRow: row || null,
+    // Duels.ink a retiré les decklists adverses de l'historique.
+    // On ne lit, ne renvoie et ne stocke plus ces données côté InkSight.
+    opponentDecklist: null,
+    rawKeys: row && typeof row === 'object' ? Object.keys(row).filter(key => !/opp(?:onent)?_?deck|enemy_?deck/i.test(key)).slice(0, 25) : [],
+    apiRow: stripSensitiveOpponentDeckData(row || null),
   };
 }
 
@@ -233,11 +254,14 @@ export default async function handler(req, res) {
     try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
 
     if (!response.ok) {
-      const message = payload?.error || payload?.message || `Duel.ink a répondu ${response.status}.`;
-      return json(res, response.status === 401 || response.status === 403 ? 401 : 502, {
+      const message = payload?.error || payload?.message || `Duels.ink a répondu ${response.status}.`;
+      const mappedStatus = response.status === 401 || response.status === 403 ? 401 : (response.status === 429 ? 429 : 502);
+      const retryAfter = response.headers.get('retry-after');
+      return json(res, mappedStatus, {
         success: false,
         status: response.status,
-        error: message,
+        retryAfter: retryAfter ? Number(retryAfter) || retryAfter : null,
+        error: response.status === 429 ? 'Limite Duels.ink atteinte. Réessayez dans quelques secondes.' : message,
       });
     }
 
@@ -254,13 +278,13 @@ export default async function handler(req, res) {
       count: games.length,
       next_cursor: payload?.next_cursor || payload?.nextCursor || null,
       games: summaries,
-      sample: games.slice(0, Math.min(3, games.length)),
+      sample: games.slice(0, Math.min(3, games.length)).map(row => stripSensitiveOpponentDeckData(row)),
     });
   } catch (error) {
     const status = error?.code === 'AUTH_REQUIRED' ? 401 : (error?.code === 'TOKEN_MISSING' ? 400 : 500);
     return json(res, status, {
       success: false,
-      error: error?.message || 'Erreur inconnue pendant le test Duel.ink.',
+      error: error?.message || 'Erreur inconnue pendant le test Duels.ink.',
     });
   }
 }
