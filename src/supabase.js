@@ -439,7 +439,7 @@ export async function deleteSavedMatch(matchId) {
 }
 
 
-async function selectAllByMatchIds(table, ids, applyOrder = query => query, chunkSize = 75) {
+async function selectAllByMatchIds(table, ids, applyOrder = query => query, chunkSize = 75, columns = '*') {
   const all = [];
   const cleanIds = [...new Set((ids || []).filter(Boolean))];
   const pageSize = 1000;
@@ -451,7 +451,7 @@ async function selectAllByMatchIds(table, ids, applyOrder = query => query, chun
     while (true) {
       let query = supabase
         .from(table)
-        .select('*')
+        .select(columns)
         .in('match_id', chunk)
         .range(from, from + pageSize - 1);
 
@@ -482,10 +482,14 @@ export async function listSavedAnalyticsDetails(matchIds = []) {
   // contain more card/turn-stat rows than that, which would make the dashboard render
   // partial and therefore false signals. Fetch in ID chunks + pages so the background
   // analytics load is complete before it is displayed.
+  const gameColumns = 'match_id,game_number,is_win,format,played_at,source_type,duelink_game_id,duelink_replay_id,duelink_gamelog_id,duelink_source,duelink_queue,replay_sha256,otp,first_turn_player,turn_count,final_mine_lore,final_opp_lore,mine_colors,opponent_colors,matchup_label,game_json';
+  const cardColumns = 'match_id,game_number,owner,card_key,card_name,card_type,colors,seen,in_opening_hand,kept_mulligan,replaced_mulligan,played,inked,quest_count,lore_generated,challenge_count,first_turns,avg_turn';
+  const turnColumns = 'match_id,game_number,owner,turn,lore,hand_count,ink_capacity,ink_spent,ink_float,inked,cards_played,quests,challenges';
+
   const [games, cardStats, turnStats] = await Promise.all([
-    selectAllByMatchIds('saved_games', ids, query => query.order('game_number', { ascending: true })),
-    selectAllByMatchIds('saved_card_stats', ids, query => query.order('card_name', { ascending: true })),
-    selectAllByMatchIds('saved_turn_stats', ids, query => query.order('game_number', { ascending: true }).order('turn', { ascending: true })),
+    selectAllByMatchIds('saved_games', ids, query => query.order('game_number', { ascending: true }), 75, gameColumns),
+    selectAllByMatchIds('saved_card_stats', ids, query => query.order('card_name', { ascending: true }), 75, cardColumns),
+    selectAllByMatchIds('saved_turn_stats', ids, query => query.order('game_number', { ascending: true }).order('turn', { ascending: true }), 75, turnColumns),
   ]);
 
   return {

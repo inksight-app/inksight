@@ -1208,7 +1208,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   async function loadLocalCards(){
     setApiStatus('Base locale · chargement…');
     try{
-      const res = await fetch(LOCAL_CARD_DATA_URL, { cache:'no-store' });
+      const res = await fetch(LOCAL_CARD_DATA_URL, { cache:'force-cache' });
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
       const payload = await res.json();
       state.cards = Array.isArray(payload) ? payload : (payload.cards || []);
@@ -3555,14 +3555,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       supabase.auth.onAuthStateChange((_event, session) => {
         setCloudOnline();
-        state.currentUser = session?.user || null;
+        const nextUser = session?.user || null;
+        const sameUser = !!(state.currentUser?.id && nextUser?.id && state.currentUser.id === nextUser.id);
+        state.currentUser = nextUser;
         syncSaveButton();
         renderBulkQueue();
         if(state.currentUser){
-          refreshDeckProfiles({ force:true, silent:true }).catch(setCloudOffline);
-          refreshSavedMatches({ force:true, silent:true }).catch(setCloudOffline);
+          refreshDeckProfiles({ force:!sameUser && !state.deckProfilesLoaded, silent:true }).catch(setCloudOffline);
+          refreshSavedMatches({ force:!sameUser && !state.savedMatchesLoaded, silent:true }).catch(setCloudOffline);
         }
         else {
+          clearSessionCacheForCurrentUser();
           state.savedMatches = [];
           state.savedMatchesLoaded = false;
           state.selectedSavedMatchId = null;
@@ -5414,12 +5417,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return state.savedMatches;
     }
 
+    const cacheShown = !options.force && hydrateSavedMatchesFromCache();
+
     try{
       state.savedMatchesLoading = true;
-      if(!options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
-      renderPerformanceData();
+      if(!cacheShown && !options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
+      if(!cacheShown) renderPerformanceData();
       const rows = await listSavedMatchSummaries(5000);
       state.savedMatches = Array.isArray(rows) ? rows : [];
+      writeSessionCache('saved-match-summaries', state.savedMatches);
       state.savedMatchesLoaded = true;
       if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
       const shouldLoadDetails = options.details === true || options.loadDetails === true;
@@ -5448,30 +5454,202 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   globalThis.INKSIGHT_refreshSavedMatches = refreshSavedMatches;
 
+  function uniqueSavedMatchIds(rows=[]){
+    return [...new Set((rows || []).map(row => row?.id).filter(Boolean))].sort();
+  }
+
+
+  const SAVED_CACHE_TTL = 1000 * 60 * 12;
+  const SAVED_CACHE_VERSION = 'v136-0aj';
+
+  function currentUserCacheKey(kind){
+    const userId = state.currentUser?.id || 'anonymous';
+    return `inksight:${SAVED_CACHE_VERSION}:${userId}:${kind}`;
+  }
+
+  function readSessionCache(kind){
+    try{
+      const raw = sessionStorage.getItem(currentUserCacheKey(kind));
+      if(!raw) return null;
+      const payload = JSON.parse(raw);
+      if(!payload || Date.now() - n(payload.savedAt) > SAVED_CACHE_TTL) return null;
+      return payload.value || null;
+    }catch(_err){ return null; }
+  }
+
+  function writeSessionCache(kind, value){
+    try{
+      const payload = JSON.stringify({ savedAt:Date.now(), value });
+      // Les détails peuvent être volumineux : on cache seulement si le navigateur accepte.
+      if(payload.length > 4500000) return;
+      sessionStorage.setItem(currentUserCacheKey(kind), payload);
+    }catch(_err){ /* Cache opportuniste uniquement. */ }
+  }
+
+  function clearSessionCacheForCurrentUser(){
+    try{
+      ['saved-match-summaries','saved-analytics-details'].forEach(kind => sessionStorage.removeItem(currentUserCacheKey(kind)));
+    }catch(_err){ /* no-op */ }
+  }
+
+  function hydrateSavedMatchesFromCache(){
+    if(!state.currentUser || state.savedMatchesLoaded || state.savedMatchesLoading) return false;
+    const cachedRows = readSessionCache('saved-match-summaries');
+    if(!Array.isArray(cachedRows) || !cachedRows.length) return false;
+    state.savedMatches = cachedRows;
+    state.savedMatchesLoaded = true;
+    if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
+    renderPerformanceData();
+    return true;
+  }
+
+  function readCachedAnalyticsForIds(ids=[]){
+    const cached = readSessionCache('saved-analytics-details');
+    if(!cached || !Array.isArray(cached.loadedIds)) return null;
+    const wanted = new Set(ids);
+    const loaded = new Set(cached.loadedIds.filter(Boolean));
+    if(!areAllIdsInSet(ids, loaded)) return null;
+    const keep = row => wanted.has(row?.match_id);
+    return {
+      key:ids.join('|'),
+      loadedIds:[...loaded].filter(id => wanted.has(id)).sort(),
+      games:(cached.games || []).filter(keep),
+      cardStats:(cached.cardStats || []).filter(keep),
+      turnStats:(cached.turnStats || []).filter(keep)
+    };
+  }
+
+  function writeCachedAnalytics(details){
+    const ids = uniqueSavedMatchIds([
+      ...(details?.games || []).map(row => ({ id:row.match_id })),
+      ...(details?.cardStats || []).map(row => ({ id:row.match_id })),
+      ...(details?.turnStats || []).map(row => ({ id:row.match_id }))
+    ]);
+    writeSessionCache('saved-analytics-details', {
+      loadedIds:ids,
+      games:Array.isArray(details?.games) ? details.games : [],
+      cardStats:Array.isArray(details?.cardStats) ? details.cardStats : [],
+      turnStats:Array.isArray(details?.turnStats) ? details.turnStats : []
+    });
+  }
+
+  function savedAnalyticsLoadedIdSet(){
+    const explicit = Array.isArray(state.savedAnalytics?.loadedIds) ? state.savedAnalytics.loadedIds : [];
+    if(explicit.length) return new Set(explicit.filter(Boolean));
+    const inferred = [
+      ...(state.savedAnalytics?.games || []),
+      ...(state.savedAnalytics?.cardStats || []),
+      ...(state.savedAnalytics?.turnStats || [])
+    ].map(row => row?.match_id).filter(Boolean);
+    return new Set(inferred);
+  }
+
+  function savedAnalyticsLoadingIdSet(){
+    const ids = Array.isArray(state.savedAnalytics?.loadingIds) ? state.savedAnalytics.loadingIds : [];
+    return new Set(ids.filter(Boolean));
+  }
+
+  function areAllIdsInSet(ids=[], set=new Set()){
+    return (ids || []).every(id => set.has(id));
+  }
+
+  function mergeAnalyticsRowsByRequestedIds(oldRows=[], newRows=[], requestedIds=[]){
+    const requested = new Set(requestedIds);
+    return [
+      ...(Array.isArray(oldRows) ? oldRows.filter(row => !requested.has(row?.match_id)) : []),
+      ...(Array.isArray(newRows) ? newRows : [])
+    ];
+  }
+
   async function refreshSavedAnalytics(rows=[], options={}){
-    const ids = [...new Set((rows || []).map(row => row.id).filter(Boolean))].sort();
+    const ids = uniqueSavedMatchIds(rows);
     const key = ids.join('|');
     if(!ids.length){
-      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' };
+      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, loadingIds:[], loadedIds:[], error:'' };
       return state.savedAnalytics;
     }
-    if(!options.force && state.savedAnalytics?.key === key && !state.savedAnalytics?.error){
+
+    const loadedIds = savedAnalyticsLoadedIdSet();
+    const alreadyLoaded = !options.force && areAllIdsInSet(ids, loadedIds) && !state.savedAnalytics?.error;
+    if(alreadyLoaded){
+      state.savedAnalytics = {
+        ...(state.savedAnalytics || {}),
+        key,
+        loading:false,
+        loadingIds:[],
+        loadedIds:[...loadedIds].sort(),
+        error:''
+      };
       return state.savedAnalytics;
     }
+
+    if(!options.force){
+      const cached = readCachedAnalyticsForIds(ids);
+      if(cached){
+        state.savedAnalytics = {
+          ...cached,
+          loading:false,
+          loadingIds:[],
+          error:''
+        };
+        return state.savedAnalytics;
+      }
+    }
+
+    if(state.savedAnalytics?.loading){
+      const loadingIds = savedAnalyticsLoadingIdSet();
+      if(areAllIdsInSet(ids, loadingIds)){
+        return state.savedAnalytics;
+      }
+      // Évite plusieurs appels Supabase concurrents sur mobile. Le rendu gardera un état
+      // de chargement propre jusqu'à la fin du batch déjà lancé.
+      return state.savedAnalytics;
+    }
+
+    const fetchIds = options.force ? ids : ids.filter(id => !loadedIds.has(id));
+    if(!fetchIds.length){
+      state.savedAnalytics = {
+        ...(state.savedAnalytics || {}),
+        key,
+        loading:false,
+        loadingIds:[],
+        loadedIds:[...loadedIds].sort(),
+        error:''
+      };
+      return state.savedAnalytics;
+    }
+
     try{
-      state.savedAnalytics = { ...(state.savedAnalytics || {}), key, loading:true, error:'' };
-      const details = await listSavedAnalyticsDetails(ids);
+      state.savedAnalytics = {
+        ...(state.savedAnalytics || {}),
+        key,
+        loading:true,
+        loadingIds:fetchIds,
+        error:''
+      };
+      const details = await listSavedAnalyticsDetails(fetchIds);
+      const nextLoadedIds = new Set(options.force ? [] : [...loadedIds]);
+      fetchIds.forEach(id => nextLoadedIds.add(id));
       state.savedAnalytics = {
         key,
         loading:false,
+        loadingIds:[],
+        loadedIds:[...nextLoadedIds].sort(),
         error:'',
-        games:Array.isArray(details?.games) ? details.games : [],
-        cardStats:Array.isArray(details?.cardStats) ? details.cardStats : [],
-        turnStats:Array.isArray(details?.turnStats) ? details.turnStats : []
+        games:options.force ? (Array.isArray(details?.games) ? details.games : []) : mergeAnalyticsRowsByRequestedIds(state.savedAnalytics?.games, details?.games, fetchIds),
+        cardStats:options.force ? (Array.isArray(details?.cardStats) ? details.cardStats : []) : mergeAnalyticsRowsByRequestedIds(state.savedAnalytics?.cardStats, details?.cardStats, fetchIds),
+        turnStats:options.force ? (Array.isArray(details?.turnStats) ? details.turnStats : []) : mergeAnalyticsRowsByRequestedIds(state.savedAnalytics?.turnStats, details?.turnStats, fetchIds)
       };
+      writeCachedAnalytics(state.savedAnalytics);
     }catch(err){
       console.error(err);
-      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key, loading:false, error:err.message || 'Données analytiques indisponibles.' };
+      state.savedAnalytics = {
+        ...(state.savedAnalytics || {}),
+        key,
+        loading:false,
+        loadingIds:[],
+        error:err.message || 'Données analytiques indisponibles.'
+      };
     }
     return state.savedAnalytics;
   }
@@ -5655,12 +5833,31 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function savedAnalyticsKeyForRows(rows=[]){
-    return [...new Set((rows || []).map(row => row.id).filter(Boolean))].sort().join('|');
+    return uniqueSavedMatchIds(rows).join('|');
+  }
+
+  function areSavedAnalyticsDetailsReadyForRows(rows=[]){
+    const ids = uniqueSavedMatchIds(rows);
+    if(!ids.length) return true;
+    if(state.savedAnalytics?.error) return true;
+    const loadedIds = savedAnalyticsLoadedIdSet();
+    return areAllIdsInSet(ids, loadedIds);
   }
 
   function isSavedAnalyticsLoadingForRows(rows=[]){
-    const key = savedAnalyticsKeyForRows(rows);
-    return !!(key && state.savedAnalytics?.loading && state.savedAnalytics?.key === key);
+    const ids = uniqueSavedMatchIds(rows);
+    if(!ids.length || !state.savedAnalytics?.loading) return false;
+    const loadingIds = savedAnalyticsLoadingIdSet();
+    return areAllIdsInSet(ids, loadingIds) || !areSavedAnalyticsDetailsReadyForRows(rows);
+  }
+
+  function areLocalCardsReady(){
+    return !!(state.cards?.length && state.index?.size);
+  }
+
+  function ensureLocalCardsForPerformance(){
+    if(areLocalCardsReady()) return;
+    ensureLocalCardsLoaded().then(() => renderPerformanceData()).catch(err => console.warn('Base cartes locale indisponible', err));
   }
 
   function performanceAnalyticsLoadingHtml(){
@@ -5732,7 +5929,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const bo1 = rows.filter(row => String(row.format || '').toUpperCase() !== 'BO3').length;
     const deckScoped = isPerformanceDataScoped();
     applyPerformanceTheme();
-    const analyticsLoading = loggedIn && rows.length > 0 && isSavedAnalyticsLoadingForRows(rows);
+    const detailsReady = !loggedIn || !rows.length || areSavedAnalyticsDetailsReadyForRows(rows);
+    if(loggedIn && rows.length > 0 && !detailsReady && !state.savedAnalytics?.loading){
+      refreshSavedAnalytics(rows, { background:true }).then(() => renderPerformanceData()).catch(err => console.warn('Détails stats indisponibles', err));
+    }
+    const cardBaseLoading = loggedIn && rows.length > 0 && detailsReady && !areLocalCardsReady();
+    if(cardBaseLoading) ensureLocalCardsForPerformance();
+    const analyticsLoading = loggedIn && rows.length > 0 && (!detailsReady || isSavedAnalyticsLoadingForRows(rows) || cardBaseLoading);
     document.querySelectorAll('.card-signal-card').forEach(card => { card.hidden = !deckScoped; });
 
     if(analyticsLoading){

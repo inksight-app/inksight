@@ -16058,3 +16058,82 @@ body::after,
     min-height:48px!important;
   }
 }
+
+/* =========================================================
+   V136.0AI — Compte connecté : statut simple, sans carte imbriquée
+   ========================================================= */
+#view-account #authLoggedIn .auth-user-box{
+  display:flex!important;
+  align-items:flex-start!important;
+  gap:14px!important;
+  margin:18px 0 20px!important;
+  padding:0!important;
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+#view-account #authLoggedIn .auth-user-dot{
+  flex:0 0 auto!important;
+  width:12px!important;
+  height:12px!important;
+  margin-top:.42rem!important;
+  border-radius:999px!important;
+  background:#22c55e!important;
+  box-shadow:0 0 0 7px rgba(34,197,94,.12)!important;
+}
+#view-account #authLoggedIn .auth-user-box strong{
+  display:block!important;
+  margin:0 0 4px!important;
+  font-size:clamp(1rem,2.4vw,1.1rem)!important;
+  line-height:1.2!important;
+  color:rgba(248,250,252,.96)!important;
+}
+#view-account #authLoggedIn .auth-user-box small{
+  display:block!important;
+  margin:0!important;
+  max-width:56ch!important;
+  font-size:clamp(.92rem,2.6vw,1rem)!important;
+  line-height:1.45!important;
+  color:rgba(203,213,225,.74)!important;
+}
+@media (max-width:760px){
+  #view-account #authLoggedIn .auth-user-box{
+    margin:16px 0 18px!important;
+    gap:12px!important;
+  }
+}
+
+
+/* V136.0AJ — Compte connecté : supprimer le bloc dans le bloc.
+   Le statut devient une simple ligne d'information, sans carte interne lourde. */
+#view-account #authLoggedIn .auth-user-box{
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
+  padding:14px 0 8px!important;
+  margin:18px 0 20px!important;
+  display:grid!important;
+  grid-template-columns:28px 1fr!important;
+  align-items:start!important;
+  gap:14px!important;
+}
+#view-account #authLoggedIn .auth-user-box .auth-user-dot{
+  width:14px!important;
+  height:14px!important;
+  margin-top:.45em!important;
+  box-shadow:0 0 0 10px rgba(34,197,94,.10),0 0 22px rgba(34,197,94,.28)!important;
+}
+#view-account #authLoggedIn .auth-user-box strong{
+  display:block!important;
+  margin:0 0 4px!important;
+}
+#view-account #authLoggedIn .auth-user-box small{
+  display:block!important;
+  max-width:34rem!important;
+  line-height:1.45!important;
+}
