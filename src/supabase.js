@@ -15,6 +15,34 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   },
 });
 
+
+function sanitizeDuelinkStoredData(value, seen = new WeakSet()) {
+  const sensitiveKeys = new Set([
+    'opponentDecklist', 'opponent_decklist', 'oppDecklist', 'opp_decklist',
+    'enemyDecklist', 'enemy_decklist', 'opponentDeck', 'opponent_deck',
+    'opponent_deck_hash', 'opponentDeckHash',
+    'opponent_deck_unique_cards', 'opponentDeckUniqueCards',
+    'opponent_deck_copies', 'opponentDeckCopies'
+  ]);
+  if (!value || typeof value !== 'object') return value;
+  if (seen.has(value)) return null;
+  seen.add(value);
+  if (Array.isArray(value)) return value.map(item => sanitizeDuelinkStoredData(item, seen));
+  const clean = {};
+  for (const [key, nested] of Object.entries(value)) {
+    if (sensitiveKeys.has(key) || /^opp(?:onent)?_?deck(?:list|_hash|_copies|_unique_cards)?$/i.test(key) || /^enemy_?deck(list)?$/i.test(key)) continue;
+    clean[key] = sanitizeDuelinkStoredData(nested, seen);
+  }
+  return clean;
+}
+
+function sanitizeSavedMatchRow(row) {
+  if (!row || typeof row !== 'object') return row;
+  const clean = sanitizeDuelinkStoredData(row);
+  delete clean.opponent_decklist;
+  return clean;
+}
+
 // =========================================================
 // Auth · Fonctions utilisateur
 // =========================================================
@@ -295,7 +323,6 @@ export async function listSavedMatches(limit = 100) {
       'duelink_updated_at',
       'replay_sha256',
       'my_decklist',
-      'opponent_decklist',
       'api_metadata',
       'replay_fingerprint',
       'data_quality',
@@ -312,7 +339,7 @@ export async function listSavedMatches(limit = 100) {
 
   if (error) throw error;
 
-  return data || [];
+  return (data || []).map(sanitizeSavedMatchRow);
 }
 
 export async function getSavedMatch(matchId) {
@@ -326,7 +353,7 @@ export async function getSavedMatch(matchId) {
 
   if (error) throw error;
 
-  return data;
+  return sanitizeSavedMatchRow(data);
 }
 
 
@@ -397,7 +424,7 @@ export async function listSavedAnalyticsDetails(matchIds = []) {
   if (turnsResult.error) throw turnsResult.error;
 
   return {
-    games: gamesResult.data || [],
+    games: (gamesResult.data || []).map(sanitizeSavedMatchRow),
     cardStats: cardsResult.data || [],
     turnStats: turnsResult.data || [],
   };
@@ -439,7 +466,7 @@ export async function logDuelinkSyncRun(run = {}) {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    throw new Error('Vous devez être connecté pour journaliser une synchronisation Duel.ink.');
+    throw new Error('Vous devez être connecté pour journaliser une synchronisation Duels.ink.');
   }
 
   const payload = {

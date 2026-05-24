@@ -174,7 +174,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const replayCount = games.filter(game => game.replayId).length;
     const sourceSet = [...new Set(games.map(game => duelinkSourceLabel(game.source)).filter(Boolean))];
     const rows = games.map((game, index) => {
-      const title = game.opponent ? `vs ${esc(game.opponent)}` : `Match Duel.ink ${game.id ? `<span class="duelink-row-id">${esc(String(game.id).slice(0, 10))}</span>` : `#${index + 1}`}`;
+      const title = game.opponent ? `vs ${esc(game.opponent)}` : `Match Duels.ink ${game.id ? `<span class="duelink-row-id">${esc(String(game.id).slice(0, 10))}</span>` : `#${index + 1}`}`;
       const source = duelinkSourceLabel(game.source);
       const queue = game.queue ? esc(String(game.queue)) : 'queue inconnue';
       const replay = game.replayId ? 'Replay OK' : 'Replay non indiqué';
@@ -187,8 +187,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }).join('');
     els.duelinkTestResult.innerHTML = `
       <div class="duelink-result-summary">
-        <div><strong>Connexion validée</strong><span>${games.length} match(s) lus sur Duel.ink. Test uniquement : rien n’est ajouté à l’historique.</span></div>
-        <div class="duelink-mini-stats" aria-label="Résumé du test Duel.ink">
+        <div><strong>Connexion validée</strong><span>${games.length} match(s) lus sur Duels.ink. Test uniquement : rien n’est ajouté à l’historique.</span></div>
+        <div class="duelink-mini-stats" aria-label="Résumé du test Duels.ink">
           <span><b>${games.length}</b><small>matchs lus</small></span>
           <span><b>${replayCount}</b><small>replays OK</small></span>
           <span><b>${esc(formatShortDateTime(newest?.updatedAt))}</b><small>dernier match</small></span>
@@ -383,17 +383,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderDuelinkScanProgress({ page=0, total=0, cursor='', done=false, error='' }={}){
     if(!els.duelinkTestResult) return;
-    const title = error ? 'Synchronisation interrompue' : (done ? 'Scan Duel.ink terminé' : 'Scan Duel.ink en cours');
+    const title = error ? 'Synchronisation interrompue' : (done ? 'Scan Duels.ink terminé' : 'Scan Duels.ink en cours');
     const text = error
       ? error
-      : (done ? `${total} partie${total > 1 ? 's' : ''} lue${total > 1 ? 's' : ''} dans l’historique Duel.ink.` : `Page ${page} lue · ${total} partie${total > 1 ? 's' : ''} trouvée${total > 1 ? 's' : ''}.`);
+      : (done ? `${total} partie${total > 1 ? 's' : ''} lue${total > 1 ? 's' : ''} dans l’historique Duels.ink.` : `Page ${page} lue · ${total} partie${total > 1 ? 's' : ''} trouvée${total > 1 ? 's' : ''}.`);
     const percent = done ? 100 : Math.min(95, Math.max(12, page * 7));
     els.duelinkTestResult.innerHTML = `<div class="duelink-import-progress ${done ? 'is-complete' : ''}">
       <div class="duelink-import-progress-head"><strong>${esc(title)}</strong><span>${esc(String(total))}</span></div>
       <div class="duelink-progressbar"><i style="width:${percent}%"></i></div>
       <div class="duelink-import-summary-card ${error ? 'error' : ''}">
         <strong>${esc(text)}</strong>
-        <span>${cursor && !done ? 'Duel.ink a encore des pages à lire. Le scan continue automatiquement.' : 'Aucun filtre n’est appliqué à l’import : InkSight récupère tout, les filtres viendront ensuite dans Historique et Performance.'}</span>
+        <span>${cursor && !done ? 'Duels.ink a encore des pages à lire. Le scan continue automatiquement.' : 'Aucun filtre n’est appliqué à l’import : InkSight récupère tout, les filtres viendront ensuite dans Historique et Performance.'}</span>
       </div>
     </div>`;
   }
@@ -453,11 +453,31 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return { cards, unique:cards.length, copies, hash };
   }
 
-  function apiDecklistStatus(rowOrMeta={}, side='opponent'){
+  const SENSITIVE_DUELINK_OPPONENT_DECK_KEYS = new Set([
+    'opponentDecklist', 'opponent_decklist', 'oppDecklist', 'opp_decklist',
+    'enemyDecklist', 'enemy_decklist', 'opponentDeck', 'opponent_deck',
+    'opponent_deck_hash', 'opponentDeckHash',
+    'opponent_deck_unique_cards', 'opponentDeckUniqueCards',
+    'opponent_deck_copies', 'opponentDeckCopies'
+  ]);
+
+  function sanitizeDuelinkApiObject(value, seen=new WeakSet()){
+    if(!value || typeof value !== 'object') return value;
+    if(seen.has(value)) return null;
+    seen.add(value);
+    if(Array.isArray(value)) return value.map(item => sanitizeDuelinkApiObject(item, seen));
+    const clean = {};
+    Object.entries(value).forEach(([key, nested]) => {
+      if(SENSITIVE_DUELINK_OPPONENT_DECK_KEYS.has(key) || /^opp(?:onent)?_?deck(?:list|_hash|_copies|_unique_cards)?$/i.test(key) || /^enemy_?deck(list)?$/i.test(key)) return;
+      clean[key] = sanitizeDuelinkApiObject(nested, seen);
+    });
+    return clean;
+  }
+
+  function apiDecklistStatus(rowOrMeta={}, side='mine'){
+    if(side !== 'mine') return { cards:[], unique:0, copies:0, hash:'', source:'unavailable', label:'Deck adverse non exporté' };
     const meta = rowOrMeta?.api_metadata || rowOrMeta?.analysis_json?.api_metadata || rowOrMeta || {};
-    const direct = side === 'mine'
-      ? (rowOrMeta?.my_decklist || meta.my_decklist)
-      : (rowOrMeta?.opponent_decklist || meta.opponent_decklist);
+    const direct = rowOrMeta?.my_decklist || meta.my_decklist;
     const summary = apiDecklistSummary(direct);
     if(summary.unique) return { ...summary, source:'api', label:'Decklist API complète' };
     return { ...summary, source:'estimated', label:'Decklist estimée' };
@@ -467,9 +487,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const sourceType = String(row?.source_type || row?.analysis_json?.source_type || '').toLowerCase();
     if(!sourceType.includes('duelink')) return '';
     const badges = [];
-    const opponent = apiDecklistStatus(row, 'opponent');
     const mine = apiDecklistStatus(row, 'mine');
-    if(opponent.source === 'api') badges.push(`<em class="history-source-badge decklist complete">Deck adverse complet · ${n(opponent.copies)} cartes</em>`);
     if(mine.source === 'api') badges.push(`<em class="history-source-badge decklist complete">Votre deck complet · ${n(mine.copies)} cartes</em>`);
     return badges.length ? `<span class="history-api-badges">${badges.join('')}</span>` : '';
   }
@@ -492,7 +510,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     syncDuelinkActionButtons(stats.newWithReplay.length);
 
     if(!games.length){
-      els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty"><strong>Aucune partie trouvée.</strong><span>L’API répond, mais aucun match terminé n’a été retourné dans l’historique Duel.ink.</span></div>`;
+      els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty"><strong>Aucune partie trouvée.</strong><span>L’API répond, mais aucun match terminé n’a été retourné dans l’historique Duels.ink.</span></div>`;
       return;
     }
 
@@ -502,7 +520,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.duelinkTestResult.innerHTML = `
       <div class="duelink-result-summary duelink-result-summary-compact">
         <div><strong>Synchronisation prête</strong><span>${games.length} partie${games.length > 1 ? 's' : ''} trouvée${games.length > 1 ? 's' : ''}. Choisissez un volume d’import pour ajouter les nouvelles analyses à InkSight.</span></div>
-        <div class="duelink-mini-stats" aria-label="Résumé synchronisation Duel.ink">
+        <div class="duelink-mini-stats" aria-label="Résumé synchronisation Duels.ink">
           <span><b>${games.length}</b><small>trouvées</small></span>
           <span><b>${ready}</b><small>à importer</small></span>
           <span><b>${already}</b><small>déjà dans InkSight</small></span>
@@ -525,11 +543,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     session.playedAt = session.playedAt || game.updatedAt || null;
     session.replaySha256 = replaySha256 || session.replaySha256 || '';
     session.myDecklist = Array.isArray(game.myDecklist) ? game.myDecklist : null;
-    session.opponentDecklist = Array.isArray(game.opponentDecklist) ? game.opponentDecklist : null;
+    delete session.opponentDecklist;
     const myDeckSummary = apiDecklistSummary(session.myDecklist);
-    const opponentDeckSummary = apiDecklistSummary(session.opponentDecklist);
     session.myDeckHash = myDeckSummary.hash || '';
-    session.opponentDeckHash = opponentDeckSummary.hash || '';
+    delete session.opponentDeckHash;
     session.apiRow = {
       id: game.id || null,
       replayId: game.replayId || null,
@@ -541,12 +558,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       opponent: game.opponent || null,
       result: game.result || null,
       myDeckHash: myDeckSummary.hash || null,
-      opponentDeckHash: opponentDeckSummary.hash || null,
       myDeckUniqueCards: myDeckSummary.unique || 0,
-      opponentDeckUniqueCards: opponentDeckSummary.unique || 0,
       myDeckCopies: myDeckSummary.copies || 0,
-      opponentDeckCopies: opponentDeckSummary.copies || 0,
-      raw: game.apiRow || null,
+      raw: sanitizeDuelinkApiObject(game.apiRow || null),
     };
     return session;
   }
@@ -574,7 +588,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const { data } = await supabase.auth.getSession();
       const accessToken = data?.session?.access_token;
       if(accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    }catch(err){ console.warn('Session Supabase indisponible pour Duel.ink', err); }
+    }catch(err){ console.warn('Session Supabase indisponible pour Duels.ink', err); }
     return headers;
   }
 
@@ -594,11 +608,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const hasTypedToken = Boolean(normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || ''));
     if(els.duelinkSavedTokenHint){
       els.duelinkSavedTokenHint.textContent = connected
-        ? 'Clé Duel.ink mémorisée. Vous pouvez synchroniser sans recoller la clé.'
+        ? 'Clé Duels.ink mémorisée. Vous pouvez synchroniser sans recoller la clé.'
         : 'Optionnel : mémorisez la clé de manière chiffrée pour éviter de la recoller à chaque session.';
     }
     if(els.duelinkTokenInput){
-      els.duelinkTokenInput.placeholder = connected ? 'Clé mémorisée — nouvelle clé optionnelle' : 'Bearer token Duel.ink';
+      els.duelinkTokenInput.placeholder = connected ? 'Clé mémorisée — nouvelle clé optionnelle' : 'Bearer token Duels.ink';
     }
     if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.hidden = !connected;
     if(els.duelinkSaveTokenButton){
@@ -633,7 +647,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.duelinkConnection = null;
       state.duelinkConnectionLoaded = true;
       updateDuelinkStoredTokenUi();
-      if(!silent && els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = `Statut clé Duel.ink indisponible : ${err.message || err}`;
+      if(!silent && els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = `Statut clé Duels.ink indisponible : ${err.message || err}`;
       return null;
     }
   }
@@ -645,7 +659,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
     if(!token){
-      if(els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = 'Collez une clé Duel.ink avant de la mémoriser.';
+      if(els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = 'Collez une clé Duels.ink avant de la mémoriser.';
       return;
     }
     if(els.duelinkSaveTokenButton) els.duelinkSaveTokenButton.disabled = true;
@@ -671,7 +685,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function forgetDuelinkTokenForAccount(){
     if(!state.currentUser) return;
-    if(!confirm('Supprimer la clé Duel.ink mémorisée pour ce compte ?')) return;
+    if(!confirm('Supprimer la clé Duels.ink mémorisée pour ce compte ?')) return;
     if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.disabled = true;
     try{
       const response = await fetch('/api/duelink-token', {
@@ -690,17 +704,35 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
   }
 
+  function wait(ms){
+    return new Promise(resolve => window.setTimeout(resolve, Math.max(0, n(ms))));
+  }
+
+  function duelinkRetryDelayMs(payload={}){
+    const retryAfter = Number(payload?.retryAfter);
+    if(Number.isFinite(retryAfter) && retryAfter > 0) return Math.min(60000, retryAfter * 1000);
+    return 3000;
+  }
+
   async function downloadDuelinkReplayBuffer(tokenPayload, replayId){
-    const response = await fetch('/api/duelink-download', {
-      method:'POST',
-      headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
-      body:JSON.stringify({ ...(tokenPayload || {}), id:replayId })
-    });
-    if(!response.ok){
+    let lastError = null;
+    for(let attempt = 0; attempt < 3; attempt += 1){
+      const response = await fetch('/api/duelink-download', {
+        method:'POST',
+        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
+        body:JSON.stringify({ ...(tokenPayload || {}), id:replayId })
+      });
+      if(response.ok) return response.arrayBuffer();
       const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error || `Téléchargement impossible pour ${replayId}`);
+      lastError = new Error(payload.error || `Téléchargement impossible pour ${replayId}`);
+      if(response.status !== 429 || attempt >= 2) break;
+      if(els.duelinkTokenStatus){
+        els.duelinkTokenStatus.textContent = 'Pause Duels.ink…';
+        els.duelinkTokenStatus.className = 'duelink-status-chip pending';
+      }
+      await wait(duelinkRetryDelayMs(payload));
     }
-    return response.arrayBuffer();
+    throw lastError || new Error(`Téléchargement impossible pour ${replayId}`);
   }
 
   function renderDuelinkImportProgress(rows, activeIndex=-1, done=0, failed=0){
@@ -764,7 +796,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const tokenPayload = await duelinkTokenPayload();
     if(!tokenPayload.token && !state.duelinkConnection?.connected){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duel.ink ou mémorisez une clé chiffrée.</strong><span>Le token sert à récupérer les replays depuis Duel.ink.</span></div>';
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duels.ink ou mémorisez une clé chiffrée.</strong><span>Le token sert à récupérer les replays depuis Duels.ink.</span></div>';
       return { imported:0, duplicates:0, errors:0, ready:0 };
     }
     if(state.currentUser){
@@ -836,7 +868,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           fileName:file?.filename || `${replayId}.replay.gz`,
           fileSize:0,
           replays:[], sessions:[], merged:null, matchMeta:null,
-          status:'reading', message:'Téléchargement Duel.ink…', duplicate:null, savedId:null, error:null, assignedDeck:null,
+          status:'reading', message:'Téléchargement Duels.ink…', duplicate:null, savedId:null, error:null, assignedDeck:null,
           duelinkGame:game
         };
         state.bulkQueue.push(item);
@@ -848,6 +880,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
             item.message = 'Replay absent du manifeste bulk · tentative directe…';
             if(!options.autoSave) renderBulkQueue();
           }
+          // Duels.ink limite les appels à environ 30 requêtes/minute.
+          // On cadence les téléchargements pour éviter les 429 pendant les imports 50/100/tout importer.
+          if(rowIndex > 0) await wait(2100);
           const buffer = await downloadDuelinkReplayBuffer(tokenPayload, replayId);
           item.fileSize = buffer.byteLength || 0;
           const replaySha256 = await replaySha256FromBuffer(buffer);
@@ -855,7 +890,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           const pseudoFile = {
             name:file?.filename || `${replayId}.replay.gz`,
             size:item.fileSize,
-            parentName:'Duel.ink API',
+            parentName:'Duels.ink API',
             isDuelinkApi:true,
             lastModified:0,
             playedAt:game.updatedAt || null,
@@ -875,7 +910,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           const duplicate = merged ? findDuplicateSavedMatchForData(merged) : null;
           item.duplicate = duplicate || null;
           item.status = duplicate ? 'duplicate' : 'ready';
-          item.message = duplicate ? 'Déjà présent dans l’historique.' : 'Importé depuis Duel.ink. Prêt à sauvegarder.';
+          item.message = duplicate ? 'Déjà présent dans l’historique.' : 'Importé depuis Duels.ink. Prêt à sauvegarder.';
           markDuelinkRowAsPrepared(game);
           row.status = duplicate ? { key:'existing', label:'Déjà présent' } : { key:'queued', label:'Déjà dans la file' };
           importedCount += 1;
@@ -884,7 +919,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           console.error(err);
           item.status = 'error';
           item.error = err;
-          item.message = `Erreur Duel.ink : ${err.message}`;
+          item.message = `Erreur Duels.ink : ${err.message}`;
           row.importError = item.message;
           // Important : une ligne en erreur est mise de côté pour cette session.
           // Le prochain clic sur “Importer 25” doit continuer avec les parties suivantes.
@@ -911,7 +946,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }catch(err){
       console.error(err);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec import'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty error"><strong>Impossible d’importer les replays Duel.ink.</strong><span>${esc(err.message || err)}.</span></div>`);
+      if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty error"><strong>Impossible d’importer les replays Duels.ink.</strong><span>${esc(err.message || err)}.</span></div>`);
       return { imported:0, duplicates:0, errors:1, ready:0, error:err };
     }finally{
       state.duelinkImporting = false;
@@ -968,7 +1003,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         matches_skipped:duplicates,
         matches_failed:errors,
         details:{ mode:'duelink_batch_import_save', limit:options.limit || 25, imported:importSummary.imported, ready:importSummary.ready }
-      }).catch(err => console.warn('Duel.ink sync log unavailable:', err));
+      }).catch(err => console.warn('Duels.ink sync log unavailable:', err));
     }catch(err){
       console.error(err);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Sync échouée'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
@@ -983,7 +1018,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         matches_failed:rows.length,
         error:String(err.message || err),
         details:{ mode:'duelink_batch_import_save', limit:options.limit || 25 }
-      }).catch(logErr => console.warn('Duel.ink sync log unavailable:', logErr));
+      }).catch(logErr => console.warn('Duels.ink sync log unavailable:', logErr));
     }finally{
       state.duelinkAutoSaving = false;
       syncDuelinkActionButtons();
@@ -994,7 +1029,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const tokenPayload = await duelinkTokenPayload();
     if(!tokenPayload.token && !state.duelinkConnection?.connected){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duel.ink ou mémorisez une clé chiffrée.</strong><span>La synchronisation lit tout l’historique disponible sans appliquer de filtres.</span></div>';
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duels.ink ou mémorisez une clé chiffrée.</strong><span>La synchronisation lit tout l’historique disponible sans appliquer de filtres.</span></div>';
       return;
     }
     if(state.duelinkImporting || state.duelinkAutoSaving) return;
@@ -1033,7 +1068,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         cursor = payload.next_cursor || payload.nextCursor || '';
         renderDuelinkScanProgress({ page, total:allGames.length, cursor });
         if(cursor && seenCursors.has(cursor)){
-          console.warn('Duel.ink next_cursor déjà vu, arrêt de sécurité.', cursor);
+          console.warn('Duels.ink next_cursor déjà vu, arrêt de sécurité.', cursor);
           cursor = '';
         }
         if(cursor) seenCursors.add(cursor);
@@ -1052,7 +1087,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         queuedCount:stats.queued.length,
         missingReplayCount:stats.missingReplay.length
       };
-      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Duel.ink synchronisé'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Duels.ink synchronisé'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
       renderDuelinkPreviewResult({ games:allGames, classified });
       await logDuelinkSyncRun({
         started_at:startedAt,
@@ -1063,10 +1098,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         matches_skipped:stats.existing.length + stats.queued.length + stats.missingReplay.length,
         matches_failed:0,
         details:{ mode:'full_history_scan', pages:page, ready_to_import:stats.newWithReplay.length, missing_replay:stats.missingReplay.length }
-      }).catch(err => console.warn('Duel.ink scan log unavailable:', err));
+      }).catch(err => console.warn('Duels.ink scan log unavailable:', err));
     }catch(err){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec scan'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      renderDuelinkScanProgress({ error:`Impossible de synchroniser Duel.ink : ${err.message || err}` });
+      renderDuelinkScanProgress({ error:`Impossible de synchroniser Duels.ink : ${err.message || err}` });
       await logDuelinkSyncRun({
         started_at:startedAt,
         finished_at:new Date().toISOString(),
@@ -1077,7 +1112,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         matches_failed:0,
         error:String(err.message || err),
         details:{ mode:'full_history_scan' }
-      }).catch(logErr => console.warn('Duel.ink scan log unavailable:', logErr));
+      }).catch(logErr => console.warn('Duels.ink scan log unavailable:', logErr));
     }finally{
       if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = false; els.duelinkPreviewButton.textContent = state.duelinkSyncSummary?.total ? 'Actualiser' : 'Synchroniser'; }
       if(els.duelinkTestButton) els.duelinkTestButton.disabled = false;
@@ -1089,14 +1124,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const tokenPayload = await duelinkTokenPayload();
     if(!tokenPayload.token && !state.duelinkConnection?.connected){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duel.ink ou mémorisez une clé chiffrée.</strong><span>Dans Duel.ink : Mon compte → API Tokens → créer un token avec expiration.</span></div>';
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duels.ink ou mémorisez une clé chiffrée.</strong><span>Dans Duels.ink : Mon compte → API Tokens → créer un token avec expiration.</span></div>';
       return;
     }
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Test en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
     state.duelinkPreviewRows = [];
     if(els.duelinkImportButton){ els.duelinkImportButton.disabled = true; els.duelinkImportButton.textContent = 'Importer 25'; }
     if(els.duelinkTestButton) els.duelinkTestButton.disabled = true;
-    if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty"><strong>Connexion à Duel.ink…</strong><span>Test rapide sur les 5 dernières lignes accessibles. Rien n’est importé.</span></div>';
+    if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty"><strong>Connexion à Duels.ink…</strong><span>Test rapide sur les 5 dernières lignes accessibles. Rien n’est importé.</span></div>';
     try{
       const response = await fetch('/api/duelink-history', {
         method:'POST',
@@ -1111,7 +1146,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       renderDuelinkTestResult(payload);
     } catch(err){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec du test'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty error"><strong>Impossible de lire l’historique Duel.ink.</strong><span>${esc(err.message || err)}. Vérifiez que le token est actif et copié en entier.</span></div>`;
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty error"><strong>Impossible de lire l’historique Duels.ink.</strong><span>${esc(err.message || err)}. Vérifiez que le token est actif et copié en entier.</span></div>`;
     } finally {
       if(els.duelinkTestButton) els.duelinkTestButton.disabled = false;
     }
@@ -1666,9 +1701,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const opponentDeckEstimate = finalizeOpponentDeckEstimate(opponentDeckTracker);
 
     let mineHandRetention = finalizeHandRetention(handLifecycle.mine);
-    // Les imports Duel.ink API et les imports manuels doivent produire les mêmes signaux.
+    // Les imports Duels.ink API et les imports manuels doivent produire les mêmes signaux.
     // Le suivi par instance est prioritaire, mais on le complète systématiquement avec un fallback
-    // depuis la main résolue du mulligan pour éviter les faux vides quand Duel.ink décale les instances
+    // depuis la main résolue du mulligan pour éviter les faux vides quand Duels.ink décale les instances
     // après une pioche/recherche ou un effet de type main -> main.
     if(mulligan?.visible){
       const fallbackRetention = fallbackHandRetentionFromMulligan(mulligan, timeline, rows.mine, cards);
@@ -2207,7 +2242,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const patchedZone = findRemovedSourceZoneInFrame(frame, owner, card, snapshot, replayCardIndex);
     if(patchedZone) return normalizeInkwellSourceZone(patchedZone);
 
-    // Pour l'action normale ADD_TO_INK, Duel.ink fournit souvent la carte révélée mais pas
+    // Pour l'action normale ADD_TO_INK, Duels.ink fournit souvent la carte révélée mais pas
     // la main adverse complète. Si aucune zone publique ne contient cette instance, on classe
     // l'encrage comme venant de la main.
     if(frame?.actionType === 'ADD_TO_INK' && actorOwner === owner) return 'hand';
@@ -2293,7 +2328,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
       if(isHandPath && patch.op === 'remove'){
         // Une carte encrée depuis la main doit alimenter le classement "encrées".
-        // On lit à la fois la valeur du patch et la snapshot avant patch, car Duel.ink
+        // On lit à la fois la valeur du patch et la snapshot avant patch, car Duels.ink
         // alterne selon les actions standard et les effets visibles type Sail.
         pushCards(handCandidates, patch.value);
         pushCards(handCandidates, valueAtPointer(snapshot, path));
@@ -2316,7 +2351,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(directCard){
       if(cardListContainsReference(nonHandCandidates, directCard, owner, replayCardIndex)) return null;
       // Standard Lorcana : inking from hand reveals the card first. For the opponent,
-      // the hand itself may stay private in the export, but if Duel.ink gives cardName/cardId
+      // the hand itself may stay private in the export, but if Duels.ink gives cardName/cardId
       // on ADD_TO_INK and no board/discard source contradicts it, this is a valid hand-ink.
       return hydrateCard(directCard);
     }
@@ -2423,7 +2458,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         return;
       }
 
-      // Les lieux génèrent leur lore au début du tour. Duel.ink les stocke souvent
+      // Les lieux génèrent leur lore au début du tour. Duels.ink les stocke souvent
       // dans /locations et non dans /field : creditPassiveLocationLore lit maintenant
       // les deux structures.
       creditPassiveLocationLore(snapshot, owner, delta, seenCards);
@@ -2470,7 +2505,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const isLocation = type.includes('lieu') || rawType.includes('location');
     // Une capacité activée qui provoque un delta positif de lore doit être attribuable à sa source,
     // même si le texte local n'est pas complet dans l'index de cartes. GAME_FINISH est inclus
-    // car Duel.ink peut appliquer le gain final de Lucky Dime dans ce frame technique.
+    // car Duels.ink peut appliquer le gain final de Lucky Dime dans ce frame technique.
     if(actionType === 'ACTIVATE_ABILITY' || actionType === 'GAME_FINISH') return isItem || isAction || isLocation || canCardDirectlyGainLore(card);
     if(actionType === 'PLAY_CARD' || actionType === 'RESPOND_TO_PROMPT') return isAction || isItem || isLocation;
     return isItem || isAction || isLocation;
@@ -3120,7 +3155,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(!value) return;
         extractCards(value, []).forEach(card => ensureCardSeenOnce(seenCards, card, owner, seenOnce));
       });
-      // Inkwell is visible only when Duel.ink provides the nested card object. Face-down
+      // Inkwell is visible only when Duels.ink provides the nested card object. Face-down
       // resources without card data are ignored, but visible cards still become tracked.
       extractCards(source?.inkwell || [], []).forEach(card => ensureCardSeenOnce(seenCards, card, owner, seenOnce));
     });
@@ -3769,9 +3804,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const first = sessions.find(session => session?.sourceType === 'duelink_api' || session?.duelinkGameId || session?.duelinkReplayId) || (m?.sourceType === 'duelink_api' ? m : null);
     if(!first) return null;
     const myDeck = first.myDecklist || m?.myDecklist || null;
-    const opponentDeck = first.opponentDecklist || m?.opponentDecklist || null;
     const mySummary = apiDecklistSummary(myDeck);
-    const opponentSummary = apiDecklistSummary(opponentDeck);
     return {
       source_type:'duelink_api',
       duelink_game_id:first.duelinkGameId || m?.duelinkGameId || null,
@@ -3781,14 +3814,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       duelink_format:first.duelinkFormat || m?.duelinkFormat || null,
       duelink_updated_at:first.duelinkUpdatedAt || m?.duelinkUpdatedAt || first.playedAt || null,
       my_decklist:myDeck,
-      opponent_decklist:opponentDeck,
       my_deck_hash:mySummary.hash || null,
-      opponent_deck_hash:opponentSummary.hash || null,
       my_deck_unique_cards:mySummary.unique || 0,
-      opponent_deck_unique_cards:opponentSummary.unique || 0,
       my_deck_copies:mySummary.copies || 0,
-      opponent_deck_copies:opponentSummary.copies || 0,
-      api_row:first.apiRow || m?.apiRow || null
+      api_row:sanitizeDuelinkApiObject(first.apiRow || m?.apiRow || null)
     };
   }
 
@@ -3831,7 +3860,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       duelink_updated_at:apiMeta?.duelink_updated_at || null,
       replay_sha256:replaySha256ForSavedData(m) || null,
       my_decklist:apiMeta?.my_decklist || null,
-      opponent_decklist:apiMeta?.opponent_decklist || null,
       api_metadata:apiMeta || null,
       replay_fingerprint:fingerprint || null,
       data_quality:quality.status,
@@ -3870,7 +3898,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         duelink_queue:session.duelinkQueue || null,
         replay_sha256:session.replaySha256 || null,
         my_decklist:session.myDecklist || null,
-        opponent_decklist:session.opponentDecklist || null,
         api_row:session.apiRow || null,
         otp:session.firstTurnPlayer === session.myPlayerNumber,
         first_turn_player:n(session.firstTurnPlayer),
@@ -4026,7 +4053,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function detailedMulliganMaps(mulligan){
-    // Duel.ink stores "replaced" as the replacement cards drawn after the mulligan, not the cards sent back.
+    // Duels.ink stores "replaced" as the replacement cards drawn after the mulligan, not the cards sent back.
     // The real decision is: initial card stayed in resolved hand = kept; initial card absent from resolved hand = renvoyée.
     const split = splitMulliganInitialCards(mulligan);
     return {
@@ -8049,7 +8076,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function historySourceBadgesHtml(row){
     const sourceType = String(row?.source_type || row?.analysis_json?.source_type || 'manual').toLowerCase();
-    const sourceLabel = sourceType.includes('duelink') ? 'Duel.ink API' : 'Manuel';
+    const sourceLabel = sourceType.includes('duelink') ? 'Duels.ink API' : 'Manuel';
     const sourceClass = sourceType.includes('duelink') ? 'api' : 'manual';
     const mode = String(row?.duelink_source || row?.analysis_json?.api_metadata?.source || '').trim();
     const queue = String(row?.duelink_queue || row?.analysis_json?.api_metadata?.queue || '').trim();
@@ -8299,21 +8326,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const turns = n(row.total_turns) || '—';
     const resultTone = row.result === 'win' ? 'positive' : 'negative';
     const detailGames = format === 'BO3' && games.length > 1 ? `<div class="history-detail-games"><span>Manches du BO3</span>${savedGamesHtml(games)}</div>` : '';
-    const duelink = row.duelink_url ? `<a href="${escAttr(row.duelink_url)}" target="_blank" rel="noopener">Ouvrir Duel.ink</a>` : '<span>Non renseigné</span>';
+    const duelink = row.duelink_url ? `<a href="${escAttr(row.duelink_url)}" target="_blank" rel="noopener">Ouvrir Duels.ink</a>` : '<span>Non renseigné</span>';
     const apiMineDeck = apiDecklistStatus(row, 'mine');
-    const apiOpponentDeck = apiDecklistStatus(row, 'opponent');
-    const apiMeta = row.api_metadata || analysis.api_metadata || {};
+    const apiMeta = sanitizeDuelinkApiObject(row.api_metadata || analysis.api_metadata || {});
     const apiDecklistsHtml = [
-      decklistPreviewHtml('Votre deck Duel.ink', apiMineDeck),
-      decklistPreviewHtml('Deck adverse Duel.ink', apiOpponentDeck)
+      decklistPreviewHtml('Votre deck Duels.ink', apiMineDeck)
     ].filter(Boolean).join('');
     const apiInfoHtml = String(row.source_type || analysis.source_type || '').toLowerCase().includes('duelink') ? `<div class="history-api-info compact">
-      <div class="history-api-info-head"><span>Duel.ink</span><strong>${esc(duelinkSourceLabel(row.duelink_source || apiMeta.duelink_source || apiMeta.source || ''))}</strong></div>
+      <div class="history-api-info-head"><span>Duels.ink</span><strong>${esc(duelinkSourceLabel(row.duelink_source || apiMeta.duelink_source || apiMeta.source || ''))}</strong></div>
       <div class="history-api-info-grid">
         <span><b>${esc(row.duelink_queue || apiMeta.duelink_queue || apiMeta.queue || '—')}</b><small>File</small></span>
-        <span><b>${esc(formatShortDateTime(row.duelink_updated_at || apiMeta.duelink_updated_at || apiMeta.updatedAt || row.played_at))}</b><small>Date Duel.ink</small></span>
+        <span><b>${esc(formatShortDateTime(row.duelink_updated_at || apiMeta.duelink_updated_at || apiMeta.updatedAt || row.played_at))}</b><small>Date Duels.ink</small></span>
       </div>
-      ${apiDecklistsHtml ? `<div class="api-decklist-section"><h4>Decklists Duel.ink</h4><div class="api-decklist-grid">${apiDecklistsHtml}</div></div>` : ''}
+      ${apiDecklistsHtml ? `<div class="api-decklist-section"><h4>Decklists Duels.ink</h4><div class="api-decklist-grid">${apiDecklistsHtml}</div></div>` : ''}
     </div>` : '';
 
     const metricTile = (label, value, sub='', cls='') => `<div class="history-detail-metric ${cls}"><span>${esc(label)}</span><strong>${esc(value)}</strong>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
@@ -9522,7 +9547,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
 
   function handRetentionForScope(m){
-    // La main adverse est majoritairement privée dans Duel.ink : on ne l'analyse pas comme une donnée fiable.
+    // La main adverse est majoritairement privée dans Duels.ink : on ne l'analyse pas comme une donnée fiable.
     return state.scope === 'opponent' ? [] : arrayify(m?.handRetention);
   }
 
@@ -11251,7 +11276,7 @@ function initAuthUI() {
         duelinkStatus.textContent = 'Connexion requise';
         duelinkStatus.className = 'duelink-status-chip';
       }
-      if (duelinkHint) duelinkHint.textContent = 'Connectez-vous avec Discord avant de connecter Duel.ink.';
+      if (duelinkHint) duelinkHint.textContent = 'Connectez-vous avec Discord avant de connecter Duels.ink.';
     }
 
     if(authPanel.classList.contains('account-auth-card')) openPanel();
@@ -11362,7 +11387,7 @@ function initAppShell() {
   function showAccountLoginHint() {
     const msg = document.getElementById('authMessage');
     if (msg) {
-      msg.textContent = 'Connectez-vous avec Discord pour accéder aux statistiques, à l’historique et à Duel.ink.';
+      msg.textContent = 'Connectez-vous avec Discord pour accéder aux statistiques, à l’historique et à Duels.ink.';
       msg.classList.remove('is-success');
       msg.classList.add('is-error');
     }

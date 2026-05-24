@@ -12143,7 +12143,7 @@ body::after{
   .history-source-badge{font-size:.7rem;min-height:24px;padding:4px 9px;}
 }
 
-/* V135.1 · Duel.ink API token test */
+/* V135.1 · Duels.ink API token test */
 .duelink-connect-section {
   display: grid;
   gap: 18px;
@@ -12254,7 +12254,7 @@ body::after{
   .duelink-result-list em { text-align: left; }
 }
 
-/* V135.1b · Duel.ink test UI hotfix */
+/* V135.1b · Duels.ink test UI hotfix */
 .duelink-connect-section {
   padding: clamp(18px, 2.8vw, 28px) !important;
   overflow: hidden;
@@ -12425,7 +12425,7 @@ body::after{
   .duelink-row-meta { justify-content: flex-start; }
 }
 
-/* V135.3 · Duel.ink sync card UX + API import controls */
+/* V135.3 · Duels.ink sync card UX + API import controls */
 .account-view .duelink-sync-card,
 .duelink-sync-card {
   margin-top: clamp(20px, 3vw, 34px);
@@ -12549,7 +12549,7 @@ body::after{
   .duelink-workflow span { font-size: .68rem; min-height: 30px; padding-inline: 10px; }
 }
 
-/* V135.3B · Account page UX polish + Duel.ink import progress + clean history dots */
+/* V135.3B · Account page UX polish + Duels.ink import progress + clean history dots */
 #view-account.app-view-page {
   display: grid;
   gap: clamp(20px, 2.8vw, 36px);
@@ -12856,7 +12856,7 @@ body::after{
   }
 }
 
-/* V135.5 · Duel.ink encrypted token memory */
+/* V135.5 · Duels.ink encrypted token memory */
 .duelink-token-hint{
   display:block;
   margin-top:8px;
@@ -12942,7 +12942,7 @@ body:not(.is-authenticated) #view-performances {
   display: none !important;
 }
 
-/* V135.6 · Account login redesign + connected Duel.ink polish */
+/* V135.6 · Account login redesign + connected Duels.ink polish */
 #view-account.app-view-page {
   max-width: min(1500px, calc(100vw - 48px));
   margin-inline: auto;
@@ -13106,7 +13106,7 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
   }
 }
 
-/* V135.8 · Duel.ink controlled batch import */
+/* V135.8 · Duels.ink controlled batch import */
 .duelink-sync-card #duelinkImport50Button,
 .duelink-sync-card #duelinkImport100Button,
 .duelink-sync-card #duelinkImportAllButton {
@@ -13587,7 +13587,7 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
 /* =========================================================
    V136.0C-Mobile-UI1 — ciblage mobile uniquement
    Objectif : corriger les masquages par la bottom nav, les onglets coupés,
-   les descriptions qui débordent, et clarifier Duel.ink sans refonte desktop.
+   les descriptions qui débordent, et clarifier Duels.ink sans refonte desktop.
    ========================================================= */
 @media (max-width: 760px){
   :root{
@@ -13773,7 +13773,7 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
     text-overflow:ellipsis!important;
   }
 
-  /* Compte / Duel.ink : état = badge, action = boutons d’import. */
+  /* Compte / Duels.ink : état = badge, action = boutons d’import. */
   #duelinkTokenInput{
     width:100%!important;
     max-width:100%!important;
@@ -13990,7 +13990,7 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
     box-shadow:none!important;
   }
 
-  /* Duel.ink : phrase plus lisible, sans hint technique. */
+  /* Duels.ink : phrase plus lisible, sans hint technique. */
   #duelinkSavedTokenHint{
     font-size:.95rem!important;
     line-height:1.42!important;
@@ -14204,7 +14204,7 @@ button[data-performance-full-list]::after,
     opacity:.9;
   }
 
-  /* Compte : éviter les textes techniques tronqués et les débordements dans Duel.ink. */
+  /* Compte : éviter les textes techniques tronqués et les débordements dans Duels.ink. */
   .duelink-connect-section,
   .duelink-sync-card,
   .account-auth-wrapper{
@@ -14595,7 +14595,7 @@ button[data-performance-full-list]::after,
 }
 
 /* =========================================================
-   V136.0U — Historique façon Duel.ink + tri de l’overview
+   V136.0U — Historique façon Duels.ink + tri de l’overview
    Correctif ciblé : pas de data/API touché.
    ========================================================= */
 
@@ -14609,7 +14609,7 @@ button[data-performance-full-list]::after,
   letter-spacing:-.04em!important;
 }
 
-/* Historique : séparation par date hors des cartes, inspirée du flux Duel.ink. */
+/* Historique : séparation par date hors des cartes, inspirée du flux Duels.ink. */
 .history-compact-list-grouped{
   display:grid!important;
   gap:18px!important;
@@ -14872,7 +14872,7 @@ button[data-performance-full-list]::after,
 /* =========================================================
    V136.0W — Mobile grid + replay block safety patch
    Périmètre volontairement limité : largeur mobile, espacements,
-   bloc Replays importés. Aucun calcul, Supabase ou Duel.ink modifié.
+   bloc Replays importés. Aucun calcul, Supabase ou Duels.ink modifié.
    ========================================================= */
 @media (max-width: 820px){
   :root{
@@ -15068,7 +15068,7 @@ button[data-performance-full-list]::after,
 
 /* =========================================================
    V136.0X — Correctif ciblé largeur mobile + stats lisibles
-   Base : V136.0W. Aucun calcul, Supabase, Duel.ink ou image modifié.
+   Base : V136.0W. Aucun calcul, Supabase, Duels.ink ou image modifié.
    ========================================================= */
 @media (max-width: 820px){
   :root{
@@ -15252,7 +15252,7 @@ body:not([data-app-view="account"]) section#view-account.app-view-page{
 /* =========================================================
    V136.0AB — Fond bicolorité vraiment subtil + glass uniforme
    Correctif ciblé : uniquement le rendu visuel global.
-   Aucun changement de layout, navigation, données, Supabase ou Duel.ink.
+   Aucun changement de layout, navigation, données, Supabase ou Duels.ink.
    ========================================================= */
 :root{
   --ab-bg-base:#030406;
@@ -15438,7 +15438,7 @@ body::after,
 /* =========================================================
    V136.0AC — Fond noir + reflets bicolorité ultra-subtils + glass morphing homogène
    Correctif ciblé : rendu visuel uniquement.
-   Fichiers métier, Supabase, Duel.ink, calculs et navigation non modifiés.
+   Fichiers métier, Supabase, Duels.ink, calculs et navigation non modifiés.
    ========================================================= */
 :root{
   --ac-bg-base:#010203;
