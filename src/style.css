@@ -13003,7 +13003,7 @@ body:not(.is-authenticated) #view-account .auth-inner {
   width: 100%;
 }
 body:not(.is-authenticated) #view-account .auth-card.account-auth-card {
-  width: min(760px, 100%) !important;
+  width: min(860px, 100%) !important;
   padding: clamp(26px, 4vw, 42px) !important;
   border-radius: clamp(26px, 3vw, 36px) !important;
   border: 1px solid rgba(255,255,255,.10) !important;
@@ -13193,6 +13193,9 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
 #view-account .auth-btn-danger{
   width:100%;
   max-width:360px;
+  color:#e4e4e7!important;
+  background:rgba(255,255,255,.055)!important;
+  border:1px solid rgba(255,255,255,.12)!important;
 }
 .duelink-sync-card{
   padding:clamp(18px,2.6vw,32px)!important;
@@ -16143,6 +16146,16 @@ body::after,
   display:block!important;
   max-width:34rem!important;
   line-height:1.45!important;
+}
+
+/* Compte connecté — une seule carte : on aplatit la carte interne pour ne
+   pas avoir un cadre-dans-cadre (le verre reste sur .account-auth-wrapper). */
+body.is-authenticated #view-account .account-auth-card{
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
 }
 
 /* Verre unifié — le bloc d'import (Replays importés) rejoint le même verre
