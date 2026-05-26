@@ -1,5 +1,5 @@
 import './style.css';
-import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchSummaries, listSavedMatches, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchSummaries, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
 
 (() => {
   'use strict';
@@ -139,7 +139,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.addEventListener('click', handleDuelinkNavigationClick);
     document.addEventListener('click', handleInfoDotClick);
     [els.saveDeckSelect, els.saveDeckNameInput].forEach(el => el?.addEventListener('input', () => syncSaveButton()));
-    document.querySelectorAll('[data-app-view="performances"], [data-performance-view]').forEach(btn => btn.addEventListener('click', () => refreshSavedMatches({ silent:true })));
+    document.querySelectorAll('[data-app-view="performances"], [data-performance-view]').forEach(btn => btn.addEventListener('click', () => {
+      setTimeout(() => refreshSavedMatches({ silent:true }), 0);
+    }));
     els.cardModal?.addEventListener('click', e => { if(e.target === els.cardModal) closeCardModal(); });
     document.addEventListener('keydown', handleModalKeydown);
   }
@@ -5431,10 +5433,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const shouldLoadDetails = options.details === true || options.loadDetails === true;
       if(shouldLoadDetails){
         await refreshSavedAnalytics(state.savedMatches, { force:!!options.force });
-      }else{
-        refreshSavedAnalytics(state.savedMatches, { force:!!options.force, background:true })
-          .then(() => renderPerformanceData())
-          .catch(err => console.warn('Détails analytiques indisponibles en arrière-plan', err));
       }
     }catch(err){
       console.error(err);
@@ -5460,7 +5458,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
 
   const SAVED_CACHE_TTL = 1000 * 60 * 12;
-  const SAVED_CACHE_VERSION = 'v136-0aj';
+  const SAVED_CACHE_VERSION = 'v136-0ak';
 
   function currentUserCacheKey(kind){
     const userId = state.currentUser?.id || 'anonymous';
@@ -5706,6 +5704,26 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return slug([format, played ? String(played).slice(0,16) : '', opponent, matchup, score, games].join('::'));
   }
 
+  function currentAppView(){
+    return document.body?.dataset?.appView || 'analysis';
+  }
+
+  function currentPerformanceView(){
+    return document.body?.dataset?.performanceView || 'stats';
+  }
+
+  function isStatsPerformanceViewActive(){
+    return currentAppView() === 'performances' && currentPerformanceView() === 'stats';
+  }
+
+  function isHistoryPerformanceViewActive(){
+    return currentAppView() === 'performances' && currentPerformanceView() === 'history';
+  }
+
+  function isAccountViewActive(){
+    return currentAppView() === 'account';
+  }
+
   function renderPerformanceData(){
     const safe = (label, fn) => {
       try{ fn(); }
@@ -5717,11 +5735,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         }
       }
     };
-    safe('filtres', renderPerformanceFilterPills);
-    safe('statistiques', renderSavedStats);
-    safe('historique', renderSavedHistory);
-    safe('compte', renderAccountPage);
+
+    const appView = currentAppView();
+    if(appView === 'performances'){
+      safe('filtres', renderPerformanceFilterPills);
+      if(isStatsPerformanceViewActive()) safe('statistiques', renderSavedStats);
+      if(isHistoryPerformanceViewActive()) safe('historique', renderSavedHistory);
+      return;
+    }
+
+    if(appView === 'account'){
+      safe('compte', renderAccountPage);
+    }
   }
+
+  globalThis.INKSIGHT_renderPerformanceData = renderPerformanceData;
 
   function selectedValuesForMode(mode, key){
     const prefix = mode === 'stats' ? 'performance' : 'history';
@@ -5917,7 +5945,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(span) span.textContent = 'Vos matchs sauvegardés sont liés à votre compte Discord.';
       }
     }
-    if(loggedIn && state.savedMatchesLoading && !state.savedMatchesLoaded){
+    if(loggedIn && !state.savedMatchesLoaded){
       applyPerformanceTheme();
       renderPerformanceInitialLoadingState();
       return;
@@ -8345,7 +8373,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
 
-    if(state.savedMatchesLoading){
+    if(!state.savedMatchesLoaded || state.savedMatchesLoading){
       renderPostImportCleanup();
       els.historyList.innerHTML = '<div class="empty-line">Chargement de l’historique…</div>';
       if(els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
@@ -11749,6 +11777,8 @@ function initAppShell() {
     }else{
       updateMobileBottomNav(next, document.body.dataset.performanceView || 'stats');
     }
+
+    globalThis.INKSIGHT_renderPerformanceData?.();
 
     if (!options.silent) {
       closeAuthPanel();
