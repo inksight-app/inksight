@@ -16187,6 +16187,8 @@ body.is-authenticated #view-account .account-auth-card{
   height:auto!important;
   margin:0!important;
 }
+/* Bouton "Importer 100" retiré (redondant avec 25/50/Tout importer). */
+#duelinkImport100Button{ display:none!important; }
 
 /* Compte connecté — widget compact : un statut + déconnexion ne justifient pas
    un énorme bloc. On resserre titre, espacements et padding (mode connecté

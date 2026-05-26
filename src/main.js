@@ -632,8 +632,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
     if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.hidden = !connected;
     if(els.duelinkSaveTokenButton){
-      els.duelinkSaveTokenButton.textContent = connected ? 'Remplacer la clé' : 'Mémoriser la clé chiffrée';
-      els.duelinkSaveTokenButton.disabled = connected && !hasTypedToken;
+      els.duelinkSaveTokenButton.hidden = connected;
+      els.duelinkSaveTokenButton.textContent = 'Mémoriser la clé chiffrée';
+      els.duelinkSaveTokenButton.disabled = false;
     }
     if(connected && els.duelinkTokenStatus && !['Scan en cours…','Import en cours…','Test en cours…'].includes(els.duelinkTokenStatus.textContent || '')){
       els.duelinkTokenStatus.textContent = 'Connexion mémorisée';
