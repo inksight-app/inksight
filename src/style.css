@@ -16171,19 +16171,20 @@ body.is-authenticated #view-account .account-auth-card{
   -webkit-backdrop-filter:blur(calc(var(--ad-blur) * .58)) saturate(128%)!important;
 }
 
-/* Boutons Duels.ink — grille régulière qui s'adapte à la largeur et au nombre
-   de boutons (fini les orphelins / largeurs inégales). Un bouton seul sur sa
-   ligne s'étire pour remplir, donc jamais de demi-bouton perdu. */
+/* Boutons Duels.ink — grille 2 colonnes régulière, hauteur normale.
+   8 boutons = 4 lignes paires, plus d'orphelin ni de largeurs inégales. */
 .duelink-sync-card .duelink-token-actions{
-  display:flex!important;
-  flex-wrap:wrap!important;
+  display:grid!important;
+  grid-template-columns:repeat(2, minmax(0,1fr))!important;
   gap:10px!important;
-  justify-content:stretch!important;
-  align-items:stretch!important;
+  align-items:start!important;
+  align-content:start!important;
 }
 .duelink-sync-card .duelink-token-actions > *{
-  flex:1 1 150px!important;
+  width:100%!important;
   min-width:0!important;
+  min-height:46px!important;
+  height:auto!important;
   margin:0!important;
 }
 
