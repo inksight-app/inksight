@@ -296,7 +296,7 @@ async function insertMany(table, rows, chunkSize = 500) {
 }
 
 
-export async function listSavedMatchSummaries(limit = 5000) {
+export async function listSavedMatchHistoryLight(limit = 1000) {
   const { data, error } = await supabase
     .from('saved_matches')
     .select([
@@ -315,18 +315,13 @@ export async function listSavedMatchSummaries(limit = 5000) {
       'opponent_name',
       'deck_name',
       'deck_profile_id',
-      'duelink_url',
       'played_at',
       'source_type',
-      'duelink_match_id',
       'duelink_source',
       'duelink_queue',
       'duelink_updated_at',
-      'replay_sha256',
-      'api_metadata',
       'replay_fingerprint',
       'data_quality',
-      'quality_issues',
       'total_turns',
       'avg_turns',
       'final_mine_lore',
@@ -341,7 +336,18 @@ export async function listSavedMatchSummaries(limit = 5000) {
   return (data || []).map(sanitizeSavedMatchRow);
 }
 
-export async function listSavedMatches(limit = 100) {
+export async function listSavedMatchSummaries(limit = 1000) {
+  return listSavedMatchHistoryLight(limit);
+}
+
+export async function listSavedMatches(limit = 1000) {
+  return listSavedMatchHistoryLight(limit);
+}
+
+
+export async function getSavedMatch(matchId) {
+  if (!matchId) throw new Error('Identifiant de match manquant.');
+
   const { data, error } = await supabase
     .from('saved_matches')
     .select([
@@ -379,21 +385,6 @@ export async function listSavedMatches(limit = 100) {
       'final_opp_lore',
       'analysis_json',
     ].join(','))
-    .order('played_at', { ascending: false, nullsFirst: false })
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (error) throw error;
-
-  return (data || []).map(sanitizeSavedMatchRow);
-}
-
-export async function getSavedMatch(matchId) {
-  if (!matchId) throw new Error('Identifiant de match manquant.');
-
-  const { data, error } = await supabase
-    .from('saved_matches')
-    .select('*')
     .eq('id', matchId)
     .single();
 
@@ -482,7 +473,7 @@ export async function listSavedAnalyticsDetails(matchIds = []) {
   // contain more card/turn-stat rows than that, which would make the dashboard render
   // partial and therefore false signals. Fetch in ID chunks + pages so the background
   // analytics load is complete before it is displayed.
-  const gameColumns = 'match_id,game_number,is_win,format,played_at,source_type,duelink_game_id,duelink_replay_id,duelink_gamelog_id,duelink_source,duelink_queue,replay_sha256,otp,first_turn_player,turn_count,final_mine_lore,final_opp_lore,mine_colors,opponent_colors,matchup_label,game_json';
+  const gameColumns = 'match_id,game_number,is_win,format,played_at,source_type,duelink_source,duelink_queue,otp,first_turn_player,turn_count,final_mine_lore,final_opp_lore,mine_colors,opponent_colors,matchup_label';
   const cardColumns = 'match_id,game_number,owner,card_key,card_name,card_type,colors,seen,in_opening_hand,kept_mulligan,replaced_mulligan,played,inked,quest_count,lore_generated,challenge_count,first_turns,avg_turn';
   const turnColumns = 'match_id,game_number,owner,turn,lore,hand_count,ink_capacity,ink_spent,ink_float,inked,cards_played,quests,challenges';
 

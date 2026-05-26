@@ -1,11 +1,13 @@
 import './style.css';
-import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchSummaries, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
 
 (() => {
   'use strict';
 
   const LOCAL_CARD_DATA_URL = '/lorcana-cards-import-ready.json';
   const MAX_FILES = 20;
+  const SAVED_MATCH_HISTORY_LIMIT = 1000;
+  const PERF_DEBUG = true;
   const SET_NUM_TO_CODE = { '1':'TFC', '2':'ROTF', '3':'ITI', '4':'URR', '5':'SSK', '6':'AZS', '7':'ARI', '8':'ROJ', '9':'FAB', '10':'WHW', '11':'WIN', '12':'WIL', '13':'SET13', '14':'SET14' };
   const SET_CODE_TO_NUM = Object.fromEntries(Object.entries(SET_NUM_TO_CODE).map(([n,c]) => [c,n]));
   Object.assign(SET_CODE_TO_NUM, { FC:'1', TFC:'1', SHS:'5', WITW:'10', WIS:'11', WUN:'12' });
@@ -21,6 +23,18 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
   const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set() };
+
+
+  function perfMark(label, startedAt, extra={}){
+    if(!PERF_DEBUG || !startedAt) return;
+    const now = perfNow();
+    const duration = Math.round(now - startedAt);
+    try{ console.info(`[InkSight perf] ${label}: ${duration}ms`, extra); }catch(_err){ /* no-op */ }
+  }
+
+  function perfNow(){
+    try{ return performance.now(); }catch(_err){ return Date.now(); }
+  }
 
   document.addEventListener('DOMContentLoaded', init);
 
@@ -5425,7 +5439,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.savedMatchesLoading = true;
       if(!cacheShown && !options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
       if(!cacheShown) renderPerformanceData();
-      const rows = await listSavedMatchSummaries(5000);
+      const listStartedAt = perfNow();
+      const rows = await listSavedMatchHistoryLight(SAVED_MATCH_HISTORY_LIMIT);
+      perfMark('saved matches light query', listStartedAt, { rows:Array.isArray(rows) ? rows.length : 0, limit:SAVED_MATCH_HISTORY_LIMIT });
       state.savedMatches = Array.isArray(rows) ? rows : [];
       writeSessionCache('saved-match-summaries', state.savedMatches);
       state.savedMatchesLoaded = true;
@@ -5458,7 +5474,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
 
   const SAVED_CACHE_TTL = 1000 * 60 * 12;
-  const SAVED_CACHE_VERSION = 'v136-0ak';
+  const SAVED_CACHE_VERSION = 'v136-0al';
 
   function currentUserCacheKey(kind){
     const userId = state.currentUser?.id || 'anonymous';
@@ -5625,7 +5641,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         loadingIds:fetchIds,
         error:''
       };
+      const detailsStartedAt = perfNow();
       const details = await listSavedAnalyticsDetails(fetchIds);
+      perfMark('saved analytics details query', detailsStartedAt, { requestedIds:fetchIds.length, games:details?.games?.length || 0, cardStats:details?.cardStats?.length || 0, turnStats:details?.turnStats?.length || 0 });
       const nextLoadedIds = new Set(options.force ? [] : [...loadedIds]);
       fetchIds.forEach(id => nextLoadedIds.add(id));
       state.savedAnalytics = {
@@ -5726,7 +5744,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderPerformanceData(){
     const safe = (label, fn) => {
-      try{ fn(); }
+      const startedAt = perfNow();
+      try{ fn(); perfMark(`render ${label}`, startedAt); }
       catch(err){
         console.error(`[performances] ${label}`, err);
         if(els.historyStatus) els.historyStatus.textContent = `Erreur ${label} : ${err.message || err}`;
@@ -5957,13 +5976,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const bo1 = rows.filter(row => String(row.format || '').toUpperCase() !== 'BO3').length;
     const deckScoped = isPerformanceDataScoped();
     applyPerformanceTheme();
-    const detailsReady = !loggedIn || !rows.length || areSavedAnalyticsDetailsReadyForRows(rows);
-    if(loggedIn && rows.length > 0 && !detailsReady && !state.savedAnalytics?.loading){
+    const shouldLoadDeepAnalytics = loggedIn && deckScoped && rows.length > 0;
+    const detailsReady = !shouldLoadDeepAnalytics || areSavedAnalyticsDetailsReadyForRows(rows);
+    if(shouldLoadDeepAnalytics && !detailsReady && !state.savedAnalytics?.loading){
       refreshSavedAnalytics(rows, { background:true }).then(() => renderPerformanceData()).catch(err => console.warn('Détails stats indisponibles', err));
     }
-    const cardBaseLoading = loggedIn && rows.length > 0 && detailsReady && !areLocalCardsReady();
+    const cardBaseLoading = shouldLoadDeepAnalytics && detailsReady && !areLocalCardsReady();
     if(cardBaseLoading) ensureLocalCardsForPerformance();
-    const analyticsLoading = loggedIn && rows.length > 0 && (!detailsReady || isSavedAnalyticsLoadingForRows(rows) || cardBaseLoading);
+    const analyticsLoading = shouldLoadDeepAnalytics && (!detailsReady || isSavedAnalyticsLoadingForRows(rows) || cardBaseLoading);
     document.querySelectorAll('.card-signal-card').forEach(card => { card.hidden = !deckScoped; });
 
     if(analyticsLoading){
@@ -8626,7 +8646,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.savedMatches = state.savedMatches.map(item => item.id === matchId ? { ...item, ...updated } : item);
       if(state.pendingDeckSelection) delete state.pendingDeckSelection[matchId];
       state.editingSavedMatchId = null;
-      await refreshSavedAnalytics(state.savedMatches, { force:true });
+      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, loadingIds:[], loadedIds:[], error:'' };
+      clearSessionCacheForCurrentUser();
       renderPerformanceData();
     }catch(err){
       console.error(err);
