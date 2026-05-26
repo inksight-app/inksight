@@ -6940,7 +6940,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         seen:0, played:0, inked:0, quest:0, lore:0, challenge:0,
         opening:0, kept:0, replaced:0,
         gamesSeen:0, winsSeen:0, gamesNotSeen:0, winsNotSeen:0, gamesPlayed:0, winsPlayed:0, keptGames:0, keptWins:0,
-        firstTurns:[], samples:[]
+        firstTurns:[], samples:[], seenGameKeys:new Set()
       };
       item.seen += n(row.seen);
       item.played += n(row.played);
@@ -6952,7 +6952,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       item.kept += n(row.kept_mulligan);
       item.replaced += n(row.replaced_mulligan);
       if(Array.isArray(row.first_turns)) item.firstTurns.push(...row.first_turns.map(n).filter(Boolean));
-      const g = gameByKey.get(`${row.match_id}::${n(row.game_number || 1)}`);
+      const gameKeyStr = `${row.match_id}::${n(row.game_number || 1)}`;
+      if(n(row.seen) > 0) item.seenGameKeys.add(gameKeyStr);
+      const g = gameByKey.get(gameKeyStr);
       if(g){
         item.samples.push({
           matchId:row.match_id,
@@ -6981,7 +6983,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(intrinsicLore > 0 && n(item.quest) > 0 && n(item.lore) === 0){
         item.lore = n(item.quest) * intrinsicLore;
       }
-      const seenGameKeys = new Set(rows.filter(row => (statCardKey({ fullName:row.card_name || row.card_key || '', name:row.card_name || row.card_key || '', type:row.card_type, colors:row.colors }) || slug(row.card_key || row.card_name || '')) === item.key && n(row.seen) > 0).map(row => `${row.match_id}::${n(row.game_number || 1)}`));
+      const seenGameKeys = item.seenGameKeys;
       allGameKeys.forEach(key => {
         if(seenGameKeys.has(key)) return;
         const g = gameByKey.get(key);
