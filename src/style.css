@@ -12981,9 +12981,9 @@ body:not(.is-authenticated) #view-account .account-page-hero .kicker {
 body:not(.is-authenticated) #view-account .account-page-hero h1 {
   max-width: 760px;
   margin-inline: auto;
-  font-size: clamp(3.8rem, 8vw, 6.9rem) !important;
-  line-height: .92 !important;
-  letter-spacing: -.075em !important;
+  font-size: clamp(2.6rem, 5vw, 4.2rem) !important;
+  line-height: .96 !important;
+  letter-spacing: -.06em !important;
 }
 body:not(.is-authenticated) #view-account .account-page-hero p {
   max-width: 650px;
@@ -13095,7 +13095,7 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
   }
   body:not(.is-authenticated) #view-account .account-page-hero h1 {
     margin-inline: 0;
-    font-size: clamp(3.4rem, 16vw, 5.1rem) !important;
+    font-size: clamp(2.4rem, 8vw, 3.4rem) !important;
   }
   body:not(.is-authenticated) #view-account .account-page-hero p,
   body:not(.is-authenticated) #view-account .auth-card-head p {
