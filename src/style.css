@@ -12964,7 +12964,7 @@ body:not(.is-authenticated) #view-account.app-view-page {
 body:not(.is-authenticated) #view-account .account-page-hero,
 body:not(.is-authenticated) #view-account .account-auth-wrapper {
   width: 100%;
-  max-width: 860px !important;
+  max-width: min(860px, calc(100vw - 32px)) !important;
   margin: 0 auto !important;
 }
 body:not(.is-authenticated) #view-account .account-page-hero {
