@@ -6030,7 +6030,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
 
     const analytics = buildPerformanceAnalytics(rows);
-    if(deckScoped) perfDiagnoseCardImages(analytics);
     const cardSignals = analytics.cardSignals;
     const playDraw = analytics.playDraw;
 
@@ -8055,29 +8054,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(/^card[_-]/i.test(raw)) return true;
     if(/^[0-9a-f]{8,}/i.test(raw)) return true;
     return false;
-  }
-
-  function perfDiagnoseCardImages(analytics){
-    if(!PERF_DEBUG) return;
-    try{
-      const cards = Array.isArray(analytics?.cards) ? analytics.cards : [];
-      let withImage = 0;
-      const misses = [];
-      cards.forEach(card => {
-        const view = performanceCardView(card);
-        if(view.image || view.imageSmall) withImage += 1;
-        else if(misses.length < 5) misses.push({ name:card.name || '', key:card.key || '' });
-      });
-      console.info('[InkSight perf] card image resolution', {
-        localCardsReady:areLocalCardsReady(),
-        localCardCount:state.cards?.length || 0,
-        indexSize:state.index?.size || 0,
-        totalCards:cards.length,
-        withImage,
-        missing:cards.length - withImage,
-        missSamples:misses
-      });
-    }catch(err){ console.warn('[InkSight perf] card image diag failed', err); }
   }
 
   function performanceCardView(card){
