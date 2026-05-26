@@ -13146,6 +13146,9 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
 }
 #view-account .app-page-hero.account-page-hero{
   padding:clamp(22px,3vw,34px)!important;
+  max-width:1120px!important;
+  width:100%!important;
+  margin-inline:auto!important;
 }
 #view-account .account-auth-wrapper,
 #view-account .duelink-sync-card{
