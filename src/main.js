@@ -6131,7 +6131,26 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
+  function performanceAnalyticsMemoKey(rows){
+    const ids = (rows || []).map(row => row?.id).filter(Boolean).sort().join(',');
+    const a = state.savedAnalytics || {};
+    const sig = `${(a.loadedIds || []).slice().sort().join('|')}#g${(a.games || []).length}c${(a.cardStats || []).length}t${(a.turnStats || []).length}L${a.loading ? 1 : 0}`;
+    let tempo = '';
+    try{ tempo = JSON.stringify(selectedPerformanceTempo()); }catch(_err){ tempo = ''; }
+    return `${ids}||${sig}||${tempo}`;
+  }
+
   function buildPerformanceAnalytics(rows){
+    const memoKey = performanceAnalyticsMemoKey(rows);
+    if(state._perfAnalyticsMemo && state._perfAnalyticsMemo.key === memoKey){
+      return state._perfAnalyticsMemo.value;
+    }
+    const value = computePerformanceAnalytics(rows);
+    state._perfAnalyticsMemo = { key:memoKey, value };
+    return value;
+  }
+
+  function computePerformanceAnalytics(rows){
     const rowIds = new Set((rows || []).map(row => row.id).filter(Boolean));
     const rowsById = new Map((rows || []).map(row => [row.id, row]));
     const detailedGames = (state.savedAnalytics?.games || []).filter(row => rowIds.has(row.match_id));
