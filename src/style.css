@@ -16186,3 +16186,26 @@ body.is-authenticated #view-account .account-auth-card{
   min-width:0!important;
   margin:0!important;
 }
+
+/* Compte connecté — widget compact : un statut + déconnexion ne justifient pas
+   un énorme bloc. On resserre titre, espacements et padding (mode connecté
+   uniquement, la carte de connexion déconnectée n'est pas touchée). */
+body.is-authenticated #view-account .account-auth-wrapper{
+  padding:clamp(14px,2vw,20px)!important;
+}
+body.is-authenticated #view-account #authLoggedIn .auth-card-head{
+  margin-bottom:10px!important;
+}
+body.is-authenticated #view-account #authLoggedIn .auth-card-head h2{
+  font-size:clamp(1.2rem,2vw,1.5rem)!important;
+}
+body.is-authenticated #view-account #authLoggedIn .auth-user-box{
+  margin:10px 0 14px!important;
+  padding:0!important;
+}
+body.is-authenticated #view-account #authLoggedIn .auth-user-box .auth-user-dot{
+  box-shadow:0 0 0 5px rgba(34,197,94,.10)!important;
+}
+body.is-authenticated #view-account #authLoggedIn .auth-btn-danger{
+  margin-top:4px!important;
+}
