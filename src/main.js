@@ -7802,7 +7802,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function performanceKeyCardHtml(card){
     const view = performanceCardView(card);
     const sampleWeak = n(card.gamesPlayed) < 5;
-    const winLabel = card.gamesPlayed ? (sampleWeak ? 'À confirmer' : `${card.playedWr}% WR`) : 'Peu jouée';
+    const winLabel = card.gamesPlayed ? (sampleWeak ? 'À confirmer' : `${card.playedWr}%`) : 'Peu jouée';
     const inkPercent = Math.min(100, Math.round((n(card.inked) / Math.max(1, n(card.seen))) * 100));
     const badges = performanceCardStatusBadges(card);
     return `<article class="performance-card-tile performance-card-tile-v2 is-clickable" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(card.name || '')}">

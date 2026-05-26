@@ -16170,3 +16170,19 @@ body.is-authenticated #view-account .account-auth-card{
   backdrop-filter:blur(calc(var(--ad-blur) * .58)) saturate(128%)!important;
   -webkit-backdrop-filter:blur(calc(var(--ad-blur) * .58)) saturate(128%)!important;
 }
+
+/* Boutons Duels.ink — grille régulière qui s'adapte à la largeur et au nombre
+   de boutons (fini les orphelins / largeurs inégales). Un bouton seul sur sa
+   ligne s'étire pour remplir, donc jamais de demi-bouton perdu. */
+.duelink-sync-card .duelink-token-actions{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:10px!important;
+  justify-content:stretch!important;
+  align-items:stretch!important;
+}
+.duelink-sync-card .duelink-token-actions > *{
+  flex:1 1 150px!important;
+  min-width:0!important;
+  margin:0!important;
+}
