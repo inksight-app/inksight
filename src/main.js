@@ -349,6 +349,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!button) return;
     const numericLimit = limit === 'all' ? count : Math.max(1, n(limit, 25));
     const toImport = limit === 'all' ? count : Math.min(numericLimit, count);
+    button.hidden = !count;
     button.disabled = !count || busy;
     if(!count){
       button.textContent = limit === 'all' ? 'Tout importer' : `Importer ${numericLimit}`;
