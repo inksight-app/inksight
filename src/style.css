@@ -16137,3 +16137,16 @@ body::after,
   max-width:34rem!important;
   line-height:1.45!important;
 }
+
+/* Verre unifié — le bloc d'import (Replays importés) rejoint le même verre
+   semi-transparent que les autres conteneurs, au lieu de rester sur fond noir. */
+.loaded-card,
+.upload-card{
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.044),rgba(255,255,255,.012)),
+    var(--ad-glass-inner)!important;
+  border-color:var(--ad-line-soft)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),var(--ad-shadow-soft)!important;
+  backdrop-filter:blur(calc(var(--ad-blur) * .58)) saturate(128%)!important;
+  -webkit-backdrop-filter:blur(calc(var(--ad-blur) * .58)) saturate(128%)!important;
+}
