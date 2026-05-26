@@ -5475,6 +5475,52 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   const SAVED_CACHE_TTL = 1000 * 60 * 12;
   const SAVED_CACHE_VERSION = 'v136-0al';
+  // Les détails analytiques (20k+ lignes) sont trop volumineux pour sessionStorage.
+  // On les garde dans IndexedDB (grande capacité, persistant entre sessions).
+  const ANALYTICS_CACHE_TTL = 1000 * 60 * 60 * 24;
+  const IDB_NAME = 'inksight-cache';
+  const IDB_STORE = 'kv';
+  let idbPromise = null;
+
+  function idbOpen(){
+    if(idbPromise) return idbPromise;
+    idbPromise = new Promise(resolve => {
+      try{
+        if(typeof indexedDB === 'undefined'){ resolve(null); return; }
+        const req = indexedDB.open(IDB_NAME, 1);
+        req.onupgradeneeded = () => { const db = req.result; if(!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE); };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      }catch(_err){ resolve(null); }
+    });
+    return idbPromise;
+  }
+
+  async function idbGet(key){
+    const db = await idbOpen();
+    if(!db) return null;
+    return new Promise(resolve => {
+      try{
+        const req = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(key);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => resolve(null);
+      }catch(_err){ resolve(null); }
+    });
+  }
+
+  function idbSet(key, value){
+    idbOpen().then(db => {
+      if(!db) return;
+      try{ db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).put(value, key); }catch(_err){ /* no-op */ }
+    });
+  }
+
+  function idbDel(key){
+    idbOpen().then(db => {
+      if(!db) return;
+      try{ db.transaction(IDB_STORE, 'readwrite').objectStore(IDB_STORE).delete(key); }catch(_err){ /* no-op */ }
+    });
+  }
 
   function currentUserCacheKey(kind){
     const userId = state.currentUser?.id || 'anonymous';
@@ -5504,6 +5550,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       ['saved-match-summaries','saved-analytics-details'].forEach(kind => sessionStorage.removeItem(currentUserCacheKey(kind)));
     }catch(_err){ /* no-op */ }
+    idbDel(currentUserCacheKey('saved-analytics-details'));
   }
 
   function hydrateSavedMatchesFromCache(){
@@ -5517,8 +5564,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return true;
   }
 
-  function readCachedAnalyticsForIds(ids=[]){
-    const cached = readSessionCache('saved-analytics-details');
+  async function readCachedAnalyticsForIds(ids=[]){
+    const payload = await idbGet(currentUserCacheKey('saved-analytics-details'));
+    if(!payload || Date.now() - n(payload.savedAt) > ANALYTICS_CACHE_TTL) return null;
+    const cached = payload.value;
     if(!cached || !Array.isArray(cached.loadedIds)) return null;
     const wanted = new Set(ids);
     const loaded = new Set(cached.loadedIds.filter(Boolean));
@@ -5539,11 +5588,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       ...(details?.cardStats || []).map(row => ({ id:row.match_id })),
       ...(details?.turnStats || []).map(row => ({ id:row.match_id }))
     ]);
-    writeSessionCache('saved-analytics-details', {
-      loadedIds:ids,
-      games:Array.isArray(details?.games) ? details.games : [],
-      cardStats:Array.isArray(details?.cardStats) ? details.cardStats : [],
-      turnStats:Array.isArray(details?.turnStats) ? details.turnStats : []
+    idbSet(currentUserCacheKey('saved-analytics-details'), {
+      savedAt:Date.now(),
+      value:{
+        loadedIds:ids,
+        games:Array.isArray(details?.games) ? details.games : [],
+        cardStats:Array.isArray(details?.cardStats) ? details.cardStats : [],
+        turnStats:Array.isArray(details?.turnStats) ? details.turnStats : []
+      }
     });
   }
 
@@ -5598,7 +5650,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
 
     if(!options.force){
-      const cached = readCachedAnalyticsForIds(ids);
+      const cached = await readCachedAnalyticsForIds(ids);
       if(cached){
         state.savedAnalytics = {
           ...cached,
