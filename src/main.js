@@ -8135,8 +8135,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const saved = findSavedCardByPerformanceCard(card);
     const seed = saved || local || { id:card.key, fullName:card.name, name:card.name, type:card.type, colors:card.colors || [] };
     const hydrated = hydrateCard(seed);
-    const image = saved?.image || saved?.imageSmall || hydrated.image || hydrated.imageSmall || '';
-    const imageSmall = saved?.imageSmall || saved?.image || hydrated.imageSmall || hydrated.image || '';
+    const image = saved?.image || saved?.imageSmall || hydrated.image || hydrated.imageSmall || duelinkImageUrl(hydrated) || '';
+    const imageSmall = saved?.imageSmall || saved?.image || hydrated.imageSmall || hydrated.image || duelinkImageUrl(hydrated) || '';
     const resolvedName = saved ? (saved.fullName || saved.name || fullName(saved)) : (local ? fullName(local) : fullName(hydrated));
     const displayName = cleanCardName(resolvedName && resolvedName !== 'Carte inconnue' ? resolvedName : (card.name || card.key || 'Carte inconnue'));
     return {
@@ -10452,7 +10452,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function cardDetailHtml(c){
     const color = inkKey(c.colors?.[0] || c.color);
     const text = formatCardText(c.text || abilityText(c));
-    const detailImage = c.image || c.imageSmall;
+    const detailImage = c.image || c.imageSmall || duelinkImageUrl(c);
     const imageHtml = detailImage ? `<img src="${esc(detailImage)}" alt="${esc(fullName(c))}" loading="lazy">` : `<div class="card-art-placeholder"><strong>${esc(initials(fullName(c)))}</strong><span>${esc(fullName(c))}</span><small>Image indisponible</small></div>`;
     const universe = cardUniverse(c);
     const artists = cardArtists(c);
@@ -10485,7 +10485,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
   function field(label, value){ return `<div class="detail-field"><small>${esc(label)}</small><strong>${esc(value)}</strong></div>`; }
   function initials(name){ return String(name || '?').split(/\s+|-+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '?'; }
-  function cardThumbHtml(c, cls='thumb'){ const img = c.imageSmall || c.image; const label = fullName(c) || 'Carte Lorcana'; return img ? `<img class="${esc(cls)}" src="${esc(img)}" alt="${escAttr(label)}" loading="lazy">` : `<span class="${esc(cls)} thumb-placeholder" aria-label="Image indisponible pour ${escAttr(label)}">${esc(initials(label))}</span>`; }
+  function duelinkImageUrl(c){
+    if(!c) return '';
+    const code = c.setCode || c.setCodes?.[0] || '';
+    const setNum = SET_CODE_TO_NUM[code] || SET_CODE_TO_NUM[normalizeSetCode(code)] || '';
+    const number = strip0(c.number || c.numbers?.[0] || '');
+    if(!/^\d+$/.test(String(setNum)) || !number) return '';
+    return `https://cards.duels.ink/lorcana/en/thumbnail/${setNum}-${number}.webp`;
+  }
+  function cardThumbHtml(c, cls='thumb'){ const img = c.imageSmall || c.image || duelinkImageUrl(c); const label = fullName(c) || 'Carte Lorcana'; return img ? `<img class="${esc(cls)}" src="${esc(img)}" alt="${escAttr(label)}" loading="lazy">` : `<span class="${esc(cls)} thumb-placeholder" aria-label="Image indisponible pour ${escAttr(label)}">${esc(initials(label))}</span>`; }
 
   function cssThemeColors(){
     const styles = getComputedStyle(document.documentElement);
