@@ -12948,7 +12948,7 @@ body:not(.is-authenticated) #view-performances {
 
 /* V135.6 · Account login redesign + connected Duels.ink polish */
 #view-account.app-view-page {
-  max-width: min(1500px, calc(100vw - 48px));
+  max-width: 1500px;
   margin-inline: auto;
 }
 body:not(.is-authenticated) #view-account.app-view-page {
