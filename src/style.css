@@ -16354,3 +16354,24 @@ body.is-authenticated #view-account .duelink-sync-card{
   cursor: pointer;
 }
 .perf-list-link:hover{ text-decoration: underline; }
+
+/* =========================================================
+   Stats : un seul verre pour toutes les cartes (référence =
+   refonte du Compte). On unifie le fond (halo bleu léger +
+   dégradé) et le rayon. Les bordures/accents sémantiques
+   (tons, barres garder/renvoyer, badges) restent gérés par
+   leurs propres règles, par-dessus.
+   ========================================================= */
+#view-performances .metric-card,
+#view-performances .performance-coach-card,
+#view-performances .performance-trend-card,
+#view-performances .action-plan-card,
+#view-performances .performance-card-tile,
+#view-performances .mulligan-visual-card,
+#view-performances .deck-health-main,
+#view-performances .deck-health-details{
+  background:
+    radial-gradient(circle at 8% 0%, rgba(55,148,227,.08), transparent 36%),
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.024)) !important;
+  border-radius: 22px !important;
+}
