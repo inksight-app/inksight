@@ -1,5 +1,5 @@
 import './style.css';
-import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, ensureDeckProfileByExternalId, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
 
 (() => {
   'use strict';
@@ -5412,9 +5412,36 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return { mode:'none', id:null, name:null };
   }
 
+  // Deck déduit automatiquement depuis l'identifiant de deck Duels.ink
+  // (your_deck_id) : pas de saisie. Versions/couleurs gérées comme le backfill.
+  function autoDeckFromMatch(m){
+    const apiMeta = apiMetadataForSavedData(m);
+    const raw = apiMeta?.api_row?.raw || null;
+    const externalId = raw?.your_deck_id || null;
+    const rawColors = String(raw?.your_deck_colors || '').trim();
+    const colors = rawColors
+      ? rawColors.split('/').map(part => part.trim().toLowerCase()).filter(Boolean)
+      : ((m?.inkProfiles || buildInkProfiles(m)).mine?.inks || []).map(inkKey).filter(color => color && color !== 'inkless');
+    const colorsLabel = rawColors || colors.map(inkLabel).join('/') || 'Deck';
+    return { externalId, colors, colorsLabel };
+  }
+
+  async function resolveAutoDeckProfile(m){
+    const auto = autoDeckFromMatch(m);
+    if(!auto.externalId) return { id:null, name:null };
+    const existing = (state.deckProfiles || []).find(profile => profile.external_deck_id === auto.externalId);
+    if(existing) return { id:existing.id, name:existing.name };
+    const key = colorFilterKey(auto.colors);
+    const sameColor = (state.deckProfiles || []).filter(profile => colorFilterKey(profileColors(profile)) === key);
+    const name = `${auto.colorsLabel} ${sameColor.length + 1}`;
+    const profile = await ensureDeckProfileByExternalId(auto.externalId, name, auto.colors);
+    await refreshDeckProfiles({ force:true, silent:true });
+    return { id:profile?.id || null, name:profile?.name || name };
+  }
+
   async function resolveDeckProfileForSave(m){
     const deck = readSaveDeckSelection();
-    if(!deck.name) return { id:null, name:null };
+    if(!deck.name) return resolveAutoDeckProfile(m);
     const profiles = m?.inkProfiles || buildInkProfiles(m);
     const mineColors = (profiles.mine?.inks || []).map(inkLabel);
     if(deck.id) return { id:deck.id, name:deck.name };
@@ -9134,7 +9161,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function resolveBulkDeckForItem(item){
     const assigned = item?.assignedDeck;
-    if(!assigned?.name) return { id:null, name:null };
+    if(!assigned?.name) return resolveAutoDeckProfile(item.merged);
     if(assigned.id) return { id:assigned.id, name:assigned.name };
     const profile = await upsertDeckProfile({ name:assigned.name, colors:assigned.colors || detectedMineColorsFromMatch(item.merged) });
     item.assignedDeck = { id:profile?.id || null, name:profile?.name || assigned.name, colors:profileColors(profile || assigned), isNew:false };

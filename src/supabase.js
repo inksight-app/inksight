@@ -103,12 +103,51 @@ export async function signInUser(email, password) {
 export async function listDeckProfiles() {
   const { data, error } = await supabase
     .from('deck_profiles')
-    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at')
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id')
     .order('name', { ascending: true });
 
   if (error) throw error;
 
   return data || [];
+}
+
+// Associe une partie à un deck via l'identifiant de deck Duels.ink (your_deck_id).
+// Réutilise le profil existant si déjà mappé, sinon le crée. Idempotent.
+export async function ensureDeckProfileByExternalId(externalId, name, colors) {
+  if (!externalId) return null;
+
+  const { data: existing } = await supabase
+    .from('deck_profiles')
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id')
+    .eq('external_deck_id', externalId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) return existing;
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error('Vous devez être connecté pour associer un deck.');
+  }
+
+  const { data, error } = await supabase
+    .from('deck_profiles')
+    .insert({
+      user_id: user.id,
+      name: String(name || '').trim() || 'Deck',
+      colors: Array.isArray(colors) ? colors : [],
+      external_deck_id: externalId,
+    })
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id')
+    .single();
+
+  if (error) throw error;
+
+  return data;
 }
 
 export async function upsertDeckProfile(profile = {}) {
