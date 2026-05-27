@@ -16294,3 +16294,25 @@ body.is-authenticated #view-account .duelink-sync-card{
 .performance-detail-panel > .stat-panel > .matchup-breakdown-list{
   margin-top: 0 !important;
 }
+/* Cause racine du "bloc carré semi-transparent" : le panneau d'onglet lui-même
+   portait un fond rgba(5,7,10,.46) à angles droits, derrière les cartes rondes.
+   On en fait un pur conteneur de mise en page : seules les cartes restent visibles. */
+.performance-detail-panel,
+.performance-detail-panel.active{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+}
+/* Même chose pour les zones de contenu internes (graphes, tables) qui
+   portaient elles aussi un fond carré semi-transparent derrière les cartes. */
+.performance-detail-panel .performance-chart-zone,
+.performance-detail-panel .visual-zone{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
