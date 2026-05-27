@@ -16260,3 +16260,37 @@ body.is-authenticated #view-account .duelink-sync-card{
     radial-gradient(circle at 8% 0%, rgba(55,148,227,.10), transparent 34%),
     linear-gradient(180deg, rgba(255,255,255,.052), rgba(255,255,255,.026)) !important;
 }
+
+/* =========================================================
+   Stats : supprimer le bloc-dans-bloc. Les onglets Cartes,
+   Mulligan Lab, Matchups et Courbes enveloppaient leur
+   contenu (qui porte déjà ses propres cartes) dans un
+   conteneur "verre" supplémentaire, surmonté d'un titre qui
+   répète le nom de l'onglet. On rend ce conteneur transparent
+   (plus de carte visible) et on masque le titre redondant.
+   ========================================================= */
+.performance-detail-panel > .stat-panel{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  margin-bottom: 0 !important;
+}
+.performance-detail-panel > .stat-panel:hover{
+  border: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.performance-detail-panel > .stat-panel > .section-head{
+  display: none !important;
+}
+.performance-detail-panel > .stat-panel > .table-zone,
+.performance-detail-panel > .stat-panel > .visual-zone,
+.performance-detail-panel > .stat-panel > .performance-chart-zone,
+.performance-detail-panel > .stat-panel > .matchup-breakdown-list{
+  margin-top: 0 !important;
+}
