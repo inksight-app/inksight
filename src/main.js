@@ -11279,7 +11279,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.themes.mine = detectInkTheme(m, 'mine');
       state.themes.opponent = detectInkTheme(m, 'opponent');
     }
-    const colors = getThemeColors(scope);
+    // Interface neutre : la bicolorité ne teinte plus le fond ni les accents UI.
+    // On épingle les variables CSS sur les couleurs de marque fixes (les graphes
+    // gardent leurs couleurs sémantiques via getThemeColors / state.themes).
+    const colors = [INK_COLORS.sapphire, INK_COLORS.amber];
     const root = document.documentElement;
     root.style.setProperty('--theme-color-1', colors[0]);
     root.style.setProperty('--theme-color-2', colors[1]);
