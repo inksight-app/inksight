@@ -16428,3 +16428,32 @@ body.is-authenticated #view-account .duelink-sync-card{
 #perf-detail-curves .chart-wrap{
   background: transparent !important;
 }
+
+/* =========================================================
+   Uniformité globale : Analyse de match + Historique passent sur le même
+   verre que les Stats (halo bleu léger + dégradé, rayon 22). Scopé à ces
+   deux vues pour ne pas toucher Compte / auth / modales.
+   ========================================================= */
+#view-analysis .glass,
+#view-analysis .glass-primary,
+#view-analysis .match-read,
+#view-analysis .metric-card,
+#performance-history .history-toolbar,
+#performance-history .history-detail,
+#performance-history .history-row{
+  background:
+    radial-gradient(circle at 8% 0%, rgba(55,148,227,.08), transparent 36%),
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.024)) !important;
+  border-radius: 22px !important;
+}
+
+/* L'historique est une liste de cartes (les lignes) : son conteneur ne doit
+   pas dessiner une boîte autour d'elles. */
+#performance-history .history-list{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
