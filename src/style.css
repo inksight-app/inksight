@@ -16253,3 +16253,10 @@ body.is-authenticated #view-account #authLoggedIn #userDisplay{
   font-size: clamp(1rem, 2.4vw, 1.12rem) !important;
   color: rgba(203,213,225,.82) !important;
 }
+/* Bloc "Connecter Duels.ink" : même verre clair à halo que le bloc Connecté,
+   au lieu du voile sombre (rgba(12,14,18,.70)) qui détonnait dans la page. */
+body.is-authenticated #view-account .duelink-sync-card{
+  background:
+    radial-gradient(circle at 8% 0%, rgba(55,148,227,.10), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,.052), rgba(255,255,255,.026)) !important;
+}
