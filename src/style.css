@@ -16316,3 +16316,41 @@ body.is-authenticated #view-account .duelink-sync-card{
   border-radius: 0 !important;
   padding: 0 !important;
 }
+
+/* Stats : barre d'outils d'onglet simplifiée. Le tri passe en un seul menu
+   déroulant (au lieu d'une rangée de pills qui imitait des onglets) et "voir
+   plus" devient un lien texte discret. */
+.performance-block-toolbar{
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.perf-sort-control{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.perf-sort-control > span{
+  color: rgba(203,213,225,.66);
+  font-size: .7rem;
+  font-weight: 850;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.perf-sort-control .sort-select{
+  min-height: 38px;
+}
+.perf-list-link{
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: rgba(158,197,255,.95);
+  font: inherit;
+  font-weight: 750;
+  font-size: .85rem;
+  cursor: pointer;
+}
+.perf-list-link:hover{ text-decoration: underline; }

@@ -142,7 +142,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
     document.addEventListener('click', handlePerformanceFilterClick);
     document.addEventListener('click', handleAccountDeckManagerClick);
-    document.addEventListener('click', handlePerformanceSortClick);
+    document.addEventListener('change', handlePerformanceSortChange);
     document.addEventListener('click', handleMulliganLabFilterClick);
     document.addEventListener('click', handleResponsiveFilterToggle);
     document.addEventListener('click', handleBulkQueueClick);
@@ -5182,11 +5182,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
   }
 
-  function handlePerformanceSortClick(event){
-    const btn = event.target.closest('[data-performance-sort][data-value]');
-    if(!btn) return;
-    const type = btn.dataset.performanceSort;
-    const value = btn.dataset.value;
+  function handlePerformanceSortChange(event){
+    const sel = event.target.closest('select[data-performance-sort-select]');
+    if(!sel) return;
+    const type = sel.dataset.performanceSortSelect;
+    const value = sel.value;
     if(type === 'cards') state.performanceCardSort = value || 'lore';
     if(type === 'mulligan') state.performanceMulliganSort = value || 'smart';
     renderPerformanceData();
@@ -5905,24 +5905,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function labelFromColorKey(key){
     return String(key || '').split('|').map(inkKey).filter(Boolean).map(inkLabel).join(' / ');
-  }
-
-  function activePerformanceContextLabel(){
-    const parts = [];
-    const colors = selectedFilterValues('performanceColorFilter');
-    const opponents = selectedFilterValues('performanceOpponentColorFilter');
-    const formats = selectedFilterValues('performanceFormatFilter');
-    const tempos = selectedFilterValues('performanceTempoFilter');
-    const results = selectedFilterValues('performanceResultFilter');
-    if(colors.length) parts.push(colors.map(labelFromColorKey).join(' + '));
-    else parts.push('Toutes bicolorités');
-    if(opponents.length) parts.push(`vs ${opponents.map(labelFromColorKey).join(' + ')}`);
-    if(formats.length) parts.push(formats.join(' + '));
-    if(tempos.includes('otp')) parts.push('OTP');
-    if(tempos.includes('otd')) parts.push('OTD');
-    if(results.includes('win')) parts.push('Victoires');
-    if(results.includes('loss')) parts.push('Défaites');
-    return parts.join(' · ');
   }
 
   function reliabilityInfo(count){
@@ -7676,14 +7658,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const limit = expanded ? 80 : 4;
     const rows = sorted.slice(0, limit);
     const toolbarHtml = `<div class="performance-block-toolbar">
-      <div class="sort-pills" aria-label="Trier les cartes clés">
-        ${performanceSortButton('cards','lore','Lore',sort)}
-        ${performanceSortButton('cards','played','Jouées',sort)}
-        ${performanceSortButton('cards','inked','Encrées',sort)}
-        ${performanceSortButton('cards','blocked','Bloquées',sort)}
-        ${performanceSortButton('cards','played_winrate','Winrate si jouée',sort)}
-      </div>
-      ${sorted.length > (expanded ? 4 : limit) ? `<button type="button" class="ghost-button compact" data-performance-full-list="cards">${expanded ? 'Réduire la liste' : `Voir les ${sorted.length} cartes`}</button>` : ''}
+      ${performanceSortSelect('cards', [['lore','Lore'],['played','Jouées'],['inked','Encrées'],['blocked','Bloquées'],['played_winrate','Winrate si jouée']], sort)}
+      ${sorted.length > (expanded ? 4 : limit) ? `<button type="button" class="perf-list-link" data-performance-full-list="cards">${expanded ? 'Réduire la liste' : `Voir les ${sorted.length} cartes`}</button>` : ''}
     </div>`;
     if(isDeadWeightSort){
       const emptyHtml = performanceDeadWeightEmptyHtml(analytics);
@@ -7763,8 +7739,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return (n(b.lore)-n(a.lore)) || (n(b.loreActions)-n(a.loreActions)) || (n(b.quest)-n(a.quest)) || (n(b.played)-n(a.played)) || name();
   }
 
-  function performanceSortButton(type,value,label,active){
-    return `<button type="button" class="sort-pill ${active === value ? 'active' : ''}" data-performance-sort="${escAttr(type)}" data-value="${escAttr(value)}">${esc(label)}</button>`;
+  function performanceSortSelect(type, options, active){
+    const opts = options.map(([value,label]) => `<option value="${escAttr(value)}" ${active === value ? 'selected' : ''}>${esc(label)}</option>`).join('');
+    return `<label class="perf-sort-control"><span>Trier</span><select class="sort-select" data-performance-sort-select="${escAttr(type)}" aria-label="Trier">${opts}</select></label>`;
   }
 
   function performanceCardStatusBadges(card){
@@ -8046,22 +8023,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     rows = filterMulliganCardsBySort(rows, sort).sort((a,b)=>compareMulliganCards(a,b,sort));
     const limit = expanded ? 80 : 10;
     const visible = rows.slice(0, limit);
-    const contextLabel = activePerformanceContextLabel();
-    const controlsHtml = `<div class="mulligan-lab-controls mulligan-lab-controls-compact global-context-only context-only">
-      <div><span>Contexte appliqué</span><p class="mulligan-lab-context-note">${esc(contextLabel)}</p></div>
-    </div>`;
-    const toolbarHtml = `<div class="performance-block-toolbar mulligan-lab-toolbar action-first">
-      <div class="sort-pills" aria-label="Trier le guide mulligan">
-        ${performanceSortButton('mulligan','smart','Priorité',sort)}
-        ${performanceSortButton('mulligan','kept','Plus gardées',sort)}
-        ${performanceSortButton('mulligan','thrown','Plus renvoyées',sort)}
-        ${performanceSortButton('mulligan','seen','Plus vues',sort)}
-        ${performanceSortButton('mulligan','kept_wr','WR gardée',sort)}
-      </div>
-      ${rows.length > (expanded ? 10 : limit) ? `<button type="button" class="ghost-button compact" data-performance-full-list="mulligan">${expanded ? 'Réduire' : `Voir ${rows.length} cartes`}</button>` : ''}
+    const toolbarHtml = `<div class="performance-block-toolbar mulligan-lab-toolbar">
+      ${performanceSortSelect('mulligan', [['smart','Priorité'],['kept','Plus gardées'],['thrown','Plus renvoyées'],['seen','Plus vues'],['kept_wr','WR gardée']], sort)}
+      ${rows.length > (expanded ? 10 : limit) ? `<button type="button" class="perf-list-link" data-performance-full-list="mulligan">${expanded ? 'Réduire' : `Voir ${rows.length} cartes`}</button>` : ''}
     </div>`;
     const listHtml = visible.length ? `<div class="mulligan-visual-list mulligan-lab-list ${expanded ? 'expanded' : ''}">${visible.map(card => performanceMulliganCardHtml(card)).join('')}</div>` : '<div class="empty-line">Aucune carte ne correspond à ces filtres. Essayez “Toutes” ou un autre matchup.</div>';
-    return `<section class="mulligan-lab mulligan-lab-action-first">${controlsHtml}${toolbarHtml}${listHtml}</section>`;
+    return `<section class="mulligan-lab mulligan-lab-action-first">${toolbarHtml}${listHtml}</section>`;
   }
 
   function compareMulliganCards(a,b,sort){
