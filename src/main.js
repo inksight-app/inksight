@@ -3843,8 +3843,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function buildSavedMatchPayload(m, deckProfile={}, details={}){
+    const apiMeta = apiMetadataForSavedData(m);
+    const apiRaw = apiMeta?.api_row?.raw || null;
+    const rawFmt = String(apiRaw?.match_format || '').toLowerCase();
+    // Id de série Duels.ink (groupe les games d'un BO3). Absent pour les BO1.
+    const seriesMatchId = apiRaw?.match_id || null;
     const global = !!(m?.isBO3 || isGlobalView());
-    const format = global ? 'BO3' : 'BO1';
+    // Le format vient d'abord de Duels.ink (match_format), sinon du mode d'analyse.
+    const format = rawFmt === 'bo3' ? 'BO3' : (rawFmt === 'bo1' ? 'BO1' : (global ? 'BO3' : 'BO1'));
     const profiles = m.inkProfiles || buildInkProfiles(m);
     const wins = n(m.wins);
     const losses = n(m.losses);
@@ -3856,7 +3862,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const quality = auditCurrentAnalysisQuality(m, details, deckProfile);
     const fingerprint = savedMatchSignatureFromM(m);
     const playedAt = detectPlayedAt(m) || null;
-    const apiMeta = apiMetadataForSavedData(m);
     const sourceType = apiMeta?.source_type || 'manual';
 
     return {
@@ -3876,6 +3881,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       played_at:playedAt,
       source_type:sourceType,
       duelink_match_id:apiMeta?.duelink_game_id || null,
+      series_match_id:seriesMatchId,
       duelink_source:apiMeta?.duelink_source || null,
       duelink_queue:apiMeta?.duelink_queue || null,
       duelink_updated_at:apiMeta?.duelink_updated_at || null,
