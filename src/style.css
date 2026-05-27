@@ -9229,10 +9229,10 @@ canvas{
    V106 — uniformisation complète des blocs signal / insight / carte clé
    ========================================================= */
 :root{
-  --signal-card-bg:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018)),#101113;
-  --signal-card-border:rgba(255,255,255,.09);
+  --signal-card-bg:radial-gradient(circle at 8% 0%, rgba(55,148,227,.08), transparent 36%),linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.024));
+  --signal-card-border:rgba(255,255,255,.12);
   --signal-card-shadow:0 18px 46px rgba(0,0,0,.28);
-  --signal-card-radius:24px;
+  --signal-card-radius:22px;
 }
 
 .performance-trend-card.card-signal-card,
@@ -16362,6 +16362,9 @@ body.is-authenticated #view-account .duelink-sync-card{
    (tons, barres garder/renvoyer, badges) restent gérés par
    leurs propres règles, par-dessus.
    ========================================================= */
+#view-performances .performance-hero,
+#view-performances .performance-tabs,
+#view-performances .performance-detail-tabs,
 #view-performances .metric-card,
 #view-performances .performance-coach-card,
 #view-performances .performance-trend-card,
@@ -16371,8 +16374,7 @@ body.is-authenticated #view-account .duelink-sync-card{
 #view-performances .deck-health-main,
 #view-performances .deck-health-details,
 #view-performances .performance-filter-bar,
-#perf-detail-curves > .stat-panel,
-#perf-detail-matchups > .performance-matchup-panel{
+#perf-detail-curves > .stat-panel{
   background:
     radial-gradient(circle at 8% 0%, rgba(55,148,227,.08), transparent 36%),
     linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.024)) !important;
@@ -16390,10 +16392,11 @@ body.is-authenticated #view-account .duelink-sync-card{
   width: auto !important;
 }
 
-/* Cartes & Mulligan : les tuiles internes SONT déjà les cartes en verre, donc
-   leur conteneur ne doit pas ajouter une seconde boîte (effet couches). */
+/* Cartes / Mulligan / Matchups : les tuiles internes SONT déjà les cartes en
+   verre, donc leur conteneur ne doit pas ajouter une seconde boîte (couches). */
 #perf-detail-cards > .stat-panel,
-#perf-detail-mulligan > .stat-panel{
+#perf-detail-mulligan > .stat-panel,
+#perf-detail-matchups > .performance-matchup-panel{
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
@@ -16401,4 +16404,22 @@ body.is-authenticated #view-account .duelink-sync-card{
   padding: 0 !important;
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
+}
+
+/* Vue d'ensemble : la mini-carte (Moteur de lore / Carte souvent encrée) ne
+   doit pas redessiner une boîte à l'intérieur de sa carte-tendance. */
+#view-performances .mini-card-signal-btn{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Courbes : la carte-graphe interne faisait une boîte (fond sombre) dans la
+   carte en verre. On l'aplatit ; la carte en verre extérieure suffit. */
+#view-performances .performance-chart-card{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
