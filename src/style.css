@@ -16374,7 +16374,7 @@ body.is-authenticated #view-account .duelink-sync-card{
 #view-performances .deck-health-main,
 #view-performances .deck-health-details,
 #view-performances .performance-filter-bar,
-#perf-detail-curves > .stat-panel{
+#view-performances .performance-chart-card{
   background:
     radial-gradient(circle at 8% 0%, rgba(55,148,227,.08), transparent 36%),
     linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.024)) !important;
@@ -16385,7 +16385,8 @@ body.is-authenticated #view-account .duelink-sync-card{
    panneaux portait une marge horizontale de 16px qui le décalait par rapport
    aux blocs du haut (filtres, onglets). On annule l'horizontal, on garde le
    vertical. */
-#view-performances .performance-detail-panel > *{
+#view-performances .performance-detail-panel > *,
+#perf-detail-curves .performance-chart-card{
   margin-left: 0 !important;
   margin-right: 0 !important;
   max-width: 100% !important;
@@ -16396,7 +16397,8 @@ body.is-authenticated #view-account .duelink-sync-card{
    verre, donc leur conteneur ne doit pas ajouter une seconde boîte (couches). */
 #perf-detail-cards > .stat-panel,
 #perf-detail-mulligan > .stat-panel,
-#perf-detail-matchups > .performance-matchup-panel{
+#perf-detail-matchups > .performance-matchup-panel,
+#perf-detail-curves > .stat-panel{
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
@@ -16415,11 +16417,14 @@ body.is-authenticated #view-account .duelink-sync-card{
   padding: 0 !important;
 }
 
-/* Courbes : la carte-graphe interne faisait une boîte (fond sombre) dans la
-   carte en verre. On l'aplatit ; la carte en verre extérieure suffit. */
+/* Courbes : c'est la carte-graphe qui porte le verre (le wrapper stat-panel est
+   aplati au-dessus). On lui rend une bordure cohérente et on enlève le fond gris
+   de la zone de tracé pour ne pas refaire une boîte interne. */
 #view-performances .performance-chart-card{
+  border: 1px solid rgba(255,255,255,.12) !important;
+  padding: 16px !important;
+}
+#perf-detail-curves .performance-chart-wrap,
+#perf-detail-curves .chart-wrap{
   background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  padding: 0 !important;
 }
