@@ -5334,30 +5334,45 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const colorFilterId = mode === 'history' ? 'historyColorFilter' : 'performanceColorFilter';
     const selectedColors = selectedFilterValues(colorFilterId);
     const rows = (state.savedMatches || []).filter(row => !selectedColors.length || selectedColors.includes(colorFilterKey(rowMineColors(row))));
-    const counts = new Map();
+    const stats = new Map(); // id -> { games, wins, lastPlayedAt }
     rows.forEach(row => {
       const id = row.deck_profile_id || '';
       if(!id) return;
       const profile = state.deckProfiles.find(item => item.id === id);
       if(!profile || !isNamedDeckProfile(profile)) return;
       if(selectedColors.length && !selectedColors.some(colorKey => profileMatchesColorKey(profile, colorKey))) return;
-      counts.set(id, n(counts.get(id)) + 1);
+      const entry = stats.get(id) || { games:0, wins:0, lastPlayedAt:null };
+      entry.games += 1;
+      if(row.result === 'win') entry.wins += 1;
+      const played = row.played_at || row.created_at || null;
+      if(played && (!entry.lastPlayedAt || played > entry.lastPlayedAt)) entry.lastPlayedAt = played;
+      stats.set(id, entry);
     });
-    const profiles = [...counts.keys()]
+    // Tri par activité récente (decks vieux en bas) puis games décroissant.
+    const profiles = [...stats.keys()]
       .map(id => state.deckProfiles.find(profile => profile.id === id))
       .filter(Boolean)
-      .sort((a,b)=>String(a.name || '').localeCompare(String(b.name || '')));
+      .sort((a,b)=>{
+        const sa = stats.get(a.id), sb = stats.get(b.id);
+        const da = sa?.lastPlayedAt || '', db = sb?.lastPlayedAt || '';
+        if(da !== db) return da < db ? 1 : -1;
+        return (sb?.games || 0) - (sa?.games || 0);
+      });
     return [
-      { value:'all', label:'Toutes les versions' },
-      ...profiles.map(profile => ({ value:profile.id, label:`${profile.name} · ${counts.get(profile.id)}`, colors:profileColors(profile) }))
+      { value:'all', label:'Tous les decks' },
+      ...profiles.map(profile => {
+        const s = stats.get(profile.id) || { games:0, wins:0 };
+        const wr = s.games ? Math.round(100 * s.wins / s.games) : 0;
+        return { value:profile.id, label:`${profile.name} · ${s.games}g · ${wr}%`, colors:profileColors(profile) };
+      })
     ];
   }
 
   function shouldShowDeckVersionFilter(options, selectedColorValue, mode='performance'){
-    const filterId = mode === 'history' ? 'historyColorFilter' : 'performanceColorFilter';
-    const selectedColors = selectedFilterValues(filterId);
-    if(selectedColors.length !== 1) return false;
-    return (options || []).filter(option => option.value !== 'all').length > 1;
+    // Avant : ne s'affichait qu'avec exactement 1 bicolorité sélectionnée — trop
+    // restrictif. Maintenant : visible dès qu'il y a au moins 2 decks à choisir
+    // dans le contexte filtré, peu importe la sélection de couleurs.
+    return (options || []).filter(option => option.value !== 'all').length >= 2;
   }
 
   function rowMineColors(row){
