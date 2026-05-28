@@ -13580,14 +13580,19 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
   display:none !important;
 }
 
-/* Align Stats filter layout with History — full-width stack, pills wrap horizontally */
+/* Align Stats filter layout with History — full-width stack, pills wrap horizontally on desktop, scroll on mobile */
 #performance-stats .performance-filter-controls-viz{display:block!important;min-width:0!important;width:100%!important}
 #performance-stats .history-filter-pills{display:grid!important;grid-template-columns:1fr!important;gap:14px!important;width:100%!important}
 #performance-stats .history-filter-pills>.filter-pill-block{width:100%!important;min-width:0!important}
 #performance-stats .history-filter-pills .filter-pill-row,
-#performance-stats .filter-pill-row{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;gap:8px!important;width:100%!important;overflow:visible!important;align-items:center!important}
+#performance-stats .filter-pill-row{display:flex!important;flex-direction:row!important;flex-wrap:wrap!important;gap:8px!important;width:100%!important;align-items:center!important}
 #performance-stats .filter-pill{flex:0 0 auto!important;display:inline-flex!important;width:auto!important;max-width:none!important}
 #performance-stats .deck-pill-wrap{flex:0 0 auto!important}
+@media (max-width:700px){
+  #performance-stats .history-filter-pills .filter-pill-row,
+  #performance-stats .filter-pill-row{flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;padding-bottom:4px!important;scrollbar-width:none!important;-webkit-overflow-scrolling:touch!important;}
+  #performance-stats .filter-pill-row::-webkit-scrollbar{display:none!important;}
+}
 
 /* Deck pill with sibling info button — both styled like .filter-pill */
 .deck-pill-wrap{display:inline-flex;align-items:center;gap:4px;flex-shrink:0}
@@ -13624,7 +13629,7 @@ body.decklist-sheet-open{overflow:hidden}
 /* — Cost curve — */
 .dl-curve{margin-bottom:16px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,rgba(255,255,255,.035),rgba(255,255,255,.012));border:1px solid rgba(255,255,255,.06)}
 .dl-curve-bars{display:flex;align-items:flex-end;gap:8px;height:80px;margin-bottom:8px}
-.dl-curve-bar{flex:1;display:flex;align-items:flex-start;justify-content:center;background:linear-gradient(180deg,#60a5fa,#1e40af);border-radius:8px 8px 3px 3px;min-height:6px;box-shadow:0 4px 14px rgba(96,165,250,.18)}
+.dl-curve-bar{flex:1;display:flex;align-items:flex-start;justify-content:center;background:linear-gradient(180deg,var(--theme-color-1,#60a5fa),var(--theme-color-2,#1e40af));border-radius:8px 8px 3px 3px;min-height:6px;box-shadow:0 4px 14px color-mix(in srgb,var(--theme-color-1,#60a5fa) 28%,transparent)}
 .dl-curve-bar b{color:#fff;font-size:.7rem;font-weight:800;padding:4px 0;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,.3)}
 .dl-curve-labels{display:flex;gap:8px}
 .dl-curve-labels span{flex:1;text-align:center;color:rgba(148,163,184,.75);font-size:.7rem;font-weight:700;font-variant-numeric:tabular-nums}
