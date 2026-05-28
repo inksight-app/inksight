@@ -358,6 +358,7 @@ export async function listSavedMatchHistoryLight(limit = 1000) {
       'source_type',
       'duelink_match_id',
       'series_match_id',
+      'went_first',
       'duelink_source',
       'duelink_queue',
       'duelink_updated_at',

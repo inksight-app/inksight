@@ -3882,6 +3882,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       source_type:sourceType,
       duelink_match_id:apiMeta?.duelink_game_id || null,
       series_match_id:seriesMatchId,
+      went_first:(apiRaw?.went_first === true || apiRaw?.went_first === 'true') ? true : ((apiRaw?.went_first === false || apiRaw?.went_first === 'false') ? false : null),
       duelink_source:apiMeta?.duelink_source || null,
       duelink_queue:apiMeta?.duelink_queue || null,
       duelink_updated_at:apiMeta?.duelink_updated_at || null,
@@ -5979,6 +5980,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function rowTempoValues(row){
+    // Source la plus fiable : la colonne went_first remplie depuis l'API
+    // Duels.ink (1 ligne = 1 game, OTP/OTD direct).
+    if(row?.went_first === true) return ['otp'];
+    if(row?.went_first === false) return ['otd'];
+    // Repli pour les saves manuelles multi-games (BO3 zip) : on lit dans
+    // analysis_json.games comme avant.
     const analysis = parseStoredJson(row?.analysis_json);
     const games = Array.isArray(analysis?.games) ? analysis.games : [];
     const values = [];
