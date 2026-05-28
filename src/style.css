@@ -13575,6 +13575,20 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
   display:none !important;
 }
 
+/* Deck pill with info button */
+.deck-pill-wrap{display:inline-flex;align-items:center;gap:2px}
+.deck-info-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border-radius:50%;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.62);color:rgba(203,213,225,.55);font-size:.7rem;cursor:pointer;transition:border-color .14s,color .14s;flex-shrink:0}
+.deck-info-btn:hover{border-color:rgba(148,163,184,.4);color:#fff}
+/* Decklist modal */
+.decklist-modal-body{padding:4px 0}
+.decklist-total{margin:0 0 14px;color:rgba(203,213,225,.6);font-size:.8rem}
+.decklist-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px}
+.decklist-type-head{margin:0 0 6px;color:#fff;font-size:.82rem;letter-spacing:-.02em;font-weight:800}
+.decklist-type-head small{color:rgba(203,213,225,.5);font-weight:500;margin-left:4px}
+.decklist-card-list{margin:0;padding:0;list-style:none;display:grid;gap:3px}
+.decklist-card-list li{color:rgba(226,232,240,.82);font-size:.76rem;line-height:1.35;display:flex;align-items:baseline;gap:4px}
+.deck-card-count{color:rgba(203,213,225,.5);font-weight:700;font-size:.7rem;min-width:16px;text-align:right;flex-shrink:0}
+
 /* V136.0C — anti-duplicate save, mobile readability and color badge polish */
 .history-summary-colors{display:inline-flex!important;align-items:center;gap:.35rem;min-height:1.6rem}
 .filter-pill.color-badge-pill{gap:.5rem;min-width:auto;white-space:nowrap}

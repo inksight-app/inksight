@@ -5180,6 +5180,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function handlePerformanceFilterClick(event){
+    const deckInfoBtn = event.target.closest('[data-deck-info]');
+    if(deckInfoBtn){ event.preventDefault(); openDecklistModal(deckInfoBtn.dataset.deckInfo); return; }
     const btn = event.target.closest('[data-perf-filter][data-value]');
     if(!btn) return;
     const targetId = btn.dataset.perfFilter;
@@ -5306,7 +5308,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     syncSelectOptions(els.performanceDeckFilter, deckOptions, 'all');
     const showDeckVersions = shouldShowDeckVersionFilter(deckOptions, null, 'performance');
     if(els.performanceVersionBlock) els.performanceVersionBlock.hidden = !showDeckVersions;
-    renderPillGroup(els.performanceDeckPills, 'performanceDeckFilter', deckOptions, els.performanceDeckFilter?.value || 'all');
+    renderDeckPillGroup(els.performanceDeckPills, 'performanceDeckFilter', deckOptions);
 
     const performanceOpponentOptions = opponentColorOptionsForPills('stats');
     syncSelectOptions(els.performanceOpponentColorFilter, performanceOpponentOptions, 'all');
@@ -5324,10 +5326,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     const poolOptions = lorcanaPoolOptions();
     const setOptions = lorcanaSetOptions();
-    const showPerfPool = poolOptions.length > 1;
-    const showPerfSet = setOptions.length > 1;
-    if(els.performancePoolBlock) els.performancePoolBlock.hidden = !showPerfPool;
-    if(els.performanceSetBlock) els.performanceSetBlock.hidden = !showPerfSet;
+    const showPool = poolOptions.length > 0;
+    const showSet = setOptions.length > 0;
+    if(els.performancePoolBlock) els.performancePoolBlock.hidden = !showPool;
+    if(els.performanceSetBlock) els.performanceSetBlock.hidden = !showSet;
     renderPillGroup(els.performancePoolPills, 'performancePoolFilter', poolOptions);
     renderPillGroup(els.performanceSetPills, 'performanceSetFilter', setOptions);
 
@@ -5340,7 +5342,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     syncSelectOptions(els.historyDeckFilter, historyDeckOptions, 'all');
     const showHistoryVersions = shouldShowDeckVersionFilter(historyDeckOptions, null, 'history');
     if(els.historyVersionBlock) els.historyVersionBlock.hidden = !showHistoryVersions;
-    renderPillGroup(els.historyDeckPills, 'historyDeckFilter', historyDeckOptions, els.historyDeckFilter?.value || 'all');
+    renderDeckPillGroup(els.historyDeckPills, 'historyDeckFilter', historyDeckOptions);
     renderPillGroup(els.historyFormatPills, 'historyFormatFilter', [
       { value:'all', label:'Tous' }, { value:'BO1', label:'BO1' }, { value:'BO3', label:'BO3' }
     ], els.historyFormatFilter?.value || 'all');
@@ -5351,8 +5353,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       { value:'all', label:'OTP + OTD' }, { value:'otp', label:'OTP' }, { value:'otd', label:'OTD' }
     ], els.historyTempoFilter?.value || 'all');
 
-    if(els.historyPoolBlock) els.historyPoolBlock.hidden = !showPerfPool;
-    if(els.historySetBlock) els.historySetBlock.hidden = !showPerfSet;
+    if(els.historyPoolBlock) els.historyPoolBlock.hidden = !showPool;
+    if(els.historySetBlock) els.historySetBlock.hidden = !showSet;
     renderPillGroup(els.historyPoolPills, 'historyPoolFilter', poolOptions);
     renderPillGroup(els.historySetPills, 'historySetFilter', setOptions);
   }
@@ -5373,7 +5375,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function performanceColorOptionsForPills(){
     // Cross-filtre comme les pills adverses : les comptes par bicolorité
     // reflètent les autres filtres sélectionnés (BO1/BO3, OTP/OTD, etc.).
-    const sourceRows = filteredSavedMatchesWithout(['performanceColorFilter']);
+    const sourceRows = filteredSavedMatchesWithout(['performanceColorFilter','performanceDeckFilter']);
     const map = new Map();
     (sourceRows || []).forEach(row => {
       const colors = rowMineColors(row);
@@ -5457,37 +5459,37 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function shouldShowDeckVersionFilter(options, selectedColorValue, mode='performance'){
-    // Avant : ne s'affichait qu'avec exactement 1 bicolorité sélectionnée — trop
-    // restrictif. Maintenant : visible dès qu'il y a au moins 2 decks à choisir
-    // dans le contexte filtré, peu importe la sélection de couleurs.
-    return (options || []).filter(option => option.value !== 'all').length >= 2;
+    const prefix = mode === 'history' ? 'history' : 'performance';
+    const selectedColors = selectedFilterValues(`${prefix}ColorFilter`);
+    if(!selectedColors.length) return false;
+    return (options || []).filter(option => option.value !== 'all').length >= 1;
+  }
+
+  function rowFormatPool(row){
+    const q = String(row?.queue_id || '').toLowerCase();
+    if(!q) return '';
+    if(q.startsWith('infinity') || q.includes('infinity')) return 'infinity';
+    if(q.startsWith('core') || q.startsWith('quick-play-core') || q.startsWith('pack-rush') || q.includes('core')) return 'core';
+    return '';
+  }
+
+  function rowSetNum(row){
+    const q = String(row?.queue_id || '').toLowerCase();
+    const m = q.match(/set(\d+)/);
+    return m ? m[1] : '';
   }
 
   function lorcanaPoolOptions(){
-    const pools = new Set((state.deckProfiles || []).map(p => p.format_pool).filter(Boolean));
+    const pools = new Set((state.savedMatches || []).map(rowFormatPool).filter(Boolean));
     if(!pools.size) return [];
     const labels = { core:'Core', infinity:'Infinity' };
     return [...pools].sort().map(pool => ({ value:pool, label:labels[pool] || pool }));
   }
 
   function lorcanaSetOptions(){
-    const used = new Set((state.deckProfiles || []).map(p => p.set_tag).filter(Boolean));
+    const used = new Set((state.savedMatches || []).map(rowSetNum).filter(Boolean));
     if(!used.size) return [];
-    const allSets = [
-      { value:'set_1', label:'Set 1 – The First Chapter' },
-      { value:'set_2', label:'Set 2 – Rise of the Floodborn' },
-      { value:'set_3', label:'Set 3 – Into the Inklands' },
-      { value:'set_4', label:'Set 4 – Ursula\'s Return' },
-      { value:'set_5', label:'Set 5 – Shimmering Skies' },
-      { value:'set_6', label:'Set 6 – Azurite Sea' },
-      { value:'set_7', label:'Set 7 – Archazia\'s Island' },
-      { value:'set_8', label:'Set 8 – Reign of Jafar' },
-      { value:'set_9', label:'Set 9' },
-      { value:'set_10', label:'Set 10' },
-      { value:'set_11', label:'Set 11' },
-      { value:'set_12', label:'Set 12' },
-    ];
-    return allSets.filter(s => used.has(s.value));
+    return [...used].sort((a,b) => Number(a)-Number(b)).map(n => ({ value:n, label:`Set ${n}` }));
   }
 
   function rowMineColors(row){
@@ -5518,6 +5520,55 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const colorOnly = option.colors?.length ? ' color-badge-pill' : '';
       return `<button type="button" class="filter-pill${compact}${colorOnly} ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-label="${escAttr(aria)}" title="${escAttr(aria)}" aria-pressed="${active ? 'true' : 'false'}">${dots}<span>${esc(label)}</span></button>`;
     }).join('');
+  }
+
+  function renderDeckPillGroup(target, selectId, options){
+    if(!target) return;
+    const activeValues = selectedFilterValues(selectId);
+    const visible = (options || []).filter(o => o.value !== 'all');
+    target.innerHTML = visible.map(option => {
+      const active = activeValues.includes(String(option.value));
+      const dots = inkDotsHtml(option.colors || []);
+      const label = option.shortLabel || option.label;
+      const aria = option.ariaLabel || option.label || label;
+      return `<span class="deck-pill-wrap"><button type="button" class="filter-pill color-badge-pill ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-label="${escAttr(aria)}" aria-pressed="${active?'true':'false'}">${dots}<span>${esc(label)}</span></button><button type="button" class="deck-info-btn" data-deck-info="${escAttr(option.value)}" title="Voir la decklist" aria-label="Décklist · ${escAttr(aria)}">▤</button></span>`;
+    }).join('');
+  }
+
+  async function openDecklistModal(profileId){
+    const profile = state.deckProfiles.find(p => p.id === profileId);
+    if(!profile) return;
+    const matchRow = (state.savedMatches || []).find(r => r.deck_profile_id === profileId);
+    if(!matchRow){ openPerformanceListModal(profile.name, '<p style="color:rgba(203,213,225,.7)">Aucune décklist disponible.</p>'); return; }
+    openPerformanceListModal(profile.name, '<p style="color:rgba(203,213,225,.7)">Chargement…</p>');
+    try{
+      const full = await getSavedMatch(matchRow.id);
+      const decklist = full?.api_metadata?.api_row?.raw?.your_decklist || [];
+      if(!decklist.length){ openPerformanceListModal(profile.name, '<p style="color:rgba(203,213,225,.7)">Décklist non disponible (import manuel).</p>'); return; }
+      openPerformanceListModal(profile.name, buildDecklistHtml(profile, decklist));
+    }catch(err){
+      openPerformanceListModal(profile.name, `<p style="color:rgba(203,213,225,.7)">Erreur : ${esc(err.message)}</p>`);
+    }
+  }
+
+  function buildDecklistHtml(profile, decklist){
+    const cards = decklist.map(entry => {
+      const h = hydrateCard({ id:entry.cardId });
+      const name = fullName(h) || entry.cardId;
+      const type = h.type || h.cardType || 'Other';
+      const cost = typeof h.cost === 'number' ? h.cost : (typeof h.inkCost === 'number' ? h.inkCost : 99);
+      return { count:entry.count, name, type, cost };
+    }).sort((a,b) => a.cost - b.cost || a.name.localeCompare(b.name));
+    const total = decklist.reduce((s,e) => s + e.count, 0);
+    const groups = {};
+    cards.forEach(c => { (groups[c.type] = groups[c.type] || []).push(c); });
+    const typeOrder = ['Character','Action','Item','Location'];
+    const allTypes = [...typeOrder.filter(t => groups[t]), ...Object.keys(groups).filter(t => !typeOrder.includes(t) && groups[t])];
+    const html = allTypes.map(type => {
+      const gTotal = groups[type].reduce((s,c) => s + c.count, 0);
+      return `<div class="decklist-group"><h4 class="decklist-type-head">${esc(type)}s <small>(${gTotal})</small></h4><ul class="decklist-card-list">${groups[type].map(c => `<li><span class="deck-card-count">${c.count}×</span> ${esc(c.name)}</li>`).join('')}</ul></div>`;
+    }).join('');
+    return `<div class="decklist-modal-body"><p class="decklist-total">${total} cartes</p><div class="decklist-groups">${html}</div></div>`;
   }
 
   function inkDotsHtml(colors){
@@ -6030,14 +6081,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(results.length) rows = rows.filter(row => results.includes(row.result));
     if(formats.length) rows = rows.filter(row => formats.includes(String(row.format || '').toUpperCase()));
     if(tempos.length) rows = rows.filter(row => rowMatchesTempo(row, tempos));
-    if(pools.length) rows = rows.filter(row => {
-      const profile = state.deckProfiles.find(p => p.id === row.deck_profile_id);
-      return pools.includes(String(profile?.format_pool || ''));
-    });
-    if(sets.length) rows = rows.filter(row => {
-      const profile = state.deckProfiles.find(p => p.id === row.deck_profile_id);
-      return sets.includes(String(profile?.set_tag || ''));
-    });
+    if(pools.length) rows = rows.filter(row => pools.includes(rowFormatPool(row)));
+    if(sets.length) rows = rows.filter(row => sets.includes(rowSetNum(row)));
     if(query){
       rows = rows.filter(row => [row.title, row.matchup_label, row.opponent_name, row.deck_name, row.score_label]
         .filter(Boolean)
