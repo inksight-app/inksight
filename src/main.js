@@ -5551,14 +5551,31 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     sheet.classList.add('active');
     document.body.classList.add('decklist-sheet-open');
 
-    const matchRow = (state.savedMatches || []).find(r => r.deck_profile_id === profileId);
+    const allForProfile = (state.savedMatches || []).filter(r => r.deck_profile_id === profileId);
+    const matchRow = allForProfile[0];
     if(!matchRow){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Aucun match sauvegardé pour ce deck.</p>'; return; }
+
+    // Win rate computed from all matches for this profile (unfiltered)
+    const profileWins = allForProfile.filter(r => r.result === 'win').length;
+    const profileStats = { wins:profileWins, total:allForProfile.length, winRate: Math.round(profileWins / allForProfile.length * 100) };
+
     try{
       const full = await getSavedMatch(matchRow.id);
       const decklist = full?.api_metadata?.api_row?.raw?.your_decklist || [];
       if(!decklist.length){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Décklist non disponible (import manuel).</p>'; return; }
-      sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist);
-      bindDecklistActions(sheet, profile, decklist);
+
+      // Build cardId → raw card object map from all game events in the loaded match.
+      // This resolves enchanted/alternate-art cards (collector number > 204) that
+      // aren't in the local DB but appear in the Duels.ink game log with their names.
+      const rawCardObjects = extractCards(full?.api_metadata?.api_row?.raw || {});
+      const cardIdToRaw = new Map();
+      rawCardObjects.forEach(c => {
+        const id = String(c.cardId || c.id || '').trim();
+        if(id && !cardIdToRaw.has(id)) cardIdToRaw.set(id, c);
+      });
+
+      sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist, { cardIdToRaw, profileStats });
+      bindDecklistActions(sheet, profile, decklist, cardIdToRaw);
     }catch(err){
       sheet.querySelector('.decklist-sheet-body').innerHTML = `<p class="decklist-sheet-empty">Erreur : ${esc(err.message)}</p>`;
     }
@@ -5572,14 +5589,18 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return `https://cards.duels.ink/lorcana/en/thumbnail/${setNum}-${strip0(num)}.webp`;
   }
 
-  function bindDecklistActions(sheet, profile, decklist){
+  function bindDecklistActions(sheet, profile, decklist, cardIdToRaw=new Map()){
     const copyBtn = sheet.querySelector('[data-decklist-copy]');
     if(copyBtn){
       const labelEl = copyBtn.querySelector('span');
       const originalLabel = labelEl?.textContent || 'Copier la decklist';
       copyBtn.addEventListener('click', async () => {
         const lines = decklist.map(e => {
-          const h = hydrateCard({ id:e.cardId });
+          let h = hydrateCard({ id:e.cardId });
+          if(!h || fullName(h) === 'Carte inconnue'){
+            const raw = cardIdToRaw.get(e.cardId);
+            if(raw) h = hydrateCard({ ...raw, id:e.cardId });
+          }
           const name = (h && fullName(h) !== 'Carte inconnue') ? fullName(h) : e.cardId;
           return `${e.count} ${name}`;
         });
@@ -5612,22 +5633,35 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.body.classList.remove('decklist-sheet-open');
   }
 
-  function buildDecklistHtml(profile, decklist){
+  function buildDecklistHtml(profile, decklist, opts={}){
+    const { cardIdToRaw = new Map(), profileStats = null } = opts;
     const cards = decklist.map(entry => {
-      const h = hydrateCard({ id:entry.cardId });
-      // Trust the local card DB only when it actually resolved the card.
-      const resolved = !!h && fullName(h) !== 'Carte inconnue' && !!h.cost;
+      // 1) Local DB lookup (works for base cards 1-204 per set)
+      let h = hydrateCard({ id:entry.cardId });
+      let fromDb = !!h && fullName(h) !== 'Carte inconnue' && h.cost != null;
+      // 2) Fallback: card object extracted from game events (covers enchanted/alt-art)
+      if(!fromDb){
+        const raw = cardIdToRaw.get(entry.cardId);
+        if(raw) h = hydrateCard({ ...raw, id:entry.cardId });
+      }
+      const resolved = !!h && fullName(h) !== 'Carte inconnue' && h.cost != null;
       const name = resolved ? fullName(h) : '';
       const type = resolved ? (h.type || h.cardType || 'Other') : 'Unknown';
-      const cost = resolved && typeof h.cost === 'number' ? h.cost : (typeof h.inkCost === 'number' ? h.inkCost : 99);
-      const image = cardImageUrlFromId(entry.cardId) || h.imageSmall || h.image || '';
-      // Only mark as uninkable if the local DB explicitly says so; never default.
+      const cost = resolved && h.cost != null ? h.cost : 99;
+      const image = cardImageUrlFromId(entry.cardId) || h?.imageSmall || h?.image || '';
       const inkableKnown = resolved && typeof h.inkable === 'boolean';
       return { count:entry.count, name, type, cost, image, id:entry.cardId, resolved, inkableKnown, uninkable: inkableKnown && h.inkable === false };
     }).sort((a,b) => a.cost - b.cost || a.name.localeCompare(b.name));
     const total = decklist.reduce((s,e) => s + e.count, 0);
     const uninkable = cards.filter(c => c.uninkable).reduce((s,c) => s + c.count, 0);
     const allKnown = cards.every(c => c.inkableKnown);
+    const avgCost = (() => {
+      const inkable = cards.filter(c => c.cost < 99);
+      if(!inkable.length) return null;
+      const total = inkable.reduce((s,c) => s + c.cost * c.count, 0);
+      const count = inkable.reduce((s,c) => s + c.count, 0);
+      return count ? (total / count).toFixed(1) : null;
+    })();
     const groups = {};
     cards.forEach(c => { (groups[c.type] = groups[c.type] || []).push(c); });
     const typeOrder = ['Character','Action','Song','Item','Location','Unknown'];
@@ -5648,7 +5682,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return `<section class="dl-section"><h3 class="dl-section-title"><span>${esc(typeLabels[type] || type)}</span><span class="dl-section-count">${gTotal}</span></h3><ul class="dl-card-list">${items}</ul></section>`;
     }).join('');
     const curve = buildCostCurveHtml(cards);
-    const statsBar = `<div class="dl-summary">${inkDots}<div class="dl-summary-stats"><span><strong>${total}</strong><em>Cartes</em></span>${allKnown ? `<span><strong>${uninkable}</strong><em>Non-encrables</em></span>` : ''}</div></div>`;
+    const wrStat = profileStats?.total >= 1
+      ? `<span><strong>${profileStats.winRate}%</strong><em>Winrate</em></span><span><strong>${profileStats.total}</strong><em>Parties</em></span>`
+      : '';
+    const costStat = avgCost != null ? `<span><strong>${avgCost}</strong><em>Coût moy.</em></span>` : '';
+    const inkStat = allKnown ? `<span><strong>${uninkable}</strong><em>Non-encrables</em></span>` : '';
+    const statsBar = `<div class="dl-summary">${inkDots}<div class="dl-summary-stats"><span><strong>${total}</strong><em>Cartes</em></span>${costStat}${inkStat}${wrStat}</div></div>`;
     const actionsBar = `<div class="dl-actions"><button type="button" class="ghost-button dl-copy-btn" data-decklist-copy><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
     return `${statsBar}${curve}${actionsBar}${sections}`;
   }
