@@ -5548,12 +5548,67 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const matchRow = (state.savedMatches || []).find(r => r.deck_profile_id === profileId);
     if(!matchRow){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Aucun match sauvegardé pour ce deck.</p>'; return; }
     try{
-      const full = await getSavedMatch(matchRow.id);
+      const [full] = await Promise.all([getSavedMatch(matchRow.id), ensureLorcanaImageCache()]);
       const decklist = full?.api_metadata?.api_row?.raw?.your_decklist || [];
       if(!decklist.length){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Décklist non disponible (import manuel).</p>'; return; }
       sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist);
+      bindDecklistActions(sheet, profile, decklist);
     }catch(err){
       sheet.querySelector('.decklist-sheet-body').innerHTML = `<p class="decklist-sheet-empty">Erreur : ${esc(err.message)}</p>`;
+    }
+  }
+
+  // Cache lorcanajson.org image URLs in localStorage (24h TTL).
+  // Indexed by `${setNum}-${number}` (e.g. "1-161"), matching Duels.ink cardId format.
+  let _lorcanaImagePromise = null;
+  async function ensureLorcanaImageCache(){
+    if(state.lorcanaImages) return state.lorcanaImages;
+    try{
+      const cached = localStorage.getItem('inksight_card_images_v1');
+      if(cached){
+        const obj = JSON.parse(cached);
+        if(obj.ts && Date.now() - obj.ts < 86400000 * 7){ state.lorcanaImages = obj.map; return obj.map; }
+      }
+    }catch{}
+    if(_lorcanaImagePromise) return _lorcanaImagePromise;
+    _lorcanaImagePromise = (async () => {
+      const res = await fetch('https://lorcanajson.org/files/current/en/allCards.json');
+      const json = await res.json();
+      const map = {};
+      const cards = json.cards || json;
+      const arr = Array.isArray(cards) ? cards : Object.values(cards).flat();
+      arr.forEach(c => {
+        const setNum = c.setCode || c.set?.code || c.setId;
+        const num = c.number ?? c.collectorNumber;
+        const thumb = c.images?.thumbnail || c.images?.full || '';
+        if(setNum != null && num != null && thumb){
+          map[`${setNum}-${strip0(num)}`] = thumb;
+        }
+      });
+      try{ localStorage.setItem('inksight_card_images_v1', JSON.stringify({ ts:Date.now(), map })); }catch{}
+      state.lorcanaImages = map;
+      return map;
+    })();
+    return _lorcanaImagePromise;
+  }
+
+  function cardImageUrlFromId(cardId){
+    if(!cardId) return '';
+    const map = state.lorcanaImages || {};
+    const key = String(cardId).split('-').map(strip0).join('-');
+    return map[key] || map[cardId] || '';
+  }
+
+  function bindDecklistActions(sheet, profile, decklist){
+    const copyText = sheet.querySelector('[data-decklist-copy]');
+    if(copyText){
+      copyText.addEventListener('click', async () => {
+        const lines = decklist.map(e => {
+          const h = hydrateCard({ id:e.cardId });
+          return `${e.count} ${fullName(h) || h.name || e.cardId}`;
+        });
+        try{ await navigator.clipboard.writeText(lines.join('\n')); copyText.textContent = '✓ Copié'; setTimeout(() => { copyText.textContent = '⧉ Copier la decklist'; }, 1600); }catch{}
+      });
     }
   }
 
@@ -5582,22 +5637,37 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const name = fullName(h) || h.name || entry.cardId;
       const type = h.type || h.cardType || 'Other';
       const cost = typeof h.cost === 'number' ? h.cost : (typeof h.inkCost === 'number' ? h.inkCost : 99);
-      const image = h.imageSmall || h.image || '';
-      return { count:entry.count, name, type, cost, image, id:entry.cardId };
+      const image = h.imageSmall || h.image || cardImageUrlFromId(entry.cardId) || '';
+      const inkable = h.inkable !== false;
+      return { count:entry.count, name, type, cost, image, id:entry.cardId, inkable };
     }).sort((a,b) => a.cost - b.cost || a.name.localeCompare(b.name));
     const total = decklist.reduce((s,e) => s + e.count, 0);
+    const uninkable = cards.filter(c => !c.inkable).reduce((s,c) => s + c.count, 0);
     const groups = {};
     cards.forEach(c => { (groups[c.type] = groups[c.type] || []).push(c); });
-    const typeOrder = ['Character','Action','Item','Location'];
+    const typeOrder = ['Character','Action','Item','Location','Song'];
     const allTypes = [...typeOrder.filter(t => groups[t]), ...Object.keys(groups).filter(t => !typeOrder.includes(t) && groups[t])];
-    const typeLabels = { Character:'Personnages', Action:'Actions', Item:'Objets', Location:'Lieux' };
+    const typeLabels = { Character:'Personnages', Action:'Actions', Item:'Objets', Location:'Lieux', Song:'Chansons' };
     const inkDots = inkDotsHtml(profileColors(profile));
     const sections = allTypes.map(type => {
       const gTotal = groups[type].reduce((s,c) => s + c.count, 0);
-      const items = groups[type].map(c => `<li class="dl-card"><span class="dl-cost">${c.cost < 99 ? c.cost : '–'}</span>${c.image ? `<img class="dl-thumb" loading="lazy" src="${escAttr(c.image)}" alt="">` : '<span class="dl-thumb dl-thumb-missing"></span>'}<span class="dl-name">${esc(c.name)}</span><span class="dl-count">${c.count}×</span></li>`).join('');
+      const items = groups[type].map(c => `<li class="dl-card"><span class="dl-cost">${c.cost < 99 ? c.cost : '–'}</span>${c.image ? `<img class="dl-thumb" loading="lazy" src="${escAttr(c.image)}" alt="" onerror="this.outerHTML='<span class=&quot;dl-thumb dl-thumb-missing&quot;></span>'">` : '<span class="dl-thumb dl-thumb-missing"></span>'}<span class="dl-name">${esc(c.name)}${c.inkable ? '' : '<em class="dl-uninkable" title="Non encrable">⬡</em>'}</span><span class="dl-count">${c.count}×</span></li>`).join('');
       return `<section class="dl-section"><h3 class="dl-section-title">${esc(typeLabels[type] || type)} <span class="dl-section-count">${gTotal}</span></h3><ul class="dl-card-list">${items}</ul></section>`;
     }).join('');
-    return `<div class="dl-summary">${inkDots}<span class="dl-summary-total">${total} cartes</span></div>${sections}`;
+    const curve = buildCostCurveHtml(cards);
+    return `<div class="dl-summary">${inkDots}<div class="dl-summary-stats"><span><strong>${total}</strong>cartes</span><span><strong>${uninkable}</strong>non-encrables</span></div><button type="button" class="dl-copy-btn" data-decklist-copy>⧉ Copier la decklist</button></div>${curve}${sections}`;
+  }
+
+  function buildCostCurveHtml(cards){
+    const buckets = new Array(9).fill(0);
+    cards.forEach(c => {
+      const i = Math.min(8, Math.max(0, c.cost < 99 ? c.cost : 0));
+      buckets[i] += c.count;
+    });
+    const max = Math.max(...buckets, 1);
+    const bars = buckets.map((v,i) => `<span class="dl-curve-bar" style="height:${Math.max(8, (v/max)*100)}%" title="${v} cartes coût ${i}${i===8?'+':''}"><b>${v||''}</b></span>`).join('');
+    const labels = buckets.map((_,i) => `<span>${i}${i===8?'+':''}</span>`).join('');
+    return `<div class="dl-curve"><div class="dl-curve-bars">${bars}</div><div class="dl-curve-labels">${labels}</div></div>`;
   }
 
   function inkDotsHtml(colors){
