@@ -312,6 +312,12 @@
             <select id="performanceOpponentColorFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par matchup adverse">
               <option value="all">Tous les matchups</option>
             </select>
+            <select id="performanceArchetypeFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par archétype">
+              <option value="all">Tous les archétypes</option>
+              <option value="aggro">Aggro</option>
+              <option value="midrange">Midrange</option>
+              <option value="control">Control</option>
+            </select>
             <select id="performanceFormatFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par format">
               <option value="all">Tous les formats</option>
               <option value="BO1">BO1</option>
@@ -329,6 +335,7 @@
             </select>
             <div class="history-filter-pills">
               <div class="filter-pill-block compact"><span>Bicolorité</span><div id="performanceColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
+              <div class="filter-pill-block compact" id="performanceArchetypeBlock" hidden><span>Archétype</span><div id="performanceArchetypePills" class="filter-pill-row" aria-label="Choisir un archétype"></div></div>
               <div class="filter-pill-block compact" id="performanceVersionBlock" hidden><span>Deck</span><div id="performanceDeckPills" class="filter-pill-row" aria-label="Choisir un deck"></div></div>
               <div class="filter-pill-block compact"><span>Adversaire</span><div id="performanceOpponentColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité adverse"></div></div>
               <div class="filter-pill-block compact"><span>Résultat</span><div id="performanceResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div></div>
@@ -502,6 +509,12 @@
             <select id="historyColorFilter" class="sort-select technical-select" aria-label="Filtrer l’historique par bicolorité">
               <option value="all">Toutes les bicolorités</option>
             </select>
+            <select id="historyArchetypeFilter" class="sort-select technical-select" aria-label="Filtrer par archétype">
+              <option value="all">Tous les archétypes</option>
+              <option value="aggro">Aggro</option>
+              <option value="midrange">Midrange</option>
+              <option value="control">Control</option>
+            </select>
             <select id="historyDeckFilter" class="sort-select technical-select" aria-label="Filtrer par deck">
               <option value="all">Toutes les versions</option>
             </select>
@@ -524,7 +537,8 @@
               <option value="otd">OTD</option>
             </select>
             <div class="history-filter-pills">
-              <div class="filter-pill-block compact"><span>Bicolorité</span><div id="historyColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div></div>
+              <div class="filter-pill-block compact"><span>Bicolorité</span><div id="historyColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
+              <div class="filter-pill-block compact" id="historyArchetypeBlock" hidden><span>Archétype</span><div id="historyArchetypePills" class="filter-pill-row" aria-label="Choisir un archétype"></div></div>
               <div class="filter-pill-block compact" id="historyVersionBlock" hidden><span>Deck</span><div id="historyDeckPills" class="filter-pill-row" aria-label="Choisir un deck"></div></div>
               <div class="filter-pill-block compact"><span>Adversaire</span><div id="historyOpponentColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité adverse"></div></div>
               <div class="filter-pill-block compact"><span>Résultat</span><div id="historyResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div></div>

@@ -13654,6 +13654,7 @@ body.decklist-sheet-open{overflow:hidden}
 .dl-summary-stat strong{color:#fff;font-size:1.05rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .dl-summary-stat.dl-stat-positive strong{color:#34d399}
 .dl-summary-stat.dl-stat-warn strong{color:#fbbf24}
+.dl-archetype-badge{display:inline-flex;align-items:center;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:99px;border:1px solid currentColor;opacity:.85;white-space:nowrap;margin-left:2px}
 .dl-summary-inks{display:inline-flex;gap:6px;flex-shrink:0}
 .dl-summary-inks .lorcana-hex{width:22px;height:24px}
 

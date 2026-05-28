@@ -49,7 +49,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -142,7 +142,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.duelinkForgetTokenButton?.addEventListener('click', forgetDuelinkTokenForAccount);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
     els.duelinkTokenInput?.addEventListener('input', updateDuelinkStoredTokenUi);
-    [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
+    [els.historyColorFilter, els.historyOpponentColorFilter, els.historyFormatFilter, els.historyTempoFilter, els.historyResultFilter, els.historyDeckFilter, els.historyArchetypeFilter, els.performanceColorFilter, els.performanceOpponentColorFilter, els.performanceDeckFilter, els.performanceArchetypeFilter, els.performanceFormatFilter, els.performanceTempoFilter, els.performanceResultFilter, els.historySearchInput].forEach(el => el?.addEventListener('input', renderPerformanceData));
     document.addEventListener('click', handlePerformanceFilterClick);
     document.addEventListener('click', handleAccountDeckManagerClick);
     document.addEventListener('change', handlePerformanceSortChange);
@@ -5131,8 +5131,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function multiFilterIds(){
     return new Set([
-      'performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter','performancePoolFilter','performanceSetFilter',
-      'historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyFormatFilter','historyTempoFilter','historyResultFilter','historyPoolFilter','historySetFilter'
+      'performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceArchetypeFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter','performancePoolFilter','performanceSetFilter',
+      'historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyArchetypeFilter','historyFormatFilter','historyTempoFilter','historyResultFilter','historyPoolFilter','historySetFilter'
     ]);
   }
 
@@ -5201,8 +5201,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     if(isMultiFilterId(targetId)){
       toggleMultiFilterValue(targetId, btn.dataset.value);
-      if(targetId === 'performanceColorFilter') clearSelectedFilterValues('performanceDeckFilter');
-      if(targetId === 'historyColorFilter') clearSelectedFilterValues('historyDeckFilter');
+      if(targetId === 'performanceColorFilter'){ clearSelectedFilterValues('performanceDeckFilter'); clearSelectedFilterValues('performanceArchetypeFilter'); }
+      if(targetId === 'historyColorFilter'){ clearSelectedFilterValues('historyDeckFilter'); clearSelectedFilterValues('historyArchetypeFilter'); }
+      if(targetId === 'performanceArchetypeFilter') clearSelectedFilterValues('performanceDeckFilter');
+      if(targetId === 'historyArchetypeFilter') clearSelectedFilterValues('historyDeckFilter');
       renderPerformanceData();
       return;
     }
@@ -5213,7 +5215,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
 
   function resetPerformanceFilters(){
-    ['performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter','performancePoolFilter','performanceSetFilter'].forEach(id => {
+    ['performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceArchetypeFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter','performancePoolFilter','performanceSetFilter'].forEach(id => {
       if(els[id]) els[id].value = 'all';
       clearSelectedFilterValues(id);
     });
@@ -5225,7 +5227,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function resetHistoryFilters(){
-    ['historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyFormatFilter','historyTempoFilter','historyResultFilter','historyPoolFilter','historySetFilter'].forEach(id => {
+    ['historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyArchetypeFilter','historyFormatFilter','historyTempoFilter','historyResultFilter','historyPoolFilter','historySetFilter'].forEach(id => {
       if(els[id]) els[id].value = 'all';
       clearSelectedFilterValues(id);
     });
@@ -5307,6 +5309,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     syncSelectOptions(els.performanceColorFilter, colorOptions, 'all');
     renderPillGroup(els.performanceColorPills, 'performanceColorFilter', colorOptions, els.performanceColorFilter?.value || 'all');
 
+    const perfArchetypeOptions = archetypeFilterOptions('performance');
+    const showPerfArchetype = shouldShowArchetypeFilter('performance');
+    if(els.performanceArchetypeBlock) els.performanceArchetypeBlock.hidden = !showPerfArchetype;
+    if(els.performanceArchetypeFilter) syncSelectOptions(els.performanceArchetypeFilter, [{value:'all',label:'Tous'},...perfArchetypeOptions], 'all');
+    renderPillGroup(els.performanceArchetypePills, 'performanceArchetypeFilter', perfArchetypeOptions);
+
     const deckOptions = deckFilterOptionsForPills('performance');
     syncSelectOptions(els.performanceDeckFilter, deckOptions, 'all');
     const showDeckVersions = shouldShowDeckVersionFilter(deckOptions, null, 'performance');
@@ -5341,6 +5349,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const opponentColorOptions = opponentColorOptionsForPills('history');
     syncSelectOptions(els.historyOpponentColorFilter, opponentColorOptions, 'all');
     renderPillGroup(els.historyOpponentColorPills, 'historyOpponentColorFilter', opponentColorOptions, els.historyOpponentColorFilter?.value || 'all');
+    const histArchetypeOptions = archetypeFilterOptions('history');
+    const showHistArchetype = shouldShowArchetypeFilter('history');
+    if(els.historyArchetypeBlock) els.historyArchetypeBlock.hidden = !showHistArchetype;
+    if(els.historyArchetypeFilter) syncSelectOptions(els.historyArchetypeFilter, [{value:'all',label:'Tous'},...histArchetypeOptions], 'all');
+    renderPillGroup(els.historyArchetypePills, 'historyArchetypeFilter', histArchetypeOptions);
+
     const historyDeckOptions = deckFilterOptionsForPills('history');
     syncSelectOptions(els.historyDeckFilter, historyDeckOptions, 'all');
     const showHistoryVersions = shouldShowDeckVersionFilter(historyDeckOptions, null, 'history');
@@ -5378,7 +5392,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function performanceColorOptionsForPills(){
     // Cross-filtre comme les pills adverses : les comptes par bicolorité
     // reflètent les autres filtres sélectionnés (BO1/BO3, OTP/OTD, etc.).
-    const sourceRows = filteredSavedMatchesWithout(['performanceColorFilter','performanceDeckFilter']);
+    const sourceRows = filteredSavedMatchesWithout(['performanceColorFilter','performanceDeckFilter','performanceArchetypeFilter']);
     const map = new Map();
     (sourceRows || []).forEach(row => {
       const colors = rowMineColors(row);
@@ -5545,12 +5559,94 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const decklistCardCache = new Map();
   const lorcastInflight = new Map();
   const LORCAST_CACHE_PREFIX = 'lorcast:v1:';
+  // Per-session archetype cache: profileId → { speed, sub, label } | null
+  const deckArchetypeCache = new Map();
+
+  function computeDeckArchetype(normalizedCards){
+    if(!Array.isArray(normalizedCards) || !normalizedCards.length) return null;
+    let totalCost = 0, totalCards = 0, cost1_2 = 0, cost5plus = 0;
+    let rampCount = 0, removalCount = 0, discardCount = 0, burnCount = 0;
+    normalizedCards.forEach(e => {
+      const h = hydrateCard({ id:e.cardId || e.id });
+      const cost = h?.cost ?? null;
+      if(cost == null || cost >= 99) return;
+      totalCost += cost * e.count;
+      totalCards += e.count;
+      if(cost <= 2) cost1_2 += e.count;
+      if(cost >= 5) cost5plus += e.count;
+      const text = String(h.text || '').toLowerCase();
+      if(text.includes('put') && (text.includes('into your inkwell') || text.includes('encrier'))) rampCount += e.count;
+      if(text.includes('banish') || text.includes('bannir') || (text.includes('deal') && text.includes('damage')) || (text.includes('infliger') && text.includes('dégât'))) removalCount += e.count;
+      if(text.includes('opponent') && text.includes('discard') || text.includes('adversaire') && text.includes('défaussez')) discardCount += e.count;
+      if((text.includes('gain') || text.includes('gagne')) && (text.includes('lore') || text.includes('prestige')) && !text.includes('quest') && !text.includes('quête')) burnCount += e.count;
+    });
+    if(totalCards < 8) return null;
+    const avgCost = totalCost / totalCards;
+    const pct1_2 = cost1_2 / totalCards;
+    const pct5plus = cost5plus / totalCards;
+    let aggroScore = 0, midScore = 0, ctrlScore = 0;
+    if(avgCost < 2.5) aggroScore += 12; else if(avgCost < 2.8) aggroScore += 6;
+    if(avgCost > 3.8) ctrlScore += 12; else if(avgCost > 3.3) ctrlScore += 6;
+    if(avgCost >= 2.6 && avgCost <= 3.6) midScore += 8;
+    if(pct1_2 > 0.5) aggroScore += 8;
+    if(pct5plus > 0.25) ctrlScore += 8;
+    if(removalCount > 10) ctrlScore += 8;
+    const maxScore = Math.max(aggroScore, midScore, ctrlScore);
+    const speed = maxScore === aggroScore && aggroScore > 0 ? 'aggro' : maxScore === ctrlScore && ctrlScore > 0 ? 'control' : 'midrange';
+    let sub = null;
+    if(rampCount > 8) sub = 'ramp';
+    else if(discardCount > 5) sub = 'prison';
+    else if(burnCount > 5) sub = 'burn';
+    const SPEED_LABELS = { aggro:'Aggro', midrange:'Midrange', control:'Control' };
+    const SUB_LABELS = { ramp:'Ramp', prison:'Prison', burn:'Burn' };
+    const label = sub ? `${SPEED_LABELS[speed]} ${SUB_LABELS[sub]}` : SPEED_LABELS[speed];
+    return { speed, sub, label };
+  }
+
+  function getProfileArchetype(profileId){
+    if(!profileId) return null;
+    if(deckArchetypeCache.has(profileId)) return deckArchetypeCache.get(profileId);
+    const match = (state.savedMatches || []).find(r => {
+      if(r.deck_profile_id !== profileId) return false;
+      const status = apiDecklistStatus(r, 'mine');
+      return status.unique >= 8;
+    });
+    const archetype = match ? computeDeckArchetype(apiDecklistStatus(match, 'mine').cards) : null;
+    deckArchetypeCache.set(profileId, archetype);
+    return archetype;
+  }
+
+  function archetypeFilterOptions(mode){
+    const colorFilterId = mode === 'history' ? 'historyColorFilter' : 'performanceColorFilter';
+    const selectedColors = selectedFilterValues(colorFilterId);
+    const rows = (state.savedMatches || []).filter(r =>
+      r.deck_profile_id && (!selectedColors.length || selectedColors.includes(colorFilterKey(rowMineColors(r))))
+    );
+    const profileIds = [...new Set(rows.map(r => r.deck_profile_id).filter(Boolean))];
+    const seen = new Set();
+    profileIds.forEach(id => { const a = getProfileArchetype(id); if(a) seen.add(a.speed); });
+    if(seen.size < 2) return [];
+    return ['aggro','midrange','control']
+      .filter(s => seen.has(s))
+      .map(s => ({ value:s, label:{aggro:'Aggro',midrange:'Midrange',control:'Control'}[s] }));
+  }
+
+  function shouldShowArchetypeFilter(mode){
+    const colorFilterId = mode === 'history' ? 'historyColorFilter' : 'performanceColorFilter';
+    if(!selectedFilterValues(colorFilterId).length) return false;
+    return archetypeFilterOptions(mode).length >= 2;
+  }
 
   function normalizeLorcastCard(j, cardId){
     if(!j || typeof j !== 'object') return null;
     const name = String(j.name || '').trim();
     const version = String(j.version || '').trim();
-    const type = Array.isArray(j.type) ? j.type[0] : (j.type || '');
+    const typeArr = Array.isArray(j.type) ? j.type : (j.type ? [String(j.type)] : []);
+    const type = typeArr.includes('Song') ? 'Song'
+               : typeArr.includes('Item') ? 'Item'
+               : typeArr.includes('Location') ? 'Location'
+               : typeArr.includes('Character') ? 'Character'
+               : typeArr[0] || '';
     const ink = j.ink || (Array.isArray(j.inks) && j.inks[0]) || '';
     const inks = Array.isArray(j.inks) && j.inks.length ? j.inks : (ink ? [ink] : []);
     return {
@@ -5775,7 +5871,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }
       const resolved = !!h && fullName(h) !== 'Carte inconnue' && h.cost != null;
       const name = resolved ? fullName(h) : '';
-      const type = resolved ? (h.type || h.cardType || 'Other') : 'Unknown';
+      const rawType = resolved ? (h.type || h.cardType || 'Other') : 'Unknown';
+      const type = (() => {
+        if (!resolved) return 'Unknown';
+        if (rawType.toLowerCase().includes('song')) return 'Song';
+        if (rawType.includes('·')) return rawType.split('·')[0].trim();
+        return rawType || 'Other';
+      })();
       const cost = resolved && h.cost != null ? h.cost : 99;
       const image = cardImageUrlFromId(entry.cardId) || h?.imageSmall || h?.image || '';
       const inkableKnown = resolved && typeof h.inkable === 'boolean';
@@ -5833,7 +5935,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       groups.Location ? `<span class="dl-summary-stat"><strong>${typeCount('Location')}</strong>Lieux</span>` : '',
       wr != null ? `<span class="dl-summary-stat ${wrTone}"><strong>${wr}%</strong>WR · ${profileStats.total} parties</span>` : ''
     ].filter(Boolean).join('');
-    const statsBar = `<div class="dl-summary">${buildMiniCostCurveHtml(cards)}<div class="dl-summary-stats">${stats}</div>${inkDotsBig}</div>`;
+    const archetype = computeDeckArchetype(cards.map(c => ({ cardId:c.id, count:c.count })));
+    const ARCHETYPE_COLORS = { aggro:'#f87171', midrange:'#34d399', control:'#60a5fa' };
+    const archetypeBadge = archetype
+      ? `<span class="dl-archetype-badge" style="color:${ARCHETYPE_COLORS[archetype.speed] || 'var(--theme-color-1)'}">${esc(archetype.label)}</span>`
+      : '';
+    const statsBar = `<div class="dl-summary">${buildMiniCostCurveHtml(cards)}<div class="dl-summary-stats">${stats}${archetypeBadge}</div>${inkDotsBig}</div>`;
 
     const actionsBar = `<div class="dl-actions"><button type="button" class="ghost-button compact dl-copy-btn" data-decklist-copy><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
     return `${statsBar}${actionsBar}${sections}`;
@@ -5948,6 +6055,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const rows = await listSavedMatchHistoryLight(SAVED_MATCH_HISTORY_LIMIT);
       perfMark('saved matches light query', listStartedAt, { rows:Array.isArray(rows) ? rows.length : 0, limit:SAVED_MATCH_HISTORY_LIMIT });
       state.savedMatches = Array.isArray(rows) ? rows : [];
+      deckArchetypeCache.clear();
       writeSessionCache('saved-match-summaries', state.savedMatches);
       state.savedMatchesLoaded = true;
       if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
@@ -6333,6 +6441,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       color:`${prefix}ColorFilter`,
       opponentColor:`${prefix}OpponentColorFilter`,
       deck:`${prefix}DeckFilter`,
+      archetype:`${prefix}ArchetypeFilter`,
       result:`${prefix}ResultFilter`,
       format:`${prefix}FormatFilter`,
       tempo:`${prefix}TempoFilter`,
@@ -6358,6 +6467,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const decks = selectedValuesForMode(mode, 'deck');
     const colors = selectedValuesForMode(mode, 'color');
     const opponentColors = selectedValuesForMode(mode, 'opponentColor');
+    const archetypes = selectedValuesForMode(mode, 'archetype');
     const tempos = selectedValuesForMode(mode, 'tempo');
     const results = selectedValuesForMode(mode, 'result');
     const formats = selectedValuesForMode(mode, 'format');
@@ -6366,6 +6476,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const query = mode === 'history' ? String(els.historySearchInput?.value || '').trim().toLowerCase() : '';
     if(colors.length) rows = rows.filter(row => colors.includes(colorFilterKey(rowMineColors(row))));
     if(opponentColors.length) rows = rows.filter(row => opponentColors.includes(colorFilterKey(rowOpponentColors(row))));
+    if(archetypes.length) rows = rows.filter(row => { const a = row.deck_profile_id ? getProfileArchetype(row.deck_profile_id) : null; return a && archetypes.includes(a.speed); });
     if(decks.length) rows = rows.filter(row => decks.includes(String(row.deck_profile_id || '')) || decks.includes(String(row.deck_name || '')));
     if(results.length) rows = rows.filter(row => results.includes(row.result));
     if(formats.length) rows = rows.filter(row => formats.includes(String(row.format || '').toUpperCase()));
