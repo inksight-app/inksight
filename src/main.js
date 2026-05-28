@@ -5562,55 +5562,176 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   // Per-session archetype cache: profileId → { speed, sub, label } | null
   const deckArchetypeCache = new Map();
 
-  function computeDeckArchetype(normalizedCards){
+  // ─── Archétype : classification multi-facteurs ───────────────────────────
+  // Synergies hardcodées : paires de noms → tag forcé
+  const ARCHETYPE_COMBOS = [
+    [['jafar','whole new world'], 'combo'],
+    [['lucky dime','tamatoa'], 'control'],
+    [['madam mim','merlin'], 'tempo'],
+    [['cinderella','bibbidi'], 'ramp'],
+  ];
+
+  function computeDeckArchetype(normalizedCards, opts={}){
     if(!Array.isArray(normalizedCards) || !normalizedCards.length) return null;
-    let totalCost = 0, totalCards = 0, cost1_2 = 0, cost5plus = 0;
-    let rampCount = 0, removalCount = 0, discardCount = 0, burnCount = 0;
+
+    // Stats accumulées
+    let totalCost = 0, totalCards = 0, resolvedCards = 0;
+    let cost0_2 = 0, cost3_4 = 0, cost5plus = 0;
+    let totalLore = 0, loreCards = 0;
+    let charCount = 0, actionCount = 0, songCount = 0, itemCount = 0, locCount = 0;
+    let inkableCount = 0;
+    // Keywords Lorcana
+    let rushCount = 0, evasiveCount = 0, shiftCount = 0, bodyguardCount = 0, singerCount = 0, challengerCount = 0, resistCount = 0;
+    // Effets texte
+    let removalCount = 0, drawCount = 0, discardCount = 0, bounceCount = 0, burnLoreCount = 0, rampCount = 0;
+    // Pour les synergies
+    const allCardNames = [];
+
     normalizedCards.forEach(e => {
-      const h = hydrateCard({ id:e.cardId || e.id });
+      // Passer le carte complète à hydrateCard : la DB locale enrichit text/keywords/lore
+      const h = hydrateCard({ ...e, id: e.cardId || e.id || '' });
       const cost = h?.cost ?? null;
       if(cost == null || cost >= 99) return;
-      totalCost += cost * e.count;
-      totalCards += e.count;
-      if(cost <= 2) cost1_2 += e.count;
-      if(cost >= 5) cost5plus += e.count;
-      const text = String(h.text || '').toLowerCase();
-      if(text.includes('put') && (text.includes('into your inkwell') || text.includes('encrier'))) rampCount += e.count;
-      if(text.includes('banish') || text.includes('bannir') || (text.includes('deal') && text.includes('damage')) || (text.includes('infliger') && text.includes('dégât'))) removalCount += e.count;
-      if(text.includes('opponent') && text.includes('discard') || text.includes('adversaire') && text.includes('défaussez')) discardCount += e.count;
-      if((text.includes('gain') || text.includes('gagne')) && (text.includes('lore') || text.includes('prestige')) && !text.includes('quest') && !text.includes('quête')) burnCount += e.count;
+
+      const cnt = Number(e.count) || 1;
+      totalCost += cost * cnt;
+      totalCards += cnt;
+      resolvedCards++;
+
+      if(cost <= 2) cost0_2 += cnt;
+      else if(cost <= 4) cost3_4 += cnt;
+      else cost5plus += cnt;
+
+      // Lore efficiency
+      const lore = h.lore ?? null;
+      if(lore != null && lore > 0) { totalLore += lore * cnt; loreCards += cnt; }
+
+      // Inkable
+      if(h.inkable === true || h.inkable === 1) inkableCount += cnt;
+
+      // Type
+      const rawType = String(h.type || h.cardType || '').toLowerCase();
+      if(rawType.includes('character')) charCount += cnt;
+      else if(rawType.includes('song')) songCount += cnt;
+      else if(rawType.includes('action')) actionCount += cnt;
+      else if(rawType.includes('item')) itemCount += cnt;
+      else if(rawType.includes('location')) locCount += cnt;
+
+      // Keywords (champ dédié dans la DB + texte)
+      const kwArr = arrayify(h.keywords || []).map(k => String(k).toLowerCase());
+      const text = String(h.text || h.rulesText || '').toLowerCase();
+      const hasKw = kw => kwArr.some(k => k.includes(kw)) || new RegExp(`\\b${kw}\\b`).test(text);
+
+      if(hasKw('rush')) rushCount += cnt;
+      if(hasKw('evasive')) evasiveCount += cnt;
+      if(hasKw('shift')) shiftCount += cnt;
+      if(hasKw('bodyguard')) bodyguardCount += cnt;
+      if(hasKw('singer')) singerCount += cnt;
+      if(hasKw('challenger')) challengerCount += cnt;
+      if(hasKw('resist')) resistCount += cnt;
+
+      // Effets texte
+      if(/banish|bannir|(deal \d+ damage)|(infliger \d+ dégât)/.test(text)) removalCount += cnt;
+      if(/draw (a|\d+) card|piochez|pioche une carte/.test(text)) drawCount += cnt;
+      if(/(opponent|adversaire).{0,20}(discard|défaussez)/.test(text)) discardCount += cnt;
+      if(/(return|renvoyer|retour).{0,30}(hand|main)/.test(text)) bounceCount += cnt;
+      if(/(gain|gagne) \d+ (lore|prestige)/.test(text) && !/(quest|quête)/.test(text)) burnLoreCount += cnt;
+      if(/(put|placer).{0,30}(into your inkwell|dans votre encrier)/.test(text)) rampCount += cnt;
+
+      // Pour synergies
+      const n_ = String(h.name || h.fullName || e.name || '').toLowerCase();
+      if(n_) allCardNames.push(n_);
     });
-    if(totalCards < 8) return null;
+
+    if(totalCards < 8 || resolvedCards < 5) return null;
+
     const avgCost = totalCost / totalCards;
-    const pct1_2 = cost1_2 / totalCards;
+    const avgLore = loreCards > 0 ? totalLore / loreCards : 0;
+    const pct0_2 = cost0_2 / totalCards;
     const pct5plus = cost5plus / totalCards;
-    let aggroScore = 0, midScore = 0, ctrlScore = 0;
-    if(avgCost < 2.5) aggroScore += 12; else if(avgCost < 2.8) aggroScore += 6;
-    if(avgCost > 3.8) ctrlScore += 12; else if(avgCost > 3.3) ctrlScore += 6;
-    if(avgCost >= 2.6 && avgCost <= 3.6) midScore += 8;
-    if(pct1_2 > 0.5) aggroScore += 8;
-    if(pct5plus > 0.25) ctrlScore += 8;
-    if(removalCount > 10) ctrlScore += 8;
-    const maxScore = Math.max(aggroScore, midScore, ctrlScore);
-    const speed = maxScore === aggroScore && aggroScore > 0 ? 'aggro' : maxScore === ctrlScore && ctrlScore > 0 ? 'control' : 'midrange';
+    const pctChar = charCount / totalCards;
+    const pctSpells = (actionCount + songCount) / totalCards;
+    const lorePerCost = avgCost > 0 ? avgLore / avgCost : 0;
+
+    // ── Scores ────────────────────────────────────────────────────────────
+    let A = 0, M = 0, C = 0; // Aggro, Midrange, Control
+
+    // 1) Courbe de coût (facteur dominant)
+    if(avgCost < 2.3)       { A += 16 }
+    else if(avgCost < 2.6)  { A += 10; M += 2 }
+    else if(avgCost < 3.0)  { A += 4;  M += 8 }
+    else if(avgCost < 3.5)  { M += 12 }
+    else if(avgCost < 4.0)  { M += 5;  C += 8 }
+    else                    { C += 16 }
+
+    // 2) Répartition early/late
+    if(pct0_2 > 0.5)  A += 10; else if(pct0_2 > 0.35) A += 5;
+    if(pct5plus > 0.3) C += 10; else if(pct5plus > 0.2) C += 5;
+
+    // 3) Efficacité de lore (aggro veut beaucoup de lore pour peu d'encre)
+    if(lorePerCost > 1.1)       { A += 8 }
+    else if(lorePerCost > 0.85) { M += 4 }
+    else if(lorePerCost < 0.5)  { C += 4 }
+
+    // 4) Densité de personnages vs sorts
+    if(pctChar > 0.75)    A += 6;
+    else if(pctChar > 0.6) M += 3;
+    else if(pctChar < 0.5) C += 5;
+    if(pctSpells > 0.35)   C += 7; else if(pctSpells > 0.25) { C += 3; M += 2 }
+
+    // 5) Keywords offensifs/défensifs
+    if(evasiveCount > 6)     A += 8; else if(evasiveCount > 3) A += 4;
+    if(challengerCount > 4)  A += 6; else if(challengerCount > 2) A += 3;
+    if(rushCount > 8)        C += 8; else if(rushCount > 4) C += 4;
+    if(singerCount > 3)      C += 5;
+    if(bodyguardCount > 4)   { M += 5; C += 2 }
+    if(resistCount > 4)      C += 4;
+    if(shiftCount > 8)       M += 5; else if(shiftCount > 4) M += 2;
+
+    // 6) Effets de contrôle
+    if(removalCount > 12)  C += 10; else if(removalCount > 6) C += 5;
+    if(drawCount > 8)      C += 6;  else if(drawCount > 3) C += 3;
+    if(discardCount > 4)   C += 5;
+    if(bounceCount > 4)    { M += 5; C += 2 }
+    if(rampCount > 6)      { C += 5; M += 3 }
+    if(burnLoreCount > 4)  { A += 4; M += 2 }
+
+    // Déterminer la vitesse
+    const maxScore = Math.max(A, M, C);
+    const speed = maxScore === C ? 'control' : maxScore === A ? 'aggro' : 'midrange';
+
+    // ── Sous-archétype ─────────────────────────────────────────────────────
     let sub = null;
-    if(rampCount > 8) sub = 'ramp';
-    else if(discardCount > 5) sub = 'prison';
-    else if(burnCount > 5) sub = 'burn';
-    const SPEED_LABELS = { aggro:'Aggro', midrange:'Midrange', control:'Control' };
-    const SUB_LABELS = { ramp:'Ramp', prison:'Prison', burn:'Burn' };
-    const label = sub ? `${SPEED_LABELS[speed]} ${SUB_LABELS[sub]}` : SPEED_LABELS[speed];
-    return { speed, sub, label };
+
+    // Synergies hardcodées (paires de cartes)
+    for(const [pair, forcedTag] of ARCHETYPE_COMBOS){
+      if(pair.every(p => allCardNames.some(n => n.includes(p)))){
+        sub = forcedTag; break;
+      }
+    }
+
+    // Sinon, sous-archétype déductif
+    if(!sub){
+      if(rampCount > 8) sub = 'ramp';
+      else if(discardCount > 4) sub = 'prison';
+      else if(burnLoreCount > 4) sub = 'burn';
+      else if(bounceCount > 4) sub = 'tempo';
+      else if(shiftCount > 8) sub = 'shift';
+    }
+
+    const SPEED_L = { aggro:'Aggro', midrange:'Midrange', control:'Control' };
+    const SUB_L   = { ramp:'Ramp', prison:'Prison', burn:'Burn', tempo:'Tempo', shift:'Shift', combo:'Combo', control:'Control' };
+    const label = sub && SUB_L[sub] ? `${SPEED_L[speed]} ${SUB_L[sub]}` : SPEED_L[speed];
+    return { speed, sub, label, _scores:{ A, M, C }, _avg:avgCost };
   }
 
   function getProfileArchetype(profileId){
     if(!profileId) return null;
     if(deckArchetypeCache.has(profileId)) return deckArchetypeCache.get(profileId);
-    const match = (state.savedMatches || []).find(r => {
-      if(r.deck_profile_id !== profileId) return false;
-      const status = apiDecklistStatus(r, 'mine');
-      return status.unique >= 8;
-    });
+    // Cherche n'importe quelle partie pour ce profil avec une decklist API
+    const match = (state.savedMatches || []).find(r =>
+      r.deck_profile_id === profileId && apiDecklistStatus(r, 'mine').cards.length >= 5
+    );
     const archetype = match ? computeDeckArchetype(apiDecklistStatus(match, 'mine').cards) : null;
     deckArchetypeCache.set(profileId, archetype);
     return archetype;
@@ -5935,7 +6056,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       groups.Location ? `<span class="dl-summary-stat"><strong>${typeCount('Location')}</strong>Lieux</span>` : '',
       wr != null ? `<span class="dl-summary-stat ${wrTone}"><strong>${wr}%</strong>WR · ${profileStats.total} parties</span>` : ''
     ].filter(Boolean).join('');
-    const archetype = computeDeckArchetype(cards.map(c => ({ cardId:c.id, count:c.count })));
+    // Passe les IDs bruts pour que computeDeckArchetype re-hydrate depuis la DB locale
+    // (keywords, text, lore, strength, willpower présents dans state.index mais pas dans buildCards)
+    const archetype = computeDeckArchetype(decklist.map(e => ({ cardId:e.cardId, id:e.cardId, count:e.count })));
+    // Mise en cache pour le filtre archétype (profil enrichi par Lorcast = donnée fiable)
+    if(archetype && profile?.id) deckArchetypeCache.set(String(profile.id), archetype);
     const ARCHETYPE_COLORS = { aggro:'#f87171', midrange:'#34d399', control:'#60a5fa' };
     const archetypeBadge = archetype
       ? `<span class="dl-archetype-badge" style="color:${ARCHETYPE_COLORS[archetype.speed] || 'var(--theme-color-1)'}">${esc(archetype.label)}</span>`
