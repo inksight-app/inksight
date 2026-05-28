@@ -5437,6 +5437,49 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     ];
   }
 
+  function getDeckCardIdSet(profileId){
+    const key = String(profileId);
+    const match = (state.savedMatches || []).find(r =>
+      String(r.deck_profile_id) === key && apiDecklistStatus(r, 'mine').cards.length >= 5
+    );
+    if(!match) return null;
+    const ids = new Set(apiDecklistStatus(match, 'mine').cards.map(c => String(c.id || c.cardId || '')).filter(Boolean));
+    return ids.size >= 5 ? ids : null;
+  }
+
+  function deckJaccardSimilarity(setA, setB){
+    if(!setA || !setB) return 0;
+    let inter = 0;
+    for(const id of setA){ if(setB.has(id)) inter++; }
+    const union = setA.size + setB.size - inter;
+    return union > 0 ? inter / union : 0;
+  }
+
+  function groupSimilarProfileIds(profileIds, threshold=0.75){
+    const cardSets = new Map();
+    profileIds.forEach(id => { const s = getDeckCardIdSet(id); if(s) cardSets.set(id, s); });
+    const groups = [];
+    const assigned = new Set();
+    for(const id of profileIds){
+      if(assigned.has(id)) continue;
+      const group = [id];
+      assigned.add(id);
+      const setA = cardSets.get(id);
+      if(setA){
+        for(const other of profileIds){
+          if(assigned.has(other)) continue;
+          const setB = cardSets.get(other);
+          if(setB && deckJaccardSimilarity(setA, setB) >= threshold){
+            group.push(other);
+            assigned.add(other);
+          }
+        }
+      }
+      groups.push(group);
+    }
+    return groups;
+  }
+
   function deckFilterOptionsForPills(mode='performance'){
     const colorFilterId = mode === 'history' ? 'historyColorFilter' : 'performanceColorFilter';
     const archetypeFilterId = mode === 'history' ? 'historyArchetypeFilter' : 'performanceArchetypeFilter';
@@ -5450,40 +5493,53 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }
       return true;
     });
-    const stats = new Map(); // id -> { games, wins, lastPlayedAt }
+    const stats = new Map(); // String(id) -> { games, wins, lastPlayedAt }
     rows.forEach(row => {
-      const id = row.deck_profile_id || '';
+      const id = row.deck_profile_id;
       if(!id) return;
-      const profile = state.deckProfiles.find(item => item.id === id);
+      const key = String(id);
+      const profile = state.deckProfiles.find(item => String(item.id) === key);
       if(!profile || !isNamedDeckProfile(profile)) return;
       if(selectedColors.length && !selectedColors.some(colorKey => profileMatchesColorKey(profile, colorKey))) return;
-      const entry = stats.get(id) || { games:0, wins:0, lastPlayedAt:null };
+      const entry = stats.get(key) || { games:0, wins:0, lastPlayedAt:null };
       entry.games += 1;
       if(row.result === 'win') entry.wins += 1;
       const played = row.played_at || row.created_at || null;
       if(played && (!entry.lastPlayedAt || played > entry.lastPlayedAt)) entry.lastPlayedAt = played;
-      stats.set(id, entry);
+      stats.set(key, entry);
     });
     // Tri par activité récente (decks vieux en bas) puis games décroissant.
     const profiles = [...stats.keys()]
-      .map(id => state.deckProfiles.find(profile => profile.id === id))
+      .map(key => state.deckProfiles.find(profile => String(profile.id) === key))
       .filter(Boolean)
       .sort((a,b)=>{
-        const sa = stats.get(a.id), sb = stats.get(b.id);
+        const sa = stats.get(String(a.id)), sb = stats.get(String(b.id));
         const da = sa?.lastPlayedAt || '', db = sb?.lastPlayedAt || '';
         if(da !== db) return da < db ? 1 : -1;
         return (sb?.games || 0) - (sa?.games || 0);
       });
+    // Regrouper les versions similaires (Jaccard ≥ 75% sur les IDs de cartes)
+    const groups = groupSimilarProfileIds(profiles.map(p => String(p.id)));
+    const pills = groups.map(group => {
+      const primaryProfile = state.deckProfiles.find(p => String(p.id) === group[0]);
+      if(!primaryProfile) return null;
+      let totalGames = 0, totalWins = 0, latestDate = null;
+      group.forEach(id => {
+        const s = stats.get(id) || { games:0, wins:0, lastPlayedAt:null };
+        totalGames += s.games || 0;
+        totalWins += s.wins || 0;
+        if(s.lastPlayedAt && (!latestDate || s.lastPlayedAt > latestDate)) latestDate = s.lastPlayedAt;
+      });
+      const wr = totalGames ? Math.round(100 * totalWins / totalGames) : 0;
+      const versionMatch = String(primaryProfile.name || '').match(/(\d+)\s*$/);
+      const shortName = versionMatch ? `V${versionMatch[1]}` : (primaryProfile.name || '?');
+      const mergedSuffix = group.length > 1 ? ` +${group.length - 1}` : '';
+      const value = group.join('|');
+      return { value, label:`${shortName}${mergedSuffix} · ${totalGames}g · ${wr}%`, ariaLabel:`${primaryProfile.name}${group.length > 1 ? ` (${group.length} versions fusionnées)` : ''} · ${totalGames} games · ${wr}% winrate`, colors:profileColors(primaryProfile) };
+    }).filter(Boolean);
     return [
       { value:'all', label:'Tous les decks' },
-      ...profiles.map(profile => {
-        const s = stats.get(profile.id) || { games:0, wins:0 };
-        const wr = s.games ? Math.round(100 * s.wins / s.games) : 0;
-        // Short label since colors are shown as dots: extract the trailing version number.
-        const versionMatch = String(profile.name || '').match(/(\d+)\s*$/);
-        const shortName = versionMatch ? `V${versionMatch[1]}` : profile.name;
-        return { value:profile.id, label:`${shortName} · ${s.games}g · ${wr}%`, ariaLabel:`${profile.name} · ${s.games} games · ${wr}% winrate`, colors:profileColors(profile) };
-      })
+      ...pills
     ];
   }
 
@@ -5728,8 +5784,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return promise;
   }
 
-  async function openDecklistModal(profileId){
-    const profile = state.deckProfiles.find(p => p.id === profileId);
+  async function openDecklistModal(profileIdOrGroup){
+    // profileIdOrGroup may be "|"-joined when coming from a merged deck pill
+    const profileId = String(profileIdOrGroup || '').split('|')[0];
+    const profile = state.deckProfiles.find(p => String(p.id) === profileId);
     if(!profile) return;
     closeDecklistSheet();
     const sheet = ensureDecklistSheet();
@@ -5738,7 +5796,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     sheet.classList.add('active');
     document.body.classList.add('decklist-sheet-open');
 
-    const allForProfile = (state.savedMatches || []).filter(r => r.deck_profile_id === profileId);
+    const allForProfile = (state.savedMatches || []).filter(r => String(r.deck_profile_id) === profileId);
     const matchRow = allForProfile[0];
     if(!matchRow){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Aucun match sauvegardé pour ce deck.</p>'; return; }
 
@@ -6504,7 +6562,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(colors.length) rows = rows.filter(row => colors.includes(colorFilterKey(rowMineColors(row))));
     if(opponentColors.length) rows = rows.filter(row => opponentColors.includes(colorFilterKey(rowOpponentColors(row))));
     if(archetypes.length) rows = rows.filter(row => { const a = row.deck_profile_id ? getProfileArchetype(row.deck_profile_id) : null; return !a || archetypes.includes(a.speed); });
-    if(decks.length) rows = rows.filter(row => decks.includes(String(row.deck_profile_id || '')) || decks.includes(String(row.deck_name || '')));
+    if(decks.length) rows = rows.filter(row => {
+      const rid = String(row.deck_profile_id || '');
+      // deck values may be "|"-joined groups of profile IDs (merged similar versions)
+      return decks.some(d => d.split('|').includes(rid)) || decks.includes(String(row.deck_name || ''));
+    });
     if(results.length) rows = rows.filter(row => results.includes(row.result));
     if(formats.length) rows = rows.filter(row => formats.includes(String(row.format || '').toUpperCase()));
     if(tempos.length) rows = rows.filter(row => rowMatchesTempo(row, tempos));
@@ -6786,7 +6848,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function selectedPerformanceColors(){
     const deckIds = selectedFilterValues('performanceDeckFilter');
     if(deckIds.length === 1){
-      const profile = state.deckProfiles.find(item => item.id === deckIds[0]);
+      const primaryId = deckIds[0].split('|')[0];
+      const profile = state.deckProfiles.find(item => String(item.id) === primaryId);
       if(profile) return arrayify(profile.colors).map(inkKey).filter(Boolean);
     }
     const colorKeys = selectedFilterValues('performanceColorFilter');
