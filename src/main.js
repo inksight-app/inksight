@@ -5437,41 +5437,40 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     ];
   }
 
-  function getDeckCardIdSet(profileId){
+  function getDeckCardList(profileId){
     const key = String(profileId);
-    if(deckCardSetCache.has(key)) return deckCardSetCache.get(key);
+    if(deckCardListCache.has(key)) return deckCardListCache.get(key);
     const match = (state.savedMatches || []).find(r =>
       String(r.deck_profile_id) === key && apiDecklistStatus(r, 'mine').cards.length >= 5
     );
     if(!match) return null;
-    const ids = new Set(apiDecklistStatus(match, 'mine').cards.map(c => String(c.id || c.cardId || '')).filter(Boolean));
-    if(ids.size >= 5) deckCardSetCache.set(key, ids);
-    return ids.size >= 5 ? ids : null;
+    const cards = apiDecklistStatus(match, 'mine').cards;
+    const map = new Map(cards.map(c => [String(c.id || c.cardId || ''), Number(c.count) || 1]).filter(([id]) => id));
+    if(map.size >= 5){ deckCardListCache.set(key, map); return map; }
+    return null;
   }
 
-  function deckJaccardSimilarity(setA, setB){
-    if(!setA || !setB) return 0;
-    let inter = 0;
-    for(const id of setA){ if(setB.has(id)) inter++; }
-    const union = setA.size + setB.size - inter;
-    return union > 0 ? inter / union : 0;
+  function deckListsIdentical(mapA, mapB){
+    if(!mapA || !mapB || mapA.size !== mapB.size) return false;
+    for(const [id, count] of mapA){ if(mapB.get(id) !== count) return false; }
+    return true;
   }
 
-  function groupSimilarProfileIds(profileIds, threshold=0.75){
-    const cardSets = new Map();
-    profileIds.forEach(id => { const s = getDeckCardIdSet(id); if(s) cardSets.set(id, s); });
+  function groupIdenticalProfiles(profileIds){
+    const cardLists = new Map();
+    profileIds.forEach(id => { const m = getDeckCardList(id); if(m) cardLists.set(id, m); });
     const groups = [];
     const assigned = new Set();
     for(const id of profileIds){
       if(assigned.has(id)) continue;
       const group = [id];
       assigned.add(id);
-      const setA = cardSets.get(id);
-      if(setA){
+      const listA = cardLists.get(id);
+      if(listA){
         for(const other of profileIds){
           if(assigned.has(other)) continue;
-          const setB = cardSets.get(other);
-          if(setB && deckJaccardSimilarity(setA, setB) >= threshold){
+          const listB = cardLists.get(other);
+          if(listB && deckListsIdentical(listA, listB)){
             group.push(other);
             assigned.add(other);
           }
@@ -5521,7 +5520,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         return (sb?.games || 0) - (sa?.games || 0);
       });
     // Regrouper les versions similaires (Jaccard ≥ 75% sur les IDs de cartes)
-    const groups = groupSimilarProfileIds(profiles.map(p => String(p.id)));
+    const groups = groupIdenticalProfiles(profiles.map(p => String(p.id)));
     const pills = groups.map(group => {
       const primaryProfile = state.deckProfiles.find(p => String(p.id) === group[0]);
       if(!primaryProfile) return null;
@@ -5628,8 +5627,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const LORCAST_CACHE_PREFIX = 'lorcast:v1:';
   // Per-session archetype cache: profileId → { speed, sub, label } | null
   const deckArchetypeCache = new Map();
-  // Per-session card-set cache: profileId → Set<cardId> (populated from sheet opens)
-  const deckCardSetCache = new Map();
+  // Per-session card-list cache: profileId → Map<cardId, count> (populated from sheet opens)
+  const deckCardListCache = new Map();
+  const ARCHETYPE_STORAGE_PREFIX = 'inksight:archetype:v1:';
+
+  function loadStoredArchetype(key){
+    try{ const v = localStorage.getItem(ARCHETYPE_STORAGE_PREFIX + key); return v ? JSON.parse(v) : null; }
+    catch{ return null; }
+  }
+  function saveStoredArchetype(key, archetype){
+    try{
+      if(archetype) localStorage.setItem(ARCHETYPE_STORAGE_PREFIX + key, JSON.stringify(archetype));
+      else localStorage.removeItem(ARCHETYPE_STORAGE_PREFIX + key);
+    }catch{}
+  }
 
   // ─── Archétype : classification par courbe de coût + ratio Lore/Coût ────
   function computeDeckArchetype(normalizedCards){
@@ -5689,34 +5700,37 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!profileId) return null;
     const key = String(profileId);
     if(deckArchetypeCache.has(key)) return deckArchetypeCache.get(key);
-    // Cherche n'importe quelle partie pour ce profil avec une decklist API
+    // Check localStorage for manually set or previously auto-computed archetype
+    const stored = loadStoredArchetype(key);
+    if(stored){ deckArchetypeCache.set(key, stored); return stored; }
+    // Try from apiDecklistStatus (DuelInk import — card data in the match row)
     const match = (state.savedMatches || []).find(r =>
       String(r.deck_profile_id) === key && apiDecklistStatus(r, 'mine').cards.length >= 5
     );
     const archetype = match ? computeDeckArchetype(apiDecklistStatus(match, 'mine').cards) : null;
+    if(archetype) saveStoredArchetype(key, archetype);
     deckArchetypeCache.set(key, archetype);
     return archetype;
   }
 
   function archetypeFilterOptions(mode){
-    const colorFilterId = mode === 'history' ? 'historyColorFilter' : 'performanceColorFilter';
-    const selectedColors = selectedFilterValues(colorFilterId);
+    const prefix = mode === 'history' ? 'history' : 'performance';
+    const selectedColors = selectedFilterValues(`${prefix}ColorFilter`);
+    if(!selectedColors.length) return [];
     const rows = (state.savedMatches || []).filter(r =>
-      r.deck_profile_id && (!selectedColors.length || selectedColors.includes(colorFilterKey(rowMineColors(r))))
+      r.deck_profile_id && selectedColors.includes(colorFilterKey(rowMineColors(r)))
     );
-    const profileIds = [...new Set(rows.map(r => r.deck_profile_id).filter(Boolean))];
-    const seen = new Set();
-    profileIds.forEach(id => { const a = getProfileArchetype(id); if(a) seen.add(a.speed); });
-    if(seen.size < 2) return [];
-    return ['aggro','midrange','control']
-      .filter(s => seen.has(s))
-      .map(s => ({ value:s, label:{aggro:'Aggro',midrange:'Midrange',control:'Control'}[s] }));
+    const profileCount = new Set(rows.map(r => String(r.deck_profile_id)).filter(Boolean)).size;
+    if(profileCount < 2) return [];
+    return [
+      { value:'aggro', label:'Aggro' },
+      { value:'midrange', label:'Midrange' },
+      { value:'control', label:'Control' }
+    ];
   }
 
   function shouldShowArchetypeFilter(mode){
-    const colorFilterId = mode === 'history' ? 'historyColorFilter' : 'performanceColorFilter';
-    if(!selectedFilterValues(colorFilterId).length) return false;
-    return archetypeFilterOptions(mode).length >= 2;
+    return archetypeFilterOptions(mode).length > 0;
   }
 
   function normalizeLorcastCard(j, cardId){
@@ -5923,6 +5937,70 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         }catch{}
       });
     }
+
+    // Archétype : clic sur le badge ouvre un picker inline
+    const archetypeBtn = sheet.querySelector('[data-archetype-edit]');
+    if(archetypeBtn){
+      archetypeBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const existing = sheet.querySelector('.dl-archetype-picker');
+        if(existing){ existing.remove(); return; }
+        const ARCHETYPE_COLORS = { aggro:'#f87171', midrange:'#34d399', control:'#60a5fa' };
+        const LABELS = { aggro:'Aggro', midrange:'Midrange', control:'Control' };
+        const pid = archetypeBtn.dataset.archetypeEdit;
+        const current = pid ? getProfileArchetype(pid) : null;
+        const picker = document.createElement('div');
+        picker.className = 'dl-archetype-picker';
+        picker.innerHTML = ['aggro','midrange','control'].map(speed =>
+          `<button type="button" class="dl-arch-opt${current?.speed===speed?' active':''}" data-arch-speed="${speed}" style="color:${ARCHETYPE_COLORS[speed]}">${LABELS[speed]}</button>`
+        ).join('') + `<button type="button" class="dl-arch-opt dl-arch-reset" data-arch-speed="">Auto</button>`;
+        archetypeBtn.insertAdjacentElement('afterend', picker);
+
+        picker.addEventListener('click', ev => {
+          const btn = ev.target.closest('[data-arch-speed]');
+          if(!btn) return;
+          const speed = btn.dataset.archSpeed;
+          const newArchetype = speed ? { speed, label:LABELS[speed] } : null;
+          picker.remove();
+
+          if(!pid) return;
+          // Save manual override (or clear it for "Auto")
+          if(speed){
+            saveStoredArchetype(pid, newArchetype);
+            deckArchetypeCache.set(pid, newArchetype);
+          } else {
+            localStorage.removeItem(ARCHETYPE_STORAGE_PREFIX + pid);
+            deckArchetypeCache.delete(pid);
+          }
+
+          // Propagate to all identical decks in the cache
+          const thisCardList = deckCardListCache.get(pid);
+          if(thisCardList){
+            for(const [otherId, otherList] of deckCardListCache.entries()){
+              if(otherId === pid) continue;
+              if(deckListsIdentical(thisCardList, otherList)){
+                if(speed){ saveStoredArchetype(otherId, newArchetype); deckArchetypeCache.set(otherId, newArchetype); }
+                else{ localStorage.removeItem(ARCHETYPE_STORAGE_PREFIX + otherId); deckArchetypeCache.delete(otherId); }
+              }
+            }
+          }
+
+          // Update badge in sheet
+          const color = speed ? (ARCHETYPE_COLORS[speed] || 'var(--theme-color-1)') : 'var(--muted)';
+          archetypeBtn.style.color = color;
+          archetypeBtn.textContent = (speed ? LABELS[speed] : '— Archétype') + ' ▾';
+
+          // Refresh filter pills
+          try{ renderPerformanceFilterPills(); }catch(e){}
+        });
+
+        // Close picker on outside click
+        const closeOnOutside = ev => {
+          if(!picker.contains(ev.target) && ev.target !== archetypeBtn){ picker.remove(); document.removeEventListener('click', closeOnOutside); }
+        };
+        setTimeout(() => document.addEventListener('click', closeOnOutside), 10);
+      });
+    }
   }
 
   function ensureDecklistSheet(){
@@ -6020,20 +6098,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       groups.Location ? `<span class="dl-summary-stat"><strong>${typeCount('Location')}</strong>Lieux</span>` : '',
       wr != null ? `<span class="dl-summary-stat ${wrTone}"><strong>${wr}%</strong>WR · ${profileStats.total} parties</span>` : ''
     ].filter(Boolean).join('');
-    // Passe les IDs bruts pour que computeDeckArchetype re-hydrate depuis la DB locale
-    // (keywords, text, lore, strength, willpower présents dans state.index mais pas dans buildCards)
-    const archetype = computeDeckArchetype(decklist.map(e => ({ cardId:e.cardId, id:e.cardId, count:e.count })));
-    // Mise en cache pour le filtre archétype et les card-sets (profil enrichi par Lorcast = donnée fiable)
-    if(profile?.id){
-      const pid = String(profile.id);
-      if(archetype) deckArchetypeCache.set(pid, archetype);
-      const cardIds = new Set(decklist.map(e => String(e.cardId || '')).filter(Boolean));
-      if(cardIds.size >= 5) deckCardSetCache.set(pid, cardIds);
+    const computedArchetype = computeDeckArchetype(decklist.map(e => ({ cardId:e.cardId, id:e.cardId, count:e.count })));
+    const pid = profile?.id ? String(profile.id) : null;
+    // Cache card list for identical-deck merging
+    if(pid){
+      const cardList = new Map(decklist.map(e => [String(e.cardId || ''), Number(e.count) || 1]).filter(([id]) => id));
+      if(cardList.size >= 5) deckCardListCache.set(pid, cardList);
     }
+    // Merge with manually set archetype from localStorage (manual overrides auto-computed)
+    const storedArchetype = pid ? loadStoredArchetype(pid) : null;
+    const archetype = storedArchetype || computedArchetype || null;
+    if(pid && computedArchetype && !storedArchetype) saveStoredArchetype(pid, computedArchetype);
+    if(pid && archetype) deckArchetypeCache.set(pid, archetype);
     const ARCHETYPE_COLORS = { aggro:'#f87171', midrange:'#34d399', control:'#60a5fa' };
-    const archetypeBadge = archetype
-      ? `<span class="dl-archetype-badge" style="color:${ARCHETYPE_COLORS[archetype.speed] || 'var(--theme-color-1)'}">${esc(archetype.label)}</span>`
-      : '';
+    const archetypeColor = archetype ? (ARCHETYPE_COLORS[archetype.speed] || 'var(--theme-color-1)') : 'var(--muted)';
+    const archetypeBadge = `<button type="button" class="dl-archetype-badge dl-archetype-edit" data-archetype-edit="${escAttr(pid||'')}" style="color:${archetypeColor}" title="Modifier l'archétype">${esc(archetype?.label || '— Archétype')} ▾</button>`;
     const statsBar = `<div class="dl-summary">${buildMiniCostCurveHtml(cards)}<div class="dl-summary-stats">${stats}${archetypeBadge}</div>${inkDotsBig}</div>`;
 
     const actionsBar = `<div class="dl-actions"><button type="button" class="ghost-button compact dl-copy-btn" data-decklist-copy><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
@@ -6150,7 +6229,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       perfMark('saved matches light query', listStartedAt, { rows:Array.isArray(rows) ? rows.length : 0, limit:SAVED_MATCH_HISTORY_LIMIT });
       state.savedMatches = Array.isArray(rows) ? rows : [];
       deckArchetypeCache.clear();
-      deckCardSetCache.clear();
+      deckCardListCache.clear();
       writeSessionCache('saved-match-summaries', state.savedMatches);
       state.savedMatchesLoaded = true;
       if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
