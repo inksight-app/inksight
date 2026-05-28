@@ -5767,10 +5767,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function buildDecklistHtml(profile, decklist, opts={}){
     const { cardIdToRaw = new Map(), profileStats = null } = opts;
     const cards = decklist.map(entry => {
-      // 1) Local DB lookup (works for base cards 1-204 per set)
       let h = hydrateCard({ id:entry.cardId });
       let fromDb = !!h && fullName(h) !== 'Carte inconnue' && h.cost != null;
-      // 2) Fallback: card object extracted from game events (covers enchanted/alt-art)
       if(!fromDb){
         const raw = cardIdToRaw.get(entry.cardId);
         if(raw) h = hydrateCard({ ...raw, id:entry.cardId });
@@ -5781,66 +5779,85 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const cost = resolved && h.cost != null ? h.cost : 99;
       const image = cardImageUrlFromId(entry.cardId) || h?.imageSmall || h?.image || '';
       const inkableKnown = resolved && typeof h.inkable === 'boolean';
-      return { count:entry.count, name, type, cost, image, id:entry.cardId, resolved, inkableKnown, uninkable: inkableKnown && h.inkable === false };
+      const setNum = String(entry.cardId).split('-')[0];
+      const setCode = SET_NUM_TO_CODE[setNum] || (resolved && (h.setCode || h.set) || '');
+      const rarity = resolved ? (h.rarity || '') : '';
+      const number = String(entry.cardId).split('-')[1] || '';
+      return { count:entry.count, name, type, cost, image, id:entry.cardId, resolved, inkableKnown, uninkable: inkableKnown && h.inkable === false, setCode, rarity, number };
     }).sort((a,b) => a.cost - b.cost || a.name.localeCompare(b.name));
+
     const total = decklist.reduce((s,e) => s + e.count, 0);
     const uninkable = cards.filter(c => c.uninkable).reduce((s,c) => s + c.count, 0);
     const allKnown = cards.every(c => c.inkableKnown);
-    const avgCost = (() => {
-      const inkable = cards.filter(c => c.cost < 99);
-      if(!inkable.length) return null;
-      const total = inkable.reduce((s,c) => s + c.cost * c.count, 0);
-      const count = inkable.reduce((s,c) => s + c.count, 0);
-      return count ? (total / count).toFixed(1) : null;
-    })();
+
     const groups = {};
     cards.forEach(c => { (groups[c.type] = groups[c.type] || []).push(c); });
     const typeOrder = ['Character','Action','Song','Item','Location','Unknown'];
     const allTypes = [...typeOrder.filter(t => groups[t]), ...Object.keys(groups).filter(t => !typeOrder.includes(t) && groups[t])];
     const typeLabels = { Character:'Personnages', Action:'Actions', Song:'Chansons', Item:'Objets', Location:'Lieux', Unknown:'À identifier' };
-    const inkDots = inkDotsHtml(profileColors(profile));
+    const typeCount = type => (groups[type] || []).reduce((s,c) => s + c.count, 0);
+
+    const inkDotsBig = `<span class="dl-summary-inks">${arrayify(profileColors(profile)).map(inkKey).filter(Boolean).slice(0,2).map(c => `<i class="ink-dot ink-${escAttr(c)}"></i>`).join('')}</span>`;
+
     const sections = allTypes.map(type => {
-      const gTotal = groups[type].reduce((s,c) => s + c.count, 0);
+      const gTotal = typeCount(type);
       const items = groups[type].map(c => {
-        const costPill = c.cost < 99 ? c.cost : '–';
         const thumb = c.image
           ? `<img class="dl-thumb" loading="lazy" src="${escAttr(c.image)}" alt="" onerror="this.classList.add('dl-thumb-error')">`
           : '<span class="dl-thumb dl-thumb-missing"></span>';
-        const uninkBadge = c.uninkable ? '<span class="dl-uninkable" title="Non encrable" aria-label="Non encrable">⬡</span>' : '';
+        const metaParts = [];
+        if(c.rarity) metaParts.push(esc(RARITY_FR[c.rarity] || c.rarity));
+        if(c.setCode) metaParts.push(esc(c.setCode));
+        if(c.number) metaParts.push(`#${esc(c.number)}`);
+        const meta = metaParts.length
+          ? metaParts.map((p,i) => i ? `<span class="dl-meta-sep">·</span>${p}` : p).join(' ')
+          : `<em class="dl-card-id">#${esc(c.id)}</em>`;
+        const chips = [];
+        if(c.cost < 99) chips.push(`<span class="dl-chip dl-chip-cost">Coût ${c.cost}</span>`);
+        if(c.uninkable) chips.push('<span class="dl-chip dl-chip-uninkable">Non encrable</span>');
         const nameOut = c.name || `<em class="dl-card-id">#${esc(c.id)}</em>`;
-        return `<li class="dl-card">${thumb}<div class="dl-card-meta"><span class="dl-cost">${costPill}</span><span class="dl-name">${nameOut}</span>${uninkBadge}</div><span class="dl-count">${c.count}</span></li>`;
+        return `<li class="dl-card">${thumb}<div class="dl-card-body"><span class="dl-name">${nameOut}</span><span class="dl-meta">${meta}</span>${chips.length ? `<span class="dl-chips">${chips.join('')}</span>` : ''}</div><span class="dl-count">${c.count}</span></li>`;
       }).join('');
       return `<section class="dl-section"><h3 class="dl-section-title"><span>${esc(typeLabels[type] || type)}</span><span class="dl-section-count">${gTotal}</span></h3><ul class="dl-card-list">${items}</ul></section>`;
     }).join('');
-    const curve = buildCostCurveHtml(cards);
+
     const wr = profileStats?.total >= 1 ? profileStats.winRate : null;
     const wrTone = wr == null ? '' : (wr >= 55 ? 'dl-stat-positive' : (wr < 45 ? 'dl-stat-warn' : ''));
-    const tiles = [
-      `<div class="dl-summary-stat"><em>${inkDots}<span>Cartes</span></em><strong>${total}</strong></div>`,
-      avgCost != null ? `<div class="dl-summary-stat"><em>Coût moyen</em><strong>${avgCost}</strong></div>` : '',
-      allKnown ? `<div class="dl-summary-stat"><em>Non-encrables</em><strong>${uninkable}</strong></div>` : '',
-      wr != null ? `<div class="dl-summary-stat ${wrTone}"><em>Winrate</em><strong>${wr}%</strong><span class="dl-stat-sub">${profileStats.total} parties</span></div>` : ''
+    const stats = [
+      `<span class="dl-summary-stat"><strong>${total}</strong>Cartes</span>`,
+      allKnown ? `<span class="dl-summary-stat"><strong>${uninkable}</strong>Non-encrables</span>` : '',
+      groups.Character ? `<span class="dl-summary-stat"><strong>${typeCount('Character')}</strong>Personnages</span>` : '',
+      groups.Song ? `<span class="dl-summary-stat"><strong>${typeCount('Song')}</strong>Chansons</span>` : '',
+      groups.Action ? `<span class="dl-summary-stat"><strong>${typeCount('Action')}</strong>Actions</span>` : '',
+      groups.Item ? `<span class="dl-summary-stat"><strong>${typeCount('Item')}</strong>Objets</span>` : '',
+      groups.Location ? `<span class="dl-summary-stat"><strong>${typeCount('Location')}</strong>Lieux</span>` : '',
+      wr != null ? `<span class="dl-summary-stat ${wrTone}"><strong>${wr}%</strong>WR · ${profileStats.total} parties</span>` : ''
     ].filter(Boolean).join('');
-    const statsBar = `<div class="dl-summary">${tiles}</div>`;
-    const actionsBar = `<div class="dl-actions"><button type="button" class="ghost-button dl-copy-btn" data-decklist-copy><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
-    return `${statsBar}${curve}${actionsBar}${sections}`;
+    const statsBar = `<div class="dl-summary">${buildMiniCostCurveHtml(cards)}<div class="dl-summary-stats">${stats}</div>${inkDotsBig}</div>`;
+
+    const actionsBar = `<div class="dl-actions"><button type="button" class="ghost-button compact dl-copy-btn" data-decklist-copy><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
+    return `${statsBar}${actionsBar}${sections}`;
   }
 
-  function buildCostCurveHtml(cards){
-    const buckets = new Array(9).fill(0);
+  function buildMiniCostCurveHtml(cards){
+    const buckets = new Array(8).fill(0);
     cards.forEach(c => {
       if(c.cost >= 99) return;
-      const i = Math.min(8, Math.max(0, c.cost));
+      const i = Math.min(7, Math.max(0, c.cost - 1));
       buckets[i] += c.count;
     });
     const max = Math.max(...buckets, 1);
     const bars = buckets.map((v,i) => {
-      const height = v ? Math.max(12, (v/max)*100) : 4;
-      const emptyAttr = v ? '' : ' data-empty';
-      return `<span class="dl-curve-bar"${emptyAttr} style="height:${height}%" title="${v} cartes · coût ${i}${i===8?'+':''}"><b>${v||''}</b></span>`;
+      const height = v ? Math.max(6, (v/max) * 30) : 3;
+      const empty = v ? '' : ' data-empty';
+      return `<i${empty} style="height:${height}px" aria-hidden="true"></i><span>${i+1}${i===7?'+':''}</span>`.replace('</i>', '</i>');
+    });
+    const iEls = buckets.map((v,i) => {
+      const h = v ? Math.max(6, (v/max) * 30) : 3;
+      return `<i${v ? '' : ' data-empty'} style="height:${h}px"></i>`;
     }).join('');
-    const labels = buckets.map((_,i) => `<span>${i}${i===8?'+':''}</span>`).join('');
-    return `<div class="dl-curve"><div class="dl-curve-bars">${bars}</div><div class="dl-curve-labels">${labels}</div></div>`;
+    const sEls = buckets.map((_,i) => `<span>${i+1}${i===7?'+':''}</span>`).join('');
+    return `<div class="dl-curve-mini" aria-label="Courbe de coût">${iEls}${sEls}</div>`;
   }
 
   function inkDotsHtml(colors){
