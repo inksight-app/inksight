@@ -13589,12 +13589,12 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
 #performance-stats .filter-pill{flex:0 0 auto!important;display:inline-flex!important;width:auto!important;max-width:none!important}
 #performance-stats .deck-pill-wrap{flex:0 0 auto!important}
 
-/* Deck pill with integrated info button (single pill design) */
-.deck-pill-wrap{display:inline-flex;align-items:stretch;flex-shrink:0;border-radius:999px;overflow:hidden}
-.deck-pill-wrap .filter-pill{border-radius:999px 0 0 999px;border-right:none}
-.deck-info-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;min-height:36px;padding:0 4px;border-radius:0 999px 999px 0;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.5);color:rgba(148,163,184,.7);font-size:.95rem;cursor:pointer;transition:color .14s,background .14s;flex-shrink:0;line-height:1}
-.deck-info-btn:hover,.deck-info-btn:focus-visible{color:#fff;background:rgba(30,41,59,.78);outline:none}
-.deck-pill-wrap .filter-pill.active+.deck-info-btn{border-color:color-mix(in srgb,var(--theme-color-1) 48%,rgba(255,255,255,.18));background:color-mix(in srgb,var(--theme-color-1) 14%,rgba(15,23,42,.74));color:rgba(255,255,255,.85)}
+/* Deck pill with sibling info button — both styled like .filter-pill */
+.deck-pill-wrap{display:inline-flex;align-items:center;gap:4px;flex-shrink:0}
+.deck-info-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;min-height:36px;padding:0;border-radius:999px;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.62);color:rgba(226,232,240,.84);cursor:pointer;transition:transform .16s ease,border-color .16s ease,background .16s ease,color .16s ease;flex-shrink:0}
+.deck-info-btn:hover{transform:translateY(-1px);border-color:rgba(148,163,184,.34);background:rgba(30,41,59,.72);color:#fff}
+.deck-info-btn:focus-visible{outline:2px solid rgba(96,165,250,.5);outline-offset:2px}
+.deck-info-btn svg{width:15px;height:15px}
 
 /* Decklist sheet — full-screen mobile-first overlay */
 body.decklist-sheet-open{overflow:hidden}

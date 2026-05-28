@@ -8,9 +8,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const MAX_FILES = 20;
   const SAVED_MATCH_HISTORY_LIMIT = 1000;
   const PERF_DEBUG = true;
-  const SET_NUM_TO_CODE = { '1':'TFC', '2':'ROTF', '3':'ITI', '4':'URR', '5':'SSK', '6':'AZS', '7':'ARI', '8':'ROJ', '9':'FAB', '10':'WHW', '11':'WIN', '12':'WIL', '13':'SET13', '14':'SET14' };
+  // Master codes here must match the `set` field on cards in
+  // /lorcana-cards-import-ready.json so hydrateCard resolves IDs like "12-139".
+  const SET_NUM_TO_CODE = { '1':'TFC', '2':'ROTF', '3':'ITI', '4':'URR', '5':'SHS', '6':'AZS', '7':'ARI', '8':'ROJ', '9':'FAB', '10':'WITW', '11':'WIS', '12':'WUN', '13':'SET13', '14':'SET14' };
   const SET_CODE_TO_NUM = Object.fromEntries(Object.entries(SET_NUM_TO_CODE).map(([n,c]) => [c,n]));
-  Object.assign(SET_CODE_TO_NUM, { FC:'1', TFC:'1', SHS:'5', WITW:'10', WIS:'11', WUN:'12' });
+  // Aliases so legacy data using the older codes still resolves.
+  Object.assign(SET_CODE_TO_NUM, { FC:'1', TFC:'1', SHS:'5', SSK:'5', WITW:'10', WHW:'10', WIS:'11', WIN:'11', WUN:'12', WIL:'12' });
   const SET_LABELS = { TFC:'Premier Chapitre', FC:'Premier Chapitre', ROTF:'L’Ascension des Floodborn', ITI:'Les Terres d’Encres', URR:'Le Retour d’Ursula', SSK:'Ciel Scintillant', AZS:'La Mer Azurite', ARI:'L’Île d’Archazia', ROJ:'Le Règne de Jafar', FAB:'Fabuleux', WHW:'Lueurs dans les Profondeurs', WIN:'Givresort', WIL:'Contrées Inconnues', SET13:'Invasion Épineuse !', SET14:'Hyperia City', P1:'Cartes Promo — Année 1', P2:'Cartes Promo — Année 2', P3:'Cartes Promo — Année 3' };
   const INK_FR = { amber:'Ambre', amethyst:'Améthyste', emerald:'Émeraude', ruby:'Rubis', sapphire:'Saphir', steel:'Acier', Amber:'Ambre', Amethyst:'Améthyste', Emerald:'Émeraude', Ruby:'Rubis', Sapphire:'Saphir', Steel:'Acier', 'Dual Ink':'Double encre' };
   const RARITY_FR = { common:'Commune', uncommon:'Inhabituelle', rare:'Rare', 'super rare':'Très rare', super_rare:'Très rare', legendary:'Légendaire', enchanted:'Enchantée', iconic:'Iconique', promo:'Promo', Common:'Commune', Uncommon:'Inhabituelle', Rare:'Rare', Legendary:'Légendaire', Enchanted:'Enchantée', Iconic:'Iconique', Promo:'Promo' };
@@ -5534,7 +5537,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const dots = inkDotsHtml(option.colors || []);
       const label = option.shortLabel || option.label;
       const aria = option.ariaLabel || option.label || label;
-      return `<span class="deck-pill-wrap"><button type="button" class="filter-pill color-badge-pill ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-label="${escAttr(aria)}" aria-pressed="${active?'true':'false'}">${dots}<span>${esc(label)}</span></button><button type="button" class="deck-info-btn" data-deck-info="${escAttr(option.value)}" title="Voir la decklist" aria-label="Décklist · ${escAttr(aria)}">▤</button></span>`;
+      return `<span class="deck-pill-wrap"><button type="button" class="filter-pill color-badge-pill ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-label="${escAttr(aria)}" aria-pressed="${active?'true':'false'}">${dots}<span>${esc(label)}</span></button><button type="button" class="deck-info-btn" data-deck-info="${escAttr(option.value)}" title="Voir la decklist" aria-label="Décklist · ${escAttr(aria)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>`;
     }).join('');
   }
 
@@ -5646,7 +5649,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }).join('');
     const curve = buildCostCurveHtml(cards);
     const statsBar = `<div class="dl-summary">${inkDots}<div class="dl-summary-stats"><span><strong>${total}</strong><em>Cartes</em></span>${allKnown ? `<span><strong>${uninkable}</strong><em>Non-encrables</em></span>` : ''}</div></div>`;
-    const actionsBar = `<div class="dl-actions"><button type="button" class="dl-action-btn dl-action-primary" data-decklist-copy><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
+    const actionsBar = `<div class="dl-actions"><button type="button" class="ghost-button dl-copy-btn" data-decklist-copy><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
     return `${statsBar}${curve}${actionsBar}${sections}`;
   }
 
