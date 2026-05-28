@@ -5344,8 +5344,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function performanceColorOptionsForPills(){
+    // Cross-filtre comme les pills adverses : les comptes par bicolorité
+    // reflètent les autres filtres sélectionnés (BO1/BO3, OTP/OTD, etc.).
+    const sourceRows = filteredSavedMatchesWithout(['performanceColorFilter']);
     const map = new Map();
-    (state.savedMatches || []).forEach(row => {
+    (sourceRows || []).forEach(row => {
       const colors = rowMineColors(row);
       const key = colorFilterKey(colors);
       if(!key) return;
