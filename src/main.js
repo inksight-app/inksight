@@ -4320,7 +4320,32 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(els.historyStatus) els.historyStatus.textContent = 'Analyse sauvegardée introuvable.';
         return;
       }
-      const runtime = savedRowToRuntimeState(hydratedRow);
+      // Si le match fait partie d'une série BO3 (même series_match_id), on
+      // recolle les games sœurs pour rouvrir tout le BO3 comme un import zip.
+      const seriesId = hydratedRow.series_match_id;
+      let runtime;
+      if(seriesId && String(hydratedRow.format||'').toUpperCase() === 'BO3'){
+        const siblings = (state.savedMatches || []).filter(m => m.series_match_id === seriesId);
+        if(siblings.length > 1){
+          const byId = new Map([[hydratedRow.id, hydratedRow]]);
+          await Promise.all(siblings.map(async sib => {
+            if(sib.id === hydratedRow.id || byId.has(sib.id)) return;
+            const full = await getSavedMatch(sib.id).catch(()=>null);
+            if(full) byId.set(full.id, full);
+          }));
+          const rows = [...byId.values()].filter(r => r?.analysis_json);
+          if(rows.length > 1){
+            rows.sort((a,b) => {
+              const ga = n(a.api_metadata?.api_row?.raw?.match_game_number) || 0;
+              const gb = n(b.api_metadata?.api_row?.raw?.match_game_number) || 0;
+              if(ga !== gb) return ga - gb;
+              return String(a.played_at||a.created_at||'').localeCompare(String(b.played_at||b.created_at||''));
+            });
+            runtime = savedSeriesToRuntimeState(rows);
+          }
+        }
+      }
+      if(!runtime) runtime = savedRowToRuntimeState(hydratedRow);
       state.replays = runtime.replays;
       state.sessions = runtime.sessions;
       state.merged = runtime.merged;
@@ -4367,6 +4392,38 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       session
     }));
     return { isBO3, sessions, merged, replays };
+  }
+
+  // Reconstruit un état BO3 multi-sessions à partir de plusieurs saved_matches
+  // partageant un series_match_id (un sauvé par game à l'import Duels.ink).
+  function savedSeriesToRuntimeState(rows){
+    const canonical = rows[rows.length - 1];
+    const baseAnalysis = canonical.analysis_json || {};
+    const myName = baseAnalysis?.players?.mine || 'Joueur';
+    const opponentName = canonical.opponent_name || baseAnalysis?.players?.opponent || 'Adversaire';
+    const profiles = savedInkProfiles(canonical, baseAnalysis);
+    const globalCards = savedCardsToRuntimeCards(baseAnalysis.cards || {});
+    const fullTimeline = savedTimelineToRuntime(baseAnalysis.timeline || []);
+    const sessions = rows.map((sib, idx) => {
+      const a = sib.analysis_json || {};
+      const went = sib.api_metadata?.api_row?.raw?.went_first;
+      const game = {
+        gameNumber: idx + 1,
+        isWin: sib.result === 'win',
+        otp: went === true || went === 'true',
+        turnCount: n(sib.total_turns || sib.avg_turns),
+        finalMineLore: n(sib.final_mine_lore),
+        finalOppLore: n(sib.final_opp_lore)
+      };
+      return savedGameToSession(sib, a, game, idx, myName, opponentName, profiles);
+    });
+    const merged = savedMergedToWorkingData(canonical, baseAnalysis, sessions, globalCards, fullTimeline, profiles, myName, opponentName);
+    const replays = sessions.map((session, idx) => ({
+      file:{ name:`BO3 sauvegardé · ${formatSavedDate(rows[idx].created_at)} · Game ${idx + 1}`, size:0, savedMatchId:rows[idx].id },
+      replay:{ saved:true, id:rows[idx].id },
+      session
+    }));
+    return { isBO3: true, sessions, merged, replays };
   }
 
   function savedMergedToWorkingData(row, analysis, sessions, cards, timeline, profiles, myName, opponentName){
