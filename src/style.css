@@ -13576,18 +13576,50 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
 }
 
 /* Deck pill with info button */
-.deck-pill-wrap{display:inline-flex;align-items:center;gap:2px}
-.deck-info-btn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border-radius:50%;border:1px solid rgba(148,163,184,.18);background:rgba(15,23,42,.62);color:rgba(203,213,225,.55);font-size:.7rem;cursor:pointer;transition:border-color .14s,color .14s;flex-shrink:0}
-.deck-info-btn:hover{border-color:rgba(148,163,184,.4);color:#fff}
-/* Decklist modal */
-.decklist-modal-body{padding:4px 0}
-.decklist-total{margin:0 0 14px;color:rgba(203,213,225,.6);font-size:.8rem}
-.decklist-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:18px}
-.decklist-type-head{margin:0 0 6px;color:#fff;font-size:.82rem;letter-spacing:-.02em;font-weight:800}
-.decklist-type-head small{color:rgba(203,213,225,.5);font-weight:500;margin-left:4px}
-.decklist-card-list{margin:0;padding:0;list-style:none;display:grid;gap:3px}
-.decklist-card-list li{color:rgba(226,232,240,.82);font-size:.76rem;line-height:1.35;display:flex;align-items:baseline;gap:4px}
-.deck-card-count{color:rgba(203,213,225,.5);font-weight:700;font-size:.7rem;min-width:16px;text-align:right;flex-shrink:0}
+.deck-pill-wrap{display:inline-flex;align-items:center;gap:2px;flex-shrink:0}
+.deck-info-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;border-radius:50%;border:1px solid rgba(148,163,184,.22);background:rgba(15,23,42,.6);color:rgba(203,213,225,.7);font-size:.82rem;cursor:pointer;transition:border-color .14s,color .14s,background .14s;flex-shrink:0}
+.deck-info-btn:hover,.deck-info-btn:focus-visible{border-color:rgba(148,163,184,.45);color:#fff;background:rgba(30,41,59,.78);outline:none}
+
+/* Decklist sheet — full-screen mobile-first overlay */
+body.decklist-sheet-open{overflow:hidden}
+.decklist-sheet{position:fixed;inset:0;z-index:9999;display:none;pointer-events:none}
+.decklist-sheet.active{display:block;pointer-events:auto}
+.decklist-sheet-backdrop{position:absolute;inset:0;background:rgba(3,5,12,.78);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);animation:dlFade .22s ease both}
+.decklist-sheet-panel{position:absolute;inset:0;display:flex;flex-direction:column;background:linear-gradient(180deg,rgba(15,18,26,.96),rgba(8,10,15,.98));color:#fff;animation:dlSlide .26s cubic-bezier(.22,.61,.36,1) both}
+@keyframes dlFade{from{opacity:0}to{opacity:1}}
+@keyframes dlSlide{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.decklist-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.07);position:sticky;top:0;background:linear-gradient(180deg,rgba(15,18,26,.98),rgba(15,18,26,.92));backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:2}
+.decklist-sheet-titles{display:grid;gap:2px;min-width:0}
+.decklist-sheet-kicker{font-size:.66rem;font-weight:850;letter-spacing:.16em;text-transform:uppercase;color:rgba(96,165,250,.92)}
+.decklist-sheet-title{margin:0;font-size:1.15rem;line-height:1.18;letter-spacing:-.02em;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.decklist-sheet-close{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:1rem;cursor:pointer;flex-shrink:0;transition:background .14s,border-color .14s}
+.decklist-sheet-close:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22)}
+.decklist-sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 80px;overscroll-behavior:contain}
+.decklist-sheet-empty{margin:32px 0;color:rgba(203,213,225,.65);text-align:center;font-size:.88rem}
+
+.dl-summary{display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06)}
+.dl-summary-total{color:rgba(226,232,240,.88);font-size:.85rem;font-weight:700}
+.dl-section{margin:0 0 18px}
+.dl-section-title{display:flex;align-items:baseline;gap:8px;margin:0 0 8px;padding:0 2px;color:#fff;font-size:.78rem;font-weight:850;letter-spacing:.12em;text-transform:uppercase}
+.dl-section-count{color:rgba(96,165,250,.88);font-size:.7rem;font-weight:800;padding:2px 7px;border-radius:999px;background:rgba(96,165,250,.12);letter-spacing:0}
+.dl-card-list{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.dl-card{display:grid;grid-template-columns:30px 44px 1fr auto;align-items:center;gap:10px;padding:6px 10px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.05);transition:background .14s,border-color .14s}
+.dl-card:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1)}
+.dl-cost{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,rgba(15,23,42,.85),rgba(30,41,59,.85));border:1px solid rgba(255,255,255,.14);color:#fff;font-weight:800;font-size:.85rem;font-variant-numeric:tabular-nums}
+.dl-thumb{width:44px;height:62px;border-radius:6px;object-fit:cover;background:#111;border:1px solid rgba(255,255,255,.08);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.dl-thumb-missing{display:inline-block;background:linear-gradient(135deg,rgba(255,255,255,.04),rgba(255,255,255,.02))}
+.dl-name{color:rgba(240,245,255,.94);font-size:.86rem;line-height:1.25;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.dl-count{color:rgba(96,165,250,.92);font-weight:850;font-size:.92rem;font-variant-numeric:tabular-nums;padding:2px 9px;border-radius:8px;background:rgba(96,165,250,.1);flex-shrink:0}
+
+@media(min-width:760px){
+  .decklist-sheet-panel{inset:max(20px,4vh) max(20px,5vw);max-width:920px;max-height:92vh;margin:auto;border-radius:22px;border:1px solid rgba(255,255,255,.08);box-shadow:0 30px 80px rgba(0,0,0,.6);overflow:hidden}
+  .decklist-sheet-body{padding:18px 22px 24px}
+  .dl-section-title{font-size:.82rem}
+  .dl-card-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(min-width:1100px){
+  .dl-card-list{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
 
 /* V136.0C — anti-duplicate save, mobile readability and color badge polish */
 .history-summary-colors{display:inline-flex!important;align-items:center;gap:.35rem;min-height:1.6rem}

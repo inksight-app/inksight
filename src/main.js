@@ -5326,8 +5326,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     const poolOptions = lorcanaPoolOptions();
     const setOptions = lorcanaSetOptions();
-    const showPool = poolOptions.length > 0;
-    const showSet = setOptions.length > 0;
+    const showPool = poolOptions.length > 1;
+    const showSet = setOptions.length > 1;
     if(els.performancePoolBlock) els.performancePoolBlock.hidden = !showPool;
     if(els.performanceSetBlock) els.performanceSetBlock.hidden = !showSet;
     renderPillGroup(els.performancePoolPills, 'performancePoolFilter', poolOptions);
@@ -5538,37 +5538,66 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   async function openDecklistModal(profileId){
     const profile = state.deckProfiles.find(p => p.id === profileId);
     if(!profile) return;
+    closeDecklistSheet();
+    const sheet = ensureDecklistSheet();
+    sheet.querySelector('.decklist-sheet-title').textContent = profile.name;
+    sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Chargement…</p>';
+    sheet.classList.add('active');
+    document.body.classList.add('decklist-sheet-open');
+
     const matchRow = (state.savedMatches || []).find(r => r.deck_profile_id === profileId);
-    if(!matchRow){ openPerformanceListModal(profile.name, '<p style="color:rgba(203,213,225,.7)">Aucune décklist disponible.</p>'); return; }
-    openPerformanceListModal(profile.name, '<p style="color:rgba(203,213,225,.7)">Chargement…</p>');
+    if(!matchRow){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Aucun match sauvegardé pour ce deck.</p>'; return; }
     try{
       const full = await getSavedMatch(matchRow.id);
       const decklist = full?.api_metadata?.api_row?.raw?.your_decklist || [];
-      if(!decklist.length){ openPerformanceListModal(profile.name, '<p style="color:rgba(203,213,225,.7)">Décklist non disponible (import manuel).</p>'); return; }
-      openPerformanceListModal(profile.name, buildDecklistHtml(profile, decklist));
+      if(!decklist.length){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Décklist non disponible (import manuel).</p>'; return; }
+      sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist);
     }catch(err){
-      openPerformanceListModal(profile.name, `<p style="color:rgba(203,213,225,.7)">Erreur : ${esc(err.message)}</p>`);
+      sheet.querySelector('.decklist-sheet-body').innerHTML = `<p class="decklist-sheet-empty">Erreur : ${esc(err.message)}</p>`;
     }
+  }
+
+  function ensureDecklistSheet(){
+    let sheet = document.getElementById('decklistSheet');
+    if(sheet) return sheet;
+    sheet = document.createElement('div');
+    sheet.id = 'decklistSheet';
+    sheet.className = 'decklist-sheet';
+    sheet.innerHTML = `<div class="decklist-sheet-backdrop" data-decklist-close></div><div class="decklist-sheet-panel"><header class="decklist-sheet-head"><div class="decklist-sheet-titles"><span class="decklist-sheet-kicker">Decklist</span><h2 class="decklist-sheet-title"></h2></div><button type="button" class="decklist-sheet-close" data-decklist-close aria-label="Fermer">✕</button></header><div class="decklist-sheet-body"></div></div>`;
+    document.body.appendChild(sheet);
+    sheet.addEventListener('click', e => { if(e.target.closest('[data-decklist-close]')) closeDecklistSheet(); });
+    return sheet;
+  }
+
+  function closeDecklistSheet(){
+    const sheet = document.getElementById('decklistSheet');
+    if(!sheet) return;
+    sheet.classList.remove('active');
+    document.body.classList.remove('decklist-sheet-open');
   }
 
   function buildDecklistHtml(profile, decklist){
     const cards = decklist.map(entry => {
       const h = hydrateCard({ id:entry.cardId });
-      const name = fullName(h) || entry.cardId;
+      const name = fullName(h) || h.name || entry.cardId;
       const type = h.type || h.cardType || 'Other';
       const cost = typeof h.cost === 'number' ? h.cost : (typeof h.inkCost === 'number' ? h.inkCost : 99);
-      return { count:entry.count, name, type, cost };
+      const image = h.imageSmall || h.image || '';
+      return { count:entry.count, name, type, cost, image, id:entry.cardId };
     }).sort((a,b) => a.cost - b.cost || a.name.localeCompare(b.name));
     const total = decklist.reduce((s,e) => s + e.count, 0);
     const groups = {};
     cards.forEach(c => { (groups[c.type] = groups[c.type] || []).push(c); });
     const typeOrder = ['Character','Action','Item','Location'];
     const allTypes = [...typeOrder.filter(t => groups[t]), ...Object.keys(groups).filter(t => !typeOrder.includes(t) && groups[t])];
-    const html = allTypes.map(type => {
+    const typeLabels = { Character:'Personnages', Action:'Actions', Item:'Objets', Location:'Lieux' };
+    const inkDots = inkDotsHtml(profileColors(profile));
+    const sections = allTypes.map(type => {
       const gTotal = groups[type].reduce((s,c) => s + c.count, 0);
-      return `<div class="decklist-group"><h4 class="decklist-type-head">${esc(type)}s <small>(${gTotal})</small></h4><ul class="decklist-card-list">${groups[type].map(c => `<li><span class="deck-card-count">${c.count}×</span> ${esc(c.name)}</li>`).join('')}</ul></div>`;
+      const items = groups[type].map(c => `<li class="dl-card"><span class="dl-cost">${c.cost < 99 ? c.cost : '–'}</span>${c.image ? `<img class="dl-thumb" loading="lazy" src="${escAttr(c.image)}" alt="">` : '<span class="dl-thumb dl-thumb-missing"></span>'}<span class="dl-name">${esc(c.name)}</span><span class="dl-count">${c.count}×</span></li>`).join('');
+      return `<section class="dl-section"><h3 class="dl-section-title">${esc(typeLabels[type] || type)} <span class="dl-section-count">${gTotal}</span></h3><ul class="dl-card-list">${items}</ul></section>`;
     }).join('');
-    return `<div class="decklist-modal-body"><p class="decklist-total">${total} cartes</p><div class="decklist-groups">${html}</div></div>`;
+    return `<div class="dl-summary">${inkDots}<span class="dl-summary-total">${total} cartes</span></div>${sections}`;
   }
 
   function inkDotsHtml(colors){
