@@ -5571,182 +5571,58 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   // Per-session archetype cache: profileId → { speed, sub, label } | null
   const deckArchetypeCache = new Map();
 
-  // ─── Archétype : classification multi-facteurs (méta Lorcana 2025-2026) ──
-  // Synergies hardcodées : paires de noms → sous-archétype forcé
-  const ARCHETYPE_COMBOS = [
-    [['jafar','whole new world'], 'combo'],
-    [['lucky dime','tamatoa'],    'control'],
-    [['madam mim','merlin'],      'bounce'],
-    [['cinderella','bibbidi'],    'ramp'],
-  ];
-
+  // ─── Archétype : classification par courbe de coût + ratio Lore/Coût ────
   function computeDeckArchetype(normalizedCards){
     if(!Array.isArray(normalizedCards) || !normalizedCards.length) return null;
 
-    let totalCost = 0, totalCards = 0, resolvedCards = 0;
-    let cost1 = 0, cost2 = 0, cost3 = 0, cost4 = 0, cost5plus = 0;
-    let totalLore = 0, loreCards = 0;
-    let charCount = 0, actionCount = 0, songCount = 0, itemCount = 0;
-    // Keywords — on sépare Evasive par seuil de coût (insight méta clé)
-    // Deck #1 méta (Amethyst/Sapphire "Blurple", 25% share) = CONTROL avec Evasives coûteux (4-7) comme finishers
-    // Decks Aggro utilisent Evasives bon marché (1-3) pour quêter sans être challengés
-    let evasiveCheap = 0, evasiveExpensive = 0;
-    let rushCount = 0, bodyguardCount = 0, singerCount = 0, shiftCount = 0, challengerCount = 0, recklessCount = 0;
-    let removalCount = 0, boardClearCount = 0, drawCount = 0, discardCount = 0, bounceCount = 0, burnLoreCount = 0, rampCount = 0;
-    const deckColors = new Set();
-    const allCardNames = [];
+    let totalCost = 0, totalLore = 0, totalCards = 0, loreCards = 0;
+    let cost1_2 = 0, cost5plus = 0;
 
     normalizedCards.forEach(e => {
       const h = hydrateCard({ ...e, id: e.cardId || e.id || '' });
       const cost = h?.cost ?? null;
       if(cost == null || cost >= 99) return;
       const cnt = Number(e.count) || 1;
-
-      totalCost += cost * cnt; totalCards += cnt; resolvedCards++;
-      if(cost <= 1) cost1 += cnt;
-      else if(cost <= 2) cost2 += cnt;
-      else if(cost <= 3) cost3 += cnt;
-      else if(cost <= 4) cost4 += cnt;
-      else cost5plus += cnt;
-
+      totalCost  += cost * cnt;
+      totalCards += cnt;
+      if(cost <= 2) cost1_2   += cnt;
+      if(cost >= 5) cost5plus += cnt;
       const lore = h.lore ?? null;
       if(lore != null && lore > 0){ totalLore += lore * cnt; loreCards += cnt; }
-
-      const rawType = String(h.type || h.cardType || '').toLowerCase();
-      if(rawType.includes('character')) charCount += cnt;
-      else if(rawType.includes('song'))   songCount += cnt;
-      else if(rawType.includes('action')) actionCount += cnt;
-      else if(rawType.includes('item'))   itemCount += cnt;
-
-      arrayify(h.colors || h.color || []).forEach(c => deckColors.add(String(c).toLowerCase()));
-
-      const kwArr = arrayify(h.keywords || []).map(k => String(k).toLowerCase());
-      const text  = String(h.text || h.rulesText || '').toLowerCase();
-      const hasKw = kw => kwArr.some(k => k.includes(kw)) || new RegExp(`\\b${kw}\\b`).test(text);
-
-      // Evasive split par coût
-      if(hasKw('evasive')){ if(cost <= 3) evasiveCheap += cnt; else evasiveExpensive += cnt; }
-      if(hasKw('rush'))        rushCount      += cnt;
-      if(hasKw('bodyguard'))   bodyguardCount += cnt;
-      if(hasKw('singer'))      singerCount    += cnt;
-      if(hasKw('shift'))       shiftCount     += cnt;
-      if(hasKw('challenger'))  challengerCount += cnt;
-      if(hasKw('reckless'))    recklessCount  += cnt;
-
-      // Removal ciblé vs board clear (Be Prepared, Strength of a Raging Fire…)
-      if(/(all characters|tous les personnages|each character|chaque personnage).{0,40}(banish|bannir)/.test(text) ||
-         /(banish|bannir).{0,40}(all|tous|each|chaque)/.test(text)) boardClearCount += cnt;
-      else if(/banish|bannir|(deal \d+ damage)|(infliger \d+ dégât)/.test(text)) removalCount += cnt;
-
-      if(/draw (a|\d+) card|piochez|pioche une carte/.test(text))                 drawCount    += cnt;
-      if(/(opponent|adversaire).{0,20}(discard|défaussez)/.test(text))            discardCount += cnt;
-      if(/(return|renvoyer|retour).{0,30}(hand|main)/.test(text))                 bounceCount  += cnt;
-      if(/(gain|gagne) \d+ (lore|prestige)/.test(text) && !/(quest|quête)/.test(text)) burnLoreCount += cnt;
-      if(/(put|placer).{0,30}(into your inkwell|dans votre encrier)/.test(text))  rampCount    += cnt;
-
-      allCardNames.push(String(h.name || h.fullName || e.name || '').toLowerCase());
     });
 
-    if(totalCards < 8 || resolvedCards < 5) return null;
+    if(totalCards < 8) return null;
 
-    const avgCost      = totalCost / totalCards;
-    const avgLore      = loreCards > 0 ? totalLore / loreCards : 0;
-    const pct1_2       = (cost1 + cost2) / totalCards;
-    const pct5plus_r   = cost5plus / totalCards;
-    const pctChar      = charCount / totalCards;
-    const pctSong      = songCount / totalCards;
-    const lorePerCost  = avgCost > 0 ? avgLore / avgCost : 0;
+    const avgCost     = totalCost / totalCards;
+    const pctEarly    = cost1_2   / totalCards; // % cartes ≤2
+    const pctLate     = cost5plus / totalCards; // % cartes ≥5
+    const avgLore     = loreCards > 0 ? totalLore / loreCards : null;
+    const lorePerCost = avgLore != null && avgCost > 0 ? avgLore / avgCost : null;
 
+    // ── Courbe de coût (signal principal) ──
     let A = 0, M = 0, C = 0;
 
-    // ── 1. Prior couleurs (méta Lorcana : certaines encres marquent fortement) ──
-    const has = c => deckColors.has(c);
-    if(has('amethyst') || has('améthyste')){
-      // Amethyst = bounce, disruption, contrôle → forte pression Control
-      if(has('sapphire') || has('saphir'))  C += 10; // Blurple = Control/Ramp #1 méta
-      if(has('ruby')     || has('rubis'))   C += 6;  // Ruby/Amethyst Bounce Control
-      if(has('steel')    || has('acier'))   M += 4;  // Amethyst/Steel = midrange polyvalent
+    if(avgCost < 2.3)       A += 20;
+    else if(avgCost < 2.7)  { A += 12; M += 4; }
+    else if(avgCost < 3.1)  { A += 4;  M += 12; }
+    else if(avgCost < 3.6)  M += 20;
+    else if(avgCost < 4.2)  { M += 6;  C += 14; }
+    else                    C += 20;
+
+    if(pctEarly > 0.50) A += 10; else if(pctEarly > 0.38) A += 5;
+    if(pctLate  > 0.28) C += 10; else if(pctLate  > 0.18) C += 5;
+
+    // ── Ratio Lore/Coût (signal secondaire, ignoré si données manquantes) ──
+    if(lorePerCost != null){
+      if(lorePerCost > 1.05)      A += 8;
+      else if(lorePerCost > 0.80) M += 4;
+      else if(lorePerCost < 0.50) C += 6;
     }
-    if(has('sapphire') || has('saphir')){
-      C += 5; // Sapphire = ramp → Control en général
-      if(has('emerald') || has('émeraude')) C += 4; // Emerald/Sapphire Control
-    }
-    if(has('amber') || has('ambre')){
-      if(has('ruby')     || has('rubis'))   A += 6;  // Amber/Ruby aggro
-      if(has('steel')    || has('acier'))   M += 5;  // Steelsong midrange
-      if(has('emerald')  || has('émeraude')) M += 3;
-    }
-    if(has('emerald') || has('émeraude')){
-      if(has('steel') || has('acier'))      M += 4;  // Emerald/Steel disruption midrange
-    }
-
-    // ── 2. Courbe de coût (signal dominant) ───────────────────────────────
-    if(avgCost < 2.3)      { A += 18 }
-    else if(avgCost < 2.6) { A += 11; M += 2 }
-    else if(avgCost < 3.0) { A += 4;  M += 10 }
-    else if(avgCost < 3.4) { M += 13 }
-    else if(avgCost < 3.9) { M += 5;  C += 9 }
-    else if(avgCost < 4.5) { C += 13 }
-    else                   { C += 18 }
-
-    // ── 3. Distribution early/late ──────────────────────────────────────
-    if(pct1_2 > 0.5)      A += 10; else if(pct1_2 > 0.38)   A += 5;
-    if(pct5plus_r > 0.3)  C += 10; else if(pct5plus_r > 0.2) C += 5;
-
-    // ── 4. Efficacité lore (aggro = lore/coût élevé sur petits perso) ───
-    if(lorePerCost > 1.1)       A += 8;
-    else if(lorePerCost > 0.85) M += 3;
-    else if(lorePerCost < 0.5)  C += 3;
-
-    // ── 5. Densité personnages vs sorts ─────────────────────────────────
-    if(pctChar > 0.75)      A += 5; else if(pctChar < 0.5) C += 4;
-    // Songs élevé = Midrange (Steelsong) ou Control, pas Aggro pur
-    if(pctSong > 0.25)      { C += 4; M += 3; } else if(pctSong > 0.15) M += 3;
-
-    // ── 6. Keywords — Evasive split par coût ────────────────────────────
-    // Evasive bon marché (≤3) : signal AGGRO (quêteur rapide non-challengeable)
-    if(evasiveCheap > 6)      A += 10; else if(evasiveCheap > 3) A += 5;
-    // Evasive coûteux (≥4) : signal CONTROL (finisher inarrêtable)
-    if(evasiveExpensive > 4)  C += 7;  else if(evasiveExpensive > 2) C += 3;
-
-    if(challengerCount > 4) { A += 7; } else if(challengerCount > 2) A += 3;
-    if(recklessCount > 3)     A += 4;
-    // Rush = outil de removal (personnage challenge dès sa pose) → Control/Midrange
-    if(rushCount > 8)         { C += 5; M += 3; } else if(rushCount > 4) { C += 3; M += 2; }
-    if(singerCount > 3)       { M += 4; C += 2; } // Singer joue des Songs gratuitement → Midrange
-    if(bodyguardCount > 4)    M += 5;
-    if(shiftCount > 8)        { M += 6; } else if(shiftCount > 4) M += 3;
-
-    // ── 7. Effets ──────────────────────────────────────────────────────
-    // Board clear (Be Prepared, Strength of a Raging Fire) = signal Control fort
-    if(boardClearCount > 0)   C += 9 * Math.min(boardClearCount, 4);
-    if(removalCount > 12)     C += 9; else if(removalCount > 6) C += 5;
-    if(drawCount > 8)         C += 6; else if(drawCount > 4) C += 3;
-    if(discardCount > 4)      C += 5;
-    if(bounceCount > 6)       { C += 9; M += 2; } else if(bounceCount > 3) { C += 4; M += 2; }
-    if(rampCount > 6)         { C += 5; M += 3; }
-    if(burnLoreCount > 4)     { A += 3; M += 3; }
 
     const maxScore = Math.max(A, M, C);
     const speed = maxScore === C ? 'control' : maxScore === A ? 'aggro' : 'midrange';
-
-    // ── Sous-archétype ──────────────────────────────────────────────────
-    let sub = null;
-    for(const [pair, tag] of ARCHETYPE_COMBOS){
-      if(pair.every(p => allCardNames.some(n => n.includes(p)))){ sub = tag; break; }
-    }
-    if(!sub){
-      if(rampCount > 6 && (has('sapphire') || has('saphir')))  sub = 'ramp';
-      else if(discardCount > 4)    sub = 'prison';
-      else if(bounceCount > 6)     sub = 'bounce';
-      else if(burnLoreCount > 4)   sub = 'burn';
-      else if(shiftCount > 8 && pctSong > 0.15) sub = 'shift'; // Steelsong-style
-    }
-
-    const SPEED_L = { aggro:'Aggro', midrange:'Midrange', control:'Control' };
-    const SUB_L   = { ramp:'Ramp', prison:'Prison', burn:'Burn', bounce:'Bounce', shift:'Shift', combo:'Combo' };
-    const label = sub && SUB_L[sub] ? `${SPEED_L[speed]} ${SUB_L[sub]}` : SPEED_L[speed];
-    return { speed, sub, label, _scores:{ A, M, C }, _avg:avgCost };
+    const LABELS = { aggro:'Aggro', midrange:'Midrange', control:'Control' };
+    return { speed, label: LABELS[speed], _avg: avgCost, _lpc: lorePerCost };
   }
 
   function getProfileArchetype(profileId){
