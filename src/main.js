@@ -5446,7 +5446,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(selectedColors.length && !selectedColors.includes(colorFilterKey(rowMineColors(row)))) return false;
       if(selectedArchetypes.length && row.deck_profile_id){
         const a = getProfileArchetype(row.deck_profile_id);
-        if(!a || !selectedArchetypes.includes(a.speed)) return false;
+        if(a && !selectedArchetypes.includes(a.speed)) return false;
       }
       return true;
     });
@@ -5627,13 +5627,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function getProfileArchetype(profileId){
     if(!profileId) return null;
-    if(deckArchetypeCache.has(profileId)) return deckArchetypeCache.get(profileId);
+    const key = String(profileId);
+    if(deckArchetypeCache.has(key)) return deckArchetypeCache.get(key);
     // Cherche n'importe quelle partie pour ce profil avec une decklist API
     const match = (state.savedMatches || []).find(r =>
-      r.deck_profile_id === profileId && apiDecklistStatus(r, 'mine').cards.length >= 5
+      String(r.deck_profile_id) === key && apiDecklistStatus(r, 'mine').cards.length >= 5
     );
     const archetype = match ? computeDeckArchetype(apiDecklistStatus(match, 'mine').cards) : null;
-    deckArchetypeCache.set(profileId, archetype);
+    deckArchetypeCache.set(key, archetype);
     return archetype;
   }
 
@@ -5879,6 +5880,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!sheet) return;
     sheet.classList.remove('active');
     document.body.classList.remove('decklist-sheet-open');
+    safe('filtres', renderPerformanceFilterPills);
   }
 
   function buildDecklistHtml(profile, decklist, opts={}){
@@ -6501,7 +6503,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const query = mode === 'history' ? String(els.historySearchInput?.value || '').trim().toLowerCase() : '';
     if(colors.length) rows = rows.filter(row => colors.includes(colorFilterKey(rowMineColors(row))));
     if(opponentColors.length) rows = rows.filter(row => opponentColors.includes(colorFilterKey(rowOpponentColors(row))));
-    if(archetypes.length) rows = rows.filter(row => { const a = row.deck_profile_id ? getProfileArchetype(row.deck_profile_id) : null; return a && archetypes.includes(a.speed); });
+    if(archetypes.length) rows = rows.filter(row => { const a = row.deck_profile_id ? getProfileArchetype(row.deck_profile_id) : null; return !a || archetypes.includes(a.speed); });
     if(decks.length) rows = rows.filter(row => decks.includes(String(row.deck_profile_id || '')) || decks.includes(String(row.deck_name || '')));
     if(results.length) rows = rows.filter(row => results.includes(row.result));
     if(formats.length) rows = rows.filter(row => formats.includes(String(row.format || '').toUpperCase()));
