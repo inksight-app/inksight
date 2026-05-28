@@ -497,7 +497,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function apiDecklistStatus(rowOrMeta={}, side='mine'){
     if(side !== 'mine') return { cards:[], unique:0, copies:0, hash:'', source:'unavailable', label:'Deck adverse non exporté' };
     const meta = rowOrMeta?.api_metadata || rowOrMeta?.analysis_json?.api_metadata || rowOrMeta || {};
-    const direct = rowOrMeta?.my_decklist || meta.my_decklist;
+    const direct = rowOrMeta?.my_decklist || meta.my_decklist
+      || meta?.api_row?.raw?.your_decklist || meta?.api_row?.raw?.my_decklist;
     const summary = apiDecklistSummary(direct);
     if(summary.unique) return { ...summary, source:'api', label:'Decklist API complète' };
     return { ...summary, source:'estimated', label:'Decklist estimée' };
@@ -5490,7 +5491,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(selectedColors.length && !selectedColors.includes(colorFilterKey(rowMineColors(row)))) return false;
       if(selectedArchetypes.length && row.deck_profile_id){
         const a = getProfileArchetype(row.deck_profile_id);
-        if(a && !selectedArchetypes.includes(a.speed)) return false;
+        if(!a || !selectedArchetypes.includes(a.speed)) return false;
       }
       return true;
     });
@@ -6230,6 +6231,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.savedMatches = Array.isArray(rows) ? rows : [];
       deckArchetypeCache.clear();
       deckCardListCache.clear();
+      // Pre-compute archetypes from available match data (my_decklist / your_decklist / localStorage)
+      const profileIds = [...new Set(state.savedMatches.map(r => r.deck_profile_id).filter(Boolean).map(String))];
+      profileIds.forEach(id => getProfileArchetype(id));
       writeSessionCache('saved-match-summaries', state.savedMatches);
       state.savedMatchesLoaded = true;
       if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
@@ -6650,7 +6654,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const query = mode === 'history' ? String(els.historySearchInput?.value || '').trim().toLowerCase() : '';
     if(colors.length) rows = rows.filter(row => colors.includes(colorFilterKey(rowMineColors(row))));
     if(opponentColors.length) rows = rows.filter(row => opponentColors.includes(colorFilterKey(rowOpponentColors(row))));
-    if(archetypes.length) rows = rows.filter(row => { const a = row.deck_profile_id ? getProfileArchetype(row.deck_profile_id) : null; return !a || archetypes.includes(a.speed); });
+    if(archetypes.length) rows = rows.filter(row => { const a = row.deck_profile_id ? getProfileArchetype(row.deck_profile_id) : null; return a && archetypes.includes(a.speed); });
     if(decks.length) rows = rows.filter(row => {
       const rid = String(row.deck_profile_id || '');
       // deck values may be "|"-joined groups of profile IDs (merged similar versions)
