@@ -5543,6 +5543,72 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   // Per-session cache of cardId → raw card object, populated as profiles are inspected.
   const decklistCardCache = new Map();
+  const lorcastInflight = new Map();
+  const LORCAST_CACHE_PREFIX = 'lorcast:v1:';
+
+  function normalizeLorcastCard(j, cardId){
+    if(!j || typeof j !== 'object') return null;
+    const name = String(j.name || '').trim();
+    const version = String(j.version || '').trim();
+    const type = Array.isArray(j.type) ? j.type[0] : (j.type || '');
+    const ink = j.ink || (Array.isArray(j.inks) && j.inks[0]) || '';
+    const inks = Array.isArray(j.inks) && j.inks.length ? j.inks : (ink ? [ink] : []);
+    return {
+      source:'lorcast',
+      id:cardId,
+      cardId,
+      name,
+      version,
+      fullName: [name, version].filter(Boolean).join(' - '),
+      type,
+      cardType:type,
+      colors:inks,
+      cost: typeof j.cost === 'number' ? j.cost : null,
+      inkable: j.inkwell === true ? true : (j.inkwell === false ? false : null),
+      rarity: j.rarity || '',
+      classifications: Array.isArray(j.classifications) ? j.classifications : [],
+      strength: j.strength ?? null,
+      willpower: j.willpower ?? null,
+      lore: j.lore ?? null,
+      text: j.text || '',
+      image: j.image_uris?.digital?.normal || '',
+      imageSmall: j.image_uris?.digital?.small || j.image_uris?.digital?.normal || ''
+    };
+  }
+
+  async function fetchLorcastCard(cardId){
+    if(!cardId) return null;
+    const [setNum, num] = String(cardId).split('-');
+    if(!/^\d+$/.test(setNum) || !num) return null;
+    const key = LORCAST_CACHE_PREFIX + cardId;
+    try{
+      const cached = localStorage.getItem(key);
+      if(cached !== null){
+        if(cached === 'MISS') return null;
+        return JSON.parse(cached);
+      }
+    }catch{}
+    if(lorcastInflight.has(cardId)) return lorcastInflight.get(cardId);
+    const promise = (async () => {
+      try{
+        const res = await fetch(`https://api.lorcast.com/v0/cards/${setNum}/${parseInt(num,10)}`);
+        if(!res.ok){
+          try{ localStorage.setItem(key, 'MISS'); }catch{}
+          return null;
+        }
+        const json = await res.json();
+        const card = normalizeLorcastCard(json, cardId);
+        if(card){ try{ localStorage.setItem(key, JSON.stringify(card)); }catch{} }
+        return card;
+      }catch{
+        return null;
+      }finally{
+        lorcastInflight.delete(cardId);
+      }
+    })();
+    lorcastInflight.set(cardId, promise);
+    return promise;
+  }
 
   async function openDecklistModal(profileId){
     const profile = state.deckProfiles.find(p => p.id === profileId);
@@ -5567,25 +5633,55 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!decklist.length){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Décklist non disponible (import manuel).</p>'; return; }
 
       mergeCardObjectsFromMatch(primary);
-      sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist, { cardIdToRaw:decklistCardCache, profileStats });
-      bindDecklistActions(sheet, profile, decklist, decklistCardCache);
 
-      // Background: load more sibling matches to resolve cards (e.g. enchanted prints)
-      // that didn't appear in the first match's events. Re-render as more data arrives.
-      const missingIds = decklist.filter(e => !isCardResolved(e.cardId)).map(e => e.cardId);
-      if(missingIds.length){
-        const siblings = allForProfile.slice(1, 10).filter(r => r.id !== matchRow.id);
-        Promise.allSettled(siblings.map(r => getSavedMatch(r.id))).then(results => {
-          if(!sheet.classList.contains('active')) return;
-          let changed = false;
-          results.forEach(r => {
-            if(r.status === 'fulfilled' && r.value && mergeCardObjectsFromMatch(r.value)) changed = true;
-          });
-          if(changed){
-            sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist, { cardIdToRaw:decklistCardCache, profileStats });
-            bindDecklistActions(sheet, profile, decklist, decklistCardCache);
+      // Seed cardIdToRaw from Lorcast cache (sync, no network) before first render.
+      decklist.forEach(e => {
+        if(decklistCardCache.has(e.cardId)) return;
+        try{
+          const cached = localStorage.getItem(LORCAST_CACHE_PREFIX + e.cardId);
+          if(cached && cached !== 'MISS'){
+            const card = JSON.parse(cached);
+            if(card) decklistCardCache.set(e.cardId, card);
           }
-        });
+        }catch{}
+      });
+
+      const render = () => {
+        if(!sheet.classList.contains('active')) return;
+        sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist, { cardIdToRaw:decklistCardCache, profileStats });
+        bindDecklistActions(sheet, profile, decklist, decklistCardCache);
+      };
+      render();
+
+      const missingIds = () => decklist.filter(e => !isCardResolved(e.cardId)).map(e => e.cardId);
+
+      // In parallel: load sibling matches (cards played in other games for this deck)
+      // and fetch missing cards from Lorcast (authoritative card database). Re-render
+      // when either source resolves new cards.
+      const tasks = [];
+      const initialMissing = missingIds();
+      if(initialMissing.length){
+        const siblings = allForProfile.slice(1, 10).filter(r => r.id !== matchRow.id);
+        if(siblings.length){
+          tasks.push(Promise.allSettled(siblings.map(r => getSavedMatch(r.id))).then(results => {
+            let changed = false;
+            results.forEach(r => { if(r.status === 'fulfilled' && r.value && mergeCardObjectsFromMatch(r.value)) changed = true; });
+            return changed;
+          }));
+        }
+        tasks.push(Promise.allSettled(initialMissing.map(fetchLorcastCard)).then(results => {
+          let changed = false;
+          results.forEach((r, i) => {
+            if(r.status === 'fulfilled' && r.value && !decklistCardCache.has(initialMissing[i])){
+              decklistCardCache.set(initialMissing[i], r.value);
+              changed = true;
+            }
+          });
+          return changed;
+        }));
+      }
+      if(tasks.length){
+        Promise.all(tasks).then(results => { if(results.some(Boolean)) render(); });
       }
     }catch(err){
       sheet.querySelector('.decklist-sheet-body').innerHTML = `<p class="decklist-sheet-empty">Erreur : ${esc(err.message)}</p>`;
