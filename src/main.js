@@ -5439,11 +5439,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function getDeckCardIdSet(profileId){
     const key = String(profileId);
+    if(deckCardSetCache.has(key)) return deckCardSetCache.get(key);
     const match = (state.savedMatches || []).find(r =>
       String(r.deck_profile_id) === key && apiDecklistStatus(r, 'mine').cards.length >= 5
     );
     if(!match) return null;
     const ids = new Set(apiDecklistStatus(match, 'mine').cards.map(c => String(c.id || c.cardId || '')).filter(Boolean));
+    if(ids.size >= 5) deckCardSetCache.set(key, ids);
     return ids.size >= 5 ? ids : null;
   }
 
@@ -5626,6 +5628,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const LORCAST_CACHE_PREFIX = 'lorcast:v1:';
   // Per-session archetype cache: profileId → { speed, sub, label } | null
   const deckArchetypeCache = new Map();
+  // Per-session card-set cache: profileId → Set<cardId> (populated from sheet opens)
+  const deckCardSetCache = new Map();
 
   // ─── Archétype : classification par courbe de coût + ratio Lore/Coût ────
   function computeDeckArchetype(normalizedCards){
@@ -5938,7 +5942,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!sheet) return;
     sheet.classList.remove('active');
     document.body.classList.remove('decklist-sheet-open');
-    safe('filtres', renderPerformanceFilterPills);
+    try{ renderPerformanceFilterPills(); }catch(e){ console.error('[closeDecklistSheet]', e); }
   }
 
   function buildDecklistHtml(profile, decklist, opts={}){
@@ -6019,8 +6023,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     // Passe les IDs bruts pour que computeDeckArchetype re-hydrate depuis la DB locale
     // (keywords, text, lore, strength, willpower présents dans state.index mais pas dans buildCards)
     const archetype = computeDeckArchetype(decklist.map(e => ({ cardId:e.cardId, id:e.cardId, count:e.count })));
-    // Mise en cache pour le filtre archétype (profil enrichi par Lorcast = donnée fiable)
-    if(archetype && profile?.id) deckArchetypeCache.set(String(profile.id), archetype);
+    // Mise en cache pour le filtre archétype et les card-sets (profil enrichi par Lorcast = donnée fiable)
+    if(profile?.id){
+      const pid = String(profile.id);
+      if(archetype) deckArchetypeCache.set(pid, archetype);
+      const cardIds = new Set(decklist.map(e => String(e.cardId || '')).filter(Boolean));
+      if(cardIds.size >= 5) deckCardSetCache.set(pid, cardIds);
+    }
     const ARCHETYPE_COLORS = { aggro:'#f87171', midrange:'#34d399', control:'#60a5fa' };
     const archetypeBadge = archetype
       ? `<span class="dl-archetype-badge" style="color:${ARCHETYPE_COLORS[archetype.speed] || 'var(--theme-color-1)'}">${esc(archetype.label)}</span>`
@@ -6141,6 +6150,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       perfMark('saved matches light query', listStartedAt, { rows:Array.isArray(rows) ? rows.length : 0, limit:SAVED_MATCH_HISTORY_LIMIT });
       state.savedMatches = Array.isArray(rows) ? rows : [];
       deckArchetypeCache.clear();
+      deckCardSetCache.clear();
       writeSessionCache('saved-match-summaries', state.savedMatches);
       state.savedMatchesLoaded = true;
       if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
