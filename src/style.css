@@ -13618,19 +13618,30 @@ body.decklist-sheet-open{overflow:hidden}
 .decklist-sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 80px;overscroll-behavior:contain}
 .decklist-sheet-empty{margin:32px 0;color:rgba(203,213,225,.65);text-align:center;font-size:.88rem}
 
-/* — Stats bar (numbers + ink dots) — */
-.dl-summary{display:flex;align-items:center;gap:18px;padding:18px 20px;margin-bottom:14px;border-radius:18px;background:linear-gradient(135deg,rgba(255,255,255,.055),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.07);box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 8px 28px rgba(0,0,0,.18)}
-.dl-summary>.filter-ink-dots .ink-dot{width:.95rem;height:.95rem}
-.dl-summary-stats{display:flex;align-items:baseline;gap:28px;flex:1;min-width:0;flex-wrap:wrap}
-.dl-summary-stats span{display:flex;flex-direction:column;gap:2px}
-.dl-summary-stats strong{color:#fff;font-size:1.65rem;font-weight:800;letter-spacing:-.025em;line-height:1;font-variant-numeric:tabular-nums}
-.dl-summary-stats em{color:rgba(203,213,225,.6);font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-style:normal}
+/* — Stats bar (KPI strip, finance-dashboard style) — */
+.dl-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:0;padding:0;margin-bottom:14px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:rgba(255,255,255,.02);overflow:hidden}
+.dl-summary-stat{display:flex;flex-direction:column;gap:6px;padding:14px 16px;min-width:0;border-right:1px solid rgba(255,255,255,.05)}
+.dl-summary-stat:last-child{border-right:0}
+.dl-summary-stat em{display:flex;align-items:center;gap:6px;color:rgba(148,163,184,.78);font-size:.66rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-style:normal;line-height:1}
+.dl-summary-stat em .filter-ink-dots{margin:0}
+.dl-summary-stat em .filter-ink-dots .ink-dot{width:.55rem;height:.55rem}
+.dl-summary-stat strong{color:#fff;font-size:1.5rem;font-weight:750;letter-spacing:-.025em;line-height:1.05;font-variant-numeric:tabular-nums;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dl-summary-stat .dl-stat-sub{color:rgba(148,163,184,.72);font-size:.7rem;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+.dl-summary-stat.dl-stat-positive strong{color:#34d399}
+.dl-summary-stat.dl-stat-warn strong{color:#fbbf24}
+@media (max-width:520px){
+  .dl-summary{grid-template-columns:repeat(2,1fr)}
+  .dl-summary-stat{border-bottom:1px solid rgba(255,255,255,.05)}
+  .dl-summary-stat:nth-child(2n){border-right:0}
+  .dl-summary-stat:nth-last-child(-n+2){border-bottom:0}
+}
 
-/* — Cost curve — */
-.dl-curve{margin-bottom:16px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,rgba(255,255,255,.035),rgba(255,255,255,.012));border:1px solid rgba(255,255,255,.06)}
-.dl-curve-bars{display:flex;align-items:flex-end;gap:8px;height:80px;margin-bottom:8px}
-.dl-curve-bar{flex:1;display:flex;align-items:flex-start;justify-content:center;background:linear-gradient(180deg,var(--theme-color-1,#60a5fa),var(--theme-color-2,#1e40af));border-radius:8px 8px 3px 3px;min-height:6px;box-shadow:0 4px 14px color-mix(in srgb,var(--theme-color-1,#60a5fa) 28%,transparent)}
-.dl-curve-bar b{color:#fff;font-size:.7rem;font-weight:800;padding:4px 0;font-variant-numeric:tabular-nums;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+/* — Cost curve (clean, no glow) — */
+.dl-curve{margin-bottom:16px;padding:14px 16px;border-radius:14px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07)}
+.dl-curve-bars{display:flex;align-items:flex-end;gap:6px;height:88px;margin-bottom:8px}
+.dl-curve-bar{flex:1;display:flex;align-items:flex-start;justify-content:center;background:color-mix(in srgb,var(--theme-color-1,#60a5fa) 78%,transparent);border-radius:4px 4px 2px 2px;min-height:4px;transition:background .18s}
+.dl-curve-bar[data-empty]{background:rgba(148,163,184,.12)}
+.dl-curve-bar b{color:rgba(255,255,255,.92);font-size:.72rem;font-weight:700;padding:5px 0;font-variant-numeric:tabular-nums;line-height:1}
 .dl-curve-labels{display:flex;gap:8px}
 .dl-curve-labels span{flex:1;text-align:center;color:rgba(148,163,184,.75);font-size:.7rem;font-weight:700;font-variant-numeric:tabular-nums}
 

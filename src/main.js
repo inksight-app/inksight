@@ -5541,6 +5541,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }).join('');
   }
 
+  // Per-session cache of cardId → raw card object, populated as profiles are inspected.
+  const decklistCardCache = new Map();
+
   async function openDecklistModal(profileId){
     const profile = state.deckProfiles.find(p => p.id === profileId);
     if(!profile) return;
@@ -5555,30 +5558,62 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const matchRow = allForProfile[0];
     if(!matchRow){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Aucun match sauvegardé pour ce deck.</p>'; return; }
 
-    // Win rate computed from all matches for this profile (unfiltered)
     const profileWins = allForProfile.filter(r => r.result === 'win').length;
     const profileStats = { wins:profileWins, total:allForProfile.length, winRate: Math.round(profileWins / allForProfile.length * 100) };
 
     try{
-      const full = await getSavedMatch(matchRow.id);
-      const decklist = full?.api_metadata?.api_row?.raw?.your_decklist || [];
+      const primary = await getSavedMatch(matchRow.id);
+      const decklist = primary?.api_metadata?.api_row?.raw?.your_decklist || [];
       if(!decklist.length){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Décklist non disponible (import manuel).</p>'; return; }
 
-      // Build cardId → raw card object map from all game events in the loaded match.
-      // This resolves enchanted/alternate-art cards (collector number > 204) that
-      // aren't in the local DB but appear in the Duels.ink game log with their names.
-      const rawCardObjects = extractCards(full?.api_metadata?.api_row?.raw || {});
-      const cardIdToRaw = new Map();
-      rawCardObjects.forEach(c => {
-        const id = String(c.cardId || c.id || '').trim();
-        if(id && !cardIdToRaw.has(id)) cardIdToRaw.set(id, c);
-      });
+      mergeCardObjectsFromMatch(primary);
+      sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist, { cardIdToRaw:decklistCardCache, profileStats });
+      bindDecklistActions(sheet, profile, decklist, decklistCardCache);
 
-      sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist, { cardIdToRaw, profileStats });
-      bindDecklistActions(sheet, profile, decklist, cardIdToRaw);
+      // Background: load more sibling matches to resolve cards (e.g. enchanted prints)
+      // that didn't appear in the first match's events. Re-render as more data arrives.
+      const missingIds = decklist.filter(e => !isCardResolved(e.cardId)).map(e => e.cardId);
+      if(missingIds.length){
+        const siblings = allForProfile.slice(1, 10).filter(r => r.id !== matchRow.id);
+        Promise.allSettled(siblings.map(r => getSavedMatch(r.id))).then(results => {
+          if(!sheet.classList.contains('active')) return;
+          let changed = false;
+          results.forEach(r => {
+            if(r.status === 'fulfilled' && r.value && mergeCardObjectsFromMatch(r.value)) changed = true;
+          });
+          if(changed){
+            sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist, { cardIdToRaw:decklistCardCache, profileStats });
+            bindDecklistActions(sheet, profile, decklist, decklistCardCache);
+          }
+        });
+      }
     }catch(err){
       sheet.querySelector('.decklist-sheet-body').innerHTML = `<p class="decklist-sheet-empty">Erreur : ${esc(err.message)}</p>`;
     }
+  }
+
+  function isCardResolved(cardId){
+    const local = hydrateCard({ id:cardId });
+    if(local && fullName(local) !== 'Carte inconnue' && local.cost != null) return true;
+    const cached = decklistCardCache.get(cardId);
+    if(cached){
+      const h = hydrateCard({ ...cached, id:cardId });
+      if(h && fullName(h) !== 'Carte inconnue' && h.cost != null) return true;
+    }
+    return false;
+  }
+
+  function mergeCardObjectsFromMatch(match){
+    if(!match) return false;
+    let added = false;
+    const raw = match?.api_metadata?.api_row?.raw || {};
+    extractCards(raw).forEach(c => {
+      const id = String(c.cardId || c.id || '').trim();
+      if(!id || decklistCardCache.has(id)) return;
+      decklistCardCache.set(id, c);
+      added = true;
+    });
+    return added;
   }
 
   // Same CDN as the match analyzer uses for card art.
@@ -5682,12 +5717,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return `<section class="dl-section"><h3 class="dl-section-title"><span>${esc(typeLabels[type] || type)}</span><span class="dl-section-count">${gTotal}</span></h3><ul class="dl-card-list">${items}</ul></section>`;
     }).join('');
     const curve = buildCostCurveHtml(cards);
-    const wrStat = profileStats?.total >= 1
-      ? `<span><strong>${profileStats.winRate}%</strong><em>Winrate</em></span><span><strong>${profileStats.total}</strong><em>Parties</em></span>`
-      : '';
-    const costStat = avgCost != null ? `<span><strong>${avgCost}</strong><em>Coût moy.</em></span>` : '';
-    const inkStat = allKnown ? `<span><strong>${uninkable}</strong><em>Non-encrables</em></span>` : '';
-    const statsBar = `<div class="dl-summary">${inkDots}<div class="dl-summary-stats"><span><strong>${total}</strong><em>Cartes</em></span>${costStat}${inkStat}${wrStat}</div></div>`;
+    const wr = profileStats?.total >= 1 ? profileStats.winRate : null;
+    const wrTone = wr == null ? '' : (wr >= 55 ? 'dl-stat-positive' : (wr < 45 ? 'dl-stat-warn' : ''));
+    const tiles = [
+      `<div class="dl-summary-stat"><em>${inkDots}<span>Cartes</span></em><strong>${total}</strong></div>`,
+      avgCost != null ? `<div class="dl-summary-stat"><em>Coût moyen</em><strong>${avgCost}</strong></div>` : '',
+      allKnown ? `<div class="dl-summary-stat"><em>Non-encrables</em><strong>${uninkable}</strong></div>` : '',
+      wr != null ? `<div class="dl-summary-stat ${wrTone}"><em>Winrate</em><strong>${wr}%</strong><span class="dl-stat-sub">${profileStats.total} parties</span></div>` : ''
+    ].filter(Boolean).join('');
+    const statsBar = `<div class="dl-summary">${tiles}</div>`;
     const actionsBar = `<div class="dl-actions"><button type="button" class="ghost-button dl-copy-btn" data-decklist-copy><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
     return `${statsBar}${curve}${actionsBar}${sections}`;
   }
@@ -5695,11 +5733,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function buildCostCurveHtml(cards){
     const buckets = new Array(9).fill(0);
     cards.forEach(c => {
-      const i = Math.min(8, Math.max(0, c.cost < 99 ? c.cost : 0));
+      if(c.cost >= 99) return;
+      const i = Math.min(8, Math.max(0, c.cost));
       buckets[i] += c.count;
     });
     const max = Math.max(...buckets, 1);
-    const bars = buckets.map((v,i) => `<span class="dl-curve-bar" style="height:${Math.max(8, (v/max)*100)}%" title="${v} cartes coût ${i}${i===8?'+':''}"><b>${v||''}</b></span>`).join('');
+    const bars = buckets.map((v,i) => {
+      const height = v ? Math.max(12, (v/max)*100) : 4;
+      const emptyAttr = v ? '' : ' data-empty';
+      return `<span class="dl-curve-bar"${emptyAttr} style="height:${height}%" title="${v} cartes · coût ${i}${i===8?'+':''}"><b>${v||''}</b></span>`;
+    }).join('');
     const labels = buckets.map((_,i) => `<span>${i}${i===8?'+':''}</span>`).join('');
     return `<div class="dl-curve"><div class="dl-curve-bars">${bars}</div><div class="dl-curve-labels">${labels}</div></div>`;
   }
