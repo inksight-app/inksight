@@ -5548,7 +5548,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const matchRow = (state.savedMatches || []).find(r => r.deck_profile_id === profileId);
     if(!matchRow){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Aucun match sauvegardé pour ce deck.</p>'; return; }
     try{
-      const [full] = await Promise.all([getSavedMatch(matchRow.id), ensureLorcanaImageCache()]);
+      const full = await getSavedMatch(matchRow.id);
       const decklist = full?.api_metadata?.api_row?.raw?.your_decklist || [];
       if(!decklist.length){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Décklist non disponible (import manuel).</p>'; return; }
       sheet.querySelector('.decklist-sheet-body').innerHTML = buildDecklistHtml(profile, decklist);
@@ -5558,45 +5558,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
   }
 
-  // Cache lorcanajson.org image URLs in localStorage (24h TTL).
-  // Indexed by `${setNum}-${number}` (e.g. "1-161"), matching Duels.ink cardId format.
-  let _lorcanaImagePromise = null;
-  async function ensureLorcanaImageCache(){
-    if(state.lorcanaImages) return state.lorcanaImages;
-    try{
-      const cached = localStorage.getItem('inksight_card_images_v1');
-      if(cached){
-        const obj = JSON.parse(cached);
-        if(obj.ts && Date.now() - obj.ts < 86400000 * 7){ state.lorcanaImages = obj.map; return obj.map; }
-      }
-    }catch{}
-    if(_lorcanaImagePromise) return _lorcanaImagePromise;
-    _lorcanaImagePromise = (async () => {
-      const res = await fetch('https://lorcanajson.org/files/current/en/allCards.json');
-      const json = await res.json();
-      const map = {};
-      const cards = json.cards || json;
-      const arr = Array.isArray(cards) ? cards : Object.values(cards).flat();
-      arr.forEach(c => {
-        const setNum = c.setCode || c.set?.code || c.setId;
-        const num = c.number ?? c.collectorNumber;
-        const thumb = c.images?.thumbnail || c.images?.full || '';
-        if(setNum != null && num != null && thumb){
-          map[`${setNum}-${strip0(num)}`] = thumb;
-        }
-      });
-      try{ localStorage.setItem('inksight_card_images_v1', JSON.stringify({ ts:Date.now(), map })); }catch{}
-      state.lorcanaImages = map;
-      return map;
-    })();
-    return _lorcanaImagePromise;
-  }
-
+  // Same CDN as the match analyzer uses for card art.
   function cardImageUrlFromId(cardId){
     if(!cardId) return '';
-    const map = state.lorcanaImages || {};
-    const key = String(cardId).split('-').map(strip0).join('-');
-    return map[key] || map[cardId] || '';
+    const [setNum, num] = String(cardId).split('-');
+    if(!/^\d+$/.test(setNum) || !num) return '';
+    return `https://cards.duels.ink/lorcana/en/thumbnail/${setNum}-${strip0(num)}.webp`;
   }
 
   function bindDecklistActions(sheet, profile, decklist){
@@ -8944,7 +8911,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       };
     });
     document.querySelectorAll('[data-select-saved]').forEach(button => {
-      button.onclick = () => {
+      button.onclick = async () => {
         const id = button.dataset.selectSaved;
         const row = state.savedMatches.find(item => item.id === id);
         const games = Array.isArray(row?.analysis_json?.games) ? row.analysis_json.games : [];
@@ -8952,6 +8919,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         state.selectedSavedMatchId = id;
         state.expandedSavedMatchId = isExpandable ? (state.expandedSavedMatchId === id ? null : id) : null;
         renderPerformanceData();
+        // Lazy-load full analysis_json so Moteur de lore / Carte encrée / Menace adverse can render.
+        if(row && !row.analysis_json){
+          try{
+            const full = await getSavedMatch(id);
+            if(full){
+              const idx = state.savedMatches.findIndex(item => item.id === id);
+              if(idx >= 0) state.savedMatches[idx] = { ...state.savedMatches[idx], ...full };
+              if(state.selectedSavedMatchId === id) renderPerformanceData();
+            }
+          }catch(err){ console.warn('Détail match non chargé', err); }
+        }
       };
     });
     document.querySelectorAll('[data-load-saved]').forEach(button => {

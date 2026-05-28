@@ -3476,10 +3476,15 @@ body.bo3-global .quick-insight.bo3-scope-summary small{
 }
 
 .history-filter-pills {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 14px;
   align-items: stretch;
+}
+.history-filter-pills .filter-pill-row{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:8px!important;
 }
 
 .history-search-row {
@@ -13575,10 +13580,9 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
   display:none !important;
 }
 
-/* Align Stats filter layout with History (single vertical stack) */
+/* Align Stats filter layout with History (single vertical stack of full-width sections) */
 .performance-filter-controls-viz{display:block!important;min-width:0!important}
-.performance-filter-controls-viz>.history-filter-pills{display:flex!important;flex-direction:column!important;gap:14px!important}
-.performance-filter-controls-viz>.history-filter-pills>.filter-pill-block{width:100%}
+.performance-filter-controls-viz>.history-filter-pills{display:grid!important;grid-template-columns:1fr!important;gap:14px!important}
 
 /* Deck pill with integrated info button (single pill design) */
 .deck-pill-wrap{display:inline-flex;align-items:stretch;flex-shrink:0;border-radius:999px;overflow:hidden}
