@@ -5453,7 +5453,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       ...profiles.map(profile => {
         const s = stats.get(profile.id) || { games:0, wins:0 };
         const wr = s.games ? Math.round(100 * s.wins / s.games) : 0;
-        return { value:profile.id, label:`${profile.name} · ${s.games}g · ${wr}%`, colors:profileColors(profile) };
+        // Short label since colors are shown as dots: extract the trailing version number.
+        const versionMatch = String(profile.name || '').match(/(\d+)\s*$/);
+        const shortName = versionMatch ? `V${versionMatch[1]}` : profile.name;
+        return { value:profile.id, label:`${shortName} · ${s.games}g · ${wr}%`, ariaLabel:`${profile.name} · ${s.games} games · ${wr}% winrate`, colors:profileColors(profile) };
       })
     ];
   }
@@ -5567,14 +5570,22 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function bindDecklistActions(sheet, profile, decklist){
-    const copyText = sheet.querySelector('[data-decklist-copy]');
-    if(copyText){
-      copyText.addEventListener('click', async () => {
+    const copyBtn = sheet.querySelector('[data-decklist-copy]');
+    if(copyBtn){
+      const labelEl = copyBtn.querySelector('span');
+      const originalLabel = labelEl?.textContent || 'Copier la decklist';
+      copyBtn.addEventListener('click', async () => {
         const lines = decklist.map(e => {
           const h = hydrateCard({ id:e.cardId });
-          return `${e.count} ${fullName(h) || h.name || e.cardId}`;
+          const name = (h && fullName(h) !== 'Carte inconnue') ? fullName(h) : e.cardId;
+          return `${e.count} ${name}`;
         });
-        try{ await navigator.clipboard.writeText(lines.join('\n')); copyText.textContent = '✓ Copié'; setTimeout(() => { copyText.textContent = '⧉ Copier la decklist'; }, 1600); }catch{}
+        try{
+          await navigator.clipboard.writeText(lines.join('\n'));
+          copyBtn.classList.add('is-success');
+          if(labelEl) labelEl.textContent = 'Copié !';
+          setTimeout(() => { copyBtn.classList.remove('is-success'); if(labelEl) labelEl.textContent = originalLabel; }, 1600);
+        }catch{}
       });
     }
   }
@@ -5601,28 +5612,42 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function buildDecklistHtml(profile, decklist){
     const cards = decklist.map(entry => {
       const h = hydrateCard({ id:entry.cardId });
-      const name = fullName(h) || h.name || entry.cardId;
-      const type = h.type || h.cardType || 'Other';
-      const cost = typeof h.cost === 'number' ? h.cost : (typeof h.inkCost === 'number' ? h.inkCost : 99);
-      const image = h.imageSmall || h.image || cardImageUrlFromId(entry.cardId) || '';
-      const inkable = h.inkable !== false;
-      return { count:entry.count, name, type, cost, image, id:entry.cardId, inkable };
+      // Trust the local card DB only when it actually resolved the card.
+      const resolved = !!h && fullName(h) !== 'Carte inconnue' && !!h.cost;
+      const name = resolved ? fullName(h) : '';
+      const type = resolved ? (h.type || h.cardType || 'Other') : 'Unknown';
+      const cost = resolved && typeof h.cost === 'number' ? h.cost : (typeof h.inkCost === 'number' ? h.inkCost : 99);
+      const image = cardImageUrlFromId(entry.cardId) || h.imageSmall || h.image || '';
+      // Only mark as uninkable if the local DB explicitly says so; never default.
+      const inkableKnown = resolved && typeof h.inkable === 'boolean';
+      return { count:entry.count, name, type, cost, image, id:entry.cardId, resolved, inkableKnown, uninkable: inkableKnown && h.inkable === false };
     }).sort((a,b) => a.cost - b.cost || a.name.localeCompare(b.name));
     const total = decklist.reduce((s,e) => s + e.count, 0);
-    const uninkable = cards.filter(c => !c.inkable).reduce((s,c) => s + c.count, 0);
+    const uninkable = cards.filter(c => c.uninkable).reduce((s,c) => s + c.count, 0);
+    const allKnown = cards.every(c => c.inkableKnown);
     const groups = {};
     cards.forEach(c => { (groups[c.type] = groups[c.type] || []).push(c); });
-    const typeOrder = ['Character','Action','Item','Location','Song'];
+    const typeOrder = ['Character','Action','Song','Item','Location','Unknown'];
     const allTypes = [...typeOrder.filter(t => groups[t]), ...Object.keys(groups).filter(t => !typeOrder.includes(t) && groups[t])];
-    const typeLabels = { Character:'Personnages', Action:'Actions', Item:'Objets', Location:'Lieux', Song:'Chansons' };
+    const typeLabels = { Character:'Personnages', Action:'Actions', Song:'Chansons', Item:'Objets', Location:'Lieux', Unknown:'À identifier' };
     const inkDots = inkDotsHtml(profileColors(profile));
     const sections = allTypes.map(type => {
       const gTotal = groups[type].reduce((s,c) => s + c.count, 0);
-      const items = groups[type].map(c => `<li class="dl-card"><span class="dl-cost">${c.cost < 99 ? c.cost : '–'}</span>${c.image ? `<img class="dl-thumb" loading="lazy" src="${escAttr(c.image)}" alt="" onerror="this.outerHTML='<span class=&quot;dl-thumb dl-thumb-missing&quot;></span>'">` : '<span class="dl-thumb dl-thumb-missing"></span>'}<span class="dl-name">${esc(c.name)}${c.inkable ? '' : '<em class="dl-uninkable" title="Non encrable">⬡</em>'}</span><span class="dl-count">${c.count}×</span></li>`).join('');
-      return `<section class="dl-section"><h3 class="dl-section-title">${esc(typeLabels[type] || type)} <span class="dl-section-count">${gTotal}</span></h3><ul class="dl-card-list">${items}</ul></section>`;
+      const items = groups[type].map(c => {
+        const costPill = c.cost < 99 ? c.cost : '–';
+        const thumb = c.image
+          ? `<img class="dl-thumb" loading="lazy" src="${escAttr(c.image)}" alt="" onerror="this.classList.add('dl-thumb-error')">`
+          : '<span class="dl-thumb dl-thumb-missing"></span>';
+        const uninkBadge = c.uninkable ? '<span class="dl-uninkable" title="Non encrable" aria-label="Non encrable">⬡</span>' : '';
+        const nameOut = c.name || `<em class="dl-card-id">#${esc(c.id)}</em>`;
+        return `<li class="dl-card">${thumb}<div class="dl-card-meta"><span class="dl-cost">${costPill}</span><span class="dl-name">${nameOut}</span>${uninkBadge}</div><span class="dl-count">${c.count}</span></li>`;
+      }).join('');
+      return `<section class="dl-section"><h3 class="dl-section-title"><span>${esc(typeLabels[type] || type)}</span><span class="dl-section-count">${gTotal}</span></h3><ul class="dl-card-list">${items}</ul></section>`;
     }).join('');
     const curve = buildCostCurveHtml(cards);
-    return `<div class="dl-summary">${inkDots}<div class="dl-summary-stats"><span><strong>${total}</strong>cartes</span><span><strong>${uninkable}</strong>non-encrables</span></div><button type="button" class="dl-copy-btn" data-decklist-copy>⧉ Copier la decklist</button></div>${curve}${sections}`;
+    const statsBar = `<div class="dl-summary">${inkDots}<div class="dl-summary-stats"><span><strong>${total}</strong><em>Cartes</em></span>${allKnown ? `<span><strong>${uninkable}</strong><em>Non-encrables</em></span>` : ''}</div></div>`;
+    const actionsBar = `<div class="dl-actions"><button type="button" class="dl-action-btn dl-action-primary" data-decklist-copy><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
+    return `${statsBar}${curve}${actionsBar}${sections}`;
   }
 
   function buildCostCurveHtml(cards){
