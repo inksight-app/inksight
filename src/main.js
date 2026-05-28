@@ -8473,6 +8473,36 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return groups.map(group => `<section class="history-day-group"><div class="history-day-separator"><strong>${esc(group.label)}</strong><span>${group.rows.length} partie${group.rows.length > 1 ? 's' : ''}</span></div>${group.rows.map(row => savedMatchRowHtml(row)).join('')}</section>`).join('');
   }
 
+  // Vue Historique : on regroupe les games d'une même série BO3 (mêmes
+  // series_match_id) en une seule ligne synthétique pour ne pas afficher 2-3
+  // doublons par série. Le détail reste accessible (id = dernière game).
+  function collapseSeriesForHistory(rows){
+    const groups = new Map();
+    const order = [];
+    for(const row of rows){
+      const seriesId = row.series_match_id || row.id;
+      if(!groups.has(seriesId)){ order.push(seriesId); groups.set(seriesId, []); }
+      groups.get(seriesId).push(row);
+    }
+    return order.map(seriesId => {
+      const games = groups.get(seriesId);
+      if(games.length <= 1) return games[0];
+      const sortedByGame = [...games].sort((a,b)=>String(a.played_at||'').localeCompare(String(b.played_at||'')));
+      const base = sortedByGame[sortedByGame.length-1];
+      const gameWins = games.filter(g => g.result === 'win').length;
+      const gameLosses = games.filter(g => g.result === 'loss').length;
+      return {
+        ...base,
+        result: gameWins > gameLosses ? 'win' : 'loss',
+        wins: gameWins,
+        losses: gameLosses,
+        score_label: `${gameWins}-${gameLosses}`,
+        total_turns: games.reduce((sum,g)=>sum + n(g.total_turns), 0),
+        __seriesGames: games.length
+      };
+    });
+  }
+
   function renderSavedHistory(){
     if(!els.historyList) return;
     if(!state.currentUser){
@@ -8490,7 +8520,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
 
-    const rows = filteredSavedMatches();
+    const rows = collapseSeriesForHistory(filteredSavedMatches());
     const total = state.savedMatches.length;
     const filterKey = historyFilterStateKey();
     if(state.historyLastFilterKey !== filterKey){
@@ -8632,7 +8662,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function bindSavedMatchButtons(){
     document.querySelectorAll('[data-history-load-more]').forEach(button => {
       button.onclick = () => {
-        state.historyVisibleCount = Math.min(filteredSavedMatches().length, (n(state.historyVisibleCount) || 5) + 5);
+        state.historyVisibleCount = Math.min(collapseSeriesForHistory(filteredSavedMatches()).length, (n(state.historyVisibleCount) || 5) + 5);
         renderPerformanceData();
       };
     });
