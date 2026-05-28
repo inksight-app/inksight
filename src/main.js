@@ -5797,7 +5797,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const typeLabels = { Character:'Personnages', Action:'Actions', Song:'Chansons', Item:'Objets', Location:'Lieux', Unknown:'À identifier' };
     const typeCount = type => (groups[type] || []).reduce((s,c) => s + c.count, 0);
 
-    const inkDotsBig = `<span class="dl-summary-inks">${arrayify(profileColors(profile)).map(inkKey).filter(Boolean).slice(0,2).map(c => `<i class="ink-dot ink-${escAttr(c)}"></i>`).join('')}</span>`;
+    const inkDotsBig = `<span class="dl-summary-inks">${arrayify(profileColors(profile)).map(inkKey).filter(Boolean).slice(0,2).map(c => `<i class="lorcana-hex ink-${escAttr(c)}" aria-label="${esc(INK_FR[c] || c)}"></i>`).join('')}</span>`;
 
     const sections = allTypes.map(type => {
       const gTotal = typeCount(type);
@@ -5814,7 +5814,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           : `<em class="dl-card-id">#${esc(c.id)}</em>`;
         const chips = [];
         if(c.cost < 99) chips.push(`<span class="dl-chip dl-chip-cost">Coût ${c.cost}</span>`);
-        if(c.uninkable) chips.push('<span class="dl-chip dl-chip-uninkable">Non encrable</span>');
+        if(c.uninkable) chips.push('<span class="dl-chip dl-chip-uninkable"><i class="lorcana-non-inkwell" aria-hidden="true"></i>Non encrable</span>');
         const nameOut = c.name || `<em class="dl-card-id">#${esc(c.id)}</em>`;
         return `<li class="dl-card">${thumb}<div class="dl-card-body"><span class="dl-name">${nameOut}</span><span class="dl-meta">${meta}</span>${chips.length ? `<span class="dl-chips">${chips.join('')}</span>` : ''}</div><span class="dl-count">${c.count}</span></li>`;
       }).join('');

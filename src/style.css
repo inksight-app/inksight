@@ -13654,8 +13654,26 @@ body.decklist-sheet-open{overflow:hidden}
 .dl-summary-stat strong{color:#fff;font-size:1.05rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .dl-summary-stat.dl-stat-positive strong{color:#34d399}
 .dl-summary-stat.dl-stat-warn strong{color:#fbbf24}
-.dl-summary-inks{display:inline-flex;gap:4px;flex-shrink:0}
-.dl-summary-inks .ink-dot{width:18px;height:18px;border:1.5px solid rgba(255,255,255,.22);box-shadow:0 2px 8px rgba(0,0,0,.32)}
+.dl-summary-inks{display:inline-flex;gap:6px;flex-shrink:0}
+.dl-summary-inks .lorcana-hex{width:22px;height:24px}
+
+/* Lorcana hexagonal ink icon — solid hex via SVG mask, colored via currentColor */
+.lorcana-hex{
+  display:inline-block;width:14px;height:16px;background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpolygon points='34,62 100,24 166,62 166,138 100,176 34,138' fill='%23000'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpolygon points='34,62 100,24 166,62 166,138 100,176 34,138' fill='%23000'/%3E%3C/svg%3E") center/contain no-repeat;
+  flex-shrink:0;vertical-align:middle;
+}
+.lorcana-hex.ink-amber{color:#f6c54d}
+.lorcana-hex.ink-amethyst{color:#8e5bbf}
+.lorcana-hex.ink-emerald{color:#35a86b}
+.lorcana-hex.ink-ruby{color:#c94343}
+.lorcana-hex.ink-sapphire{color:#2e8bd6}
+.lorcana-hex.ink-steel{color:#9ca3af}
+
+/* Inkwell glyph (from Lorcana official iconography) */
+.lorcana-inkwell{display:inline-block;width:14px;height:14px;background:currentColor;-webkit-mask:url("/icons/lorcana/inkwell.svg") center/contain no-repeat;mask:url("/icons/lorcana/inkwell.svg") center/contain no-repeat;flex-shrink:0;vertical-align:middle}
+.lorcana-non-inkwell{display:inline-block;width:14px;height:16px;background:currentColor;-webkit-mask:url("/icons/lorcana/non-inkwell.svg") center/contain no-repeat;mask:url("/icons/lorcana/non-inkwell.svg") center/contain no-repeat;flex-shrink:0;vertical-align:middle;color:#fb7185}
 @media (max-width:640px){
   .dl-summary{grid-template-columns:auto 1fr;grid-template-areas:"curve inks" "stats stats";padding:12px 14px;gap:12px}
   .dl-curve-mini{grid-area:curve}
