@@ -1,5 +1,5 @@
 import './style.css';
-import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, ensureDeckProfileByExternalId, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun } from './supabase.js';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, ensureDeckProfileByExternalId, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun, updateDeckProfilePoolTag } from './supabase.js';
 
 (() => {
   'use strict';
@@ -46,7 +46,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -4735,6 +4735,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <div class="deck-manager-actions">
           <label class="deck-manager-field"><span>Renommer</span><input type="text" value="${escAttr(profile.name)}" data-deck-rename-input="${escAttr(profile.id)}"></label>
           <button type="button" class="ghost-button compact" data-deck-rename="${escAttr(profile.id)}">Renommer</button>
+          <label class="deck-manager-field"><span>Format</span><select data-deck-pool-select="${escAttr(profile.id)}"><option value="">—</option><option value="core" ${profile.format_pool==='core'?'selected':''}>Core</option><option value="infinity" ${profile.format_pool==='infinity'?'selected':''}>Infinity</option></select></label>
+          <label class="deck-manager-field"><span>Set</span><select data-deck-set-select="${escAttr(profile.id)}"><option value="">—</option>${[['set_1','Set 1'],['set_2','Set 2'],['set_3','Set 3'],['set_4','Set 4'],['set_5','Set 5'],['set_6','Set 6'],['set_7','Set 7'],['set_8','Set 8'],['set_9','Set 9'],['set_10','Set 10'],['set_11','Set 11'],['set_12','Set 12']].map(([v,l])=>`<option value="${escAttr(v)}" ${profile.set_tag===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
+          <button type="button" class="ghost-button compact" data-deck-pooltag="${escAttr(profile.id)}">Enregistrer</button>
           <label class="deck-manager-field deck-merge-field"><span>Fusionner vers</span><select data-deck-merge-select="${escAttr(profile.id)}"><option value="">Choisir une version compatible</option>${mergeOptions}</select></label>
           <button type="button" class="ghost-button compact" data-deck-merge="${escAttr(profile.id)}" ${mergeOptions ? '' : 'disabled'}>Fusionner</button>
           <button type="button" class="ghost-button compact danger" data-deck-archive="${escAttr(profile.id)}">${archived ? 'Désarchiver' : 'Archiver'}</button>
@@ -4934,7 +4937,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const renameBtn = event.target.closest('[data-deck-rename]');
     const mergeBtn = event.target.closest('[data-deck-merge]');
     const archiveBtn = event.target.closest('[data-deck-archive]');
-    if(!renameBtn && !mergeBtn && !archiveBtn) return;
+    const poolTagBtn = event.target.closest('[data-deck-pooltag]');
+    if(!renameBtn && !mergeBtn && !archiveBtn && !poolTagBtn) return;
     event.preventDefault();
     if(!state.currentUser) return;
     try{
@@ -4956,6 +4960,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         const id = archiveBtn.dataset.deckArchive;
         const profile = state.deckProfiles.find(item => item.id === id);
         await archiveDeckProfile(id, !isArchivedDeckProfile(profile));
+      }
+      if(poolTagBtn){
+        const id = poolTagBtn.dataset.deckPooltag;
+        const poolSelect = document.querySelector(`[data-deck-pool-select="${CSS.escape(id)}"]`);
+        const setSelect = document.querySelector(`[data-deck-set-select="${CSS.escape(id)}"]`);
+        await updateDeckProfilePoolTag(id, {
+          format_pool: poolSelect?.value || null,
+          set_tag: setSelect?.value || null,
+        });
       }
       await refreshDeckProfiles({ force:true, silent:true });
       await refreshSavedMatches({ force:true, silent:true });
@@ -5115,8 +5128,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function multiFilterIds(){
     return new Set([
-      'performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter',
-      'historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyFormatFilter','historyTempoFilter','historyResultFilter'
+      'performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter','performancePoolFilter','performanceSetFilter',
+      'historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyFormatFilter','historyTempoFilter','historyResultFilter','historyPoolFilter','historySetFilter'
     ]);
   }
 
@@ -5195,7 +5208,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
 
   function resetPerformanceFilters(){
-    ['performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter'].forEach(id => {
+    ['performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter','performancePoolFilter','performanceSetFilter'].forEach(id => {
       if(els[id]) els[id].value = 'all';
       clearSelectedFilterValues(id);
     });
@@ -5207,7 +5220,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function resetHistoryFilters(){
-    ['historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyFormatFilter','historyTempoFilter','historyResultFilter'].forEach(id => {
+    ['historyColorFilter','historyOpponentColorFilter','historyDeckFilter','historyFormatFilter','historyTempoFilter','historyResultFilter','historyPoolFilter','historySetFilter'].forEach(id => {
       if(els[id]) els[id].value = 'all';
       clearSelectedFilterValues(id);
     });
@@ -5309,6 +5322,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       { value:'all', label:'Tous' }, { value:'win', label:'Victoires' }, { value:'loss', label:'Défaites' }
     ], els.performanceResultFilter?.value || 'all');
 
+    const poolOptions = lorcanaPoolOptions();
+    const setOptions = lorcanaSetOptions();
+    const showPerfPool = poolOptions.length > 1;
+    const showPerfSet = setOptions.length > 1;
+    if(els.performancePoolBlock) els.performancePoolBlock.hidden = !showPerfPool;
+    if(els.performanceSetBlock) els.performanceSetBlock.hidden = !showPerfSet;
+    renderPillGroup(els.performancePoolPills, 'performancePoolFilter', poolOptions);
+    renderPillGroup(els.performanceSetPills, 'performanceSetFilter', setOptions);
+
     syncSelectOptions(els.historyColorFilter, colorOptions, 'all');
     renderPillGroup(els.historyColorPills, 'historyColorFilter', colorOptions, els.historyColorFilter?.value || 'all');
     const opponentColorOptions = opponentColorOptionsForPills('history');
@@ -5328,6 +5350,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderPillGroup(els.historyTempoPills, 'historyTempoFilter', [
       { value:'all', label:'OTP + OTD' }, { value:'otp', label:'OTP' }, { value:'otd', label:'OTD' }
     ], els.historyTempoFilter?.value || 'all');
+
+    if(els.historyPoolBlock) els.historyPoolBlock.hidden = !showPerfPool;
+    if(els.historySetBlock) els.historySetBlock.hidden = !showPerfSet;
+    renderPillGroup(els.historyPoolPills, 'historyPoolFilter', poolOptions);
+    renderPillGroup(els.historySetPills, 'historySetFilter', setOptions);
   }
 
   function syncSelectOptions(select, options, fallback='all'){
@@ -5434,6 +5461,33 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     // restrictif. Maintenant : visible dès qu'il y a au moins 2 decks à choisir
     // dans le contexte filtré, peu importe la sélection de couleurs.
     return (options || []).filter(option => option.value !== 'all').length >= 2;
+  }
+
+  function lorcanaPoolOptions(){
+    const pools = new Set((state.deckProfiles || []).map(p => p.format_pool).filter(Boolean));
+    if(!pools.size) return [];
+    const labels = { core:'Core', infinity:'Infinity' };
+    return [...pools].sort().map(pool => ({ value:pool, label:labels[pool] || pool }));
+  }
+
+  function lorcanaSetOptions(){
+    const used = new Set((state.deckProfiles || []).map(p => p.set_tag).filter(Boolean));
+    if(!used.size) return [];
+    const allSets = [
+      { value:'set_1', label:'Set 1 – The First Chapter' },
+      { value:'set_2', label:'Set 2 – Rise of the Floodborn' },
+      { value:'set_3', label:'Set 3 – Into the Inklands' },
+      { value:'set_4', label:'Set 4 – Ursula\'s Return' },
+      { value:'set_5', label:'Set 5 – Shimmering Skies' },
+      { value:'set_6', label:'Set 6 – Azurite Sea' },
+      { value:'set_7', label:'Set 7 – Archazia\'s Island' },
+      { value:'set_8', label:'Set 8 – Reign of Jafar' },
+      { value:'set_9', label:'Set 9' },
+      { value:'set_10', label:'Set 10' },
+      { value:'set_11', label:'Set 11' },
+      { value:'set_12', label:'Set 12' },
+    ];
+    return allSets.filter(s => used.has(s.value));
   }
 
   function rowMineColors(row){
@@ -5941,7 +5995,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       deck:`${prefix}DeckFilter`,
       result:`${prefix}ResultFilter`,
       format:`${prefix}FormatFilter`,
-      tempo:`${prefix}TempoFilter`
+      tempo:`${prefix}TempoFilter`,
+      pool:`${prefix}PoolFilter`,
+      set:`${prefix}SetFilter`
     };
     return selectedFilterValues(map[key]);
   }
@@ -5965,6 +6021,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const tempos = selectedValuesForMode(mode, 'tempo');
     const results = selectedValuesForMode(mode, 'result');
     const formats = selectedValuesForMode(mode, 'format');
+    const pools = selectedValuesForMode(mode, 'pool');
+    const sets = selectedValuesForMode(mode, 'set');
     const query = mode === 'history' ? String(els.historySearchInput?.value || '').trim().toLowerCase() : '';
     if(colors.length) rows = rows.filter(row => colors.includes(colorFilterKey(rowMineColors(row))));
     if(opponentColors.length) rows = rows.filter(row => opponentColors.includes(colorFilterKey(rowOpponentColors(row))));
@@ -5972,6 +6030,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(results.length) rows = rows.filter(row => results.includes(row.result));
     if(formats.length) rows = rows.filter(row => formats.includes(String(row.format || '').toUpperCase()));
     if(tempos.length) rows = rows.filter(row => rowMatchesTempo(row, tempos));
+    if(pools.length) rows = rows.filter(row => {
+      const profile = state.deckProfiles.find(p => p.id === row.deck_profile_id);
+      return pools.includes(String(profile?.format_pool || ''));
+    });
+    if(sets.length) rows = rows.filter(row => {
+      const profile = state.deckProfiles.find(p => p.id === row.deck_profile_id);
+      return sets.includes(String(profile?.set_tag || ''));
+    });
     if(query){
       rows = rows.filter(row => [row.title, row.matchup_label, row.opponent_name, row.deck_name, row.score_label]
         .filter(Boolean)
@@ -11100,7 +11166,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function renderInkChart(rows){
     setChartReadoutDefault('inkFloatChart', summarizeDefaultInkReadout(rows));
     const labels = rows.map(r=>`T${r.turn}`);
-    const theme = cssThemeColors();
+    const theme = getThemeColors(state.scope);
     const datasets = [
       { label:'Encre dépensée', data:rows.map(r=>r.spent), backgroundColor:theme[0], borderColor:theme[0], borderWidth:1, maxBarThickness:24, borderWidth:0, borderRadius:0 },
       { label:'Encre inutilisée', data:rows.map(r=>r.float), backgroundColor:theme[1], borderColor:theme[1], borderWidth:1, maxBarThickness:24, borderWidth:0, borderRadius:0 }
@@ -11470,12 +11536,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       charts.action.update('active');
     }
     if(charts.ink){
+      const inkTheme = getThemeColors(scope);
       const ds = charts.ink.data.datasets || [];
-      if(ds[0]){ ds[0].backgroundColor = theme[0]; ds[0].borderColor = theme[0]; }
+      if(ds[0]){ ds[0].backgroundColor = inkTheme[0]; ds[0].borderColor = inkTheme[0]; }
       if(ds[1]){
-        ds[1]._normalBarBg = theme[1];
-        ds[1]._normalBarBorder = theme[1];
-        if(!restyleDatasetHighlights(ds[1])){ ds[1].backgroundColor = theme[1]; ds[1].borderColor = theme[1]; }
+        ds[1]._normalBarBg = inkTheme[1];
+        ds[1]._normalBarBorder = inkTheme[1];
+        if(!restyleDatasetHighlights(ds[1])){ ds[1].backgroundColor = inkTheme[1]; ds[1].borderColor = inkTheme[1]; }
       }
       charts.ink.update('active');
     }

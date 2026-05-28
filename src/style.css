@@ -13166,8 +13166,6 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
 #view-account .duelink-help-grid,
 #view-account .duelink-workflow,
 .post-import-cleanup,
-#historyVersionBlock,
-#performanceVersionBlock,
 .bulk-deck-tools{
   display:none!important;
 }
@@ -13573,12 +13571,7 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
 .save-deck-fields,
 #performanceDeckFilter,
 #historyDeckFilter,
-#performanceVersionBlock,
-#historyVersionBlock,
-#bulkDeckTools,
-#deckManagerList,
-#deckManagerStatus,
-#deckManagerRefresh{
+#bulkDeckTools{
   display:none !important;
 }
 

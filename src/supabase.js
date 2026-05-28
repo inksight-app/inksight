@@ -103,7 +103,7 @@ export async function signInUser(email, password) {
 export async function listDeckProfiles() {
   const { data, error } = await supabase
     .from('deck_profiles')
-    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id')
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id,format_pool,set_tag')
     .order('name', { ascending: true });
 
   if (error) throw error;
@@ -118,7 +118,7 @@ export async function ensureDeckProfileByExternalId(externalId, name, colors) {
 
   const { data: existing } = await supabase
     .from('deck_profiles')
-    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id')
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id,format_pool,set_tag')
     .eq('external_deck_id', externalId)
     .limit(1)
     .maybeSingle();
@@ -142,7 +142,7 @@ export async function ensureDeckProfileByExternalId(externalId, name, colors) {
       colors: Array.isArray(colors) ? colors : [],
       external_deck_id: externalId,
     })
-    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id')
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id,format_pool,set_tag')
     .single();
 
   if (error) throw error;
@@ -178,7 +178,7 @@ export async function upsertDeckProfile(profile = {}) {
       },
       { onConflict: 'user_id,name' }
     )
-    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at')
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,format_pool,set_tag')
     .single();
 
   if (error) throw error;
@@ -196,7 +196,25 @@ export async function renameDeckProfile(deckId, name) {
     .from('deck_profiles')
     .update({ name: cleanName, updated_at: new Date().toISOString() })
     .eq('id', deckId)
-    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at')
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,format_pool,set_tag')
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateDeckProfilePoolTag(deckId, { format_pool, set_tag } = {}) {
+  if (!deckId) throw new Error('Identifiant de deck manquant.');
+
+  const { data, error } = await supabase
+    .from('deck_profiles')
+    .update({
+      format_pool: format_pool || null,
+      set_tag: set_tag || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', deckId)
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,format_pool,set_tag')
     .single();
 
   if (error) throw error;
@@ -213,7 +231,7 @@ export async function archiveDeckProfile(deckId, archive = true) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', deckId)
-    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at')
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,format_pool,set_tag')
     .single();
 
   if (error) throw error;
@@ -251,7 +269,7 @@ export async function mergeDeckProfiles(sourceDeckId, targetDeckId) {
       notes: 'Fusionné dans une autre version de deck.',
     })
     .eq('id', sourceDeckId)
-    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at')
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,format_pool,set_tag')
     .single();
 
   if (error) throw error;
