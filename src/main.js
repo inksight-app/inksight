@@ -4669,7 +4669,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const userId = state.currentUser?.id;
     if (!userId) return null;
     const { data } = await supabase.from('user_profiles').select('*').eq('user_id', userId).single();
-    if (data) return data;
+    if (data) {
+      if (displayName) {
+        await supabase.from('user_profiles').update({ display_name: displayName }).eq('user_id', userId);
+        return { ...data, display_name: displayName };
+      }
+      return data;
+    }
     const name = displayName || state.currentUser?.user_metadata?.full_name || state.currentUser?.email?.split('@')[0] || 'Joueur';
     const { data: created } = await supabase.from('user_profiles').insert({ user_id: userId, display_name: name }).select().single();
     return created;
@@ -4766,6 +4772,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.teamMemberIds = activeMembers.map(m => m.user_id);
     state.teamDisplayNames = {};
     activeMembers.forEach(m => { state.teamDisplayNames[m.user_id] = m.display_name; });
+    const selfProfile = await getOrCreateUserProfile();
+    if (selfProfile && state.currentUser?.id) {
+      state.teamDisplayNames[state.currentUser.id] = selfProfile.display_name;
+    }
     const [matches, profiles] = await Promise.all([
       loadTeamMatches(state.teamMemberIds),
       loadTeamDeckProfiles(state.teamMemberIds)
@@ -4796,22 +4806,43 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       els.teamSection.innerHTML = '';
       return;
     }
+
     if (!state.team) {
+      const pendingCode = sessionStorage.getItem('inksight:pendingJoinCode') || '';
+      if (pendingCode) sessionStorage.removeItem('inksight:pendingJoinCode');
+      const pendingNoticeHtml = pendingCode
+        ? `<p class="team-pending-join-notice">Tu as été invité à rejoindre une équipe. Entre ton pseudo ci-dessous et confirme.</p>`
+        : '';
       els.teamSection.innerHTML = `
         <div class="team-section">
-          <h3>Équipe</h3>
-          <p class="team-hint">Rejoins une équipe pour partager tes statistiques et jouer ensemble.</p>
-          <div class="team-actions">
-            <div class="team-create-form">
-              <input type="text" id="teamNameInput" placeholder="Nom de l'équipe" maxlength="40">
-              <button type="button" id="teamCreateBtn" class="primary-button">Créer une équipe</button>
-            </div>
-            <div class="team-join-form">
-              <input type="text" id="teamCodeInput" placeholder="Code d'invitation (ex: A3F7B2C8)" maxlength="8">
-              <button type="button" id="teamJoinBtn" class="ghost-button">Rejoindre</button>
-            </div>
-            <p id="teamActionStatus" class="team-status"></p>
+          <div class="team-head">
+            <p class="kicker">Équipe</p>
+            <h2>Rejoindre ou créer</h2>
+            <p>Partage tes statistiques avec d'autres joueurs. Vos données restent les vôtres — les membres voient tout, personne d'autre.</p>
           </div>
+          ${pendingNoticeHtml}
+          <div class="team-displayname-row">
+            <span class="team-field-label">Mon pseudo dans l'équipe</span>
+            <input type="text" id="teamDisplayNameInput" placeholder="Ex: Leo, AliceP…" maxlength="20" autocomplete="nickname">
+          </div>
+          <div class="team-form-block">
+            <p class="team-form-block-label">Créer une équipe</p>
+            <div class="team-field">
+              <label class="team-field-label" for="teamNameInput">Nom de l'équipe</label>
+              <input type="text" id="teamNameInput" placeholder="Ex: Helvetink, Team Sapphire…" maxlength="40">
+            </div>
+            <button type="button" id="teamCreateBtn" class="ghost-button">Créer l'équipe</button>
+          </div>
+          <div class="team-divider">ou</div>
+          <div class="team-form-block">
+            <p class="team-form-block-label">Rejoindre avec un code</p>
+            <div class="team-field">
+              <label class="team-field-label" for="teamCodeInput">Code d'invitation</label>
+              <input type="text" id="teamCodeInput" placeholder="Ex: A3F7B2C8" maxlength="8" autocomplete="off" value="${esc(pendingCode)}">
+            </div>
+            <button type="button" id="teamJoinBtn" class="ghost-button">Rejoindre</button>
+          </div>
+          <p id="teamActionStatus" class="team-status"></p>
         </div>`;
       bindTeamFormEvents();
       return;
@@ -4820,14 +4851,27 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const team = state.team;
     const isOwner = team.myRole === 'owner';
     const activeMembers = (team.members || []).filter(m => !m.left_at);
+
+    function memberStats(userId) {
+      if (!state.teamMode || !state.savedMatches?.length) return null;
+      const rows = state.savedMatches.filter(r => r.user_id === userId);
+      if (!rows.length) return null;
+      const wins = rows.filter(r => r.result === 'W').length;
+      return { games: rows.length, wr: Math.round(wins / rows.length * 100) };
+    }
+
     const membersHtml = activeMembers.map(m => {
       const isSelf = m.user_id === state.currentUser?.id;
+      const stats = memberStats(m.user_id);
+      const statsHtml = stats ? `<span class="team-member-stats">${stats.wr}% · ${stats.games}p</span>` : '';
       const kickBtn = isOwner && !isSelf
         ? `<button type="button" data-kick="${escAttr(m.id)}" class="ghost-button compact danger">Exclure</button>`
         : '';
+      const selfTag = isSelf ? ' <span class="team-role-badge" style="font-size:.65rem">Toi</span>' : '';
       return `<li class="team-member-row">
-        <span class="team-member-name">${esc(m.display_name || 'Joueur')}</span>
-        <span class="team-member-role">${esc(m.role === 'owner' ? 'Propriétaire' : 'Membre')}</span>
+        <span class="team-member-name">${esc(m.display_name || 'Joueur')}${selfTag}</span>
+        <span class="team-member-role">${esc(m.role === 'owner' ? 'Proprio' : 'Membre')}</span>
+        ${statsHtml}
         ${kickBtn}
       </li>`;
     }).join('');
@@ -4839,17 +4883,28 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.teamSection.innerHTML = `
       <div class="team-section">
         <div class="team-header">
-          <h3>Équipe · ${esc(team.name)}</h3>
+          <p class="kicker">Équipe</p>
+          <h2>${esc(team.name)}</h2>
           <span class="team-role-badge">${esc(isOwner ? 'Propriétaire' : 'Membre')}</span>
         </div>
-        <div class="team-invite-row">
-          <span class="team-invite-label">Code d'invitation</span>
-          <code class="team-invite-code">${esc(team.invite_code || '—')}</code>
-          <button type="button" id="teamCopyInviteBtn" class="ghost-button compact">Copier</button>
-          ${rotateBtn}
+        <div class="team-invite-block">
+          <div class="team-invite-top">
+            <span class="team-invite-label">Code d'invitation</span>
+            <code class="team-invite-code">${esc(team.invite_code || '—')}</code>
+          </div>
+          <div class="team-invite-actions">
+            <button type="button" id="teamCopyInviteBtn" class="ghost-button compact">Copier le code</button>
+            <button type="button" id="teamCopyLinkBtn" class="ghost-button compact">Copier le lien</button>
+            ${rotateBtn}
+          </div>
         </div>
-        <ul class="team-members-list">${membersHtml}</ul>
-        <button type="button" id="teamLeaveBtn" class="ghost-button danger">Quitter l'équipe</button>
+        <div>
+          <p class="kicker" style="margin-bottom:.65rem">Membres · ${activeMembers.length}</p>
+          <ul class="team-members-list">${membersHtml}</ul>
+        </div>
+        <div class="team-danger-row">
+          <button type="button" id="teamLeaveBtn" class="ghost-button danger compact">Quitter l'équipe</button>
+        </div>
         <p id="teamActionStatus" class="team-status"></p>
       </div>`;
     bindTeamMemberEvents();
@@ -4885,8 +4940,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const input = document.getElementById('teamNameInput');
       const name = (input?.value || '').trim();
       if (!name) { setTeamActionStatus('Donne un nom à ton équipe.', true); return; }
+      const displayName = (document.getElementById('teamDisplayNameInput')?.value || '').trim();
       try {
         setTeamActionStatus('Création en cours…');
+        if (displayName) await getOrCreateUserProfile(displayName);
         const team = await createTeam(name);
         state.team = await loadMyTeam();
         renderTeamSection();
@@ -4900,8 +4957,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const input = document.getElementById('teamCodeInput');
       const code = (input?.value || '').trim();
       if (!code) { setTeamActionStatus('Entre le code d\'invitation.', true); return; }
+      const displayName = (document.getElementById('teamDisplayNameInput')?.value || '').trim();
       try {
         setTeamActionStatus('Rejoindre l\'équipe…');
+        if (displayName) await getOrCreateUserProfile(displayName);
         const team = await joinTeamByCode(code);
         state.team = await loadMyTeam();
         renderTeamSection();
@@ -4917,6 +4976,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.getElementById('teamCopyInviteBtn')?.addEventListener('click', () => {
       const code = state.team?.invite_code || '';
       navigator.clipboard?.writeText(code).then(() => setTeamActionStatus('Code copié !')).catch(() => setTeamActionStatus(code));
+    });
+
+    document.getElementById('teamCopyLinkBtn')?.addEventListener('click', () => {
+      const code = state.team?.invite_code || '';
+      const url = `${window.location.origin}${window.location.pathname}?join=${code}`;
+      navigator.clipboard?.writeText(url).then(() => setTeamActionStatus('Lien copié !')).catch(() => setTeamActionStatus(url));
     });
 
     document.getElementById('teamRotateCodeBtn')?.addEventListener('click', async () => {
@@ -9692,9 +9757,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const compactActions = `<button type="button" class="ghost-button history-mini-button primary" data-load-saved="${escAttr(row.id)}">Voir l’analyse</button>
         <button type="button" class="ghost-button history-mini-button" data-select-saved="${escAttr(row.id)}">Détails</button>
         <button type="button" class="ghost-button history-mini-button danger" data-delete-saved="${escAttr(row.id)}">Supprimer</button>`;
-    const isOtherMember = state.teamMode && row.user_id && row.user_id !== state.currentUser?.id;
-    const memberTagHtml = isOtherMember && state.teamDisplayNames[row.user_id]
-      ? `<span class="team-member-tag">${esc(state.teamDisplayNames[row.user_id])}</span>`
+    const isMemberMatch = state.teamMode && row.user_id && state.teamDisplayNames[row.user_id];
+    const memberTagHtml = isMemberMatch
+      ? `<span class="team-member-tag${row.user_id === state.currentUser?.id ? ' team-member-tag-self' : ''}">${esc(state.teamDisplayNames[row.user_id])}</span>`
       : '';
     return `<article class="history-row ${escAttr(resultClass)} ${isActive ? 'active' : ''} ${hasGames ? 'has-games' : ''} ${actionsOpen ? 'actions-open' : ''}" data-saved-id="${escAttr(row.id)}">
       <span class="history-result-rail ${escAttr(resultClass)}" aria-hidden="true"></span>
@@ -13072,6 +13137,15 @@ function initAppShell() {
   });
 
   setAppView('analysis', { silent: true });
+  handleJoinInviteParam();
+}
+
+function handleJoinInviteParam() {
+  const code = new URLSearchParams(window.location.search).get('join');
+  if (!code) return;
+  sessionStorage.setItem('inksight:pendingJoinCode', code);
+  window.history.replaceState({}, '', window.location.pathname);
+  document.querySelector('.app-nav-button[data-app-view="account"]')?.click();
 }
 
 if (document.readyState === 'loading') {

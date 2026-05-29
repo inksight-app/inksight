@@ -16606,81 +16606,107 @@ body::before{
    TEAM FEATURE STYLES
    ============================================================ */
 
-/* Team section wrapper in account tab */
 .team-section-wrapper {
-  padding: 1.5rem;
+  padding: 0;
 }
 
-/* Team section container */
 .team-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  display: grid;
+  gap: 20px;
 }
 
-.team-section h3 {
+/* Section block — matches duelink-connect-section pattern */
+.team-head {
+  display: grid;
+  gap: 6px;
+}
+
+.team-head h2 {
   margin: 0;
-  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  font-size: clamp(1.2rem, 2.2vw, 1.55rem);
   letter-spacing: -.04em;
+  line-height: 1.2;
 }
 
-.team-hint {
-  color: var(--muted);
-  font-size: .92rem;
+.team-head p {
   margin: 0;
+  color: var(--muted);
+  font-size: .9rem;
   line-height: 1.5;
+  max-width: 560px;
 }
 
-/* Create/join forms */
-.team-actions {
-  display: flex;
-  flex-direction: column;
-  gap: .85rem;
+/* Form blocks */
+.team-form-block {
+  display: grid;
+  gap: 10px;
 }
 
-.team-create-form,
-.team-join-form {
-  display: flex;
-  gap: .65rem;
-  align-items: center;
-  flex-wrap: wrap;
+.team-form-block-label {
+  font-size: .76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .15em;
+  color: rgba(255,255,255,.5);
 }
 
-.team-create-form input,
-.team-join-form input {
-  flex: 1 1 180px;
-  min-width: 140px;
-  padding: .65rem 1rem;
-  border-radius: 999px;
+.team-field {
+  display: grid;
+  gap: 6px;
+}
+
+.team-field-label {
+  font-size: .82rem;
+  font-weight: 700;
+  color: rgba(255,255,255,.64);
+}
+
+.team-field input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,.12);
-  background: rgba(255,255,255,.055);
-  color: #e4e4e7;
+  background: rgba(0,0,0,.28);
+  color: #fff;
+  padding: 0 14px;
+  outline: none;
   font: inherit;
   font-size: .9rem;
+  transition: border-color .16s, box-shadow .16s, background .16s;
 }
 
-.team-create-form input::placeholder,
-.team-join-form input::placeholder {
-  color: var(--faint);
+.team-field input::placeholder {
+  color: rgba(255,255,255,.3);
 }
 
-.team-create-form input:focus,
-.team-join-form input:focus {
-  outline: none;
-  border-color: rgba(255,255,255,.28);
+.team-field input:focus {
+  border-color: rgba(255,255,255,.32);
+  box-shadow: 0 0 0 3px rgba(255,255,255,.07);
+  background: rgba(0,0,0,.36);
+}
+
+.team-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(255,255,255,.22);
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .15em;
+}
+
+.team-divider::before,
+.team-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
   background: rgba(255,255,255,.08);
-}
-
-.team-create-form .primary-button,
-.team-join-form .ghost-button {
-  min-height: 44px;
-  white-space: nowrap;
-  padding: .65rem 1.25rem;
 }
 
 /* Status/feedback messages */
 .team-status {
-  font-size: .85rem;
+  font-size: .82rem;
   min-height: 1.25rem;
   margin: 0;
   color: var(--muted);
@@ -16699,13 +16725,13 @@ body::before{
 .team-header {
   display: flex;
   align-items: center;
-  gap: .75rem;
+  gap: .65rem;
   flex-wrap: wrap;
 }
 
-.team-header h3 {
+.team-header h2 {
   margin: 0;
-  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
   letter-spacing: -.04em;
 }
 
@@ -16717,44 +16743,56 @@ body::before{
   border: 1px solid rgba(255,255,255,.14);
   background: rgba(255,255,255,.065);
   color: #a1a1aa;
-  font-size: .72rem;
+  font-size: .7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .12em;
 }
 
-/* Invite code row */
-.team-invite-row {
-  display: flex;
-  align-items: center;
-  gap: .65rem;
-  flex-wrap: wrap;
-  padding: .75rem 1rem;
-  border-radius: 1rem;
+/* Invite code block */
+.team-invite-block {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
   border: 1px solid rgba(255,255,255,.1);
   background: rgba(255,255,255,.04);
 }
 
+.team-invite-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .team-invite-label {
-  color: var(--faint);
-  font-size: .78rem;
-  font-weight: 700;
+  color: rgba(255,255,255,.45);
+  font-size: .72rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: .12em;
+  letter-spacing: .15em;
   flex: 0 0 auto;
 }
 
 .team-invite-code {
   font-family: 'JetBrains Mono', 'Courier New', monospace;
-  font-size: 1rem;
+  font-size: .95rem;
   font-weight: 600;
-  letter-spacing: .12em;
+  letter-spacing: .14em;
   color: #e2e8f0;
-  background: rgba(255,255,255,.06);
+  background: rgba(255,255,255,.07);
   border: 1px solid rgba(255,255,255,.1);
-  border-radius: .5rem;
-  padding: .25rem .6rem;
+  border-radius: 8px;
+  padding: .2rem .55rem;
   flex: 0 0 auto;
+}
+
+.team-invite-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
 }
 
 /* Members list */
@@ -16762,54 +16800,61 @@ body::before{
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
+  display: grid;
+  gap: 6px;
 }
 
 .team-member-row {
   display: flex;
   align-items: center;
-  gap: .65rem;
-  padding: .6rem 1rem;
-  border-radius: .85rem;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,.08);
-  background: rgba(255,255,255,.03);
+  background: rgba(255,255,255,.035);
 }
 
 .team-member-name {
   flex: 1;
   font-weight: 600;
-  font-size: .92rem;
+  font-size: .9rem;
   color: #e4e4e7;
 }
 
 .team-member-role {
-  color: #a1a1aa;
-  font-size: .76rem;
+  color: rgba(255,255,255,.36);
+  font-size: .7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .1em;
 }
 
+.team-member-stats {
+  color: rgba(255,255,255,.5);
+  font-size: .78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* Context switcher bar */
 .team-context-bar {
   display: flex;
-  gap: .5rem;
-  padding: .75rem 0 .25rem;
+  gap: 6px;
+  padding: 10px 0 4px;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .team-ctx-btn {
-  min-height: 36px;
-  padding: .45rem 1rem;
+  min-height: 34px;
+  padding: .38rem .95rem;
   border-radius: 999px;
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(255,255,255,.04);
-  color: rgba(212,212,216,.72);
+  color: rgba(212,212,216,.65);
   font: inherit;
-  font-size: .84rem;
+  font-size: .82rem;
   font-weight: 650;
   cursor: pointer;
   transition: background .15s, color .15s, border-color .15s;
@@ -16822,14 +16867,14 @@ body::before{
 }
 
 .team-ctx-btn.active {
-  background: rgba(255,255,255,.12);
+  background: rgba(255,255,255,.11);
   color: #f0f0f2;
-  border-color: rgba(255,255,255,.28);
+  border-color: rgba(255,255,255,.26);
   font-weight: 700;
 }
 
 .team-ctx-btn:disabled {
-  opacity: .55;
+  opacity: .5;
   cursor: default;
 }
 
@@ -16837,12 +16882,12 @@ body::before{
 .team-member-tag {
   display: inline-flex;
   align-items: center;
-  padding: .18rem .55rem;
+  padding: .15rem .5rem;
   border-radius: 999px;
-  background: rgba(47,139,217,.18);
-  border: 1px solid rgba(47,139,217,.3);
+  background: rgba(47,139,217,.15);
+  border: 1px solid rgba(47,139,217,.28);
   color: #93c5fd;
-  font-size: .7rem;
+  font-size: .68rem;
   font-weight: 700;
   letter-spacing: .06em;
   vertical-align: middle;
@@ -16850,7 +16895,37 @@ body::before{
   white-space: nowrap;
 }
 
-/* Ghost button danger compact variant within team section */
+.team-member-tag-self {
+  background: rgba(74,222,128,.1);
+  border-color: rgba(74,222,128,.25);
+  color: #86efac;
+}
+
+/* Notice for pending URL join */
+.team-pending-join-notice {
+  font-size: .86rem;
+  color: #93c5fd;
+  background: rgba(47,139,217,.1);
+  border: 1px solid rgba(47,139,217,.22);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Display name row */
+.team-displayname-row {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+/* Danger buttons in team section */
+.team-danger-row {
+  padding-top: 4px;
+}
+
 .team-section .ghost-button.danger {
   color: #fca5a5;
   border-color: rgba(251,113,133,.28);
@@ -16861,17 +16936,12 @@ body::before{
 }
 
 @media (max-width: 600px) {
-  .team-create-form,
-  .team-join-form {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .team-create-form .primary-button,
-  .team-join-form .ghost-button {
-    width: 100%;
-  }
-  .team-invite-row {
+  .team-invite-top {
     flex-direction: column;
     align-items: flex-start;
+  }
+  .team-invite-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
   }
 }
