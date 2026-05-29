@@ -16600,3 +16600,278 @@ body::before{
 .action-plan-card::after{
   display:none !important;
 }
+
+
+/* ============================================================
+   TEAM FEATURE STYLES
+   ============================================================ */
+
+/* Team section wrapper in account tab */
+.team-section-wrapper {
+  padding: 1.5rem;
+}
+
+/* Team section container */
+.team-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.team-section h3 {
+  margin: 0;
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  letter-spacing: -.04em;
+}
+
+.team-hint {
+  color: var(--muted);
+  font-size: .92rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Create/join forms */
+.team-actions {
+  display: flex;
+  flex-direction: column;
+  gap: .85rem;
+}
+
+.team-create-form,
+.team-join-form {
+  display: flex;
+  gap: .65rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.team-create-form input,
+.team-join-form input {
+  flex: 1 1 180px;
+  min-width: 140px;
+  padding: .65rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.055);
+  color: #e4e4e7;
+  font: inherit;
+  font-size: .9rem;
+}
+
+.team-create-form input::placeholder,
+.team-join-form input::placeholder {
+  color: var(--faint);
+}
+
+.team-create-form input:focus,
+.team-join-form input:focus {
+  outline: none;
+  border-color: rgba(255,255,255,.28);
+  background: rgba(255,255,255,.08);
+}
+
+.team-create-form .primary-button,
+.team-join-form .ghost-button {
+  min-height: 44px;
+  white-space: nowrap;
+  padding: .65rem 1.25rem;
+}
+
+/* Status/feedback messages */
+.team-status {
+  font-size: .85rem;
+  min-height: 1.25rem;
+  margin: 0;
+  color: var(--muted);
+  transition: color .18s;
+}
+
+.team-status.team-status-error {
+  color: #fca5a5;
+}
+
+.team-status.team-status-ok {
+  color: #86efac;
+}
+
+/* Team header with name + role badge */
+.team-header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+.team-header h3 {
+  margin: 0;
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  letter-spacing: -.04em;
+}
+
+.team-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: .28rem .7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.065);
+  color: #a1a1aa;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+
+/* Invite code row */
+.team-invite-row {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  flex-wrap: wrap;
+  padding: .75rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.04);
+}
+
+.team-invite-label {
+  color: var(--faint);
+  font-size: .78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  flex: 0 0 auto;
+}
+
+.team-invite-code {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  color: #e2e8f0;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: .5rem;
+  padding: .25rem .6rem;
+  flex: 0 0 auto;
+}
+
+/* Members list */
+.team-members-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.team-member-row {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  padding: .6rem 1rem;
+  border-radius: .85rem;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+}
+
+.team-member-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: .92rem;
+  color: #e4e4e7;
+}
+
+.team-member-role {
+  color: #a1a1aa;
+  font-size: .76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+/* Context switcher bar */
+.team-context-bar {
+  display: flex;
+  gap: .5rem;
+  padding: .75rem 0 .25rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.team-ctx-btn {
+  min-height: 36px;
+  padding: .45rem 1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: rgba(212,212,216,.72);
+  font: inherit;
+  font-size: .84rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+
+.team-ctx-btn:hover {
+  background: rgba(255,255,255,.08);
+  color: #e4e4e7;
+  border-color: rgba(255,255,255,.2);
+}
+
+.team-ctx-btn.active {
+  background: rgba(255,255,255,.12);
+  color: #f0f0f2;
+  border-color: rgba(255,255,255,.28);
+  font-weight: 700;
+}
+
+.team-ctx-btn:disabled {
+  opacity: .55;
+  cursor: default;
+}
+
+/* Member attribution badge in history */
+.team-member-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: .18rem .55rem;
+  border-radius: 999px;
+  background: rgba(47,139,217,.18);
+  border: 1px solid rgba(47,139,217,.3);
+  color: #93c5fd;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  vertical-align: middle;
+  margin-left: .35rem;
+  white-space: nowrap;
+}
+
+/* Ghost button danger compact variant within team section */
+.team-section .ghost-button.danger {
+  color: #fca5a5;
+  border-color: rgba(251,113,133,.28);
+}
+
+.team-section .ghost-button.danger:hover {
+  background: rgba(251,113,133,.1);
+}
+
+@media (max-width: 600px) {
+  .team-create-form,
+  .team-join-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .team-create-form .primary-button,
+  .team-join-form .ghost-button {
+    width: 100%;
+  }
+  .team-invite-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

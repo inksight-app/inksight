@@ -296,10 +296,14 @@
       </nav>
 
       <section id="performance-stats" class="performance-panel active" data-performance-panel="stats">
+        <div class="team-context-bar" id="teamContextBarStats" hidden>
+          <button type="button" class="team-ctx-btn active" data-team-ctx="solo">Mes stats</button>
+          <button type="button" class="team-ctx-btn" data-team-ctx="team">Équipe</button>
+        </div>
         <article class="glass performance-filter-bar performance-filter-bar-viz filters-open" aria-label="Filtres statistiques">
           <div class="filter-header-copy">
             <div class="kicker">Filtres</div>
-            
+
           </div>
           <button type="button" class="filter-toggle" data-filter-toggle="performance" aria-expanded="true">Masquer les filtres</button>
           <div class="performance-filter-controls performance-filter-controls-viz">
@@ -495,6 +499,10 @@
       </section>
 
       <section id="performance-history" class="performance-panel" data-performance-panel="history" hidden>
+        <div class="team-context-bar" id="teamContextBarHistory" hidden>
+          <button type="button" class="team-ctx-btn active" data-team-ctx="solo">Mes stats</button>
+          <button type="button" class="team-ctx-btn" data-team-ctx="team">Équipe</button>
+        </div>
         <article class="glass history-toolbar history-toolbar-viz">
           <div class="filter-header-copy">
             <div class="kicker">Historique</div>
@@ -644,6 +652,10 @@
           </div>
         </div>
         <div id="duelinkTestResult" class="duelink-test-result">Lancez la synchronisation pour trouver vos parties, puis importez les nouvelles analyses.</div>
+      </section>
+
+      <section class="glass team-section-wrapper" data-auth-required aria-label="Gestion de l'équipe">
+        <div id="teamSection"></div>
       </section>
     </section>
   </main>

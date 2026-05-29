@@ -25,7 +25,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set() };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), team:null, teamMode:false, teamMemberIds:[], teamDisplayNames:{} };
 
 
   function perfMark(label, startedAt, extra={}){
@@ -49,7 +49,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -161,6 +161,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }));
     els.cardModal?.addEventListener('click', e => { if(e.target === els.cardModal) closeCardModal(); });
     document.addEventListener('keydown', handleModalKeydown);
+    bindTeamEvents();
   }
 
 
@@ -3571,6 +3572,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         renderBulkQueue();
         refreshDeckProfiles({ silent:true }).catch(setCloudOffline);
         refreshSavedMatches({ silent:true }).catch(setCloudOffline);
+        if(user) loadMyTeam().then(team => { state.team = team; updateTeamContextBars(); renderAccountPage(); }).catch(() => {});
       })
       .catch(error => { setCloudOffline(error); });
 
@@ -3585,6 +3587,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(state.currentUser){
           refreshDeckProfiles({ force:!sameUser && !state.deckProfilesLoaded, silent:true }).catch(setCloudOffline);
           refreshSavedMatches({ force:!sameUser && !state.savedMatchesLoaded, silent:true }).catch(setCloudOffline);
+          if(!sameUser) loadMyTeam().then(team => { state.team = team; updateTeamContextBars(); renderAccountPage(); }).catch(() => {});
         }
         else {
           clearSessionCacheForCurrentUser();
@@ -3593,8 +3596,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           state.selectedSavedMatchId = null;
           state.deckProfiles = [];
           state.deckProfilesLoaded = false;
+          state.team = null;
+          state.teamMode = false;
+          state.teamMemberIds = [];
+          state.teamDisplayNames = {};
           renderDeckOptions();
           renderBulkQueue();
+          updateTeamContextBars();
           renderPerformanceData();
         }
       });
@@ -4653,6 +4661,329 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
+  // ============================================================
+  // TEAM — Supabase helpers
+  // ============================================================
+
+  async function getOrCreateUserProfile(displayName) {
+    const userId = state.currentUser?.id;
+    if (!userId) return null;
+    const { data } = await supabase.from('user_profiles').select('*').eq('user_id', userId).single();
+    if (data) return data;
+    const name = displayName || state.currentUser?.user_metadata?.full_name || state.currentUser?.email?.split('@')[0] || 'Joueur';
+    const { data: created } = await supabase.from('user_profiles').insert({ user_id: userId, display_name: name }).select().single();
+    return created;
+  }
+
+  async function createTeam(name) {
+    const userId = state.currentUser?.id;
+    if (!userId) return null;
+    const profile = await getOrCreateUserProfile();
+    const { data: team, error } = await supabase.from('teams').insert({ name }).select().single();
+    if (error || !team) throw error || new Error('Impossible de créer l\'équipe');
+    await supabase.from('team_members').insert({
+      team_id: team.id, user_id: userId,
+      display_name: profile?.display_name || 'Joueur',
+      role: 'owner'
+    });
+    return team;
+  }
+
+  async function loadMyTeam() {
+    const userId = state.currentUser?.id;
+    if (!userId) return null;
+    const { data: membership } = await supabase.from('team_members')
+      .select('team_id, role').eq('user_id', userId).is('left_at', null).single();
+    if (!membership) return null;
+    const { data: team } = await supabase.from('teams').select('*').eq('id', membership.team_id).single();
+    const { data: members } = await supabase.from('team_members')
+      .select('id, user_id, display_name, role, joined_at, left_at')
+      .eq('team_id', membership.team_id).order('joined_at');
+    return { ...team, myRole: membership.role, members: members || [] };
+  }
+
+  async function joinTeamByCode(code) {
+    const userId = state.currentUser?.id;
+    if (!userId) throw new Error('Non connecté');
+    const { data: team, error } = await supabase.from('teams')
+      .select('id, name').eq('invite_code', code.trim().toUpperCase()).single();
+    if (error || !team) throw new Error('Code d\'invitation invalide');
+    const { data: existing } = await supabase.from('team_members')
+      .select('id').eq('team_id', team.id).eq('user_id', userId).is('left_at', null).single();
+    if (existing) throw new Error('Tu es déjà membre de cette équipe');
+    const profile = await getOrCreateUserProfile();
+    await supabase.from('team_members').insert({
+      team_id: team.id, user_id: userId,
+      display_name: profile?.display_name || 'Joueur',
+      role: 'member'
+    });
+    return team;
+  }
+
+  async function leaveTeam(teamId) {
+    const userId = state.currentUser?.id;
+    if (!userId) return;
+    await supabase.from('team_members')
+      .update({ left_at: new Date().toISOString() })
+      .eq('team_id', teamId).eq('user_id', userId).is('left_at', null);
+  }
+
+  async function kickTeamMember(memberId) {
+    await supabase.from('team_members')
+      .update({ left_at: new Date().toISOString() })
+      .eq('id', memberId);
+  }
+
+  async function refreshTeamInviteCode(teamId) {
+    const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const { data } = await supabase.from('teams')
+      .update({ invite_code: newCode }).eq('id', teamId).select('invite_code').single();
+    return data?.invite_code;
+  }
+
+  async function loadTeamMatches(teamMemberUserIds) {
+    const { data } = await supabase.from('saved_matches')
+      .select('id,user_id,played_at,created_at,result,wins,losses,score_label,matchup_label,mine_colors,opponent_colors,opponent_name,deck_name,deck_profile_id,format,went_first,source_type,duelink_match_id,series_match_id,duelink_source,duelink_queue,queue_id,my_decklist,api_metadata,data_quality,quality_issues,total_turns,avg_turns,final_mine_lore,final_opp_lore')
+      .in('user_id', teamMemberUserIds)
+      .order('played_at', { ascending: false })
+      .limit(5000);
+    return data || [];
+  }
+
+  async function loadTeamDeckProfiles(teamMemberUserIds) {
+    const { data } = await supabase.from('deck_profiles')
+      .select('*').in('user_id', teamMemberUserIds);
+    return data || [];
+  }
+
+  // ============================================================
+  // TEAM — context activation helpers
+  // ============================================================
+
+  async function activateTeamMode() {
+    if (!state.team) return;
+    const activeMembers = state.team.members.filter(m => !m.left_at && m.user_id);
+    state.teamMemberIds = activeMembers.map(m => m.user_id);
+    state.teamDisplayNames = {};
+    activeMembers.forEach(m => { state.teamDisplayNames[m.user_id] = m.display_name; });
+    const [matches, profiles] = await Promise.all([
+      loadTeamMatches(state.teamMemberIds),
+      loadTeamDeckProfiles(state.teamMemberIds)
+    ]);
+    state.savedMatches = matches;
+    state.deckProfiles = profiles;
+    state.teamMode = true;
+    deckArchetypeCache.clear();
+    deckCardListCache.clear();
+    renderPerformanceData();
+  }
+
+  async function deactivateTeamMode() {
+    state.teamMode = false;
+    state.teamMemberIds = [];
+    state.teamDisplayNames = {};
+    await refreshSavedMatches({ force: true });
+    await refreshDeckProfiles({ force: true });
+  }
+
+  // ============================================================
+  // TEAM — UI rendering
+  // ============================================================
+
+  function renderTeamSection() {
+    if (!els.teamSection) return;
+    if (!state.currentUser) {
+      els.teamSection.innerHTML = '';
+      return;
+    }
+    if (!state.team) {
+      els.teamSection.innerHTML = `
+        <div class="team-section">
+          <h3>Équipe</h3>
+          <p class="team-hint">Rejoins une équipe pour partager tes statistiques et jouer ensemble.</p>
+          <div class="team-actions">
+            <div class="team-create-form">
+              <input type="text" id="teamNameInput" placeholder="Nom de l'équipe" maxlength="40">
+              <button type="button" id="teamCreateBtn" class="primary-button">Créer une équipe</button>
+            </div>
+            <div class="team-join-form">
+              <input type="text" id="teamCodeInput" placeholder="Code d'invitation (ex: A3F7B2C8)" maxlength="8">
+              <button type="button" id="teamJoinBtn" class="ghost-button">Rejoindre</button>
+            </div>
+            <p id="teamActionStatus" class="team-status"></p>
+          </div>
+        </div>`;
+      bindTeamFormEvents();
+      return;
+    }
+
+    const team = state.team;
+    const isOwner = team.myRole === 'owner';
+    const activeMembers = (team.members || []).filter(m => !m.left_at);
+    const membersHtml = activeMembers.map(m => {
+      const isSelf = m.user_id === state.currentUser?.id;
+      const kickBtn = isOwner && !isSelf
+        ? `<button type="button" data-kick="${escAttr(m.id)}" class="ghost-button compact danger">Exclure</button>`
+        : '';
+      return `<li class="team-member-row">
+        <span class="team-member-name">${esc(m.display_name || 'Joueur')}</span>
+        <span class="team-member-role">${esc(m.role === 'owner' ? 'Propriétaire' : 'Membre')}</span>
+        ${kickBtn}
+      </li>`;
+    }).join('');
+
+    const rotateBtn = isOwner
+      ? `<button type="button" id="teamRotateCodeBtn" class="ghost-button compact">Nouveau code</button>`
+      : '';
+
+    els.teamSection.innerHTML = `
+      <div class="team-section">
+        <div class="team-header">
+          <h3>Équipe · ${esc(team.name)}</h3>
+          <span class="team-role-badge">${esc(isOwner ? 'Propriétaire' : 'Membre')}</span>
+        </div>
+        <div class="team-invite-row">
+          <span class="team-invite-label">Code d'invitation</span>
+          <code class="team-invite-code">${esc(team.invite_code || '—')}</code>
+          <button type="button" id="teamCopyInviteBtn" class="ghost-button compact">Copier</button>
+          ${rotateBtn}
+        </div>
+        <ul class="team-members-list">${membersHtml}</ul>
+        <button type="button" id="teamLeaveBtn" class="ghost-button danger">Quitter l'équipe</button>
+        <p id="teamActionStatus" class="team-status"></p>
+      </div>`;
+    bindTeamMemberEvents();
+  }
+
+  function updateTeamContextBars() {
+    const hasTeam = !!state.team;
+    const teamName = state.team?.name || 'Équipe';
+    [els.teamContextBarStats, els.teamContextBarHistory].forEach(bar => {
+      if (!bar) return;
+      bar.hidden = !hasTeam;
+      // Update the team button label with current team name
+      const teamBtn = bar.querySelector('[data-team-ctx="team"]');
+      if (teamBtn) teamBtn.textContent = `Équipe · ${teamName}`;
+      // Sync active state
+      const isSolo = !state.teamMode;
+      bar.querySelectorAll('.team-ctx-btn').forEach(btn => {
+        btn.classList.toggle('active', (btn.dataset.teamCtx === 'solo') === isSolo);
+      });
+    });
+  }
+
+  function setTeamActionStatus(msg, isError = false) {
+    const el = document.getElementById('teamActionStatus');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.toggle('team-status-error', isError);
+    el.classList.toggle('team-status-ok', !isError && !!msg);
+  }
+
+  function bindTeamFormEvents() {
+    document.getElementById('teamCreateBtn')?.addEventListener('click', async () => {
+      const input = document.getElementById('teamNameInput');
+      const name = (input?.value || '').trim();
+      if (!name) { setTeamActionStatus('Donne un nom à ton équipe.', true); return; }
+      try {
+        setTeamActionStatus('Création en cours…');
+        const team = await createTeam(name);
+        state.team = await loadMyTeam();
+        renderTeamSection();
+        updateTeamContextBars();
+        setTeamActionStatus(`Équipe "${team.name}" créée !`);
+      } catch (err) {
+        setTeamActionStatus(err.message || 'Erreur lors de la création.', true);
+      }
+    });
+    document.getElementById('teamJoinBtn')?.addEventListener('click', async () => {
+      const input = document.getElementById('teamCodeInput');
+      const code = (input?.value || '').trim();
+      if (!code) { setTeamActionStatus('Entre le code d\'invitation.', true); return; }
+      try {
+        setTeamActionStatus('Rejoindre l\'équipe…');
+        const team = await joinTeamByCode(code);
+        state.team = await loadMyTeam();
+        renderTeamSection();
+        updateTeamContextBars();
+        setTeamActionStatus(`Tu as rejoint "${team.name}" !`);
+      } catch (err) {
+        setTeamActionStatus(err.message || 'Erreur lors de la jonction.', true);
+      }
+    });
+  }
+
+  function bindTeamMemberEvents() {
+    document.getElementById('teamCopyInviteBtn')?.addEventListener('click', () => {
+      const code = state.team?.invite_code || '';
+      navigator.clipboard?.writeText(code).then(() => setTeamActionStatus('Code copié !')).catch(() => setTeamActionStatus(code));
+    });
+
+    document.getElementById('teamRotateCodeBtn')?.addEventListener('click', async () => {
+      if (!state.team?.id) return;
+      try {
+        const newCode = await refreshTeamInviteCode(state.team.id);
+        state.team = await loadMyTeam();
+        renderTeamSection();
+        setTeamActionStatus(`Nouveau code : ${newCode}`);
+      } catch (err) {
+        setTeamActionStatus(err.message || 'Erreur lors du renouvellement.', true);
+      }
+    });
+
+    document.getElementById('teamLeaveBtn')?.addEventListener('click', async () => {
+      if (!state.team?.id) return;
+      if (!confirm('Quitter l\'équipe ?')) return;
+      try {
+        await leaveTeam(state.team.id);
+        if (state.teamMode) await deactivateTeamMode();
+        state.team = null;
+        renderTeamSection();
+        updateTeamContextBars();
+      } catch (err) {
+        setTeamActionStatus(err.message || 'Erreur lors de la sortie.', true);
+      }
+    });
+
+    // Kick buttons (delegated in main event handler instead — see bindTeamEvents)
+  }
+
+  function bindTeamEvents() {
+    // Context switcher buttons (delegated)
+    document.addEventListener('click', async e => {
+      const btn = e.target.closest('[data-team-ctx]');
+      if (!btn) return;
+      const ctx = btn.dataset.teamCtx;
+      if (ctx === 'solo' && state.teamMode) {
+        btn.disabled = true;
+        try { await deactivateTeamMode(); } finally { btn.disabled = false; }
+        updateTeamContextBars();
+        renderPerformanceData();
+      } else if (ctx === 'team' && !state.teamMode && state.team) {
+        btn.disabled = true;
+        btn.textContent = 'Chargement…';
+        try { await activateTeamMode(); } finally { btn.disabled = false; }
+        updateTeamContextBars();
+      }
+    });
+
+    // Kick member buttons (delegated)
+    document.addEventListener('click', async e => {
+      const btn = e.target.closest('[data-kick]');
+      if (!btn || !btn.closest('.team-section')) return;
+      const memberId = btn.dataset.kick;
+      if (!memberId) return;
+      if (!confirm('Exclure ce membre de l\'équipe ?')) return;
+      try {
+        await kickTeamMember(memberId);
+        state.team = await loadMyTeam();
+        renderTeamSection();
+      } catch (err) {
+        setTeamActionStatus(err.message || 'Erreur lors de l\'exclusion.', true);
+      }
+    });
+  }
+
   async function refreshDeckProfiles(options={}){
     if(!state.currentUser){
       state.deckProfiles = [];
@@ -4692,6 +5023,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderDeckManager();
     renderDataQualityPanel();
     renderDuplicateAudit();
+    renderTeamSection();
   }
 
   function deckProfileUsageCounts(){
@@ -6601,6 +6933,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const appView = currentAppView();
     if(appView === 'performances'){
       safe('filtres', renderPerformanceFilterPills);
+      safe('team-ctx', updateTeamContextBars);
       if(isStatsPerformanceViewActive()) safe('statistiques', renderSavedStats);
       if(isHistoryPerformanceViewActive()) safe('historique', renderSavedHistory);
       return;
@@ -9359,11 +9692,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const compactActions = `<button type="button" class="ghost-button history-mini-button primary" data-load-saved="${escAttr(row.id)}">Voir l’analyse</button>
         <button type="button" class="ghost-button history-mini-button" data-select-saved="${escAttr(row.id)}">Détails</button>
         <button type="button" class="ghost-button history-mini-button danger" data-delete-saved="${escAttr(row.id)}">Supprimer</button>`;
+    const isOtherMember = state.teamMode && row.user_id && row.user_id !== state.currentUser?.id;
+    const memberTagHtml = isOtherMember && state.teamDisplayNames[row.user_id]
+      ? `<span class="team-member-tag">${esc(state.teamDisplayNames[row.user_id])}</span>`
+      : '';
     return `<article class="history-row ${escAttr(resultClass)} ${isActive ? 'active' : ''} ${hasGames ? 'has-games' : ''} ${actionsOpen ? 'actions-open' : ''}" data-saved-id="${escAttr(row.id)}">
       <span class="history-result-rail ${escAttr(resultClass)}" aria-hidden="true"></span>
       <button type="button" class="history-row-main" data-select-saved="${escAttr(row.id)}" aria-expanded="${expanded && hasGames ? 'true' : 'false'}">
         <span class="history-row-copy">
-          <span class="history-line-top"><em>${esc(format)}</em>${colorMatchupDotsHtml(colors, opponentColors, matchup)}<b>${esc(result)} ${esc(score)}</b></span>
+          <span class="history-line-top"><em>${esc(format)}</em>${colorMatchupDotsHtml(colors, opponentColors, matchup)}<b>${esc(result)} ${esc(score)}</b>${memberTagHtml}</span>
           <span class="history-opponent-line">${esc(opponent)}</span>
           <span class="history-row-submeta"><i>${esc(turnsLabel)}</i><i>${esc(date)}</i>${deck ? `<i>${esc(deck)}</i>` : ''}</span>
           <span class="history-row-badges">${historySourceBadgesHtml(row)}${apiDecklistBadgesHtml(row)}${qualityBadgesHtml(row)}</span>
