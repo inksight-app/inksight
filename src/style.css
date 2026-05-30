@@ -15115,7 +15115,8 @@ button[data-performance-full-list]::after,
   .account-auth-wrapper,
   .duelink-connect-section,
   .duelink-sync-card,
-  .deck-manager-section{
+  .deck-manager-section,
+  .team-section-wrapper{
     width:var(--v136w-panel-w)!important;
     max-width:var(--v136w-panel-w)!important;
     margin-left:auto!important;
