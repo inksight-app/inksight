@@ -16607,7 +16607,11 @@ body::before{
    ============================================================ */
 
 .team-section-wrapper {
-  padding: 0;
+  padding: clamp(18px, 2.8vw, 28px);
+  overflow: hidden;
+  border-radius: clamp(24px, 3vw, 34px) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  margin-top: clamp(20px, 3vw, 34px);
 }
 
 .team-section {
@@ -17063,11 +17067,6 @@ body::before{
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-/* Mobile fix: ensure team section wrapper has no extra padding breaking layout */
-.team-section-wrapper {
-  padding: 0 !important;
 }
 
 .team-section {

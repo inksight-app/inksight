@@ -5939,7 +5939,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function shouldShowDeckVersionFilter(options, selectedColorValue, mode='performance'){
     const prefix = mode === 'history' ? 'history' : 'performance';
     const selectedColors = selectedFilterValues(`${prefix}ColorFilter`);
+    const selectedArchetypes = selectedFilterValues(`${prefix}ArchetypeFilter`);
     if(!selectedColors.length) return false;
+    if(!selectedArchetypes.length) return false;
     return (options || []).filter(option => option.value !== 'all').length >= 1;
   }
 
