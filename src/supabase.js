@@ -388,6 +388,8 @@ export async function listSavedMatchHistoryLight(limit = 1000) {
       'avg_turns',
       'final_mine_lore',
       'final_opp_lore',
+      'team_visible',
+      'user_id',
     ].join(','))
     .order('played_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
@@ -476,6 +478,18 @@ export async function updateSavedMatchDeck(matchId, deck = {}) {
 
   if (error) throw error;
 
+  return data;
+}
+
+export async function patchSavedMatchTeamVisible(matchId, visible) {
+  if (!matchId) throw new Error('Identifiant de match manquant.');
+  const { data, error } = await supabase
+    .from('saved_matches')
+    .update({ team_visible: visible })
+    .eq('id', matchId)
+    .select('id, team_visible')
+    .single();
+  if (error) throw error;
   return data;
 }
 

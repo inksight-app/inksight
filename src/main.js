@@ -1,5 +1,5 @@
 import './style.css';
-import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, listDeckProfiles, upsertDeckProfile, ensureDeckProfileByExternalId, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun, updateDeckProfilePoolTag } from './supabase.js';
+import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, patchSavedMatchTeamVisible, listDeckProfiles, upsertDeckProfile, ensureDeckProfileByExternalId, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun, updateDeckProfilePoolTag } from './supabase.js';
 
 (() => {
   'use strict';
@@ -4772,7 +4772,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function loadTeamMatches(teamMemberUserIds) {
     const { data } = await supabase.from('saved_matches')
-      .select('id,user_id,played_at,created_at,result,wins,losses,score_label,matchup_label,mine_colors,opponent_colors,opponent_name,deck_name,deck_profile_id,format,went_first,source_type,duelink_match_id,series_match_id,duelink_source,duelink_queue,queue_id,my_decklist,api_metadata,data_quality,quality_issues,total_turns,avg_turns,final_mine_lore,final_opp_lore')
+      .select('id,user_id,played_at,created_at,result,wins,losses,score_label,matchup_label,mine_colors,opponent_colors,opponent_name,deck_name,deck_profile_id,format,went_first,source_type,duelink_match_id,series_match_id,duelink_source,duelink_queue,queue_id,my_decklist,api_metadata,data_quality,quality_issues,total_turns,avg_turns,final_mine_lore,final_opp_lore,team_visible')
       .in('user_id', teamMemberUserIds)
       .order('played_at', { ascending: false })
       .limit(5000);
@@ -7036,6 +7036,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function filteredSavedMatches(mode='history'){
     let rows = [...(state.savedMatches || [])].sort((a,b) => savedMatchPlayedTime(b) - savedMatchPlayedTime(a));
+    // Team history: only show matches explicitly shared with the team
+    if(mode === 'history' && state.teamMode) rows = rows.filter(row => row.team_visible === true);
     const decks = selectedValuesForMode(mode, 'deck');
     const colors = selectedValuesForMode(mode, 'color');
     const opponentColors = selectedValuesForMode(mode, 'opponentColor');
@@ -9750,8 +9752,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const gamesHtml = expanded && hasGames ? savedGamesHtml(games) : '';
     const actionsOpen = state.activeHistoryActionsId === row.id;
     const turnsLabel = hasGames ? `${games.length} manches` : `${n(row.total_turns) || '—'} tours`;
+    const isOwnMatch = !row.user_id || row.user_id === state.currentUser?.id;
+    const teamShareBtn = (state.team && isOwnMatch)
+      ? `<button type="button" class="ghost-button history-mini-button ${row.team_visible ? ‘team-visible-active’ : ‘’}" data-team-visible="${escAttr(row.id)}">${row.team_visible ? ‘✓ Partagé avec l\’équipe’ : ‘Partager avec l\’équipe’}</button>`
+      : ‘’;
     const compactActions = `<button type="button" class="ghost-button history-mini-button primary" data-load-saved="${escAttr(row.id)}">Voir l’analyse</button>
         <button type="button" class="ghost-button history-mini-button" data-select-saved="${escAttr(row.id)}">Détails</button>
+        ${teamShareBtn}
         <button type="button" class="ghost-button history-mini-button danger" data-delete-saved="${escAttr(row.id)}">Supprimer</button>`;
     const isMemberMatch = state.teamMode && row.user_id && state.teamDisplayNames[row.user_id];
     const memberTagHtml = isMemberMatch
@@ -9888,6 +9895,26 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.querySelectorAll('[data-create-deck-for-match]').forEach(button => {
       button.onclick = () => createAndApplyDeckToSavedMatch(button.dataset.createDeckForMatch);
     });
+    document.querySelectorAll('[data-team-visible]').forEach(button => {
+      button.onclick = async () => {
+        const id = button.dataset.teamVisible;
+        const row = state.savedMatches.find(item => item.id === id);
+        if(!row) return;
+        const newVisible = !row.team_visible;
+        try {
+          button.disabled = true;
+          await patchSavedMatchTeamVisible(id, newVisible);
+          row.team_visible = newVisible;
+          renderPerformanceData();
+        } catch(err) {
+          console.error(err);
+          if(els.historyStatus) els.historyStatus.textContent = `Erreur : ${err.message}`;
+        } finally {
+          button.disabled = false;
+        }
+      };
+    });
+
     document.querySelectorAll('[data-delete-saved]').forEach(button => {
       button.onclick = async () => {
         const id = button.dataset.deleteSaved;

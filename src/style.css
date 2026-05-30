@@ -12575,7 +12575,8 @@ body::after{
 #view-account .account-auth-wrapper,
 #view-account .account-grid-v71,
 #view-account .duelink-sync-card,
-#view-account .deck-manager-section {
+#view-account .deck-manager-section,
+#view-account .team-section-wrapper {
   margin: 0 !important;
 }
 #view-account .account-auth-wrapper {
@@ -12699,8 +12700,10 @@ body::after{
   #view-account .account-auth-wrapper,
   #view-account .account-card,
   #view-account .deck-manager-section,
-  #view-account .duelink-sync-card { padding: 18px !important; }
-  #view-account .duelink-sync-card { border-radius: 28px !important; }
+  #view-account .duelink-sync-card,
+  #view-account .team-section-wrapper { padding: 18px !important; }
+  #view-account .duelink-sync-card,
+  #view-account .team-section-wrapper { border-radius: 28px !important; }
   .duelink-import-progress ul { max-height: 240px; }
   .duelink-import-step strong { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
@@ -16607,11 +16610,12 @@ body::before{
    ============================================================ */
 
 .team-section-wrapper {
-  padding: clamp(18px, 2.8vw, 28px);
-  overflow: hidden;
-  border-radius: clamp(24px, 3vw, 34px) !important;
-  border: 1px solid rgba(255,255,255,.10) !important;
-  margin-top: clamp(20px, 3vw, 34px);
+  padding: clamp(18px, 2.5vw, 28px);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(122,88,248,.10), transparent 30%),
+    radial-gradient(circle at 95% 10%, rgba(55,148,227,.08), transparent 32%),
+    linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.028)) !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.055) !important;
 }
 
 .team-section {
@@ -17071,4 +17075,12 @@ body::before{
 
 .team-section {
   padding: 0;
+}
+
+/* Match partagé avec l'équipe — bouton actif dans le menu d'actions */
+.ghost-button.history-mini-button.team-visible-active {
+  color: #d1fae5;
+  border-color: rgba(52,211,153,.34);
+  background: rgba(52,211,153,.10);
+}
 }
