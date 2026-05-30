@@ -9751,10 +9751,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const expanded = state.expandedSavedMatchId === row.id;
     const gamesHtml = expanded && hasGames ? savedGamesHtml(games) : '';
     const actionsOpen = state.activeHistoryActionsId === row.id;
-    const turnsLabel = hasGames ? `${games.length} manches` : `${n(row.total_turns) || '—'} tours`;
+    const turnsLabel = hasGames ? `${games.length} manches` : `${n(row.total_turns) || ‘—‘} tours`;
     const isOwnMatch = !row.user_id || row.user_id === state.currentUser?.id;
+    const teamShareLabel = row.team_visible ? "✓ Partagé avec l’équipe" : "Partager avec l’équipe";
+    const teamShareClass = row.team_visible ? ‘team-visible-active’ : ‘’;
     const teamShareBtn = (state.team && isOwnMatch)
-      ? `<button type="button" class="ghost-button history-mini-button ${row.team_visible ? ‘team-visible-active’ : ‘’}" data-team-visible="${escAttr(row.id)}">${row.team_visible ? ‘✓ Partagé avec l\’équipe’ : ‘Partager avec l\’équipe’}</button>`
+      ? `<button type="button" class="ghost-button history-mini-button ${teamShareClass}" data-team-visible="${escAttr(row.id)}">${esc(teamShareLabel)}</button>`
       : ‘’;
     const compactActions = `<button type="button" class="ghost-button history-mini-button primary" data-load-saved="${escAttr(row.id)}">Voir l’analyse</button>
         <button type="button" class="ghost-button history-mini-button" data-select-saved="${escAttr(row.id)}">Détails</button>
