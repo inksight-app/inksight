@@ -13159,7 +13159,8 @@ body:not(.is-authenticated) #view-account .auth-message:not(:empty) {
   margin-inline:auto!important;
 }
 #view-account .account-auth-wrapper,
-#view-account .duelink-sync-card{
+#view-account .duelink-sync-card,
+#view-account .team-section-wrapper{
   max-width:1120px;
   width:100%;
   margin-inline:auto!important;
