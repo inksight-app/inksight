@@ -16945,3 +16945,131 @@ body::before{
     flex-wrap: wrap;
   }
 }
+
+/* Team member grid (LorcaHub style) */
+.team-members-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 480px) {
+  .team-members-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 820px) {
+  .team-members-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+.team-member-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.04);
+  text-align: center;
+}
+
+.team-member-avatar-wrap {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+}
+
+.team-member-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,.12);
+  display: block;
+}
+
+.team-member-avatar-fallback {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: rgba(255,255,255,.7);
+}
+
+.team-member-crown {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  font-size: .85rem;
+  color: #f6c54d;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.5));
+}
+
+.team-member-card-name {
+  font-size: .82rem;
+  font-weight: 600;
+  color: #e4e4e7;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.team-member-self-tag {
+  display: block;
+  font-size: .68rem;
+  font-weight: 700;
+  color: #86efac;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-top: 2px;
+}
+
+/* Team description */
+.team-description {
+  display: grid;
+  gap: 8px;
+}
+
+.team-desc-para {
+  margin: 0;
+  font-size: .875rem;
+  color: rgba(255,255,255,.62);
+  line-height: 1.6;
+}
+
+.team-link {
+  color: #93c5fd;
+  text-decoration: none;
+}
+
+.team-link:hover { text-decoration: underline; }
+
+/* Back nav in team page */
+.team-page-nav {
+  margin-bottom: 4px;
+}
+
+/* Team widget actions row */
+.team-widget-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Mobile fix: ensure team section wrapper has no extra padding breaking layout */
+.team-section-wrapper {
+  padding: 0 !important;
+}
+
+.team-section {
+  padding: 0;
+}

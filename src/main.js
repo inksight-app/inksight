@@ -3572,7 +3572,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         renderBulkQueue();
         refreshDeckProfiles({ silent:true }).catch(setCloudOffline);
         refreshSavedMatches({ silent:true }).catch(setCloudOffline);
-        if(user) loadMyTeam().then(team => { state.team = team; updateTeamContextBars(); renderAccountPage(); }).catch(() => {});
+        if(user) {
+          getOrCreateUserProfile().catch(() => {});
+          loadMyTeam().then(team => { state.team = team; updateTeamContextBars(); renderAccountPage(); }).catch(() => {});
+        }
       })
       .catch(error => { setCloudOffline(error); });
 
@@ -3587,7 +3590,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(state.currentUser){
           refreshDeckProfiles({ force:!sameUser && !state.deckProfilesLoaded, silent:true }).catch(setCloudOffline);
           refreshSavedMatches({ force:!sameUser && !state.savedMatchesLoaded, silent:true }).catch(setCloudOffline);
-          if(!sameUser) loadMyTeam().then(team => { state.team = team; updateTeamContextBars(); renderAccountPage(); }).catch(() => {});
+          if(!sameUser) {
+            getOrCreateUserProfile().catch(() => {});
+            loadMyTeam().then(team => { state.team = team; updateTeamContextBars(); renderAccountPage(); }).catch(() => {});
+          }
         }
         else {
           clearSessionCacheForCurrentUser();
@@ -4668,16 +4674,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   async function getOrCreateUserProfile(displayName) {
     const userId = state.currentUser?.id;
     if (!userId) return null;
+    const avatarUrl = state.currentUser?.user_metadata?.avatar_url || state.currentUser?.user_metadata?.picture || null;
+    const discordName = state.currentUser?.user_metadata?.full_name || state.currentUser?.user_metadata?.user_name || state.currentUser?.email?.split('@')[0] || 'Joueur';
     const { data } = await supabase.from('user_profiles').select('*').eq('user_id', userId).single();
     if (data) {
-      if (displayName) {
-        await supabase.from('user_profiles').update({ display_name: displayName }).eq('user_id', userId);
-        return { ...data, display_name: displayName };
+      const updates = {};
+      if (displayName && displayName !== data.display_name) updates.display_name = displayName;
+      if (avatarUrl && avatarUrl !== data.avatar_url) updates.avatar_url = avatarUrl;
+      if (Object.keys(updates).length) {
+        await supabase.from('user_profiles').update(updates).eq('user_id', userId);
+        return { ...data, ...updates };
       }
       return data;
     }
-    const name = displayName || state.currentUser?.user_metadata?.full_name || state.currentUser?.email?.split('@')[0] || 'Joueur';
-    const { data: created } = await supabase.from('user_profiles').insert({ user_id: userId, display_name: name }).select().single();
+    const name = displayName || discordName;
+    const { data: created } = await supabase.from('user_profiles').insert({ user_id: userId, display_name: name, avatar_url: avatarUrl }).select().single();
     return created;
   }
 
@@ -4704,8 +4715,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const { data: team } = await supabase.from('teams').select('*').eq('id', membership.team_id).single();
     const { data: members } = await supabase.from('team_members')
       .select('id, user_id, display_name, role, joined_at, left_at')
-      .eq('team_id', membership.team_id).order('joined_at');
-    return { ...team, myRole: membership.role, members: members || [] };
+      .eq('team_id', membership.team_id).is('left_at', null).order('joined_at');
+    // Load avatars from user_profiles
+    const memberUserIds = (members || []).map(m => m.user_id).filter(Boolean);
+    const { data: profiles } = memberUserIds.length
+      ? await supabase.from('user_profiles').select('user_id, display_name, avatar_url').in('user_id', memberUserIds)
+      : { data: [] };
+    const profileMap = {};
+    (profiles || []).forEach(p => { profileMap[p.user_id] = p; });
+    const membersWithProfiles = (members || []).map(m => ({
+      ...m,
+      display_name: profileMap[m.user_id]?.display_name || m.display_name || 'Joueur',
+      avatar_url: profileMap[m.user_id]?.avatar_url || null
+    }));
+    return { ...team, myRole: membership.role, members: membersWithProfiles };
   }
 
   async function joinTeamByCode(code) {
@@ -4802,112 +4825,145 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderTeamSection() {
     if (!els.teamSection) return;
-    if (!state.currentUser) {
-      els.teamSection.innerHTML = '';
-      return;
-    }
+    if (!state.currentUser) { els.teamSection.innerHTML = ''; return; }
 
     if (!state.team) {
       const pendingCode = sessionStorage.getItem('inksight:pendingJoinCode') || '';
       if (pendingCode) sessionStorage.removeItem('inksight:pendingJoinCode');
-      const pendingNoticeHtml = pendingCode
-        ? `<p class="team-pending-join-notice">Tu as été invité à rejoindre une équipe. Entre ton pseudo ci-dessous et confirme.</p>`
-        : '';
       els.teamSection.innerHTML = `
         <div class="team-section">
           <div class="team-head">
             <p class="kicker">Équipe</p>
-            <h2>Rejoindre ou créer</h2>
-            <p>Partage tes statistiques avec d'autres joueurs. Vos données restent les vôtres — les membres voient tout, personne d'autre.</p>
+            <h2>Rejoindre une équipe</h2>
+            <p>Utilise un lien ou code d'invitation pour rejoindre une équipe et partager vos statistiques.</p>
           </div>
-          ${pendingNoticeHtml}
-          <div class="team-displayname-row">
-            <span class="team-field-label">Mon pseudo dans l'équipe</span>
-            <input type="text" id="teamDisplayNameInput" placeholder="Ex: Leo, AliceP…" maxlength="20" autocomplete="nickname">
+          <div class="team-field">
+            <label class="team-field-label" for="teamCodeInput">Code d'invitation</label>
+            <input type="text" id="teamCodeInput" placeholder="Ex: HELVETNK" maxlength="16" autocomplete="off" value="${esc(pendingCode)}">
           </div>
-          <div class="team-form-block">
-            <p class="team-form-block-label">Créer une équipe</p>
-            <div class="team-field">
-              <label class="team-field-label" for="teamNameInput">Nom de l'équipe</label>
-              <input type="text" id="teamNameInput" placeholder="Ex: Helvetink, Team Sapphire…" maxlength="40">
-            </div>
-            <button type="button" id="teamCreateBtn" class="ghost-button">Créer l'équipe</button>
-          </div>
-          <div class="team-divider">ou</div>
-          <div class="team-form-block">
-            <p class="team-form-block-label">Rejoindre avec un code</p>
-            <div class="team-field">
-              <label class="team-field-label" for="teamCodeInput">Code d'invitation</label>
-              <input type="text" id="teamCodeInput" placeholder="Ex: A3F7B2C8" maxlength="8" autocomplete="off" value="${esc(pendingCode)}">
-            </div>
-            <button type="button" id="teamJoinBtn" class="ghost-button">Rejoindre</button>
-          </div>
+          <button type="button" id="teamJoinBtn" class="ghost-button">Rejoindre</button>
           <p id="teamActionStatus" class="team-status"></p>
         </div>`;
       bindTeamFormEvents();
       return;
     }
 
+    // In a team — show compact widget + link to team page
+    const team = state.team;
+    const memberCount = (team.members || []).filter(m => !m.left_at).length;
+    els.teamSection.innerHTML = `
+      <div class="team-section">
+        <div class="team-head">
+          <p class="kicker">Équipe</p>
+          <h2>${esc(team.name)}</h2>
+          <p>${memberCount} membre${memberCount > 1 ? 's' : ''}</p>
+        </div>
+        <div class="team-widget-actions">
+          <button type="button" id="teamViewPageBtn" class="ghost-button">Voir la page équipe</button>
+          <button type="button" id="teamStatsBtn" class="ghost-button" ${state.team ? '' : 'disabled'}>Stats de l'équipe</button>
+        </div>
+        <p id="teamActionStatus" class="team-status"></p>
+      </div>`;
+    document.getElementById('teamViewPageBtn')?.addEventListener('click', renderTeamPage);
+    document.getElementById('teamStatsBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('teamStatsBtn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Chargement…'; }
+      try { await activateTeamMode(); } finally { if (btn) { btn.disabled = false; btn.textContent = 'Stats de l\'équipe'; } }
+      updateTeamContextBars();
+      document.querySelector('.app-nav-button[data-app-view="performances"]')?.click();
+    });
+  }
+
+  function renderTeamPage() {
+    if (!els.teamSection || !state.team) return;
     const team = state.team;
     const isOwner = team.myRole === 'owner';
     const activeMembers = (team.members || []).filter(m => !m.left_at);
 
-    function memberStats(userId) {
-      if (!state.teamMode || !state.savedMatches?.length) return null;
-      const rows = state.savedMatches.filter(r => r.user_id === userId);
-      if (!rows.length) return null;
-      const wins = rows.filter(r => r.result === 'W').length;
-      return { games: rows.length, wr: Math.round(wins / rows.length * 100) };
-    }
-
     const membersHtml = activeMembers.map(m => {
       const isSelf = m.user_id === state.currentUser?.id;
-      const stats = memberStats(m.user_id);
-      const statsHtml = stats ? `<span class="team-member-stats">${stats.wr}% · ${stats.games}p</span>` : '';
-      const kickBtn = isOwner && !isSelf
-        ? `<button type="button" data-kick="${escAttr(m.id)}" class="ghost-button compact danger">Exclure</button>`
+      const avatarHtml = m.avatar_url
+        ? `<img src="${escAttr(m.avatar_url)}" alt="${escAttr(m.display_name)}" class="team-member-avatar" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
         : '';
-      const selfTag = isSelf ? ' <span class="team-role-badge" style="font-size:.65rem">Toi</span>' : '';
-      return `<li class="team-member-row">
-        <span class="team-member-name">${esc(m.display_name || 'Joueur')}${selfTag}</span>
-        <span class="team-member-role">${esc(m.role === 'owner' ? 'Proprio' : 'Membre')}</span>
-        ${statsHtml}
-        ${kickBtn}
+      const initials = (m.display_name || 'J').slice(0, 2).toUpperCase();
+      const fallbackHtml = `<div class="team-member-avatar-fallback" ${m.avatar_url ? 'style="display:none"' : ''}>${esc(initials)}</div>`;
+      const ownerIcon = m.role === 'owner' ? '<span class="team-member-crown" aria-label="Propriétaire">♛</span>' : '';
+      const selfTag = isSelf ? '<span class="team-member-self-tag">Toi</span>' : '';
+      return `<li class="team-member-card">
+        <div class="team-member-avatar-wrap">${avatarHtml}${fallbackHtml}${ownerIcon}</div>
+        <span class="team-member-card-name">${esc(m.display_name || 'Joueur')}${selfTag}</span>
       </li>`;
     }).join('');
 
-    const rotateBtn = isOwner
-      ? `<button type="button" id="teamRotateCodeBtn" class="ghost-button compact">Nouveau code</button>`
-      : '';
+    const inviteSection = isOwner ? `
+      <div class="team-invite-block">
+        <div class="team-invite-top">
+          <span class="team-invite-label">Code d'invitation</span>
+          <code class="team-invite-code">${esc(team.invite_code || '—')}</code>
+        </div>
+        <div class="team-invite-actions">
+          <button type="button" id="teamCopyLinkBtn" class="ghost-button compact">Copier le lien d'invitation</button>
+          <button type="button" id="teamRotateCodeBtn" class="ghost-button compact">Nouveau code</button>
+        </div>
+      </div>` : `
+      <div class="team-invite-block">
+        <p style="font-size:.85rem;color:var(--muted);margin:0">Demande le lien d'invitation au propriétaire de l'équipe pour inviter de nouveaux membres.</p>
+      </div>`;
+
+    // Description: split on newlines, render as paragraphs
+    const descHtml = (team.description || '').split('\n').filter(Boolean).map(line => {
+      // Detect URLs
+      const urlified = line.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener" class="team-link">$1</a>');
+      return `<p class="team-desc-para">${urlified}</p>`;
+    }).join('');
 
     els.teamSection.innerHTML = `
       <div class="team-section">
-        <div class="team-header">
+        <div class="team-page-nav">
+          <button type="button" id="teamBackBtn" class="ghost-button compact">← Retour</button>
+        </div>
+        <div class="team-head">
           <p class="kicker">Équipe</p>
           <h2>${esc(team.name)}</h2>
-          <span class="team-role-badge">${esc(isOwner ? 'Propriétaire' : 'Membre')}</span>
         </div>
-        <div class="team-invite-block">
-          <div class="team-invite-top">
-            <span class="team-invite-label">Code d'invitation</span>
-            <code class="team-invite-code">${esc(team.invite_code || '—')}</code>
-          </div>
-          <div class="team-invite-actions">
-            <button type="button" id="teamCopyInviteBtn" class="ghost-button compact">Copier le code</button>
-            <button type="button" id="teamCopyLinkBtn" class="ghost-button compact">Copier le lien</button>
-            ${rotateBtn}
-          </div>
-        </div>
+        ${descHtml ? `<div class="team-description">${descHtml}</div>` : ''}
+        ${inviteSection}
         <div>
-          <p class="kicker" style="margin-bottom:.65rem">Membres · ${activeMembers.length}</p>
-          <ul class="team-members-list">${membersHtml}</ul>
+          <p class="kicker" style="margin-bottom:.75rem">Membres · ${activeMembers.length}</p>
+          <ul class="team-members-grid">${membersHtml}</ul>
         </div>
         <div class="team-danger-row">
           <button type="button" id="teamLeaveBtn" class="ghost-button danger compact">Quitter l'équipe</button>
         </div>
         <p id="teamActionStatus" class="team-status"></p>
       </div>`;
-    bindTeamMemberEvents();
+
+    document.getElementById('teamBackBtn')?.addEventListener('click', () => renderTeamSection());
+    document.getElementById('teamCopyLinkBtn')?.addEventListener('click', () => {
+      const code = state.team?.invite_code || '';
+      const url = `${window.location.origin}${window.location.pathname}?join=${code}`;
+      navigator.clipboard?.writeText(url).then(() => setTeamActionStatus('Lien copié !')).catch(() => setTeamActionStatus(url));
+    });
+    document.getElementById('teamRotateCodeBtn')?.addEventListener('click', async () => {
+      if (!state.team?.id) return;
+      try {
+        const newCode = await refreshTeamInviteCode(state.team.id);
+        state.team = await loadMyTeam();
+        renderTeamPage();
+        setTeamActionStatus(`Nouveau code : ${newCode}`);
+      } catch (err) { setTeamActionStatus(err.message || 'Erreur.', true); }
+    });
+    document.getElementById('teamLeaveBtn')?.addEventListener('click', async () => {
+      if (!state.team?.id) return;
+      if (!confirm('Quitter l\'équipe ?')) return;
+      try {
+        await leaveTeam(state.team.id);
+        if (state.teamMode) await deactivateTeamMode();
+        state.team = null;
+        renderTeamSection();
+        updateTeamContextBars();
+      } catch (err) { setTeamActionStatus(err.message || 'Erreur.', true); }
+    });
   }
 
   function updateTeamContextBars() {
@@ -4936,81 +4992,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function bindTeamFormEvents() {
-    document.getElementById('teamCreateBtn')?.addEventListener('click', async () => {
-      const input = document.getElementById('teamNameInput');
-      const name = (input?.value || '').trim();
-      if (!name) { setTeamActionStatus('Donne un nom à ton équipe.', true); return; }
-      const displayName = (document.getElementById('teamDisplayNameInput')?.value || '').trim();
-      try {
-        setTeamActionStatus('Création en cours…');
-        if (displayName) await getOrCreateUserProfile(displayName);
-        const team = await createTeam(name);
-        state.team = await loadMyTeam();
-        renderTeamSection();
-        updateTeamContextBars();
-        setTeamActionStatus(`Équipe "${team.name}" créée !`);
-      } catch (err) {
-        setTeamActionStatus(err.message || 'Erreur lors de la création.', true);
-      }
-    });
     document.getElementById('teamJoinBtn')?.addEventListener('click', async () => {
       const input = document.getElementById('teamCodeInput');
-      const code = (input?.value || '').trim();
+      const code = (input?.value || '').trim().toUpperCase();
       if (!code) { setTeamActionStatus('Entre le code d\'invitation.', true); return; }
-      const displayName = (document.getElementById('teamDisplayNameInput')?.value || '').trim();
       try {
         setTeamActionStatus('Rejoindre l\'équipe…');
-        if (displayName) await getOrCreateUserProfile(displayName);
         const team = await joinTeamByCode(code);
         state.team = await loadMyTeam();
         renderTeamSection();
         updateTeamContextBars();
         setTeamActionStatus(`Tu as rejoint "${team.name}" !`);
-      } catch (err) {
-        setTeamActionStatus(err.message || 'Erreur lors de la jonction.', true);
-      }
+      } catch (err) { setTeamActionStatus(err.message || 'Erreur lors de la jonction.', true); }
     });
-  }
-
-  function bindTeamMemberEvents() {
-    document.getElementById('teamCopyInviteBtn')?.addEventListener('click', () => {
-      const code = state.team?.invite_code || '';
-      navigator.clipboard?.writeText(code).then(() => setTeamActionStatus('Code copié !')).catch(() => setTeamActionStatus(code));
-    });
-
-    document.getElementById('teamCopyLinkBtn')?.addEventListener('click', () => {
-      const code = state.team?.invite_code || '';
-      const url = `${window.location.origin}${window.location.pathname}?join=${code}`;
-      navigator.clipboard?.writeText(url).then(() => setTeamActionStatus('Lien copié !')).catch(() => setTeamActionStatus(url));
-    });
-
-    document.getElementById('teamRotateCodeBtn')?.addEventListener('click', async () => {
-      if (!state.team?.id) return;
-      try {
-        const newCode = await refreshTeamInviteCode(state.team.id);
-        state.team = await loadMyTeam();
-        renderTeamSection();
-        setTeamActionStatus(`Nouveau code : ${newCode}`);
-      } catch (err) {
-        setTeamActionStatus(err.message || 'Erreur lors du renouvellement.', true);
-      }
-    });
-
-    document.getElementById('teamLeaveBtn')?.addEventListener('click', async () => {
-      if (!state.team?.id) return;
-      if (!confirm('Quitter l\'équipe ?')) return;
-      try {
-        await leaveTeam(state.team.id);
-        if (state.teamMode) await deactivateTeamMode();
-        state.team = null;
-        renderTeamSection();
-        updateTeamContextBars();
-      } catch (err) {
-        setTeamActionStatus(err.message || 'Erreur lors de la sortie.', true);
-      }
-    });
-
-    // Kick buttons (delegated in main event handler instead — see bindTeamEvents)
   }
 
   function bindTeamEvents() {
