@@ -5529,7 +5529,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const open = !panel.classList.contains('filters-open');
     panel.classList.toggle('filters-open', open);
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    btn.textContent = open ? 'Masquer les filtres' : (target === 'history' ? 'Filtres avancés' : 'Modifier les filtres');
+    btn.textContent = open ? 'Masquer les filtres' : (target === 'history' ? 'Filtres avancés' : 'Filtrer');
   }
 
   function multiFilterIds(){

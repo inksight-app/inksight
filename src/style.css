@@ -17123,3 +17123,10 @@ body::before{
   border-color: rgba(52,211,153,.34);
   background: rgba(52,211,153,.10);
 }
+
+/* Divulgation progressive : la barre de filtres est repliée par défaut.
+   Surcharge nécessaire car #performance-stats .performance-filter-controls-viz
+   force display:block (spécificité ID) et masquerait sinon le repli. */
+#performance-stats .performance-filter-bar-viz:not(.filters-open) .performance-filter-controls-viz{
+  display:none!important;
+}
