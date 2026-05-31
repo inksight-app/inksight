@@ -8843,7 +8843,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       });
     }
 
-    els.performanceActionPlan.innerHTML = actions.slice(0,3).map(actionPlanCardHtml).join('');
+    els.performanceActionPlan.innerHTML = actions.slice(0,1).map(actionPlanCardHtml).join('');
   }
 
   function actionPlanCardHtml(item={}){
