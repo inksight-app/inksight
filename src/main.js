@@ -8731,7 +8731,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           meta:'Fiabilité'
         }
       ];
-      els.performanceActionPlan.innerHTML = actions.map(actionPlanCardHtml).join('');
+      els.performanceActionPlan.innerHTML = actions.slice(0, 1).map(actionPlanCardHtml).join('');
       return;
     }
 
