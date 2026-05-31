@@ -17158,3 +17158,32 @@ body::before{
 #perf-detail-overview:has(#performanceDeckCoach .deck-health-dashboard:not(.neutral)) .kpi-hero{
   display:none!important;
 }
+
+/* Fusion du guidage : Santé du deck + Plan d'action dans un seul bloc « Diagnostic ».
+   Un seul niveau de glass (le wrapper) ; les blocs internes deviennent plats et
+   sont séparés par l'espace plutôt que par des cadres. */
+#perf-detail-overview .deck-diagnostic{
+  display:grid!important;
+  gap:clamp(16px,1.8vw,22px)!important;
+  padding:clamp(18px,2vw,24px)!important;
+  margin-bottom:24px!important;
+}
+#perf-detail-overview .deck-diagnostic-head .kicker{
+  color:rgba(255,255,255,.56);
+  font-size:.68rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+}
+#perf-detail-overview .deck-diagnostic .glass,
+#perf-detail-overview .deck-diagnostic .deck-health-main,
+#perf-detail-overview .deck-diagnostic .deck-health-details,
+#perf-detail-overview .deck-diagnostic .action-plan-card,
+#perf-detail-overview .deck-diagnostic .action-plan-card-v2{
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+#perf-detail-overview .deck-diagnostic .deck-health-main,
+#perf-detail-overview .deck-diagnostic .deck-health-details{
+  padding:0!important;
+}
