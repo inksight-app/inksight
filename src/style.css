@@ -17162,11 +17162,15 @@ body::before{
 /* Fusion du guidage : Santé du deck + Plan d'action dans un seul bloc « Diagnostic ».
    Un seul niveau de glass (le wrapper) ; les blocs internes deviennent plats et
    sont séparés par l'espace plutôt que par des cadres. */
+#perf-detail-overview .performance-kpis{
+  margin-bottom:20px!important;
+}
 #perf-detail-overview .deck-diagnostic{
   display:grid!important;
   gap:clamp(16px,1.8vw,22px)!important;
   padding:clamp(18px,2vw,24px)!important;
-  margin-bottom:24px!important;
+  margin:0 0 20px!important;
+  border-radius:24px!important;
 }
 #perf-detail-overview .deck-diagnostic-head .kicker{
   color:rgba(255,255,255,.56);
