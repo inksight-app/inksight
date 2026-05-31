@@ -17130,3 +17130,31 @@ body::before{
 #performance-stats .performance-filter-bar-viz:not(.filters-open) .performance-filter-controls-viz{
   display:none!important;
 }
+
+/* Hiérarchie numérique : le winrate domine, les autres KPIs sont secondaires.
+   Chiffres tabulaires pour aligner les colonnes (lecture façon dashboard). */
+#performance-stats .performance-kpis .kpi-hero strong{
+  font-size:clamp(3.1rem,7vw,4.7rem)!important;
+  font-family:var(--font-mono)!important;
+  font-variant-numeric:tabular-nums!important;
+  color:#fff!important;
+}
+#performance-stats .performance-kpis .kpi-hero{
+  border-color:color-mix(in srgb,var(--theme-color-1) 30%,var(--line))!important;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--theme-color-1) 10%,transparent),transparent),linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.022)),rgba(13,14,17,.82)!important;
+}
+#performance-stats .performance-kpis .metric-card:not(.kpi-hero) strong{
+  font-size:clamp(1.6rem,2.6vw,2.2rem)!important;
+  color:rgba(245,245,246,.82)!important;
+}
+.metric-card strong,.pro-card strong,.deck-kpi strong,.overview-metric strong,
+.history-detail-metric strong,.deck-health-main strong,.dl-summary-stat strong{
+  font-variant-numeric:tabular-nums;
+}
+
+/* Dédoublonnage du winrate : quand un deck est filtré, le héro « Santé du deck »
+   porte déjà le winrate (avec tags + jauges). On masque alors le KPI redondant.
+   À l'état non filtré (deck-health .neutral), le KPI winrate reste le héro. */
+#perf-detail-overview:has(#performanceDeckCoach .deck-health-dashboard:not(.neutral)) .kpi-hero{
+  display:none!important;
+}
