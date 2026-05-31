@@ -17079,6 +17079,44 @@ body::before{
   padding: 0;
 }
 
+/* ── Filtre de période (date range) ────────────────────────────── */
+.date-filter-block .filter-pill-row {
+  flex-wrap: wrap;
+}
+
+.date-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.date-range-input {
+  background: rgba(255,255,255,.07);
+  border: 1px solid var(--line, rgba(255,255,255,.12));
+  border-radius: 10px;
+  color: rgba(255,255,255,.9);
+  padding: 5px 10px;
+  font-size: .8rem;
+  font-family: inherit;
+  color-scheme: dark;
+  cursor: pointer;
+  transition: border-color .15s;
+  min-width: 0;
+}
+
+.date-range-input:focus {
+  outline: none;
+  border-color: rgba(255,255,255,.3);
+}
+
+.date-range-sep {
+  color: rgba(255,255,255,.4);
+  font-size: .82rem;
+  flex-shrink: 0;
+}
+
 /* Match partagé avec l'équipe — bouton actif dans le menu d'actions */
 .ghost-button.history-mini-button.team-visible-active {
   color: #d1fae5;

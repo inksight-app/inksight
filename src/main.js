@@ -25,7 +25,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), team:null, teamMode:false, teamMemberIds:[], teamDisplayNames:{} };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), team:null, teamMode:false, teamMemberIds:[], teamDisplayNames:{}, dateFilter:{ stats:{ preset:'all', from:null, to:null }, history:{ preset:'all', from:null, to:null } } };
 
 
   function perfMark(label, startedAt, extra={}){
@@ -49,7 +49,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory','performanceDateFrom','performanceDateTo','performanceDateCustom','historyDateFrom','historyDateTo','historyDateCustom'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -151,6 +151,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.addEventListener('click', handleBulkQueueClick);
     document.addEventListener('click', handlePostImportCleanupClick);
     document.addEventListener('click', handlePerformanceDetailClick);
+    document.addEventListener('click', handleDateFilterClick);
+    [els.performanceDateFrom, els.performanceDateTo].forEach(el => el?.addEventListener('change', () => {
+      state.dateFilter.stats.from = els.performanceDateFrom?.value || null;
+      state.dateFilter.stats.to = els.performanceDateTo?.value || null;
+      renderPerformanceData();
+    }));
+    [els.historyDateFrom, els.historyDateTo].forEach(el => el?.addEventListener('change', () => {
+      state.dateFilter.history.from = els.historyDateFrom?.value || null;
+      state.dateFilter.history.to = els.historyDateTo?.value || null;
+      renderPerformanceData();
+    }));
     document.addEventListener('click', handlePerformanceListModalClick);
     document.addEventListener('click', handleDataMaintenanceClick);
     document.addEventListener('click', handleDuelinkNavigationClick);
@@ -5606,6 +5617,33 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
+  function handleDateFilterClick(e) {
+    const btn = e.target.closest('[data-date-scope][data-date-preset]');
+    if (!btn) return;
+    const scope = btn.dataset.dateScope;
+    const preset = btn.dataset.datePreset;
+    state.dateFilter[scope].preset = preset;
+    document.querySelectorAll(`[data-date-scope="${scope}"][data-date-preset]`).forEach(b => {
+      b.classList.toggle('active', b.dataset.datePreset === preset);
+    });
+    const customEl = scope === 'stats' ? els.performanceDateCustom : els.historyDateCustom;
+    if (customEl) customEl.hidden = preset !== 'custom';
+    renderPerformanceData();
+  }
+
+  function resetDateFilter(scope) {
+    state.dateFilter[scope] = { preset: 'all', from: null, to: null };
+    document.querySelectorAll(`[data-date-scope="${scope}"][data-date-preset]`).forEach(b => {
+      b.classList.toggle('active', b.dataset.datePreset === 'all');
+    });
+    const customEl = scope === 'stats' ? els.performanceDateCustom : els.historyDateCustom;
+    const fromEl = scope === 'stats' ? els.performanceDateFrom : els.historyDateFrom;
+    const toEl = scope === 'stats' ? els.performanceDateTo : els.historyDateTo;
+    if (customEl) customEl.hidden = true;
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+  }
+
   function resetPerformanceFilters(){
     ['performanceColorFilter','performanceOpponentColorFilter','performanceDeckFilter','performanceArchetypeFilter','performanceFormatFilter','performanceTempoFilter','performanceResultFilter','performancePoolFilter','performanceSetFilter'].forEach(id => {
       if(els[id]) els[id].value = 'all';
@@ -5615,6 +5653,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.performanceMulliganPlayFilter = 'all';
     state.performanceMulliganRecommendationFilter = 'all';
     state.performanceExpandedLists = { cards:false, mulligan:false };
+    resetDateFilter('stats');
     renderPerformanceData();
   }
 
@@ -5624,6 +5663,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       clearSelectedFilterValues(id);
     });
     if(els.historySearchInput) els.historySearchInput.value = '';
+    resetDateFilter('history');
     renderPerformanceData();
   }
 
@@ -7061,6 +7101,39 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(tempos.length) rows = rows.filter(row => rowMatchesTempo(row, tempos));
     if(pools.length) rows = rows.filter(row => pools.includes(rowFormatPool(row)));
     if(sets.length) rows = rows.filter(row => sets.includes(rowSetNum(row)));
+    const df = state.dateFilter?.[mode];
+    if (df && df.preset !== 'all') {
+      const now = Date.now();
+      let fromMs = null;
+      let toMs = null;
+      if (df.preset === '1d') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        fromMs = today.getTime();
+      } else if (df.preset === '7d') {
+        fromMs = now - 7 * 24 * 60 * 60 * 1000;
+      } else if (df.preset === '30d') {
+        fromMs = now - 30 * 24 * 60 * 60 * 1000;
+      } else if (df.preset === '90d') {
+        fromMs = now - 90 * 24 * 60 * 60 * 1000;
+      } else if (df.preset === 'custom') {
+        if (df.from) fromMs = new Date(df.from).getTime();
+        if (df.to) {
+          const d = new Date(df.to);
+          d.setHours(23, 59, 59, 999);
+          toMs = d.getTime();
+        }
+      }
+      if (fromMs !== null || toMs !== null) {
+        rows = rows.filter(row => {
+          const t = savedMatchPlayedTime(row);
+          if (!t) return false;
+          if (fromMs !== null && t < fromMs) return false;
+          if (toMs !== null && t > toMs) return false;
+          return true;
+        });
+      }
+    }
     if(query){
       rows = rows.filter(row => [row.title, row.matchup_label, row.opponent_name, row.deck_name, row.score_label]
         .filter(Boolean)
