@@ -42,7 +42,11 @@
 
 
 /* V30 — Premium polish, chart accessibility and glass micro-interactions */
-:root{ --faint:#8a8a98; --aura-one:#2f8bd9; --aura-two:#f6c54d; }
+/* Aura neutre : les halos d'angle du fond ne sont plus teintés par la
+   bicolorité (bleu/jaune). On garde une tonalité sombre quasi hueless pour un
+   fond homogène sur toutes les vues. --theme-color-1/2 restent intacts pour les
+   accents data-viz (barres, points, boutons). */
+:root{ --faint:#8a8a98; --aura-one:#0d0e11; --aura-two:#0d0e11; }
 *:focus-visible{outline:2px solid var(--good);outline-offset:2px;box-shadow:0 0 0 6px rgba(52,211,153,.13)}
 body{line-height:1.5}
 .ambient{inset:0;height:auto;background:none;filter:none;opacity:1;overflow:hidden;z-index:0}
@@ -79,8 +83,8 @@ body{line-height:1.5}
   --theme-color-2:#f6c54d;
   --mx:50%;
   --my:18%;
-  --aura-one:var(--theme-color-1);
-  --aura-two:var(--theme-color-2);
+  --aura-one:#0d0e11;
+  --aura-two:#0d0e11;
 }
 body{
   background:
@@ -5091,7 +5095,7 @@ body{
 .app-nav-button.active,.tab-button.active,.tab-button[aria-selected="true"],.performance-detail-tab.active,.filter-pill.active,.scope-button.active,.card-filter.active{
   background:rgba(255,255,255,.92)!important;color:#020304!important;border-color:rgba(255,255,255,.72)!important;box-shadow:0 14px 42px rgba(0,0,0,.44),0 0 36px color-mix(in srgb, var(--theme-color-1) 16%, transparent)!important;}
 .primary-button,.save-analysis-button,.auth-btn-primary{
-  background:linear-gradient(110deg,var(--theme-color-2),var(--theme-color-1))!important;color:#020304!important;border:0!important;box-shadow:0 18px 64px color-mix(in srgb, var(--theme-color-1) 22%, transparent)!important;font-weight:560!important;}
+  background:#fff!important;color:#050506!important;border:0!important;box-shadow:0 16px 48px rgba(0,0,0,.42)!important;font-weight:560!important;}
 .ghost-button,.auth-chip,.status-badge{background:rgba(255,255,255,.035)!important;border-color:rgba(255,255,255,.095)!important;color:rgba(248,250,252,.86)!important;}
 .hero-section{text-align:left!important;padding:clamp(3.2rem,7vw,8.2rem) clamp(.2rem,2vw,1rem) clamp(2.4rem,5vw,5rem)!important;position:relative;}
 .hero-section:after{content:"";position:absolute;left:clamp(1rem,8vw,12rem);right:clamp(1rem,8vw,12rem);bottom:1.2rem;height:1px;background:linear-gradient(90deg,transparent,var(--theme-color-1),rgba(255,255,255,.32),var(--theme-color-2),transparent);opacity:.42;}
@@ -12991,8 +12995,7 @@ body:not(.is-authenticated) #view-account .account-page-hero {
   text-align: center;
   padding: clamp(30px, 5vw, 52px) clamp(24px, 5vw, 56px) !important;
   background:
-    radial-gradient(circle at 50% 0%, rgba(55,148,227,.13), transparent 36%),
-    radial-gradient(circle at 10% 0%, rgba(246,197,77,.08), transparent 32%),
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.05), transparent 36%),
     linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.026)) !important;
 }
 body:not(.is-authenticated) #view-account .account-page-hero .kicker {
@@ -16395,8 +16398,7 @@ body.is-authenticated #view-account #authLoggedIn .auth-btn-danger{
 body.is-authenticated #view-account .account-page-hero{
   padding: clamp(28px, 5.5vw, 44px) clamp(22px, 5vw, 34px) !important;
   background:
-    radial-gradient(circle at 50% 0%, rgba(55,148,227,.13), transparent 36%),
-    radial-gradient(circle at 10% 0%, rgba(246,197,77,.08), transparent 32%),
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.05), transparent 36%),
     linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.026)) !important;
 }
 body.is-authenticated #view-account .account-page-hero h1{
