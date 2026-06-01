@@ -17215,3 +17215,8 @@ body::before{
 /* Renommage inline d'une version depuis la decklist */
 .dl-rename-input{ min-height:34px; border-radius:999px; border:1px solid rgba(255,255,255,.22); background:rgba(0,0,0,.35); color:#fff; padding:.3rem .7rem; font:inherit; font-size:.82rem; font-weight:650; max-width:220px; }
 .dl-rename-input:focus{ outline:2px solid rgba(255,255,255,.5); outline-offset:1px; }
+
+/* Renommage : bouton icône discret, aligné avec le badge d'archétype */
+.dl-rename-edit{ display:inline-flex; align-items:center; gap:.35rem; }
+.dl-rename-edit svg{ opacity:.85; flex:0 0 auto; }
+.dl-rename-edit:hover{ border-color:rgba(255,255,255,.28); }
