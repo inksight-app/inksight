@@ -6004,16 +6004,25 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function deckFilterOptionsForPills(mode='performance'){
-    const colorFilterId = mode === 'history' ? 'historyColorFilter' : 'performanceColorFilter';
-    const archetypeFilterId = mode === 'history' ? 'historyArchetypeFilter' : 'performanceArchetypeFilter';
+    const prefix = mode === 'history' ? 'history' : 'performance';
+    const colorFilterId = `${prefix}ColorFilter`;
+    const archetypeFilterId = `${prefix}ArchetypeFilter`;
     const selectedColors = selectedFilterValues(colorFilterId);
     const selectedArchetypes = selectedFilterValues(archetypeFilterId);
+    // La liste des versions doit suivre les AUTRES filtres actifs (pool, set, format)
+    // pour que « Infinity » ne laisse que les decks Infinity, etc.
+    const selectedPools = selectedFilterValues(`${prefix}PoolFilter`);
+    const selectedSets = selectedFilterValues(`${prefix}SetFilter`);
+    const selectedFormats = selectedFilterValues(`${prefix}FormatFilter`);
     const rows = (state.savedMatches || []).filter(row => {
       if(selectedColors.length && !selectedColors.includes(colorFilterKey(rowMineColors(row)))) return false;
       if(selectedArchetypes.length && row.deck_profile_id){
         const a = getProfileArchetype(row.deck_profile_id);
         if(!a || !selectedArchetypes.includes(a.speed)) return false;
       }
+      if(selectedPools.length && !selectedPools.includes(rowFormatPool(row))) return false;
+      if(selectedSets.length && !selectedSets.includes(rowSetNum(row))) return false;
+      if(selectedFormats.length && !selectedFormats.includes(String(row.format || '').toUpperCase())) return false;
       return true;
     });
     const stats = new Map(); // String(id) -> { games, wins, lastPlayedAt }
@@ -6026,7 +6035,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       // pas encore renommé) doit rester visible et cliquable (pour voir sa decklist
       // et le renommer). Le pill affiche le nom du profil (renommable).
       if(!profile) return;
-      if(selectedColors.length && !selectedColors.some(colorKey => profileMatchesColorKey(profile, colorKey))) return;
+      // Plus de re-vérification de couleur sur le PROFIL : les lignes sont déjà
+      // filtrées par la couleur du MATCH ci-dessus. L'ancien test excluait à tort les
+      // decks dont le profil manquait de métadonnées de couleur (ex. version unique
+      // steel/sapphire jamais renommée).
       const entry = stats.get(key) || { games:0, wins:0, lastPlayedAt:null };
       entry.games += 1;
       if(row.result === 'win') entry.wins += 1;
@@ -6769,7 +6781,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const ARCHETYPE_COLORS = { aggro:'#f87171', midrange:'#34d399', control:'#60a5fa' };
     const archetypeColor = archetype ? (ARCHETYPE_COLORS[archetype.speed] || 'var(--theme-color-1)') : 'var(--muted)';
     const archetypeBadge = `<button type="button" class="dl-archetype-badge dl-archetype-edit" data-archetype-edit="${escAttr(pid||'')}" style="color:${archetypeColor}" title="Modifier l'archétype">${esc(archetype?.label || '— Archétype')} ▾</button>`;
-    const renameBadge = pid ? `<button type="button" class="dl-archetype-badge dl-rename-edit" data-deck-rename-inline="${escAttr(pid)}" title="Renommer la version">✎ Renommer</button>` : '';
+    const renameBadge = pid ? `<button type="button" class="dl-archetype-badge dl-rename-edit" data-deck-rename-inline="${escAttr(pid)}" title="Renommer la version" aria-label="Renommer la version"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg><span>Renommer</span></button>` : '';
     const statsBar = `<div class="dl-summary">${buildMiniCostCurveHtml(cards)}<div class="dl-summary-stats">${stats}${archetypeBadge}${renameBadge}</div>${inkDotsBig}</div>`;
 
     const actionsBar = `<div class="dl-actions"><button type="button" class="ghost-button compact dl-copy-btn" data-decklist-copy><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
