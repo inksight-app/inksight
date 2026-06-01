@@ -286,18 +286,34 @@ export async function saveMatchAnalysis(payload, details = {}) {
     throw new Error('Vous devez être connecté pour sauvegarder une analyse.');
   }
 
-  const safePayload = {
+  // analysis_json (gros blob) est déporté dans la table 1:1 saved_match_analysis
+  // pour garder saved_matches légère. On l'extrait du payload d'insertion.
+  const { analysis_json: analysisJson, ...matchPayload } = {
     ...payload,
     user_id: user.id,
   };
 
   const { data, error } = await supabase
     .from('saved_matches')
-    .insert(safePayload)
+    .insert(matchPayload)
     .select()
     .single();
 
   if (error) throw error;
+
+  if (analysisJson !== undefined && analysisJson !== null) {
+    const { error: analysisError } = await supabase
+      .from('saved_match_analysis')
+      .insert({ match_id: data.id, user_id: user.id, analysis_json: analysisJson });
+    if (analysisError) {
+      // Filet de sécurité : si l'écriture déportée échoue, on remet le JSON dans
+      // la colonne historique pour ne rien perdre (l'écran détail le relira).
+      console.warn('saved_match_analysis insert failed, fallback to inline column:', analysisError.message);
+      await supabase.from('saved_matches').update({ analysis_json: analysisJson }).eq('id', data.id);
+    }
+    // Le retour conserve analysis_json pour les appelants existants.
+    data.analysis_json = analysisJson;
+  }
 
   await saveDetailedAnalysisRows(data.id, user.id, details);
 
@@ -454,6 +470,20 @@ export async function getSavedMatch(matchId) {
     .single();
 
   if (error) throw error;
+
+  // analysis_json vit désormais dans saved_match_analysis pour les nouveaux matchs.
+  // On préfère la colonne historique (anciens matchs) et on retombe sur la table
+  // déportée si la colonne est vide.
+  if (data && (data.analysis_json === null || data.analysis_json === undefined)) {
+    const { data: analysisRow, error: analysisError } = await supabase
+      .from('saved_match_analysis')
+      .select('analysis_json')
+      .eq('match_id', matchId)
+      .maybeSingle();
+    if (!analysisError && analysisRow?.analysis_json) {
+      data.analysis_json = analysisRow.analysis_json;
+    }
+  }
 
   return sanitizeSavedMatchRow(data);
 }
