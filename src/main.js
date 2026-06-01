@@ -138,6 +138,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.duelinkImport50Button?.addEventListener('click', () => importDuelinkPreviewAndSave({ limit:50 }));
     els.duelinkImport100Button?.addEventListener('click', () => importDuelinkPreviewAndSave({ limit:100 }));
     els.duelinkImportAllButton?.addEventListener('click', () => importDuelinkPreviewAndSave({ limit:'all' }));
+    els.duelinkTestResult?.addEventListener('click', handleDuelinkImportFilterClick);
     els.duelinkSaveTokenButton?.addEventListener('click', saveDuelinkTokenForAccount);
     els.duelinkForgetTokenButton?.addEventListener('click', forgetDuelinkTokenForAccount);
     els.duelinkTokenInput?.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); testDuelinkToken(); } });
@@ -356,8 +357,42 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     syncDuelinkActionButtons();
   }
 
+  // ----- Filtres d'import Duels.ink (format / pool) -----
+  function gameQueueString(game){
+    return [game?.queue, game?.queue_id, game?.apiRow?.queue, game?.apiRow?.queue_id, game?.source]
+      .map(value => String(value || '')).filter(Boolean).join(' ').toLowerCase();
+  }
+  function isLimitedFormatGame(game){
+    const q = gameQueueString(game);
+    return !!q && (/\b(sealed|pack[\s_-]*rush|packrush|draft|booster)\b/.test(q) || q.includes('scell'));
+  }
+  function gamePool(game){
+    const q = gameQueueString(game);
+    if(!q) return '';
+    if(isLimitedFormatGame(game)) return 'limited';
+    if(q.includes('infinity')) return 'infinity';
+    if(q.includes('core')) return 'core';
+    return '';
+  }
+  function gameFormatKey(game){
+    const f = String(game?.format || '').toUpperCase();
+    if(f.includes('BO3')) return 'BO3';
+    if(f.includes('BO1')) return 'BO1';
+    return '';
+  }
+  function duelinkImportFilters(){
+    const f = state.duelinkImportFilters || {};
+    return { format:f.format || 'all', pool:f.pool || 'all' };
+  }
+  function gamePassesImportFilters(game){
+    const f = duelinkImportFilters();
+    if(f.format !== 'all' && gameFormatKey(game) !== f.format) return false;
+    if(f.pool !== 'all' && gamePool(game) !== f.pool) return false;
+    return true;
+  }
+
   function getDuelinkImportableRows(){
-    return (state.duelinkPreviewRows || []).filter(row => row?.status?.key === 'new' && row?.game?.replayId);
+    return (state.duelinkPreviewRows || []).filter(row => row?.status?.key === 'new' && row?.game?.replayId && gamePassesImportFilters(row.game));
   }
 
   function setDuelinkBatchButton(button, count, limit, busy){
@@ -540,7 +575,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const classified = payload?.classified || classifyDuelinkRows(games);
     state.duelinkPreviewRows = classified;
     const stats = duelinkPreviewStats(classified);
-    syncDuelinkActionButtons(stats.newWithReplay.length);
+    // Les compteurs des boutons reflètent les filtres d'import actifs.
+    syncDuelinkActionButtons();
 
     if(!games.length){
       els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty"><strong>Aucune partie trouvée.</strong><span>L’API répond, mais aucun match terminé n’a été retourné dans l’historique Duels.ink.</span></div>`;
@@ -549,19 +585,64 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     const sourceSummary = stats.sources.join(', ') || 'Sources inconnues';
     const ready = stats.newWithReplay.length;
+    const filteredReady = getDuelinkImportableRows().length;
     const already = stats.existing.length + stats.queued.length;
     els.duelinkTestResult.innerHTML = `
       <div class="duelink-result-summary duelink-result-summary-compact">
-        <div><strong>Synchronisation prête</strong><span>${games.length} partie${games.length > 1 ? 's' : ''} trouvée${games.length > 1 ? 's' : ''}. Choisissez un volume d’import pour ajouter les nouvelles analyses à InkSight.</span></div>
+        <div><strong>Synchronisation prête</strong><span>${games.length} partie${games.length > 1 ? 's' : ''} trouvée${games.length > 1 ? 's' : ''}. Affinez éventuellement par format/pool puis choisissez un volume d’import.</span></div>
         <div class="duelink-mini-stats" aria-label="Résumé synchronisation Duels.ink">
           <span><b>${games.length}</b><small>trouvées</small></span>
-          <span><b>${ready}</b><small>à importer</small></span>
+          <span><b>${ready}</b><small>nouvelles</small></span>
+          <span><b>${filteredReady}</b><small>après filtres</small></span>
           <span><b>${already}</b><small>déjà dans InkSight</small></span>
           <span><b>${stats.missingReplay.length}</b><small>sans replay</small></span>
           <span><b>${esc(formatShortDateTime(stats.newest?.updatedAt))}</b><small>plus récent</small></span>
-          <span><b>${esc(sourceSummary)}</b><small>sources</small></span>
         </div>
+        ${duelinkImportFiltersHtml(games)}
+        ${duelinkQueueReadoutHtml(games)}
       </div>`;
+  }
+
+  function duelinkImportFiltersHtml(games=[]){
+    const f = duelinkImportFilters();
+    const pill = (group, value, label, active) =>
+      `<button type="button" class="filter-pill" data-duelink-import-filter="${escAttr(group)}" data-value="${escAttr(value)}" aria-pressed="${active ? 'true' : 'false'}">${esc(label)}</button>`;
+    const formats = new Set(games.map(gameFormatKey).filter(Boolean));
+    const pools = new Set(games.map(gamePool).filter(Boolean));
+    const poolLabels = { core:'Core', infinity:'Infinity', limited:'Limité' };
+    const formatRow = formats.size > 1 ? `<div class="duelink-filter-row"><span class="duelink-filter-label">Format</span>
+        ${pill('format','all','Tous', f.format === 'all')}${[...formats].sort().map(v => pill('format', v, v, f.format === v)).join('')}
+      </div>` : '';
+    const poolRow = pools.size > 1 ? `<div class="duelink-filter-row"><span class="duelink-filter-label">Pool</span>
+        ${pill('pool','all','Tous', f.pool === 'all')}${[...pools].sort().map(v => pill('pool', v, poolLabels[v] || v, f.pool === v)).join('')}
+      </div>` : '';
+    if(!formatRow && !poolRow) return '';
+    return `<div class="duelink-import-filters">${formatRow}${poolRow}</div>`;
+  }
+
+  function duelinkQueueReadoutHtml(games=[]){
+    // Lecture des files Duels.ink réellement présentes (utile pour calibrer la
+    // détection core/infinity/limité quand les libellés de l'API évoluent).
+    const counts = new Map();
+    games.forEach(game => {
+      const label = String(game?.queue || '').trim() || '—';
+      counts.set(label, (counts.get(label) || 0) + 1);
+    });
+    const entries = [...counts.entries()].sort((a,b) => b[1] - a[1]).slice(0, 12);
+    if(!entries.length) return '';
+    const items = entries.map(([label, count]) => `<span class="duelink-queue-chip">${esc(label)} <b>${count}</b></span>`).join('');
+    return `<details class="duelink-queue-readout"><summary>Files détectées (${counts.size})</summary><div class="duelink-queue-chips">${items}</div></details>`;
+  }
+
+  function handleDuelinkImportFilterClick(event){
+    const btn = event.target.closest('[data-duelink-import-filter]');
+    if(!btn) return;
+    const group = btn.dataset.duelinkImportFilter;
+    const value = btn.dataset.value || 'all';
+    if(group !== 'format' && group !== 'pool') return;
+    state.duelinkImportFilters = { ...duelinkImportFilters(), [group]:value };
+    syncDuelinkActionButtons();
+    renderDuelinkPreviewResult({ games:(state.duelinkPreviewRows || []).map(row => row.game), classified:state.duelinkPreviewRows });
   }
 
   function attachDuelinkMetadataToSession(session, game={}, replaySha256=''){
