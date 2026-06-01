@@ -6075,9 +6075,33 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const value = group.join('|');
       return { value, label:`${shortName}${mergedSuffix} · ${totalGames}g · ${wr}%`, ariaLabel:`${primaryProfile.name}${group.length > 1 ? ` (${group.length} versions fusionnées)` : ''} · ${totalGames} games · ${wr}% winrate`, colors:profileColors(primaryProfile) };
     }).filter(Boolean);
+    // Fourre-tout : matchs sans profil de deck (decklist absente à l'import),
+    // regroupés par bicolorité, pour qu'aucune couleur ne soit absente de la liste.
+    // Ces entrées servent à filtrer ; pas de decklist à ouvrir ni à renommer.
+    const noProfileByColor = new Map();
+    rows.forEach(row => {
+      const id = row.deck_profile_id;
+      const profile = id ? state.deckProfiles.find(p => String(p.id) === String(id)) : null;
+      if(id && profile) return; // déjà couvert par un vrai profil
+      const colors = rowMineColors(row);
+      const key = colorFilterKey(colors) || 'unknown';
+      const entry = noProfileByColor.get(key) || { colors, games:0, wins:0 };
+      entry.games += 1;
+      if(row.result === 'win') entry.wins += 1;
+      noProfileByColor.set(key, entry);
+    });
+    const noProfilePills = [...noProfileByColor.entries()]
+      .sort((a,b) => (b[1].games || 0) - (a[1].games || 0))
+      .map(([key, e]) => {
+        const wr = e.games ? Math.round(100 * e.wins / e.games) : 0;
+        const colorsLabel = e.colors.length ? e.colors.map(inkLabel).join('/') : 'Couleurs inconnues';
+        const label = `Sans version · ${colorsLabel} · ${e.games}g · ${wr}%`;
+        return { value:`noprofile:${key}`, label, ariaLabel:label, colors:e.colors, noDecklist:true };
+      });
     return [
       { value:'all', label:'Tous les decks' },
-      ...pills
+      ...pills,
+      ...noProfilePills
     ];
   }
 
@@ -6183,7 +6207,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const dots = inkDotsHtml(option.colors || []);
       const label = option.shortLabel || option.label;
       const aria = option.ariaLabel || option.label || label;
-      return `<span class="deck-pill-wrap"><button type="button" class="filter-pill color-badge-pill ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-label="${escAttr(aria)}" aria-pressed="${active?'true':'false'}">${dots}<span>${esc(label)}</span></button><button type="button" class="deck-info-btn" data-deck-info="${escAttr(option.value)}" title="Voir la decklist" aria-label="Décklist · ${escAttr(aria)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></span>`;
+      // Pas de bouton « decklist » pour le fourre-tout (aucune decklist à ouvrir).
+      const eyeBtn = option.noDecklist ? '' : `<button type="button" class="deck-info-btn" data-deck-info="${escAttr(option.value)}" title="Voir la decklist" aria-label="Décklist · ${escAttr(aria)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>`;
+      return `<span class="deck-pill-wrap"><button type="button" class="filter-pill color-badge-pill ${active ? 'active' : ''}" data-perf-filter="${escAttr(selectId)}" data-value="${escAttr(option.value)}" aria-label="${escAttr(aria)}" aria-pressed="${active?'true':'false'}">${dots}<span>${esc(label)}</span></button>${eyeBtn}</span>`;
     }).join('');
   }
 
@@ -7332,8 +7358,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(archetypes.length) rows = rows.filter(row => { const a = row.deck_profile_id ? getProfileArchetype(row.deck_profile_id) : null; return a && archetypes.includes(a.speed); });
     if(decks.length) rows = rows.filter(row => {
       const rid = String(row.deck_profile_id || '');
-      // deck values may be "|"-joined groups of profile IDs (merged similar versions)
-      return decks.some(d => d.split('|').includes(rid)) || decks.includes(String(row.deck_name || ''));
+      const hasProfile = rid && state.deckProfiles.some(p => String(p.id) === rid);
+      // deck values may be "|"-joined groups of profile IDs (merged similar versions),
+      // ou un fourre-tout « noprofile:<couleurKey> » pour les matchs sans profil.
+      return decks.some(d => {
+        if(d.startsWith('noprofile:')){
+          return !hasProfile && `noprofile:${colorFilterKey(rowMineColors(row)) || 'unknown'}` === d;
+        }
+        return d.split('|').includes(rid);
+      }) || decks.includes(String(row.deck_name || ''));
     });
     if(results.length) rows = rows.filter(row => results.includes(row.result));
     if(formats.length) rows = rows.filter(row => formats.includes(String(row.format || '').toUpperCase()));
