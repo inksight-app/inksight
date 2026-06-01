@@ -4568,6 +4568,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       inkProfiles:profiles,
       matchupLabel:row.matchup_label || analysis.matchup?.label || formatMatchupLabel(profiles),
       opponentDeckEstimate:normalizeStoredOpponentDeckEstimate(analysis, cards),
+      // Rétention de main agrégée : on privilégie la valeur stockée du match
+      // fusionné, sinon on concatène celle des games (BO3 multi-lignes).
+      handRetention:arrayify(analysis.hand_retention?.mine).length ? arrayify(analysis.hand_retention?.mine) : sessions.flatMap(s => arrayify(s.handRetention)),
+      opponentHandRetention:arrayify(analysis.hand_retention?.opponent).length ? arrayify(analysis.hand_retention?.opponent) : sessions.flatMap(s => arrayify(s.opponentHandRetention)),
       first:sessions[0],
       last:sessions[sessions.length - 1],
       savedAnalysis:analysis
@@ -4617,6 +4621,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       inkProfiles:profiles,
       matchupLabel:row.matchup_label || analysis.matchup?.label || formatMatchupLabel(profiles),
       opponentDeckEstimate,
+      // Rétention de main : reconstruite depuis l'analyse stockée (le bloc « Cartes
+      // restées en main » était vide sur les matchs rechargés car non reconstruit).
+      handRetention:arrayify(isBo3Game ? (game?.handRetention || game?.hand_retention?.mine) : analysis.hand_retention?.mine),
+      opponentHandRetention:arrayify(isBo3Game ? (game?.opponentHandRetention || game?.hand_retention?.opponent) : analysis.hand_retention?.opponent),
       mulligan
     };
   }
