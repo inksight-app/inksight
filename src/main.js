@@ -7386,7 +7386,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(els.performanceDataQualityHelp) els.performanceDataQualityHelp.textContent = rows.length ? `${scopedPartial} analyse(s) partielle(s) dans l’échantillon filtré.` : 'Aucune sauvegarde dans l’échantillon.';
 
     renderPerformanceCoach(analytics, { total, wins, bo1, bo3, deckScoped });
-    renderPerformanceActionPlan(analytics, { rows, total, wins, bo1, bo3, deckScoped });
     renderPerformanceMatchups(rows, analytics, { deckScoped });
 
     renderPerformanceTable(els.performanceCardImpactTable, performanceCardImpactHtml(analytics));
@@ -7404,6 +7403,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function isPerformanceDataScoped(){
+    // Choix produit : on affiche toutes les stats par défaut. Dès que l'utilisateur
+    // est connecté et possède des matchs sauvegardés, les sections détaillées
+    // (cartes, mulligan, matchups, courbes, signaux) sont déverrouillées et agrègent
+    // l'ensemble de l'échantillon. Les filtres viennent ensuite restreindre la vue.
+    // Plus de verrouillage « Choisissez un deck » à l'arrivée sur les statistiques.
+    if(state.currentUser && (state.savedMatches?.length || 0) > 0) return true;
     return selectedFilterValues('performanceColorFilter').length > 0 || selectedFilterValues('performanceDeckFilter').length > 0;
   }
 

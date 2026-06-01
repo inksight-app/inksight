@@ -95,11 +95,11 @@ body{
   pointer-events:none;
   overflow:hidden;
   z-index:0;
-  opacity:.72;
+  opacity:.5;
   background:
-    radial-gradient(circle at var(--mx) var(--my), var(--theme-color-1) 0%, transparent min(34rem, 42vw)),
-    radial-gradient(circle at calc(100% - var(--mx)) calc(100% - var(--my)), var(--theme-color-2) 0%, transparent min(38rem, 46vw));
-  filter:blur(42px) saturate(145%);
+    radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,.05) 0%, transparent min(34rem, 42vw)),
+    radial-gradient(circle at calc(100% - var(--mx)) calc(100% - var(--my)), rgba(255,255,255,.035) 0%, transparent min(38rem, 46vw));
+  filter:blur(42px);
   mix-blend-mode:screen;
   transition:background .8s ease, opacity .8s ease, filter .8s ease;
 }
@@ -120,18 +120,17 @@ body{
 .ambient::before{
   left:calc(var(--mx) - 22vw);
   top:calc(var(--my) - 22vw);
-  background-color:var(--theme-color-1);
+  background-color:rgba(255,255,255,.05);
 }
 .ambient::after{
   left:calc((100% - var(--mx)) - 19vw);
   top:calc((100% - var(--my)) - 19vw);
-  background-color:var(--theme-color-2);
+  background-color:rgba(255,255,255,.04);
   opacity:.22;
 }
 .glass-primary,.match-read{
   background:
-    radial-gradient(circle at var(--mx) var(--my), color-mix(in srgb, var(--theme-color-1) 16%, transparent), transparent 18rem),
-    radial-gradient(circle at 90% 0%, color-mix(in srgb, var(--theme-color-2) 12%, transparent), transparent 18rem),
+    radial-gradient(circle at 15% 0%,rgba(255,255,255,.10),transparent 18rem),
     linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.025)),
     rgba(13,14,17,.86);
   transition:background .8s ease,border-color .25s ease,box-shadow .25s ease,transform .2s ease;
@@ -17140,8 +17139,8 @@ body::before{
   color:#fff!important;
 }
 #performance-stats .performance-kpis .kpi-hero{
-  border-color:color-mix(in srgb,var(--theme-color-1) 30%,var(--line))!important;
-  background:linear-gradient(180deg,color-mix(in srgb,var(--theme-color-1) 10%,transparent),transparent),linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.022)),rgba(13,14,17,.82)!important;
+  border-color:var(--line)!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.065),rgba(255,255,255,.022)),rgba(13,14,17,.82)!important;
 }
 #performance-stats .performance-kpis .metric-card:not(.kpi-hero) strong{
   font-size:clamp(1.6rem,2.6vw,2.2rem)!important;
@@ -17152,10 +17151,38 @@ body::before{
   font-variant-numeric:tabular-nums;
 }
 
-/* Dédoublonnage du winrate : quand un deck est filtré, le héro « Santé du deck »
-   porte déjà le winrate (avec tags + jauges). On masque alors le KPI redondant.
-   À l'état non filtré (deck-health .neutral), le KPI winrate reste le héro. */
-#perf-detail-overview:has(#performanceDeckCoach .deck-health-dashboard:not(.neutral)) .kpi-hero{
-  display:none!important;
+/* Le KPI « Winrate filtré » reste toujours visible : c'est la valeur de
+   référence, alimentée directement par le rendu JS. La carte « Santé du deck »
+   reprend le même chiffre avec ses jauges, ce qui n'est pas gênant. On ne masque
+   plus le KPI (sinon, dans certains états, le winrate disparaissait totalement). */
+
+/* =========================================================================
+   FOND NEUTRE & UNIFORME — override final
+   Plusieurs couches successives de .ambient et de grandes surfaces reprenaient
+   les couleurs d'encre (sapphire/amber → bleu/jaune) via --theme-color-1/2, ce
+   qui « teintait » le fond et donnait des blocs de fonds différents. On force
+   ici, en dernier (et donc prioritaire), un fond sombre homogène. Les variables
+   --theme-color-* restent intactes pour les accents data-viz (barres OTP, points
+   de graphe) et pour Chart.js.
+   ========================================================================= */
+.ambient{
+  background:
+    radial-gradient(circle at var(--mx,50%) var(--my,18%), rgba(255,255,255,.05) 0%, transparent 27rem),
+    radial-gradient(circle at calc(100% - var(--mx,50%)) calc(100% - var(--my,18%)), rgba(255,255,255,.035) 0%, transparent 32rem)!important;
+  opacity:.45!important;
+  filter:blur(60px)!important;
+}
+.ambient::before,.ambient:before{ background:rgba(255,255,255,.05)!important; }
+.ambient::after,.ambient:after{ background:rgba(255,255,255,.035)!important; }
+
+.glass-primary,.match-read,.app-page-hero,.performance-hero,
+.performance-chart-card,.performance-coach-card.primary,.action-plan-card.primary{
+  background:
+    radial-gradient(circle at 15% 0%,rgba(255,255,255,.08),transparent 22rem),
+    linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.02)),
+    rgba(13,14,17,.86)!important;
+}
+.glass-primary,.match-read{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 28px 96px rgba(0,0,0,.46),0 0 0 1px rgba(255,255,255,.08)!important;
 }
 
