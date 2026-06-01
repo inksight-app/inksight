@@ -5987,11 +5987,23 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function rowFormatPool(row){
-    const q = String(row?.queue_id || '').toLowerCase();
+    const q = rowQueueString(row);
     if(!q) return '';
-    if(q.startsWith('infinity') || q.includes('infinity')) return 'infinity';
-    if(q.startsWith('core') || q.startsWith('quick-play-core') || q.startsWith('pack-rush') || q.includes('core')) return 'core';
+    if(isLimitedFormatRow(row)) return 'limited';
+    if(q.includes('infinity')) return 'infinity';
+    if(q.includes('core')) return 'core';
     return '';
+  }
+
+  // Formats « limités » (Sealed, Pack Rush, Draft) : le deck est tiré de boosters,
+  // toutes les encres sont mélangées. Ces matchs ne reflètent pas une bicolorité
+  // construite et polluent les stats (ex. cartes Rubis dans un deck Ambre/Saphir).
+  // On les détecte par tag de file pour les écarter des statistiques.
+  // NB : liste de jetons à compléter avec les vraies valeurs de queue_id Duels.ink.
+  function isLimitedFormatRow(row){
+    const q = rowQueueString(row);
+    if(!q) return false;
+    return /\b(sealed|pack[\s_-]*rush|packrush|draft|booster)\b/.test(q) || q.includes('scell');
   }
 
   function rowQueueString(row){
@@ -6017,7 +6029,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function lorcanaPoolOptions(){
     const pools = new Set((state.savedMatches || []).map(rowFormatPool).filter(Boolean));
     if(!pools.size) return [];
-    const labels = { core:'Core', infinity:'Infinity' };
+    const labels = { core:'Core', infinity:'Infinity', limited:'Limité' };
     return [...pools].sort().map(pool => ({ value:pool, label:labels[pool] || pool }));
   }
 
@@ -7091,6 +7103,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function filteredSavedMatches(mode='history'){
     let rows = [...(state.savedMatches || [])].sort((a,b) => savedMatchPlayedTime(b) - savedMatchPlayedTime(a));
+    // Stats : on écarte les formats limités (Sealed/Pack Rush/Draft), toutes encres
+    // mélangées, qui n'ont pas de bicolorité construite et polluent les statistiques.
+    // L'historique les conserve (mode 'history') pour rester exhaustif.
+    if(mode === 'stats') rows = rows.filter(row => !isLimitedFormatRow(row));
     // Team history: only show matches explicitly shared with the team
     if(mode === 'history' && state.teamMode) rows = rows.filter(row => row.team_visible === true);
     const decks = selectedValuesForMode(mode, 'deck');
@@ -7529,7 +7545,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     const mineCards = aggregateDetailedCards(cardRows.filter(row => row.owner === 'mine'), games, gameByKey);
     const mulliganCards = aggregateEmpiricalMulliganCards(rows, detailedGames, games, gameByKey);
-    const cardValues = mergeEmpiricalMulliganIntoCards([...mineCards.values()], mulliganCards);
+    let cardValues = mergeEmpiricalMulliganIntoCards([...mineCards.values()], mulliganCards);
+    // Étanchéité par bicolorité : si une seule bicolorité est sélectionnée, on
+    // retire les cartes dont l'encre n'appartient pas à cette identité (ex. une
+    // carte Rubis dans un deck Ambre/Saphir, héritée d'un match mal classé). Les
+    // cartes sans couleur connue sont conservées pour éviter tout faux négatif.
+    const identityInks = selectedPerformanceColors();
+    if(identityInks.length){
+      const allowedInks = new Set([...identityInks, 'inkless']);
+      cardValues = cardValues.filter(card => {
+        const inks = arrayify(card.colors).map(inkKey).filter(Boolean);
+        return inks.length ? inks.every(ink => allowedInks.has(ink)) : true;
+      });
+    }
     const topLore = cardValues.filter(card => card.lore > 0).sort((a,b)=>b.lore-a.lore || b.played-a.played || a.name.localeCompare(b.name))[0] || null;
     const topInked = cardValues.filter(card => card.inked > 0).sort((a,b)=>b.inked-a.inked || b.seen-a.seen || a.name.localeCompare(b.name))[0] || null;
     const avgTurns = avg(games.map(game => game.turnCount).filter(Boolean));
