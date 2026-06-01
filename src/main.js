@@ -12641,8 +12641,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const root = document.documentElement;
     root.style.setProperty('--theme-color-1', colors[0]);
     root.style.setProperty('--theme-color-2', colors[1]);
-    root.style.setProperty('--aura-one', colors[0]);
-    root.style.setProperty('--aura-two', colors[1]);
+    // Aura neutre : on ne re-teinte plus les halos d'angle du fond en bleu/jaune
+    // au chargement d'un match (la bicolorité ne doit pas colorer le fond).
+    root.style.setProperty('--aura-one', '#0d0e11');
+    root.style.setProperty('--aura-two', '#0d0e11');
     root.style.setProperty('--blue', colors[0]);
     root.style.setProperty('--warn', colors[1]);
     root.dataset.themeScope = scope;
