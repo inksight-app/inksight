@@ -180,11 +180,19 @@ function pickFormat(row) {
   const direct = firstValue(row, [
     'format','match_format','matchFormat','game.format','queue.format','bestOf','best_of','bo','match.bestOf','match.best_of'
   ]) || deepFind(row, (key) => /^(?:format|matchFormat|match_format|bestOf|best_of|bo)$/i.test(key));
-  if (direct === null || direct === undefined) return null;
-  const text = String(direct).trim();
-  if (/bo\s*3|best\s*of\s*3|bestof3|3/i.test(text)) return 'BO3';
-  if (/bo\s*1|best\s*of\s*1|bestof1|1/i.test(text)) return 'BO1';
-  return text;
+  // Duels.ink n'expose pas toujours un champ format dédié : le « BO3 » est
+  // souvent encodé dans la file (« Core BO3 - Set 11 »). On scanne donc aussi
+  // la chaîne de file en repli, avec un appariement strict (\bbo3\b) pour ne pas
+  // confondre un « Set 13 » ou un « Set 11 » avec un best-of.
+  const directText = (direct === null || direct === undefined) ? '' : String(direct).trim();
+  const queueText = String(pickQueue(row) || '');
+  const haystack = `${directText} ${queueText}`;
+  if (/\bbo\s*3\b|best\s*of\s*3|bestof3/i.test(haystack)) return 'BO3';
+  if (/\bbo\s*1\b|best\s*of\s*1|bestof1/i.test(haystack)) return 'BO1';
+  // Dernier recours : un champ format purement numérique (« 3 » / « 1 »).
+  if (/^3$/.test(directText)) return 'BO3';
+  if (/^1$/.test(directText)) return 'BO1';
+  return directText || null;
 }
 
 function summarizeGame(row) {
