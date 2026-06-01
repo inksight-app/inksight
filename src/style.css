@@ -17201,3 +17201,13 @@ body::before{
   box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 28px 96px rgba(0,0,0,.46),0 0 0 1px rgba(255,255,255,.08)!important;
 }
 
+
+/* Filtres d'import Duels.ink (format / pool) + lecture des files détectées */
+.duelink-import-filters{ display:grid; gap:.5rem; margin-top:.85rem; }
+.duelink-filter-row{ display:flex; align-items:center; flex-wrap:wrap; gap:.4rem; }
+.duelink-filter-label{ color:rgba(255,255,255,.55); font-size:.68rem; font-weight:800; letter-spacing:.14em; text-transform:uppercase; min-width:64px; }
+.duelink-queue-readout{ margin-top:.75rem; }
+.duelink-queue-readout summary{ cursor:pointer; color:rgba(255,255,255,.62); font-size:.78rem; font-weight:700; }
+.duelink-queue-chips{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.55rem; }
+.duelink-queue-chip{ border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.045); border-radius:999px; padding:.28rem .6rem; color:#d4d4d8; font-size:.74rem; font-weight:650; }
+.duelink-queue-chip b{ color:#fff; margin-left:.2rem; }
