@@ -8606,9 +8606,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return `<section class="deck-health-dashboard ${escAttr(tone)}" aria-label="Santé du deck">
       <article class="glass deck-health-main ${escAttr(tone)}">
         <span>Santé du deck</span>
-        <strong>${total ? `${wr}%` : '—'}</strong>
-        <small>${total ? `${wins}/${total} victoires` : 'Sélectionnez un deck'}</small>
-        <div class="deck-health-status">${esc(performanceToneLabel(tone))}</div>
+        <strong class="deck-health-verdict">${total ? esc(performanceToneLabel(tone)) : '—'}</strong>
+        <small>${total ? `${wins} victoire(s) sur ${total} match(s)` : 'Aucun match dans l’échantillon'}</small>
       </article>
       <article class="glass deck-health-details">
         <div class="deck-health-tags">

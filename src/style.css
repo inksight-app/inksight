@@ -8721,6 +8721,19 @@ canvas{
   color:rgba(255,255,255,.62)!important;
   font-weight:680!important;
 }
+/* « Santé du deck » mène désormais avec le verdict qualitatif (pas le winrate :
+   celui-ci reste sur le KPI « Winrate filtré » pour éviter le doublon). Le slot
+   du gros chiffre est recalibré pour du texte et coloré selon la tonalité. */
+.deck-health-main strong.deck-health-verdict{
+  font-size:clamp(1.9rem,4.6vw,2.7rem)!important;
+  line-height:1.02!important;
+  letter-spacing:-.01em!important;
+  font-weight:760!important;
+}
+.deck-health-main.good strong.deck-health-verdict,
+.deck-health-main.success strong.deck-health-verdict{ color:#36d979!important; }
+.deck-health-main.warning strong.deck-health-verdict{ color:#ffd34d!important; }
+.deck-health-main.danger strong.deck-health-verdict{ color:#ff6b7b!important; }
 .deck-health-status{
   width:max-content!important;
   max-width:100%!important;
