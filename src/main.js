@@ -5977,11 +5977,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function shouldShowDeckVersionFilter(options, selectedColorValue, mode='performance'){
-    const prefix = mode === 'history' ? 'history' : 'performance';
-    const selectedColors = selectedFilterValues(`${prefix}ColorFilter`);
-    const selectedArchetypes = selectedFilterValues(`${prefix}ArchetypeFilter`);
-    if(!selectedColors.length) return false;
-    if(!selectedArchetypes.length) return false;
+    // Les versions restent visibles dès qu'il en existe au moins une. L'archétype
+    // (et la bicolorité) ne font que FILTRER la liste — via deckFilterOptionsForPills —
+    // ils ne la masquent plus. Sans archétype sélectionné, toutes les versions
+    // s'affichent ; en sélectionnant un archétype, seules les versions de cet
+    // archétype subsistent. (Auparavant on exigeait couleur + archétype, ce qui
+    // pouvait tout masquer quand aucun archétype n'était défini sur les decks.)
     return (options || []).filter(option => option.value !== 'all').length >= 1;
   }
 
@@ -5993,10 +5994,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return '';
   }
 
+  function rowQueueString(row){
+    return [
+      row?.queue_id,
+      row?.duelink_queue,
+      row?.analysis_json?.api_metadata?.queue,
+      row?.api_metadata?.duelink_queue,
+      row?.api_metadata?.queue
+    ].map(value => String(value || '')).filter(Boolean).join(' ').toLowerCase();
+  }
+
   function rowSetNum(row){
-    const q = String(row?.queue_id || '').toLowerCase();
-    const m = q.match(/set(\d+)/);
-    return m ? m[1] : '';
+    const q = rowQueueString(row);
+    // Duels.ink se trompe parfois de tag : « Core Set 12 BO3 · Core BO3 - Set 11 ».
+    // Le set réel est celui mentionné EN DERNIER (le « Set 11 » de fin), même si
+    // le début indique un autre set. On scanne donc tout le tag (séparateurs
+    // espace/tiret/underscore tolérés) et on retient la dernière occurrence.
+    const matches = [...q.matchAll(/set[\s_-]*0*(\d+)/g)];
+    return matches.length ? matches[matches.length - 1][1] : '';
   }
 
   function lorcanaPoolOptions(){
@@ -9302,6 +9317,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const sort = state.performanceMulliganSort || 'smart';
     const expanded = !!state.performanceExpandedLists?.mulligan || !!options.full;
     let rows = applyMulliganLabFilters(analytics.cards || [], filters);
+    // Seuil minimum d'occurrences : on masque les cartes vues une ou deux fois en
+    // main d'ouverture (bruit statistique, ex. une carte jouée une seule fois).
+    // Repli de sécurité : si aucune carte n'atteint le seuil (très petit
+    // échantillon), on garde la liste complète pour ne pas tout vider.
+    const MIN_MULLIGAN_OPENINGS = 3;
+    const significant = rows.filter(card => n(card.opening) >= MIN_MULLIGAN_OPENINGS);
+    if(significant.length) rows = significant;
     rows = filterMulliganCardsBySort(rows, sort).sort((a,b)=>compareMulliganCards(a,b,sort));
     const limit = expanded ? 80 : 10;
     const visible = rows.slice(0, limit);
