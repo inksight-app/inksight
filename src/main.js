@@ -4824,21 +4824,26 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function joinTeamByCode(code) {
-    const userId = state.currentUser?.id;
-    if (!userId) throw new Error('Non connecté');
-    const { data: team, error } = await supabase.from('teams')
-      .select('id, name').eq('invite_code', code.trim().toUpperCase()).single();
-    if (error || !team) throw new Error('Code d\'invitation invalide');
-    const { data: existing } = await supabase.from('team_members')
-      .select('id').eq('team_id', team.id).eq('user_id', userId).is('left_at', null).single();
-    if (existing) throw new Error('Tu es déjà membre de cette équipe');
-    const profile = await getOrCreateUserProfile();
-    await supabase.from('team_members').insert({
-      team_id: team.id, user_id: userId,
-      display_name: profile?.display_name || 'Joueur',
-      role: 'member'
-    });
-    return team;
+    if (!state.currentUser?.id) throw new Error('Non connecté');
+    // Passe par la fonction serveur sécurisée : un non-membre ne peut pas lire la
+    // table teams (RLS), donc la résolution + l'inscription se font côté serveur.
+    const { data, error } = await supabase.rpc('join_team_by_code', { p_code: String(code || '').trim().toUpperCase() });
+    if (error) {
+      const msg = String(error.message || '');
+      if (msg.includes('INVALID_CODE')) throw new Error('Code d\'invitation invalide');
+      if (msg.includes('ALREADY_MEMBER')) throw new Error('Tu es déjà membre de cette équipe');
+      if (msg.includes('NOT_AUTHENTICATED')) throw new Error('Non connecté');
+      throw new Error(msg || 'Erreur lors de la jonction.');
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return { id: row?.team_id, name: row?.team_name || 'l\'équipe' };
+  }
+
+  async function peekTeamByCode(code) {
+    const { data, error } = await supabase.rpc('peek_team_by_code', { p_code: String(code || '').trim().toUpperCase() });
+    if (error) return null;
+    const row = Array.isArray(data) ? data[0] : data;
+    return row?.team_id ? { id: row.team_id, name: row.team_name, memberCount: row.member_count } : null;
   }
 
   async function leaveTeam(teamId) {
@@ -4920,8 +4925,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if (!state.currentUser) { els.teamSection.innerHTML = ''; return; }
 
     if (!state.team) {
+      // On NE consomme PAS pendingCode ici : c'est showJoinInviteConfirm qui le
+      // gère (affiche un récap + bouton « Rejoindre »), et qui le nettoie après.
       const pendingCode = sessionStorage.getItem('inksight:pendingJoinCode') || '';
-      if (pendingCode) sessionStorage.removeItem('inksight:pendingJoinCode');
       els.teamSection.innerHTML = `
         <div class="team-section">
           <div class="team-head">
@@ -4929,6 +4935,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
             <h2>Rejoindre une équipe</h2>
             <p>Utilise un lien ou code d'invitation pour rejoindre une équipe et partager vos statistiques.</p>
           </div>
+          <div id="teamJoinConfirm"></div>
           <div class="team-field">
             <label class="team-field-label" for="teamCodeInput">Code d'invitation</label>
             <input type="text" id="teamCodeInput" placeholder="Ex: HELVETNK" maxlength="16" autocomplete="off" value="${esc(pendingCode)}">
@@ -4937,6 +4944,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <p id="teamActionStatus" class="team-status"></p>
         </div>`;
       bindTeamFormEvents();
+      if (pendingCode) showJoinInviteConfirm(pendingCode);
       return;
     }
 
@@ -5083,19 +5091,50 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     el.classList.toggle('team-status-ok', !isError && !!msg);
   }
 
+  async function joinTeamFlow(code) {
+    const clean = String(code || '').trim().toUpperCase();
+    if (!clean) { setTeamActionStatus('Entre le code d\'invitation.', true); return; }
+    try {
+      setTeamActionStatus('Rejoindre l\'équipe…');
+      const team = await joinTeamByCode(clean);
+      sessionStorage.removeItem('inksight:pendingJoinCode');
+      state.team = await loadMyTeam();
+      renderTeamSection();
+      updateTeamContextBars();
+      setTeamActionStatus(`Tu as rejoint "${team.name}" !`);
+    } catch (err) { setTeamActionStatus(err.message || 'Erreur lors de la jonction.', true); }
+  }
+
   function bindTeamFormEvents() {
-    document.getElementById('teamJoinBtn')?.addEventListener('click', async () => {
-      const input = document.getElementById('teamCodeInput');
-      const code = (input?.value || '').trim().toUpperCase();
-      if (!code) { setTeamActionStatus('Entre le code d\'invitation.', true); return; }
-      try {
-        setTeamActionStatus('Rejoindre l\'équipe…');
-        const team = await joinTeamByCode(code);
-        state.team = await loadMyTeam();
-        renderTeamSection();
-        updateTeamContextBars();
-        setTeamActionStatus(`Tu as rejoint "${team.name}" !`);
-      } catch (err) { setTeamActionStatus(err.message || 'Erreur lors de la jonction.', true); }
+    document.getElementById('teamJoinBtn')?.addEventListener('click', () => {
+      joinTeamFlow(document.getElementById('teamCodeInput')?.value);
+    });
+  }
+
+  // Lien d'invitation (?join=CODE) : on résout l'équipe via la fonction sécurisée
+  // et on affiche un récap + bouton « Rejoindre » (au lieu d'un simple champ code).
+  async function showJoinInviteConfirm(code) {
+    const host = document.getElementById('teamJoinConfirm');
+    if (!host) return;
+    host.innerHTML = `<div class="team-join-confirm is-loading">Vérification de l'invitation…</div>`;
+    const team = await peekTeamByCode(code);
+    if (!team) {
+      host.innerHTML = `<div class="team-join-confirm is-error"><strong>Invitation introuvable</strong><span>Le code « ${esc(code)} » ne correspond à aucune équipe. Vérifie le code ou demande un nouveau lien.</span></div>`;
+      return;
+    }
+    host.innerHTML = `
+      <div class="team-join-confirm">
+        <strong>Rejoindre « ${esc(team.name)} » ?</strong>
+        <span>${n(team.memberCount)} membre(s). En rejoignant, les matchs et decks que tu marques « visibles équipe » seront partagés avec l'équipe.</span>
+        <div class="team-join-confirm-actions">
+          <button type="button" class="primary-button compact" id="teamJoinAcceptBtn">Rejoindre ${esc(team.name)}</button>
+          <button type="button" class="ghost-button compact" id="teamJoinDeclineBtn">Plus tard</button>
+        </div>
+      </div>`;
+    document.getElementById('teamJoinAcceptBtn')?.addEventListener('click', () => joinTeamFlow(code));
+    document.getElementById('teamJoinDeclineBtn')?.addEventListener('click', () => {
+      sessionStorage.removeItem('inksight:pendingJoinCode');
+      host.innerHTML = '';
     });
   }
 

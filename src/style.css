@@ -17220,3 +17220,12 @@ body::before{
 .dl-rename-edit{ display:inline-flex; align-items:center; gap:.35rem; }
 .dl-rename-edit svg{ opacity:.85; flex:0 0 auto; }
 .dl-rename-edit:hover{ border-color:rgba(255,255,255,.28); }
+
+/* Confirmation d'invitation équipe (flux ?join=CODE) */
+.team-join-confirm{ display:grid; gap:.5rem; padding:1rem; margin-bottom:1rem; border:1px solid rgba(255,255,255,.14); border-radius:1rem; background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02)); }
+.team-join-confirm strong{ color:#fff; font-size:1.02rem; }
+.team-join-confirm span{ color:var(--muted); font-size:.86rem; line-height:1.45; }
+.team-join-confirm.is-loading,.team-join-confirm.is-error{ color:var(--muted); }
+.team-join-confirm.is-error strong{ color:#ffd34d; }
+.team-join-confirm-actions{ display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.25rem; }
+.team-join-confirm-actions .primary-button.compact,.team-join-confirm-actions .ghost-button.compact{ width:auto; padding:.6rem 1rem; }
