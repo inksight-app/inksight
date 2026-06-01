@@ -17229,3 +17229,8 @@ body::before{
 .team-join-confirm.is-error strong{ color:#ffd34d; }
 .team-join-confirm-actions{ display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.25rem; }
 .team-join-confirm-actions .primary-button.compact,.team-join-confirm-actions .ghost-button.compact{ width:auto; padding:.6rem 1rem; }
+
+/* Diagnostic temporaire « sans replay » (import Duels.ink) */
+.duelink-diag h4{ margin:.7rem 0 .25rem; font-size:.78rem; color:#ffd34d; text-transform:uppercase; letter-spacing:.08em; }
+.duelink-diag-line{ font-size:.76rem; color:#d4d4d8; word-break:break-word; margin:.15rem 0; }
+.duelink-diag-pre{ margin:.35rem 0 0; padding:.6rem; max-height:240px; overflow:auto; background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.1); border-radius:.6rem; font-size:.68rem; line-height:1.35; white-space:pre-wrap; word-break:break-word; color:#cbd5e1; }

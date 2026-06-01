@@ -600,7 +600,34 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         </div>
         ${duelinkImportFiltersHtml(games)}
         ${duelinkQueueReadoutHtml(games)}
+        ${duelinkReplayDiagnosticHtml(games)}
       </div>`;
+  }
+
+  // Diagnostic temporaire : dump des champs bruts d'un match « sans replay » vs un
+  // « avec replay », pour repérer où Duels.ink expose l'identifiant de replay
+  // (la détection actuelle en rate ~537). À retirer une fois pickReplayId ajusté.
+  function duelinkReplayDiagnosticHtml(games=[]){
+    const without = (games || []).find(g => g && !g.replayId);
+    if(!without) return '';
+    const withReplay = (games || []).find(g => g && g.replayId);
+    const dump = (g, label) => {
+      if(!g) return `<h4>${esc(label)}</h4><div>—</div>`;
+      const keys = (g.rawKeys || []).join(', ');
+      let raw = '';
+      try{
+        raw = JSON.stringify(g.apiRow ?? g, (k, v) => (typeof v === 'string' && v.length > 100 ? v.slice(0, 100) + '…' : v), 1);
+      }catch(_e){ raw = ''; }
+      return `<h4>${esc(label)}</h4>
+        <div class="duelink-diag-line"><b>replayId :</b> ${esc(String(g.replayId || '(aucun)'))} · <b>id :</b> ${esc(String(g.id || '—'))}</div>
+        <div class="duelink-diag-line"><b>clés :</b> ${esc(keys || '—')}</div>
+        <pre class="duelink-diag-pre">${esc((raw || '—').slice(0, 1800))}</pre>`;
+    };
+    return `<details class="duelink-queue-readout duelink-diag">
+      <summary>🔧 Diagnostic « sans replay » (à m'envoyer en capture)</summary>
+      ${dump(without, 'Exemple SANS replay')}
+      ${dump(withReplay, 'Exemple AVEC replay (comparaison)')}
+    </details>`;
   }
 
   function duelinkImportFiltersHtml(games=[]){
