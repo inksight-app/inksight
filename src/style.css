@@ -42,7 +42,11 @@
 
 
 /* V30 — Premium polish, chart accessibility and glass micro-interactions */
-:root{ --faint:#8a8a98; --aura-one:#2f8bd9; --aura-two:#f6c54d; }
+/* Aura neutre : les halos d'angle du fond ne sont plus teintés par la
+   bicolorité (bleu/jaune). On garde une tonalité sombre quasi hueless pour un
+   fond homogène sur toutes les vues. --theme-color-1/2 restent intacts pour les
+   accents data-viz (barres, points, boutons). */
+:root{ --faint:#8a8a98; --aura-one:#0d0e11; --aura-two:#0d0e11; }
 *:focus-visible{outline:2px solid var(--good);outline-offset:2px;box-shadow:0 0 0 6px rgba(52,211,153,.13)}
 body{line-height:1.5}
 .ambient{inset:0;height:auto;background:none;filter:none;opacity:1;overflow:hidden;z-index:0}
@@ -79,8 +83,8 @@ body{line-height:1.5}
   --theme-color-2:#f6c54d;
   --mx:50%;
   --my:18%;
-  --aura-one:var(--theme-color-1);
-  --aura-two:var(--theme-color-2);
+  --aura-one:#0d0e11;
+  --aura-two:#0d0e11;
 }
 body{
   background:
