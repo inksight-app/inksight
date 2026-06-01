@@ -6238,6 +6238,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return { speed, label: LABELS[speed], _avg: avgCost, _lpc: lorePerCost };
   }
 
+  let _archetypeReflowScheduled = false;
+  function ensureArchetypeReflowAfterCards(){
+    // Le référentiel cartes (coûts) n'est pas encore chargé : on le charge puis on
+    // recalcule et re-rend une seule fois, pour que les archétypes auto apparaissent
+    // sans action manuelle.
+    if(_archetypeReflowScheduled) return;
+    _archetypeReflowScheduled = true;
+    ensureLocalCardsLoaded().then(() => {
+      _archetypeReflowScheduled = false;
+      deckArchetypeCache.clear();
+      try{ renderPerformanceFilterPills(); }catch(_e){}
+      try{ globalThis.INKSIGHT_renderPerformanceData?.(); }catch(_e){}
+    }).catch(() => { _archetypeReflowScheduled = false; });
+  }
+
   function getProfileArchetype(profileId){
     if(!profileId) return null;
     const key = String(profileId);
@@ -6245,12 +6260,18 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     // Check localStorage for manually set or previously auto-computed archetype
     const stored = loadStoredArchetype(key);
     if(stored){ deckArchetypeCache.set(key, stored); return stored; }
+    // computeDeckArchetype a besoin des coûts de cartes. Sans le référentiel chargé,
+    // on diffère SANS cacher null (sinon le deck restait non classé jusqu'à une action
+    // manuelle). On programme un recalcul auto dès que les cartes sont disponibles.
+    if(!state.cards?.length){ ensureArchetypeReflowAfterCards(); return null; }
     // Try from apiDecklistStatus (DuelInk import — card data in the match row)
     const match = (state.savedMatches || []).find(r =>
       String(r.deck_profile_id) === key && apiDecklistStatus(r, 'mine').cards.length >= 5
     );
     const archetype = match ? computeDeckArchetype(apiDecklistStatus(match, 'mine').cards) : null;
     if(archetype) saveStoredArchetype(key, archetype);
+    // On cache le résultat (y compris null) seulement maintenant que les cartes sont
+    // chargées : la classification est alors déterministe.
     deckArchetypeCache.set(key, archetype);
     return archetype;
   }
@@ -6543,6 +6564,47 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         setTimeout(() => document.addEventListener('click', closeOnOutside), 10);
       });
     }
+
+    // Renommer la version : champ inline à côté du badge (le panneau Compte ayant
+    // été retiré, le renommage se fait désormais depuis la decklist).
+    const renameBtn = sheet.querySelector('[data-deck-rename-inline]');
+    if(renameBtn){
+      renameBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        if(sheet.querySelector('.dl-rename-input')){ sheet.querySelector('.dl-rename-input').focus(); return; }
+        const pid = renameBtn.dataset.deckRenameInline;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'dl-rename-input';
+        input.value = profile?.name || '';
+        input.setAttribute('aria-label', 'Nouveau nom de la version');
+        renameBtn.insertAdjacentElement('afterend', input);
+        input.focus();
+        input.select();
+        let done = false;
+        const commit = async () => {
+          if(done) return; done = true;
+          const name = String(input.value || '').trim();
+          input.remove();
+          if(!name || name === profile?.name || !state.currentUser) return;
+          try{
+            await renameDeckProfile(pid, name);
+            if(profile) profile.name = name;
+            const p = state.deckProfiles.find(x => String(x.id) === String(pid));
+            if(p) p.name = name;
+            const title = sheet.querySelector('.decklist-sheet-title');
+            if(title) title.textContent = name;
+            try{ renderPerformanceFilterPills(); }catch(_e){}
+            try{ globalThis.INKSIGHT_renderPerformanceData?.(); }catch(_e){}
+          }catch(err){ console.warn('Renommage de version échoué', err); }
+        };
+        input.addEventListener('keydown', ev => {
+          if(ev.key === 'Enter'){ ev.preventDefault(); commit(); }
+          else if(ev.key === 'Escape'){ done = true; input.remove(); }
+        });
+        input.addEventListener('blur', commit);
+      });
+    }
   }
 
   function ensureDecklistSheet(){
@@ -6655,7 +6717,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const ARCHETYPE_COLORS = { aggro:'#f87171', midrange:'#34d399', control:'#60a5fa' };
     const archetypeColor = archetype ? (ARCHETYPE_COLORS[archetype.speed] || 'var(--theme-color-1)') : 'var(--muted)';
     const archetypeBadge = `<button type="button" class="dl-archetype-badge dl-archetype-edit" data-archetype-edit="${escAttr(pid||'')}" style="color:${archetypeColor}" title="Modifier l'archétype">${esc(archetype?.label || '— Archétype')} ▾</button>`;
-    const statsBar = `<div class="dl-summary">${buildMiniCostCurveHtml(cards)}<div class="dl-summary-stats">${stats}${archetypeBadge}</div>${inkDotsBig}</div>`;
+    const renameBadge = pid ? `<button type="button" class="dl-archetype-badge dl-rename-edit" data-deck-rename-inline="${escAttr(pid)}" title="Renommer la version">✎ Renommer</button>` : '';
+    const statsBar = `<div class="dl-summary">${buildMiniCostCurveHtml(cards)}<div class="dl-summary-stats">${stats}${archetypeBadge}${renameBadge}</div>${inkDotsBig}</div>`;
 
     const actionsBar = `<div class="dl-actions"><button type="button" class="ghost-button compact dl-copy-btn" data-decklist-copy><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copier la decklist</span></button></div>`;
     return `${statsBar}${actionsBar}${sections}`;
