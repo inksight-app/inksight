@@ -5672,6 +5672,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const btn = event.target.closest('[data-perf-filter][data-value]');
     if(!btn) return;
     const targetId = btn.dataset.perfFilter;
+
+    // Les filtres multi-valeurs (couleur, deck, archétype, pool, set…) stockent leur
+    // état dans state.filterSelections, pas dans un <select>. Certains (pool, set)
+    // n'ont d'ailleurs PAS d'élément <select> de support : on les traite donc AVANT
+    // toute vérification d'élément, sinon le clic était ignoré.
+    if(isMultiFilterId(targetId)){
+      toggleMultiFilterValue(targetId, btn.dataset.value);
+      if(targetId === 'performanceColorFilter'){ clearSelectedFilterValues('performanceDeckFilter'); clearSelectedFilterValues('performanceArchetypeFilter'); }
+      if(targetId === 'historyColorFilter'){ clearSelectedFilterValues('historyDeckFilter'); clearSelectedFilterValues('historyArchetypeFilter'); }
+      if(targetId === 'performanceArchetypeFilter') clearSelectedFilterValues('performanceDeckFilter');
+      if(targetId === 'historyArchetypeFilter') clearSelectedFilterValues('historyDeckFilter');
+      renderPerformanceData();
+      return;
+    }
+
     const target = els[targetId];
     if(!target) return;
 
@@ -5680,16 +5695,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       renderPillGroup(els.saveDeckPills, 'saveDeckSelect', saveDeckOptionsForCurrentMatch(), els.saveDeckSelect?.value || '');
       syncSaveButton();
       target.dispatchEvent(new Event('input', { bubbles:true }));
-      return;
-    }
-
-    if(isMultiFilterId(targetId)){
-      toggleMultiFilterValue(targetId, btn.dataset.value);
-      if(targetId === 'performanceColorFilter'){ clearSelectedFilterValues('performanceDeckFilter'); clearSelectedFilterValues('performanceArchetypeFilter'); }
-      if(targetId === 'historyColorFilter'){ clearSelectedFilterValues('historyDeckFilter'); clearSelectedFilterValues('historyArchetypeFilter'); }
-      if(targetId === 'performanceArchetypeFilter') clearSelectedFilterValues('performanceDeckFilter');
-      if(targetId === 'historyArchetypeFilter') clearSelectedFilterValues('historyDeckFilter');
-      renderPerformanceData();
       return;
     }
 
@@ -5833,6 +5838,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const showDeckVersions = shouldShowDeckVersionFilter(deckOptions, null, 'performance');
     if(els.performanceVersionBlock) els.performanceVersionBlock.hidden = !showDeckVersions;
     renderDeckPillGroup(els.performanceDeckPills, 'performanceDeckFilter', deckOptions);
+    // Auto-classification : pré-calcule en arrière-plan les archétypes des decks
+    // affichés qui n'en ont pas encore (decks importés sans decklist en ligne légère).
+    const visibleDeckIds = deckOptions.flatMap(option => String(option.value || '').split('|')).filter(id => id && id !== 'all');
+    if(visibleDeckIds.length) precomputeArchetypesForProfiles(visibleDeckIds);
 
     const performanceOpponentOptions = opponentColorOptionsForPills('stats');
     syncSelectOptions(els.performanceOpponentColorFilter, performanceOpponentOptions, 'all');
@@ -6013,7 +6022,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!id) return;
       const key = String(id);
       const profile = state.deckProfiles.find(item => String(item.id) === key);
-      if(!profile || !isNamedDeckProfile(profile)) return;
+      // On n'exige plus que le deck soit « nommé » : un deck à version unique (ou
+      // pas encore renommé) doit rester visible et cliquable (pour voir sa decklist
+      // et le renommer). Le pill affiche le nom du profil (renommable).
+      if(!profile) return;
       if(selectedColors.length && !selectedColors.some(colorKey => profileMatchesColorKey(profile, colorKey))) return;
       const entry = stats.get(key) || { games:0, wins:0, lastPlayedAt:null };
       entry.games += 1;
@@ -6251,6 +6263,46 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       try{ renderPerformanceFilterPills(); }catch(_e){}
       try{ globalThis.INKSIGHT_renderPerformanceData?.(); }catch(_e){}
     }).catch(() => { _archetypeReflowScheduled = false; });
+  }
+
+  // Pré-calcul d'archétypes en arrière-plan : les lignes « légères » de l'historique
+  // ne contiennent pas toujours la decklist complète (api_metadata tronqué), donc
+  // getProfileArchetype ne peut pas classer certains decks importés sans ouvrir leur
+  // decklist. On va chercher le match complet (getSavedMatch) une seule fois par deck
+  // visible, on calcule l'archétype, on le mémorise puis on re-rend. Borné et dédupliqué.
+  const _archPrecomputed = new Set();
+  let _archPrecomputeBusy = false;
+  async function precomputeArchetypesForProfiles(profileIds=[]){
+    if(!state.currentUser || _archPrecomputeBusy) return;
+    const todo = [...new Set(profileIds.map(String))]
+      .filter(pid => pid && !_archPrecomputed.has(pid) && !loadStoredArchetype(pid) && !deckArchetypeCache.get(pid))
+      .slice(0, 40);
+    if(!todo.length) return;
+    _archPrecomputeBusy = true;
+    let changed = false;
+    try{
+      await ensureLocalCardsLoaded();
+      for(const pid of todo){
+        _archPrecomputed.add(pid);
+        const matchRow = (state.savedMatches || []).find(r => String(r.deck_profile_id) === pid);
+        if(!matchRow) continue;
+        let cards = apiDecklistStatus(matchRow, 'mine').cards;
+        if(cards.length < 5){
+          try{ const full = await getSavedMatch(matchRow.id); cards = apiDecklistStatus(full, 'mine').cards; }
+          catch(_e){ continue; }
+        }
+        if(cards.length >= 5){
+          const arch = computeDeckArchetype(cards);
+          if(arch){ saveStoredArchetype(pid, arch); deckArchetypeCache.set(pid, arch); changed = true; }
+        }
+      }
+    }finally{
+      _archPrecomputeBusy = false;
+    }
+    if(changed){
+      try{ renderPerformanceFilterPills(); }catch(_e){}
+      try{ globalThis.INKSIGHT_renderPerformanceData?.(); }catch(_e){}
+    }
   }
 
   function getProfileArchetype(profileId){
