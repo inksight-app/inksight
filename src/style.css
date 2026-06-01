@@ -17211,3 +17211,7 @@ body::before{
 .duelink-queue-chips{ display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.55rem; }
 .duelink-queue-chip{ border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.045); border-radius:999px; padding:.28rem .6rem; color:#d4d4d8; font-size:.74rem; font-weight:650; }
 .duelink-queue-chip b{ color:#fff; margin-left:.2rem; }
+
+/* Renommage inline d'une version depuis la decklist */
+.dl-rename-input{ min-height:34px; border-radius:999px; border:1px solid rgba(255,255,255,.22); background:rgba(0,0,0,.35); color:#fff; padding:.3rem .7rem; font:inherit; font-size:.82rem; font-weight:650; max-width:220px; }
+.dl-rename-input:focus{ outline:2px solid rgba(255,255,255,.5); outline-offset:1px; }
