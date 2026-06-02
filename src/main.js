@@ -11725,7 +11725,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     ];
     const statsHtml = stats.map(s => `<div class="share-stat"><strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
     return `<div class="share-card share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
-      <div class="share-card-head"><span class="share-logo">◇ InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
+      <div class="share-card-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
       <div class="share-matchup">
         <div class="share-side"><span class="share-dots">${inkDotsHtml(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
         <div class="share-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
