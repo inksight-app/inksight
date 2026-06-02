@@ -17290,19 +17290,12 @@ body::before{
 .ddh-val{ font-weight:800; background:color-mix(in srgb, #1f8a48 calc(var(--p) * 1%), rgba(255,255,255,.035)); color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.4); }
 .ddh-val span{ font-size:.62em; opacity:.7; margin-left:.05em; }
 
-/* Consistance d'ouverture — vue visuelle à barres (v2) */
-.oc2-legend{ display:flex; flex-wrap:wrap; gap:.4rem 1rem; margin-bottom:.7rem; font-size:.74rem; color:var(--muted); }
-.oc2-legend b{ display:inline-block; width:.7rem; height:.7rem; border-radius:3px; vertical-align:middle; margin-right:.25rem; }
-.oc2-k-real{ background:linear-gradient(90deg,var(--theme-color-1),var(--theme-color-2)); }
-.oc2-k-theo{ background:rgba(255,255,255,.55); width:.28rem!important; border-radius:1px!important; height:.8rem!important; }
-.oc2-list{ display:grid; gap:.5rem; }
-.oc2-row{ display:grid; grid-template-columns:minmax(0,1fr) minmax(90px,170px) auto; align-items:center; gap:.7rem; }
-.oc2-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.84rem; color:#e4e4e7; }
-.oc2-name em{ color:var(--muted); font-style:normal; font-weight:700; font-size:.76rem; }
-.oc2-bar{ position:relative; height:11px; border-radius:999px; background:rgba(255,255,255,.07); overflow:visible; }
-.oc2-bar b{ position:absolute; left:0; top:0; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--theme-color-1),var(--theme-color-2)); }
-.oc2-bar i{ position:absolute; top:-3px; width:2px; height:17px; border-radius:1px; background:#fff; opacity:.85; box-shadow:0 0 0 1px rgba(0,0,0,.35); }
-.oc2-vals{ display:flex; flex-direction:column; align-items:flex-end; line-height:1.05; min-width:3.2rem; }
-.oc2-real{ font-weight:800; font-variant-numeric:tabular-nums; color:#fff; font-size:.92rem; }
-.oc2-real.pos{ color:#36d979; } .oc2-real.neg{ color:#ff6b7b; }
-.oc2-theo{ font-style:normal; color:var(--faint); font-size:.66rem; font-weight:700; margin-top:.12rem; font-variant-numeric:tabular-nums; }
+/* Main de départ — galerie de cartes (même langage visuel que l'onglet Cartes) */
+.oc-intro{ margin:0 0 .9rem!important; }
+.opening-card-gallery{ margin-top:0; }
+.opening-card-tile .performance-card-art{ position:relative; }
+.opening-rank{ position:absolute; top:6px; left:6px; z-index:2; display:inline-grid; place-items:center; min-width:1.5rem; height:1.5rem; padding:0 .32rem; border-radius:999px; background:rgba(0,0,0,.62); border:1px solid rgba(255,255,255,.18); color:#fff; font-size:.7rem; font-weight:800; font-variant-numeric:tabular-nums; backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); }
+.opening-hero{ display:flex; align-items:baseline; gap:.45rem; flex-wrap:wrap; margin:.1rem 0; }
+.opening-hero b{ font-size:clamp(1.5rem,3.4vw,2rem); font-weight:800; line-height:1; letter-spacing:-.04em; color:#fff; font-variant-numeric:tabular-nums; }
+.opening-hero b span{ font-size:.5em; color:var(--muted); margin-left:.02em; }
+.opening-hero small{ flex:1 1 130px; min-width:120px; color:rgba(255,255,255,.6); font-size:.72rem; font-weight:650; line-height:1.3; }
