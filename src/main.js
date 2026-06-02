@@ -604,29 +604,25 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       </div>`;
   }
 
-  // Diagnostic temporaire : dump des champs bruts d'un match « sans replay » vs un
-  // « avec replay », pour repérer où Duels.ink expose l'identifiant de replay
-  // (la détection actuelle en rate ~537). À retirer une fois pickReplayId ajusté.
+  // Ventilation des matchs « sans replay » : Duels.ink ne génère pas de replay
+  // pour les parties abandonnées/interrompues (rien à importer, normal). Les
+  // parties complètes sans replay_id n'ont simplement pas (encore) de replay
+  // généré côté Duels.ink → ouvrir « Replay » sur la partie puis resynchroniser.
   function duelinkReplayDiagnosticHtml(games=[]){
-    const without = (games || []).find(g => g && !g.replayId);
-    if(!without) return '';
-    const withReplay = (games || []).find(g => g && g.replayId);
-    const dump = (g, label) => {
-      if(!g) return `<h4>${esc(label)}</h4><div>—</div>`;
-      const keys = (g.rawKeys || []).join(', ');
-      let raw = '';
-      try{
-        raw = JSON.stringify(g.apiRow ?? g, (k, v) => (typeof v === 'string' && v.length > 100 ? v.slice(0, 100) + '…' : v), 1);
-      }catch(_e){ raw = ''; }
-      return `<h4>${esc(label)}</h4>
-        <div class="duelink-diag-line"><b>replayId :</b> ${esc(String(g.replayId || '(aucun)'))} · <b>id :</b> ${esc(String(g.id || '—'))}</div>
-        <div class="duelink-diag-line"><b>clés :</b> ${esc(keys || '—')}</div>
-        <pre class="duelink-diag-pre">${esc((raw || '—').slice(0, 1800))}</pre>`;
+    const missing = (games || []).filter(g => g && !g.replayId);
+    if(!missing.length) return '';
+    const isAbandon = g => {
+      const r = String(g.result || g.apiRow?.result || '').toLowerCase();
+      const er = String(g.apiRow?.end_reason || '').toLowerCase();
+      const turns = n(g.apiRow?.turns);
+      return r === 'abandoned' || er === 'abandoned' || r === 'incomplete' || (turns > 0 && turns <= 1);
     };
-    return `<details class="duelink-queue-readout duelink-diag">
-      <summary>🔧 Diagnostic « sans replay » (à m'envoyer en capture)</summary>
-      ${dump(without, 'Exemple SANS replay')}
-      ${dump(withReplay, 'Exemple AVEC replay (comparaison)')}
+    const abandoned = missing.filter(isAbandon).length;
+    const completed = missing.length - abandoned;
+    return `<details class="duelink-queue-readout">
+      <summary>Pourquoi ${missing.length} « sans replay » ?</summary>
+      <div class="duelink-diag-line">• <b>${abandoned}</b> partie(s) abandonnée(s)/interrompue(s) : Duels.ink ne génère pas de replay → rien à importer (normal).</div>
+      <div class="duelink-diag-line">• <b>${completed}</b> partie(s) complète(s) sans replay disponible : le replay n'a pas (encore) été généré côté Duels.ink. Ouvre « Replay » sur la partie dans Duels.ink, puis resynchronise.</div>
     </details>`;
   }
 
