@@ -7112,7 +7112,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!state.currentUser || state.savedMatchesLoaded || state.savedMatchesLoading) return false;
     const cachedRows = readSessionCache('saved-match-summaries');
     if(!Array.isArray(cachedRows) || !cachedRows.length) return false;
-    state.savedMatches = cachedRows;
+    // Filet : un cache antérieur a pu contenir des matchs de coéquipiers (avant le
+    // filtrage par utilisateur). On ne garde que les matchs de l'utilisateur courant.
+    state.savedMatches = cachedRows.filter(r => !state.currentUser?.id || !r.user_id || r.user_id === state.currentUser.id);
     state.savedMatchesLoaded = true;
     if(!state.selectedSavedMatchId && state.savedMatches.length) state.selectedSavedMatchId = state.savedMatches[0].id;
     renderPerformanceData();
