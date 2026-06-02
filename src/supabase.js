@@ -591,7 +591,7 @@ export async function listSavedAnalyticsDetails(matchIds = []) {
   // contain more card/turn-stat rows than that, which would make the dashboard render
   // partial and therefore false signals. Fetch in ID chunks + pages so the background
   // analytics load is complete before it is displayed.
-  const gameColumns = 'match_id,game_number,is_win,format,played_at,source_type,duelink_source,duelink_queue,otp,first_turn_player,turn_count,final_mine_lore,final_opp_lore,mine_colors,opponent_colors,matchup_label';
+  const gameColumns = 'match_id,game_number,is_win,format,played_at,source_type,duelink_source,duelink_queue,otp,first_turn_player,turn_count,cards_seen,final_mine_lore,final_opp_lore,mine_colors,opponent_colors,matchup_label';
   const cardColumns = 'match_id,game_number,owner,card_key,card_name,card_type,colors,seen,in_opening_hand,kept_mulligan,replaced_mulligan,played,inked,quest_count,lore_generated,challenge_count,first_turns,avg_turn';
   const turnColumns = 'match_id,game_number,owner,turn,lore,hand_count,ink_capacity,ink_spent,ink_float,inked,cards_played,quests,challenges';
 
