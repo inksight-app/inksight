@@ -11764,18 +11764,36 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const drawsPerTurn = Math.max(0, seen - 7) / t;
     const fullDeckTurn = drawsPerTurn > 0 ? Math.ceil((deck - 7) / drawsPerTurn) : null;
     const byTurn = nn => Math.min(deck, Math.round(7 + drawsPerTurn * nn));
-    const cols = [3, 5, 8];
-    const head = `<div class="ddp-row ddp-head"><span>Copies</span><span>Main</span>${cols.map(c => `<span>T${c}</span>`).join('')}</div>`;
+    const cols = [
+      { label: 'Main', seen: 7 },
+      { label: 'T3', seen: byTurn(3) },
+      { label: 'T5', seen: byTurn(5) },
+      { label: 'T8', seen: byTurn(8) }
+    ];
+    const head = `<div class="ddh-cell ddh-corner"></div>` + cols.map(c => `<div class="ddh-cell ddh-col">${c.label}</div>`).join('');
     const body = [1, 2, 3, 4].map(c => {
-      const cells = [7, ...cols.map(byTurn)].map(s => `<span>${Math.round(hyperSeeAtLeastOne(c, s, deck) * 100)}%</span>`).join('');
-      return `<div class="ddp-row"><span>${c}×</span>${cells}</div>`;
+      const rowHead = `<div class="ddh-cell ddh-rowhead">${c}×</div>`;
+      const cells = cols.map(col => {
+        const pct = Math.round(hyperSeeAtLeastOne(c, col.seen, deck) * 100);
+        return `<div class="ddh-cell ddh-val" style="--p:${pct}">${pct}<span>%</span></div>`;
+      }).join('');
+      return rowHead + cells;
     }).join('');
-    const cycle = fullDeckTurn
-      ? `🔄 Tour de deck complet ≈ <strong>T${fullDeckTurn}</strong>`
-      : 'Pioche trop lente pour estimer le tour de deck';
-    return `<div class="ddp-summary"><span><strong>${seen}</strong> vues · ${pctDeck}% du deck</span><span><strong>${cardsPerTurn.toFixed(1)}</strong> cartes/tour</span><span>${cycle}</span></div>
-      <div class="ddp-grid">${head}${body}</div>
-      <p class="deck-depth-note">Probabilité d’avoir vu ≥1 exemplaire d’une carte, par palier de tour, calée sur ton rythme réel (${cardsPerTurn.toFixed(1)} cartes/tour).</p>`;
+    const cycleChip = fullDeckTurn
+      ? `<span class="ddh-chip"><b>🔄 T${fullDeckTurn}</b> tour de deck</span>`
+      : `<span class="ddh-chip ddh-chip-soft">🔄 tour de deck lent</span>`;
+    return `<div class="ddh">
+      <div class="ddh-hero">
+        <div class="ddh-hero-num">${pctDeck}<span>%</span></div>
+        <div class="ddh-hero-lab">du deck vu<br><b>${seen}/${deck}</b> cartes</div>
+        <div class="ddh-chips">
+          <span class="ddh-chip"><b>🃏 ${cardsPerTurn.toFixed(1)}</b> cartes/tour</span>
+          ${cycleChip}
+        </div>
+      </div>
+      <div class="ddh-grid">${head}${body}</div>
+      <p class="deck-depth-note">Chaque case = probabilité d’avoir <b>déjà vu ≥1 exemplaire</b> d’une carte, selon ses copies (lignes) et le palier de tour (colonnes). Plus c’est vert, plus c’est probable. Calé sur ton rythme réel (${cardsPerTurn.toFixed(1)} cartes/tour).</p>
+    </div>`;
   }
 
   function sessionWentFirst(s){
