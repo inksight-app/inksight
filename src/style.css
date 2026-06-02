@@ -17254,6 +17254,7 @@ body::before{
 .deck-depth-game{ margin-top:.2rem; }
 .deck-depth-game h4{ margin:.2rem 0 .4rem; font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:rgba(255,255,255,.55); }
 .deck-depth-note{ margin:.5rem 0 0; font-size:.74rem; color:var(--muted); line-height:1.4; }
+.perf-detail-intro{ margin:0 0 clamp(12px,1.6vw,18px); color:var(--ui-text-readable,#d9d9e2); font-size:.86rem; line-height:1.55; max-width:62ch; }
 /* Les sous-titres de ces blocs doivent toujours se lire en entier (jamais tronqués). */
 .deck-depth-panel .section-head p{ -webkit-line-clamp:unset!important; line-clamp:unset!important; display:block!important; overflow:visible!important; white-space:normal!important; }
 
