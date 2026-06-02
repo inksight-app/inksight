@@ -17373,7 +17373,7 @@ body.share-open{ overflow:hidden; }
 .share-modal-inner{ position:relative; display:grid; gap:.9rem; width:min(420px,100%); max-height:94vh; overflow:auto; }
 .share-modal-actions{ display:flex; gap:.6rem; justify-content:center; }
 .share-modal-hint{ text-align:center; color:var(--muted); font-size:.76rem; margin:0; }
-.share-card{ position:relative; width:100%; aspect-ratio:4/5; border-radius:24px; overflow:hidden; padding:24px; display:flex; flex-direction:column; gap:16px; color:#fff; font-family:Inter,system-ui,sans-serif;
+.share-card{ position:relative; width:100%; border-radius:24px; overflow:hidden; padding:24px; display:flex; flex-direction:column; gap:16px; color:#fff; font-family:Inter,system-ui,sans-serif;
   background:
     radial-gradient(120% 80% at 8% -12%, color-mix(in srgb,var(--sc1,#2f8bd9) 62%, transparent), transparent 60%),
     radial-gradient(120% 90% at 112% 8%, color-mix(in srgb,var(--sc2,#8b5cc7) 50%, transparent), transparent 55%),
@@ -17395,13 +17395,13 @@ body.share-open{ overflow:hidden; }
 .share-score{ text-align:center; }
 .share-score strong{ display:block; font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:2.5rem; font-weight:800; letter-spacing:-.04em; line-height:1; font-variant-numeric:tabular-nums; }
 .share-score span{ font-size:.6rem; text-transform:uppercase; letter-spacing:.2em; color:rgba(255,255,255,.5); margin-top:.3rem; display:block; }
-.share-mvp{ display:flex; gap:13px; align-items:center; padding:13px; border-radius:16px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); }
-.share-mvp-thumb{ width:62px; aspect-ratio:5/7; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,.16); flex:0 0 auto; }
-.share-mvp-thumb.thumb-placeholder{ display:grid; place-items:center; color:#cfd0da; font-weight:800; font-size:.62rem; text-align:center; padding:.2rem; }
-.share-mvp-info{ display:grid; gap:2px; min-width:0; }
-.share-mvp-info span{ font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.16em; color:var(--sc2,#f6c54d); }
-.share-mvp-info strong{ font-size:1rem; font-weight:800; line-height:1.15; }
-.share-mvp-info small{ color:rgba(255,255,255,.64); font-size:.78rem; }
+.share-keys{ display:grid; gap:9px; }
+.share-keys-label{ font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.16em; color:var(--sc2,#f6c54d); }
+.share-keys-row{ display:flex; gap:10px; }
+.share-key{ flex:1 1 0; display:grid; gap:6px; justify-items:center; min-width:0; }
+.share-key-thumb{ width:100%; aspect-ratio:5/7; object-fit:cover; border-radius:10px; border:1px solid rgba(255,255,255,.16); box-shadow:0 8px 22px rgba(0,0,0,.32); }
+.share-key-thumb.thumb-placeholder{ display:grid; place-items:center; color:#cfd0da; font-weight:800; font-size:.6rem; text-align:center; padding:.25rem; line-height:1.1; }
+.share-key-cap{ font-size:.64rem; font-weight:700; color:rgba(255,255,255,.66); font-variant-numeric:tabular-nums; }
 .share-moment{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
 .share-moment span{ font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.16em; color:rgba(255,255,255,.5); }
 .share-moment strong{ font-size:.92rem; font-weight:700; }
@@ -17409,6 +17409,9 @@ body.share-open{ overflow:hidden; }
 .share-stat{ background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:11px 5px; text-align:center; }
 .share-stat strong{ display:block; font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:1.05rem; font-weight:700; font-variant-numeric:tabular-nums; }
 .share-stat span{ font-size:.56rem; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.5); margin-top:.2rem; display:block; }
-.share-foot{ display:flex; justify-content:space-between; align-items:center; font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.45); }
+.share-foot{ display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+.share-foot-text{ display:grid; gap:3px; font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.5); }
+.share-qr{ flex:0 0 auto; width:54px; height:54px; opacity:.92; }
+.share-qr svg{ width:100%; height:100%; display:block; }
 .share-modal-actions{ display:grid; grid-template-columns:auto 1fr; gap:.6rem; }
 .share-modal-actions .ghost-button,.share-modal-actions .primary-button{ min-height:46px; }
