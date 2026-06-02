@@ -1688,8 +1688,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!logs.length) return 0;
     const initial = logs.find(l => l.type === 'INITIAL_HAND');
     const initialCount = initial ? (arrayify(initial.cardRefs).length || 7) : 7;
-    const draws = logs.filter(l => l.type === 'CARD_DRAWN' && Number(l.player) === Number(perspective)).length;
-    return Math.min(60, initialCount + draws);
+    // Toute carte qui passe du DECK à la MAIN compte : pioche de tour ET pioches
+    // d'effet (CARD_DRAWN), cartes prises via un « regarde le dessus » (CARD_LOOKED_AT
+    // « put … into hand », ex. Vision of the Future) et tutors (« Searched deck … put
+    // it into hand »). NB : les cartes regardées puis remises au fond ne sont PAS
+    // journalisées par Duels.ink — on ne peut donc pas les identifier.
+    const fromDeckToHand = logs.filter(l => {
+      if(Number(l.player) !== Number(perspective)) return false;
+      const msg = String(l.message || '');
+      if(l.type === 'CARD_DRAWN') return true;
+      if(l.type === 'CARD_LOOKED_AT') return /into hand/i.test(msg);
+      if(l.type === 'ABILITY_TRIGGERED') return /searched deck/i.test(msg) && /into hand/i.test(msg);
+      return false;
+    }).length;
+    return Math.min(60, initialCount + fromDeckToHand);
   }
 
   function parseReplay(data, file){
