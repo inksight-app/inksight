@@ -11661,7 +11661,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const lead = Math.max(best.mine, best.opp, 1);
     panel.hidden = false;
     panel.innerHTML = `
-      <div class="mf-head"><span class="mf-kicker">⚡ Moment fort du match</span><span class="mf-turn">Tour ${best.turn}</span></div>
+      <div class="mf-head"><span class="mf-kicker">Moment fort du match</span><span class="mf-turn">Tour ${best.turn}</span></div>
       <div class="mf-statement ${favor ? 'mf-up' : 'mf-down'}">
         <strong>${favor ? '+' : '−'}${Math.abs(best.swing)} lore d’écart</strong>
         <span>${favor ? 'tu fais basculer la course au lore en ta faveur' : 'l’adversaire reprend l’avantage au lore'}</span>
@@ -11672,6 +11672,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       </div>
       ${thumbs ? `<div class="mf-cards"><span class="mf-cards-label">Tes quêtes ce tour</span><div class="mf-cards-row">${thumbs}</div></div>` : ''}`;
     bindCardButtons();
+  }
+
+  // Retire les emojis/pictogrammes décoratifs (ex. pseudos « LEO 🍄🐳 ») pour un
+  // rendu de partage net et pro.
+  function stripDecoEmoji(s){
+    return String(s || '')
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}\u{1F1E6}-\u{1F1FF}]/gu, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
   }
 
   function inkDotsHtml(profile){
@@ -11690,17 +11699,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const score = global ? `${n(m.wins)}–${n(m.losses)}` : `${n(m.finalMineLore)}–${n(m.finalOppLore)}`;
     const scoreUnit = global ? 'manches' : 'lore';
     const resultLabel = win ? 'VICTOIRE' : 'DÉFAITE';
-    const playerName = cleanCardName(m.myName || m.first?.myName || 'Joueur');
-    const oppName = cleanCardName(m.opponentName || m.first?.opponentName || 'Adversaire');
+    const playerName = stripDecoEmoji(cleanCardName(m.myName || m.first?.myName || 'Joueur')) || 'Joueur';
+    const oppName = stripDecoEmoji(cleanCardName(m.opponentName || m.first?.opponentName || 'Adversaire')) || 'Adversaire';
     const dateStr = m.playedAt ? formatSavedDate(m.playedAt) : '';
     const mvp = loreEngineCards(cardsForScope(m, 'mine')).sort(compareLoreEngines)[0];
     const mvpBlock = mvp ? `
       <div class="share-mvp">
         ${cardThumbHtml(mvp, 'share-mvp-thumb')}
-        <div class="share-mvp-info"><span>★ Carte MVP</span><strong>${esc(fullName(mvp))}</strong><small>${n(mvp.lore)} lore généré${n(mvp.played) ? ` · jouée ${n(mvp.played)}×` : ''}</small></div>
+        <div class="share-mvp-info"><span>Carte MVP</span><strong>${esc(fullName(mvp))}</strong><small>${n(mvp.lore)} lore généré${n(mvp.played) ? ` · jouée ${n(mvp.played)}×` : ''}</small></div>
       </div>` : '';
     const mf = global ? null : computeMomentFort(m);
-    const mfBlock = mf ? `<div class="share-moment"><span>⚡ Moment fort</span><strong>Tour ${mf.turn} · ${mf.swing > 0 ? "+" : "−"}${Math.abs(mf.swing)} lore d’écart</strong></div>` : '';
+    const mfBlock = mf ? `<div class="share-moment"><span>Moment fort</span><strong>Tour ${mf.turn} · ${mf.swing > 0 ? "+" : "−"}${Math.abs(mf.swing)} lore d’écart</strong></div>` : '';
     const opening = global ? bo3OpeningStatus(m) : gameOpeningStatus(m);
     const metrics = m.proMetrics || {};
     const g = (!global && arrayify(m.sessions)[0]) ? m.sessions[0] : m;
@@ -11714,7 +11723,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     ];
     const statsHtml = stats.map(s => `<div class="share-stat"><strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
     return `<div class="share-card share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
-      <div class="share-card-head"><span class="share-logo">◇ InkSight</span><span class="share-result-badge">${win ? '🏆 ' : ''}${resultLabel}</span></div>
+      <div class="share-card-head"><span class="share-logo">◇ InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
       <div class="share-matchup">
         <div class="share-side"><span class="share-dots">${inkDotsHtml(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
         <div class="share-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
@@ -11739,7 +11748,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <div class="share-card-stage" id="shareCardStage"></div>
           <div class="share-modal-actions">
             <button type="button" class="ghost-button" data-share-close>Fermer</button>
-            <button type="button" class="primary-button" id="shareDownloadBtn">⬇ Télécharger l’image</button>
+            <button type="button" class="primary-button" id="shareDownloadBtn">Télécharger l’image</button>
           </div>
           <p class="share-modal-hint">Astuce : tu peux aussi faire une capture d’écran de ce visuel.</p>
         </div>`;
@@ -11775,7 +11784,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       btn.textContent = prev;
       btn.disabled = false;
     }catch(_e){
-      btn.textContent = 'Capture l’écran 📸';
+      btn.textContent = 'Fais une capture d’écran';
       setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2600);
     }
   }
@@ -11940,14 +11949,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return rowHead + cells;
     }).join('');
     const cycleChip = fullDeckTurn
-      ? `<span class="ddh-chip"><b>🔄 T${fullDeckTurn}</b> tour de deck</span>`
-      : `<span class="ddh-chip ddh-chip-soft">🔄 tour de deck lent</span>`;
+      ? `<span class="ddh-chip"><b>T${fullDeckTurn}</b> tour de deck</span>`
+      : `<span class="ddh-chip ddh-chip-soft">tour de deck lent</span>`;
     return `<div class="ddh">
       <div class="ddh-hero">
         <div class="ddh-hero-num">${pctDeck}<span>%</span></div>
         <div class="ddh-hero-lab">du deck vu<br><b>${seen}/${deck}</b> cartes</div>
         <div class="ddh-chips">
-          <span class="ddh-chip"><b>🃏 ${cardsPerTurn.toFixed(1)}</b> cartes/tour</span>
+          <span class="ddh-chip"><b>${cardsPerTurn.toFixed(1)}</b> cartes/tour</span>
           ${cycleChip}
         </div>
       </div>
@@ -12080,7 +12089,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const ordered = arrayify(games)
       .filter(g => g && typeof g.isWin === 'boolean')
       .sort((a, b) => new Date(a.playedAt || 0) - new Date(b.playedAt || 0));
-    if(card) card.classList.remove('streak-hot', 'streak-cold');
+    if(card) card.classList.remove('streak-hot', 'streak-cold', 'streak-win', 'streak-loss');
     if(!ordered.length){
       val.textContent = '—';
       if(help) help.textContent = 'Enchaînez les victoires pour lancer une série.';
@@ -12091,11 +12100,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     let current = 0; const lastWin = ordered[ordered.length - 1].isWin;
     for(let i = ordered.length - 1; i >= 0; i--){ if(ordered[i].isWin === lastWin) current += 1; else break; }
     if(lastWin){
-      val.innerHTML = `🔥 ${current} <small class="streak-unit">${current > 1 ? 'victoires' : 'victoire'} d’affilée</small>`;
-      if(card && current >= 3) card.classList.add('streak-hot');
+      val.innerHTML = `${current} <small class="streak-unit">${current > 1 ? 'victoires' : 'victoire'} d’affilée</small>`;
+      if(card){ card.classList.add('streak-win'); if(current >= 3) card.classList.add('streak-hot'); }
     }else{
-      val.innerHTML = `❄️ ${current} <small class="streak-unit">${current > 1 ? 'défaites' : 'défaite'} d’affilée</small>`;
-      if(card && current >= 3) card.classList.add('streak-cold');
+      val.innerHTML = `${current} <small class="streak-unit">${current > 1 ? 'défaites' : 'défaite'} d’affilée</small>`;
+      if(card){ card.classList.add('streak-loss'); if(current >= 3) card.classList.add('streak-cold'); }
     }
     if(help) help.textContent = bestWin ? `Record : ${bestWin} victoire${bestWin > 1 ? 's' : ''} d’affilée.` : 'Enchaînez les victoires pour lancer une série.';
   }
