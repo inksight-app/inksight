@@ -16435,6 +16435,16 @@ body.is-authenticated #view-account .duelink-sync-card{
     radial-gradient(circle at 8% 0%, rgba(55,148,227,.10), transparent 34%),
     linear-gradient(180deg, rgba(255,255,255,.052), rgba(255,255,255,.026)) !important;
 }
+/* Bloc Équipe : même habillage et même espacement que la carte de synchro au-dessus. */
+body.is-authenticated #view-account .team-section-wrapper{
+  background:
+    radial-gradient(circle at 8% 0%, rgba(55,148,227,.10), transparent 34%),
+    linear-gradient(180deg, rgba(255,255,255,.052), rgba(255,255,255,.026)) !important;
+}
+#view-account .duelink-connect-section + .team-section-wrapper,
+#view-account .duelink-sync-card + .team-section-wrapper{
+  margin-top:clamp(18px,3vw,30px)!important;
+}
 
 /* =========================================================
    Stats : supprimer le bloc-dans-bloc. Les onglets Cartes,
@@ -16628,10 +16638,6 @@ body::before{
 .team-section-wrapper {
   padding: clamp(18px, 2.5vw, 28px);
   margin-top: clamp(16px, 2.4vw, 28px);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.022)),
-    rgba(13,14,17,.82) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.075), 0 22px 70px rgba(0,0,0,.44) !important;
 }
 
 .team-section {
@@ -17248,6 +17254,8 @@ body::before{
 .deck-depth-game{ margin-top:.2rem; }
 .deck-depth-game h4{ margin:.2rem 0 .4rem; font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:rgba(255,255,255,.55); }
 .deck-depth-note{ margin:.5rem 0 0; font-size:.74rem; color:var(--muted); line-height:1.4; }
+/* Les sous-titres de ces blocs doivent toujours se lire en entier (jamais tronqués). */
+.deck-depth-panel .section-head p{ -webkit-line-clamp:unset!important; line-clamp:unset!important; display:block!important; overflow:visible!important; white-space:normal!important; }
 
 /* Consistance d'ouverture (théorie vs réalité) */
 .oc-table{ display:grid; gap:.3rem; }
@@ -17287,12 +17295,14 @@ body::before{
 .oc2-legend b{ display:inline-block; width:.7rem; height:.7rem; border-radius:3px; vertical-align:middle; margin-right:.25rem; }
 .oc2-k-real{ background:linear-gradient(90deg,var(--theme-color-1),var(--theme-color-2)); }
 .oc2-k-theo{ background:rgba(255,255,255,.55); width:.28rem!important; border-radius:1px!important; height:.8rem!important; }
-.oc2-list{ display:grid; gap:.45rem; }
-.oc2-row{ display:grid; grid-template-columns:minmax(0,1fr) 120px 42px; align-items:center; gap:.6rem; }
+.oc2-list{ display:grid; gap:.5rem; }
+.oc2-row{ display:grid; grid-template-columns:minmax(0,1fr) minmax(90px,170px) auto; align-items:center; gap:.7rem; }
 .oc2-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.84rem; color:#e4e4e7; }
 .oc2-name em{ color:var(--muted); font-style:normal; font-weight:700; font-size:.76rem; }
-.oc2-bar{ position:relative; height:10px; border-radius:999px; background:rgba(255,255,255,.07); overflow:hidden; }
+.oc2-bar{ position:relative; height:11px; border-radius:999px; background:rgba(255,255,255,.07); overflow:visible; }
 .oc2-bar b{ position:absolute; left:0; top:0; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--theme-color-1),var(--theme-color-2)); }
-.oc2-bar i{ position:absolute; top:-2px; width:2px; height:14px; background:#fff; opacity:.8; }
-.oc2-val{ text-align:right; font-weight:800; font-variant-numeric:tabular-nums; color:#fff; font-size:.82rem; }
-.oc2-val.pos{ color:#36d979; } .oc2-val.neg{ color:#ff6b7b; }
+.oc2-bar i{ position:absolute; top:-3px; width:2px; height:17px; border-radius:1px; background:#fff; opacity:.85; box-shadow:0 0 0 1px rgba(0,0,0,.35); }
+.oc2-vals{ display:flex; flex-direction:column; align-items:flex-end; line-height:1.05; min-width:3.2rem; }
+.oc2-real{ font-weight:800; font-variant-numeric:tabular-nums; color:#fff; font-size:.92rem; }
+.oc2-real.pos{ color:#36d979; } .oc2-real.neg{ color:#ff6b7b; }
+.oc2-theo{ font-style:normal; color:var(--faint); font-size:.66rem; font-weight:700; margin-top:.12rem; font-variant-numeric:tabular-nums; }
