@@ -11702,11 +11702,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const playerName = stripDecoEmoji(cleanCardName(m.myName || m.first?.myName || 'Joueur')) || 'Joueur';
     const oppName = stripDecoEmoji(cleanCardName(m.opponentName || m.first?.opponentName || 'Adversaire')) || 'Adversaire';
     const dateStr = m.playedAt ? formatSavedDate(m.playedAt) : '';
-    const mvp = loreEngineCards(cardsForScope(m, 'mine')).sort(compareLoreEngines)[0];
-    const mvpBlock = mvp ? `
-      <div class="share-mvp">
-        ${cardThumbHtml(mvp, 'share-mvp-thumb')}
-        <div class="share-mvp-info"><span>Carte MVP</span><strong>${esc(fullName(mvp))}</strong><small>${n(mvp.lore)} lore généré${n(mvp.played) ? ` · jouée ${n(mvp.played)}×` : ''}</small></div>
+    const keyCards = loreEngineCards(cardsForScope(m, 'mine')).sort(compareLoreEngines).slice(0, 3);
+    const keysBlock = keyCards.length ? `
+      <div class="share-keys">
+        <span class="share-keys-label">${keyCards.length > 1 ? 'Cartes clés' : 'Carte clé'}</span>
+        <div class="share-keys-row">
+          ${keyCards.map(c => `<div class="share-key">${cardThumbHtml(c, 'share-key-thumb')}<span class="share-key-cap">${n(c.lore)} lore</span></div>`).join('')}
+        </div>
       </div>` : '';
     const mf = global ? null : computeMomentFort(m);
     const mfBlock = mf ? `<div class="share-moment"><span>Moment fort</span><strong>Tour ${mf.turn} · ${mf.swing > 0 ? "+" : "−"}${Math.abs(mf.swing)} lore d’écart</strong></div>` : '';
@@ -11729,15 +11731,29 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <div class="share-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
         <div class="share-side share-side-opp"><span class="share-dots">${inkDotsHtml(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
       </div>
-      ${mvpBlock}${mfBlock}
+      ${keysBlock}${mfBlock}
       <div class="share-stats">${statsHtml}</div>
-      <div class="share-foot"><span>inksight-omega.vercel.app</span><span>${esc(dateStr)}</span></div>
+      <div class="share-foot"><div class="share-foot-text"><span>inksight-omega.vercel.app</span><span>${esc(dateStr)}</span></div>${_shareQrSvg ? `<div class="share-qr">${_shareQrSvg}</div>` : ''}</div>
     </div>`;
   }
 
-  function openShareModal(){
+  let _shareQrSvg = '';
+  async function ensureShareQr(){
+    if(_shareQrSvg) return _shareQrSvg;
+    try{
+      const QR = (await import('qrcode')).default;
+      _shareQrSvg = await QR.toString('https://inksight-omega.vercel.app', {
+        type: 'svg', margin: 0, errorCorrectionLevel: 'M',
+        color: { dark: '#ffffff', light: '#00000000' }
+      });
+    }catch(_e){ _shareQrSvg = ''; }
+    return _shareQrSvg;
+  }
+
+  async function openShareModal(){
     const m = getWorkingData();
     if(!m) return;
+    await ensureShareQr();
     let modal = document.getElementById('shareModal');
     if(!modal){
       modal = document.createElement('div');
