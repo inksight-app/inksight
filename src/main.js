@@ -49,7 +49,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','momentFortPanel','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','inkwellPanel','inkwellTimeline','inkwellSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','deckDepthMatch','deckDepthMatchPanel','performanceDeckDepth','performanceOpeningConsistency','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceStreak','performanceStreakHelp','performanceStreakCard','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory','performanceDateFrom','performanceDateTo','performanceDateCustom','historyDateFrom','historyDateTo','historyDateCustom'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','momentFortPanel','shareMatchButton','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','inkwellPanel','inkwellTimeline','inkwellSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','deckDepthMatch','deckDepthMatchPanel','performanceDeckDepth','performanceOpeningConsistency','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceStreak','performanceStreakHelp','performanceStreakCard','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory','performanceDateFrom','performanceDateTo','performanceDateCustom','historyDateFrom','historyDateTo','historyDateCustom'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -11483,6 +11483,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function renderResultHero(m){
     if(!els.resultHero) return;
+    if(els.shareMatchButton){ els.shareMatchButton.hidden = !m; els.shareMatchButton.onclick = openShareModal; }
     if(!m){ els.resultHero.innerHTML=''; return; }
     const global = m.isBO3 || isGlobalView();
     const win = m.wins > m.losses;
@@ -11626,13 +11627,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   // Moment fort : le tour qui a le plus fait basculer la course au lore
   // (plus grosse variation de l'écart Toi − Adversaire), avec les cartes
   // qu'on a fait quêter ce tour-là. Élément narratif/ludique d'un match.
-  function renderMomentFort(m){
-    const panel = els.momentFortPanel;
-    if(!panel) return;
-    const series = isGlobalView() ? [] : arrayify(m?.loreSeries)
+  // Tour qui a le plus fait basculer l'écart de lore (Toi − Adversaire).
+  function computeMomentFort(m){
+    const series = arrayify(m?.loreSeries)
       .filter(r => r && n(r.turn) > 0)
       .sort((a, b) => n(a.turn) - n(b.turn));
-    if(series.length < 2){ panel.hidden = true; panel.innerHTML = ''; return; }
+    if(series.length < 2) return null;
     let prevDiff = 0, best = null;
     series.forEach(row => {
       const diff = n(row.mine) - n(row.opponent);
@@ -11642,7 +11642,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }
       prevDiff = diff;
     });
-    if(!best || best.swing === 0){ panel.hidden = true; panel.innerHTML = ''; return; }
+    return best && best.swing !== 0 ? best : null;
+  }
+
+  function renderMomentFort(m){
+    const panel = els.momentFortPanel;
+    if(!panel) return;
+    const best = isGlobalView() ? null : computeMomentFort(m);
+    if(!best){ panel.hidden = true; panel.innerHTML = ''; return; }
     const favor = best.swing > 0;
     const seen = new Set();
     const thumbs = arrayify(m?.timeline)
@@ -11665,6 +11672,112 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       </div>
       ${thumbs ? `<div class="mf-cards"><span class="mf-cards-label">Tes quêtes ce tour</span><div class="mf-cards-row">${thumbs}</div></div>` : ''}`;
     bindCardButtons();
+  }
+
+  function inkDotsHtml(profile){
+    const inks = profile?.inks?.length ? profile.inks : ['inkless'];
+    return inks.map(key => `<i class="ink-dot ink-${escAttr(key)}"></i>`).join('');
+  }
+
+  // Visuel de partage d'un match : score héros, matchup, carte MVP, moment fort
+  // et stats clés — teinté aux couleurs du deck. Pensé pour être screenshoté / exporté.
+  function buildShareCardHtml(m){
+    const global = m.isBO3 || isGlobalView();
+    const win = n(m.wins) > n(m.losses);
+    const profiles = m.inkProfiles || buildInkProfiles(m);
+    const mineColors = profiles.mine?.colors?.length ? profiles.mine.colors : ['#2f8bd9', '#8b5cc7'];
+    const c1 = mineColors[0], c2 = mineColors[1] || mineColors[0];
+    const score = global ? `${n(m.wins)}–${n(m.losses)}` : `${n(m.finalMineLore)}–${n(m.finalOppLore)}`;
+    const scoreUnit = global ? 'manches' : 'lore';
+    const resultLabel = win ? 'VICTOIRE' : 'DÉFAITE';
+    const playerName = cleanCardName(m.myName || m.first?.myName || 'Joueur');
+    const oppName = cleanCardName(m.opponentName || m.first?.opponentName || 'Adversaire');
+    const dateStr = m.playedAt ? formatSavedDate(m.playedAt) : '';
+    const mvp = loreEngineCards(cardsForScope(m, 'mine')).sort(compareLoreEngines)[0];
+    const mvpBlock = mvp ? `
+      <div class="share-mvp">
+        ${cardThumbHtml(mvp, 'share-mvp-thumb')}
+        <div class="share-mvp-info"><span>★ Carte MVP</span><strong>${esc(fullName(mvp))}</strong><small>${n(mvp.lore)} lore généré${n(mvp.played) ? ` · jouée ${n(mvp.played)}×` : ''}</small></div>
+      </div>` : '';
+    const mf = global ? null : computeMomentFort(m);
+    const mfBlock = mf ? `<div class="share-moment"><span>⚡ Moment fort</span><strong>Tour ${mf.turn} · ${mf.swing > 0 ? "+" : "−"}${Math.abs(mf.swing)} lore d’écart</strong></div>` : '';
+    const opening = global ? bo3OpeningStatus(m) : gameOpeningStatus(m);
+    const metrics = m.proMetrics || {};
+    const g = (!global && arrayify(m.sessions)[0]) ? m.sessions[0] : m;
+    const turns = global ? Math.round(n(m.avgTurns)) : n(g.turnCount || g.totalTurns || m.turnCount);
+    const seen = global ? 0 : Math.min(60, n(g.cardsSeen || m.cardsSeen));
+    const stats = [
+      { k: 'Tours', v: turns || '—' },
+      { k: 'Départ', v: opening?.code || '—' },
+      { k: 'Quêtes/Défis', v: `${n(metrics.questCount)}/${n(metrics.challengeCount)}` },
+      { k: 'Deck vu', v: seen ? `${Math.round(seen / 60 * 100)}%` : '—' }
+    ];
+    const statsHtml = stats.map(s => `<div class="share-stat"><strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
+    return `<div class="share-card share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
+      <div class="share-card-head"><span class="share-logo">◇ InkSight</span><span class="share-result-badge">${win ? '🏆 ' : ''}${resultLabel}</span></div>
+      <div class="share-matchup">
+        <div class="share-side"><span class="share-dots">${inkDotsHtml(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
+        <div class="share-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
+        <div class="share-side share-side-opp"><span class="share-dots">${inkDotsHtml(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
+      </div>
+      ${mvpBlock}${mfBlock}
+      <div class="share-stats">${statsHtml}</div>
+      <div class="share-foot"><span>inksight-omega.vercel.app</span><span>${esc(dateStr)}</span></div>
+    </div>`;
+  }
+
+  function openShareModal(){
+    const m = getWorkingData();
+    if(!m) return;
+    let modal = document.getElementById('shareModal');
+    if(!modal){
+      modal = document.createElement('div');
+      modal.id = 'shareModal';
+      modal.className = 'share-modal';
+      modal.innerHTML = `<div class="share-modal-backdrop" data-share-close></div>
+        <div class="share-modal-inner" role="dialog" aria-modal="true" aria-label="Visuel de partage du match">
+          <div class="share-card-stage" id="shareCardStage"></div>
+          <div class="share-modal-actions">
+            <button type="button" class="ghost-button" data-share-close>Fermer</button>
+            <button type="button" class="primary-button" id="shareDownloadBtn">⬇ Télécharger l’image</button>
+          </div>
+          <p class="share-modal-hint">Astuce : tu peux aussi faire une capture d’écran de ce visuel.</p>
+        </div>`;
+      document.body.appendChild(modal);
+      modal.addEventListener('click', e => { if(e.target.closest('[data-share-close]')) closeShareModal(); });
+      modal.querySelector('#shareDownloadBtn').addEventListener('click', downloadShareImage);
+    }
+    modal.querySelector('#shareCardStage').innerHTML = buildShareCardHtml(m);
+    modal.hidden = false;
+    document.body.classList.add('share-open');
+  }
+
+  function closeShareModal(){
+    const modal = document.getElementById('shareModal');
+    if(modal) modal.hidden = true;
+    document.body.classList.remove('share-open');
+  }
+
+  async function downloadShareImage(){
+    const card = document.querySelector('#shareCardStage .share-card');
+    const btn = document.getElementById('shareDownloadBtn');
+    if(!card || !btn) return;
+    const prev = btn.textContent;
+    btn.textContent = 'Génération…';
+    btn.disabled = true;
+    try{
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(card, { pixelRatio: 2, cacheBust: true });
+      const a = document.createElement('a');
+      a.download = `inksight-match-${Date.now()}.png`;
+      a.href = dataUrl;
+      a.click();
+      btn.textContent = prev;
+      btn.disabled = false;
+    }catch(_e){
+      btn.textContent = 'Capture l’écran 📸';
+      setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2600);
+    }
   }
 
   function renderQuickInsights(m, metrics){
