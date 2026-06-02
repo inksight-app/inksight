@@ -11704,14 +11704,34 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return 'Défaite serrée';
   }
 
-  // Visuel de partage d'un match : score héros, matchup, carte MVP, moment fort
-  // et stats clés — teinté aux couleurs du deck. Pensé pour être screenshoté / exporté.
-  function buildShareCardHtml(m){
+  // Mini-graphe « course au lore » (toi vs adversaire par tour), en SVG inline
+  // pour un export fiable (sans dépendance ni souci CORS).
+  function loreRaceSvg(m){
+    const series = arrayify(m?.loreSeries).filter(r => r && n(r.turn) > 0).sort((a, b) => n(a.turn) - n(b.turn));
+    if(series.length < 2) return '';
+    const W = 312, H = 150, pl = 8, pr = 8, pt = 12, pb = 14;
+    const maxT = series[series.length - 1].turn;
+    const maxL = Math.max(20, ...series.map(r => Math.max(n(r.mine), n(r.opponent))));
+    const X = t => pl + (maxT > 1 ? (t - 1) / (maxT - 1) : 0) * (W - pl - pr);
+    const Y = l => H - pb - (l / maxL) * (H - pt - pb);
+    const line = key => series.map((r, i) => `${i ? 'L' : 'M'}${X(r.turn).toFixed(1)},${Y(n(r[key])).toFixed(1)}`).join(' ');
+    const area = `${line('mine')} L${X(maxT).toFixed(1)},${(H - pb).toFixed(1)} L${X(1).toFixed(1)},${(H - pb).toFixed(1)} Z`;
+    const last = series[series.length - 1];
+    return `<svg class="lr-svg" viewBox="0 0 ${W} ${H}">
+        <line class="lr-goal" x1="${pl}" y1="${Y(20).toFixed(1)}" x2="${W - pr}" y2="${Y(20).toFixed(1)}"/>
+        <path class="lr-area" d="${area}"/>
+        <path class="lr-opp" d="${line('opponent')}"/>
+        <path class="lr-mine" d="${line('mine')}"/>
+      </svg>
+      <div class="lr-legend"><span><i class="lr-k-mine"></i>Toi ${n(last.mine)}</span><span><i class="lr-k-opp"></i>Adv. ${n(last.opponent)}</span><span class="lr-k-goal">objectif&nbsp;20</span></div>`;
+  }
+
+  // Visuel de partage d'un match, en 3 variantes (cartes / course au lore / résumé).
+  // Teinté aux couleurs du deck, pensé pour l'export PNG ou la capture.
+  function buildShareCardHtml(m, variant = 'cards'){
     const global = m.isBO3 || isGlobalView();
     const win = n(m.wins) > n(m.losses);
     const profiles = m.inkProfiles || buildInkProfiles(m);
-    // Couleurs du deck si détectées ; sinon repli NEUTRE et élégant (et non un
-    // violet arbitraire qui ressemble à un bug quand les encres ne sont pas lues).
     const inkCols = (profiles.mine?.colors || []).filter(Boolean);
     const c1 = inkCols[0] || '#3b4a6b';
     const c2 = inkCols[1] || inkCols[0] || '#27304a';
@@ -11723,13 +11743,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const oppName = stripDecoEmoji(cleanCardName(m.opponentName || m.first?.opponentName || 'Adversaire')) || 'Adversaire';
     const dateStr = m.playedAt ? formatSavedDate(m.playedAt) : '';
     const keyCards = loreEngineCards(cardsForScope(m, 'mine')).sort(compareLoreEngines).slice(0, 3);
-    const keysBlock = keyCards.length ? `
-      <div class="share-keys">
-        <span class="share-keys-label">${keyCards.length > 1 ? 'Cartes clés' : 'Carte clé'}</span>
-        <div class="share-keys-row">
-          ${keyCards.map(c => `<div class="share-key">${cardThumbHtml(c, 'share-key-thumb')}<span class="share-key-cap">${n(c.lore)} lore</span></div>`).join('')}
-        </div>
-      </div>` : '';
     const mf = global ? null : computeMomentFort(m);
     const mfBlock = mf ? `<div class="share-moment"><span>Moment fort</span><strong>Tour ${mf.turn} · ${mf.swing > 0 ? "+" : "−"}${Math.abs(mf.swing)} lore d’écart</strong></div>` : '';
     const opening = global ? bo3OpeningStatus(m) : gameOpeningStatus(m);
@@ -11744,16 +11757,39 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       { k: 'Deck vu', v: seen ? `${Math.round(seen / 60 * 100)}%` : '—' }
     ];
     const statsHtml = stats.map(s => `<div class="share-stat"><strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
-    return `<div class="share-card share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
+    const statsStrip = `<div class="share-stats">${statsHtml}</div>`;
+    const keysBlock = keyCards.length ? `
+      <div class="share-keys">
+        <span class="share-keys-label">${keyCards.length > 1 ? 'Cartes clés' : 'Carte clé'}</span>
+        <div class="share-keys-row">
+          ${keyCards.map(c => `<div class="share-key">${cardThumbHtml(c, 'share-key-thumb')}<span class="share-key-cap">${n(c.lore)} lore</span></div>`).join('')}
+        </div>
+      </div>` : '';
+
+    let middle;
+    if(variant === 'graph'){
+      const lore = loreRaceSvg(m);
+      middle = lore ? `<div class="share-lore"><span class="share-keys-label">Course au lore</span>${lore}</div>${mfBlock}${statsStrip}` : `${keysBlock}${statsStrip}`;
+    }else if(variant === 'stats'){
+      const mvp = keyCards[0];
+      const mvpMini = mvp ? `<div class="share-mvpmini">${cardThumbHtml(mvp, 'share-mvpmini-thumb')}<div class="share-mvpmini-info"><span class="share-keys-label">Carte clé</span><strong>${esc(fullName(mvp))}</strong><small>${n(mvp.lore)} lore généré</small></div></div>` : '';
+      middle = `<div class="share-stats share-stats-big">${statsHtml}</div>${mvpMini}${mfBlock}`;
+    }else{
+      middle = `${keysBlock}${statsStrip}`;
+    }
+
+    return `<div class="share-card share-${win ? 'win' : 'loss'} share-v-${variant}" style="--sc1:${c1};--sc2:${c2}">
       <div class="share-card-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
-      <div class="share-matchup">
-        <div class="share-side"><span class="share-dots">${inkDotsHtml(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
-        <div class="share-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
-        <div class="share-side share-side-opp"><span class="share-dots">${inkDotsHtml(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
+      <div class="share-scoreboard">
+        <div class="sb-teams">
+          <div class="sb-team"><span class="share-dots">${inkDotsHtml(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
+          <span class="sb-vs">VS</span>
+          <div class="sb-team sb-team-opp"><span class="share-dots">${inkDotsHtml(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
+        </div>
+        <div class="sb-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
       </div>
       ${tagline ? `<div class="share-tagline">${esc(tagline)}</div>` : ''}
-      ${keysBlock}${mfBlock}
-      <div class="share-stats">${statsHtml}</div>
+      ${middle}
       <div class="share-foot"><div class="share-foot-text"><span>inksight-omega.vercel.app</span><span>${esc(dateStr)}</span></div>${_shareQrSvg ? `<div class="share-qr">${_shareQrSvg}</div>` : ''}</div>
     </div>`;
   }
@@ -11771,6 +11807,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return _shareQrSvg;
   }
 
+  let _shareVariant = 'cards';
+  const SHARE_VARIANTS = [
+    { id: 'cards', label: 'Cartes' },
+    { id: 'graph', label: 'Lore' },
+    { id: 'stats', label: 'Résumé' }
+  ];
+  function renderShareVariant(){
+    const m = getWorkingData();
+    const modal = document.getElementById('shareModal');
+    if(!m || !modal) return;
+    modal.querySelectorAll('[data-share-variant]').forEach(b => b.classList.toggle('active', b.dataset.shareVariant === _shareVariant));
+    modal.querySelector('#shareCardStage').innerHTML = buildShareCardHtml(m, _shareVariant);
+  }
+
   async function openShareModal(){
     const m = getWorkingData();
     if(!m) return;
@@ -11782,20 +11832,27 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       modal.className = 'share-modal';
       modal.innerHTML = `<div class="share-modal-backdrop" data-share-close></div>
         <button type="button" class="share-modal-close" data-share-close aria-label="Fermer">×</button>
-        <div class="share-modal-inner" role="dialog" aria-modal="true" aria-label="Visuel de partage du match">
+        <div class="share-popup" role="dialog" aria-modal="true" aria-label="Visuel de partage du match">
+          <div class="share-variant-tabs" role="tablist" aria-label="Choisir le visuel">
+            ${SHARE_VARIANTS.map(v => `<button type="button" role="tab" class="share-variant-tab" data-share-variant="${v.id}">${v.label}</button>`).join('')}
+          </div>
           <div class="share-card-stage" id="shareCardStage"></div>
-          <div class="share-modal-actions">
-            <button type="button" class="ghost-button" data-share-close>Fermer</button>
+          <div class="share-popup-actions">
             <button type="button" class="primary-button" id="shareDownloadBtn">Télécharger l’image</button>
           </div>
-          <p class="share-modal-hint">Astuce : tu peux aussi faire une capture d’écran de ce visuel.</p>
+          <p class="share-modal-hint">Choisis un visuel, puis télécharge ou fais une capture.</p>
         </div>`;
       document.body.appendChild(modal);
-      modal.addEventListener('click', e => { if(e.target.closest('[data-share-close]')) closeShareModal(); });
+      modal.addEventListener('click', e => {
+        const tab = e.target.closest('[data-share-variant]');
+        if(tab){ _shareVariant = tab.dataset.shareVariant; renderShareVariant(); return; }
+        if(e.target.closest('[data-share-close]')) closeShareModal();
+      });
       modal.querySelector('#shareDownloadBtn').addEventListener('click', downloadShareImage);
       document.addEventListener('keydown', e => { if(e.key === 'Escape' && !modal.hidden) closeShareModal(); });
     }
-    modal.querySelector('#shareCardStage').innerHTML = buildShareCardHtml(m);
+    _shareVariant = 'cards';
+    renderShareVariant();
     modal.hidden = false;
     document.body.classList.add('share-open');
   }

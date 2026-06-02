@@ -17367,16 +17367,19 @@ body::before{
 .match-read-actions{ margin-top:1rem; }
 .share-match-button{ width:100%; }
 body.share-open{ overflow:hidden; }
-.share-modal{ position:fixed; inset:0; z-index:140; display:grid; place-items:center; padding:1.1rem; }
+.share-modal{ position:fixed; inset:0; z-index:140; display:grid; place-items:center; padding:clamp(16px,5vw,40px); }
 .share-modal[hidden]{ display:none!important; }
-.share-modal-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.64); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
-.share-modal-inner{ position:relative; display:grid; gap:.9rem; width:min(420px,100%); max-height:94vh; overflow:auto; }
-.share-modal-actions{ display:flex; gap:.6rem; justify-content:center; }
-.share-modal-hint{ text-align:center; color:var(--muted); font-size:.76rem; margin:0; }
+.share-modal-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.66); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+.share-popup{ position:relative; display:grid; gap:12px; width:min(360px,100%); max-height:90vh; overflow:auto; padding:14px; border-radius:22px; background:linear-gradient(180deg,rgba(30,32,40,.97),rgba(14,15,20,.98)); border:1px solid rgba(255,255,255,.12); box-shadow:0 30px 90px rgba(0,0,0,.6); }
+.share-variant-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:4px; padding:4px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); border-radius:12px; }
+.share-variant-tab{ padding:.5rem .3rem; border-radius:9px; border:0; background:transparent; color:rgba(255,255,255,.62); font:inherit; font-size:.74rem; font-weight:750; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .15s ease,color .15s ease; }
+.share-variant-tab.active{ background:rgba(255,255,255,.13); color:#fff; }
+.share-popup-actions{ display:grid; }
+.share-popup-actions .primary-button{ width:100%; min-height:46px; }
+.share-modal-hint{ text-align:center; color:var(--muted); font-size:.74rem; margin:0; }
 .share-modal-close{ position:fixed; top:16px; right:16px; z-index:4; width:44px; height:44px; display:grid; place-items:center; border-radius:999px; border:1px solid rgba(255,255,255,.22); background:rgba(10,11,14,.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); color:#fff; font-size:1.5rem; line-height:1; cursor:pointer; }
 .share-modal-close:hover{ background:rgba(20,22,28,.9); border-color:rgba(255,255,255,.4); }
-.share-tagline{ text-align:center; font-weight:700; font-size:1rem; letter-spacing:-.01em; color:#fff; opacity:.92; }
-.share-card{ position:relative; width:100%; border-radius:24px; overflow:hidden; padding:24px; display:flex; flex-direction:column; gap:20px; color:#fff; font-family:Inter,system-ui,sans-serif;
+.share-card{ position:relative; width:100%; aspect-ratio:3/4; border-radius:18px; overflow:hidden; padding:20px; display:flex; flex-direction:column; gap:16px; color:#fff; font-family:Inter,system-ui,sans-serif;
   background:
     radial-gradient(120% 80% at 8% -12%, color-mix(in srgb,var(--sc1,#2f8bd9) 62%, transparent), transparent 60%),
     radial-gradient(120% 90% at 112% 8%, color-mix(in srgb,var(--sc2,#8b5cc7) 50%, transparent), transparent 55%),
@@ -17387,18 +17390,21 @@ body.share-open{ overflow:hidden; }
 .share-card-head{ display:flex; align-items:center; justify-content:space-between; }
 .share-logo{ display:inline-flex; align-items:center; gap:8px; font-weight:800; letter-spacing:-.01em; font-size:1.02rem; }
 .share-logo-mark{ width:20px; height:20px; flex:0 0 auto; color:var(--sc2,#f6c54d); }
-.share-result-badge{ font-size:.78rem; font-weight:900; letter-spacing:.08em; padding:.34rem .7rem; border-radius:999px; border:1px solid rgba(255,255,255,.22); }
+.share-result-badge{ font-size:.74rem; font-weight:900; letter-spacing:.08em; padding:.32rem .66rem; border-radius:999px; border:1px solid rgba(255,255,255,.22); }
 .share-win .share-result-badge{ background:rgba(52,211,153,.16); border-color:rgba(52,211,153,.42); color:#7ef0ad; }
 .share-loss .share-result-badge{ background:rgba(251,113,133,.14); border-color:rgba(251,113,133,.38); color:#ff9aa6; }
-.share-matchup{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; }
-.share-side{ display:grid; gap:4px; justify-items:start; min-width:0; }
-.share-side-opp{ justify-items:end; text-align:right; }
-.share-dots{ display:inline-flex; gap:4px; }
-.share-side b{ font-size:.98rem; font-weight:800; line-height:1.1; max-width:13ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.share-side small{ color:rgba(255,255,255,.6); font-size:.72rem; }
-.share-score{ text-align:center; }
-.share-score strong{ display:block; font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:2.5rem; font-weight:800; letter-spacing:-.04em; line-height:1; font-variant-numeric:tabular-nums; }
-.share-score span{ font-size:.6rem; text-transform:uppercase; letter-spacing:.2em; color:rgba(255,255,255,.5); margin-top:4px; display:block; }
+/* Scoreboard : noms sur une ligne, score en grand sur la suivante (zéro chevauchement). */
+.share-scoreboard{ display:grid; gap:12px; }
+.sb-teams{ display:grid; grid-template-columns:1fr auto 1fr; align-items:start; gap:10px; }
+.sb-team{ display:grid; gap:4px; justify-items:start; min-width:0; }
+.sb-team-opp{ justify-items:end; text-align:right; }
+.sb-team .share-dots{ display:inline-flex; gap:4px; }
+.sb-team b{ font-size:.9rem; font-weight:800; line-height:1.12; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sb-team small{ font-size:.7rem; color:rgba(255,255,255,.6); }
+.sb-vs{ align-self:center; font-size:.58rem; font-weight:800; letter-spacing:.12em; color:rgba(255,255,255,.4); }
+.sb-score{ text-align:center; }
+.sb-score strong{ display:block; font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:2.7rem; font-weight:800; letter-spacing:-.04em; line-height:1; font-variant-numeric:tabular-nums; }
+.sb-score span{ font-size:.58rem; text-transform:uppercase; letter-spacing:.2em; color:rgba(255,255,255,.5); margin-top:4px; display:block; }
 .share-keys{ display:grid; gap:12px; }
 .share-keys-label{ font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.16em; color:var(--sc2,#f6c54d); }
 .share-keys-row{ display:flex; gap:12px; }
@@ -17417,5 +17423,26 @@ body.share-open{ overflow:hidden; }
 .share-foot-text{ display:grid; gap:4px; font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.5); }
 .share-qr{ flex:0 0 auto; width:52px; height:52px; opacity:.9; }
 .share-qr svg{ width:100%; height:100%; display:block; }
+/* Variante « Course au lore » */
+.share-lore{ display:grid; gap:8px; }
+.lr-svg{ width:100%; height:auto; display:block; }
+.lr-goal{ stroke:rgba(255,255,255,.28); stroke-width:1; stroke-dasharray:4 4; }
+.lr-area{ fill:color-mix(in srgb,var(--sc1,#2f8bd9) 16%, transparent); stroke:none; }
+.lr-mine{ fill:none; stroke:var(--sc1,#2f8bd9); stroke-width:2.6; stroke-linejoin:round; stroke-linecap:round; }
+.lr-opp{ fill:none; stroke:rgba(255,255,255,.5); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
+.lr-legend{ display:flex; flex-wrap:wrap; gap:12px; font-size:.62rem; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.62); }
+.lr-legend i{ display:inline-block; width:12px; height:3px; border-radius:2px; vertical-align:middle; margin-right:5px; }
+.lr-k-mine{ background:var(--sc1,#2f8bd9); }
+.lr-k-opp{ background:rgba(255,255,255,.5); }
+.lr-k-goal{ opacity:.6; }
+/* Variante « Résumé » : stats agrandies + carte clé compacte */
+.share-stats-big .share-stat{ padding:16px 8px; }
+.share-stats-big .share-stat strong{ font-size:1.3rem; }
+.share-mvpmini{ display:flex; align-items:center; gap:12px; padding:12px; border-radius:14px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); }
+.share-mvpmini-thumb{ width:54px; aspect-ratio:5/7; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,.16); flex:0 0 auto; }
+.share-mvpmini-thumb.thumb-placeholder{ display:grid; place-items:center; color:#cfd0da; font-weight:800; font-size:.58rem; text-align:center; padding:.2rem; line-height:1.1; }
+.share-mvpmini-info{ display:grid; gap:2px; min-width:0; }
+.share-mvpmini-info strong{ font-size:.95rem; font-weight:800; line-height:1.15; }
+.share-mvpmini-info small{ font-size:.76rem; color:rgba(255,255,255,.64); }
 .share-modal-actions{ display:grid; grid-template-columns:auto 1fr; gap:.6rem; }
 .share-modal-actions .ghost-button,.share-modal-actions .primary-button{ min-height:46px; }
