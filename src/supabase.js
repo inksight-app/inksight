@@ -104,11 +104,13 @@ export async function listDeckProfiles() {
   // Comme pour les matchs : la RLS autorise la lecture des decks des coéquipiers.
   // La liste perso doit être filtrée sur l'utilisateur courant (la vue Équipe passe
   // par loadTeamDeckProfiles), sinon les decks d'un coéquipier polluent les filtres.
-  const { data: { user } = {} } = await supabase.auth.getUser();
+  // getSession (session locale) plutôt que getUser (appel réseau) : plus sûr et rapide.
+  let userId = null;
+  try { const { data } = await supabase.auth.getSession(); userId = data?.session?.user?.id || null; } catch (_e) {}
   let query = supabase
     .from('deck_profiles')
     .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id,format_pool,set_tag');
-  if (user?.id) query = query.eq('user_id', user.id);
+  if (userId) query = query.eq('user_id', userId);
   const { data, error } = await query.order('name', { ascending: true });
 
   if (error) throw error;
@@ -378,7 +380,10 @@ export async function listSavedMatchHistoryLight(limit = 1000) {
   // IMPORTANT : la RLS autorise la lecture des matchs des coéquipiers (vue Équipe).
   // La liste « perso » doit donc être explicitement filtrée sur l'utilisateur courant,
   // sinon les matchs d'un coéquipier (marqués visibles équipe) polluent « Mes stats ».
-  const { data: { user } = {} } = await supabase.auth.getUser();
+  // On lit la session LOCALE (getSession) et non getUser() : pas d'appel réseau qui
+  // valide le token (donc aucun risque de course/déconnexion pendant l'auth).
+  let userId = null;
+  try { const { data } = await supabase.auth.getSession(); userId = data?.session?.user?.id || null; } catch (_e) {}
   let query = supabase
     .from('saved_matches')
     .select([
@@ -416,7 +421,7 @@ export async function listSavedMatchHistoryLight(limit = 1000) {
       'team_visible',
       'user_id',
     ].join(','));
-  if (user?.id) query = query.eq('user_id', user.id);
+  if (userId) query = query.eq('user_id', userId);
   const { data, error } = await query
     .order('played_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
