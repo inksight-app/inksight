@@ -101,10 +101,15 @@ export async function signInUser(email, password) {
 
 
 export async function listDeckProfiles() {
-  const { data, error } = await supabase
+  // Comme pour les matchs : la RLS autorise la lecture des decks des coéquipiers.
+  // La liste perso doit être filtrée sur l'utilisateur courant (la vue Équipe passe
+  // par loadTeamDeckProfiles), sinon les decks d'un coéquipier polluent les filtres.
+  const { data: { user } = {} } = await supabase.auth.getUser();
+  let query = supabase
     .from('deck_profiles')
-    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id,format_pool,set_tag')
-    .order('name', { ascending: true });
+    .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id,format_pool,set_tag');
+  if (user?.id) query = query.eq('user_id', user.id);
+  const { data, error } = await query.order('name', { ascending: true });
 
   if (error) throw error;
 
@@ -370,7 +375,11 @@ async function insertMany(table, rows, chunkSize = 500) {
 
 
 export async function listSavedMatchHistoryLight(limit = 1000) {
-  const { data, error } = await supabase
+  // IMPORTANT : la RLS autorise la lecture des matchs des coéquipiers (vue Équipe).
+  // La liste « perso » doit donc être explicitement filtrée sur l'utilisateur courant,
+  // sinon les matchs d'un coéquipier (marqués visibles équipe) polluent « Mes stats ».
+  const { data: { user } = {} } = await supabase.auth.getUser();
+  let query = supabase
     .from('saved_matches')
     .select([
       'id',
@@ -406,7 +415,9 @@ export async function listSavedMatchHistoryLight(limit = 1000) {
       'final_opp_lore',
       'team_visible',
       'user_id',
-    ].join(','))
+    ].join(','));
+  if (user?.id) query = query.eq('user_id', user.id);
+  const { data, error } = await query
     .order('played_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
     .limit(limit);
