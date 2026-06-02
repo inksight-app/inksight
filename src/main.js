@@ -49,7 +49,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory','performanceDateFrom','performanceDateTo','performanceDateCustom','historyDateFrom','historyDateTo','historyDateCustom'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','deckDepthMatch','deckDepthMatchPanel','performanceDeckDepth','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory','performanceDateFrom','performanceDateTo','performanceDateCustom','historyDateFrom','historyDateTo','historyDateCustom'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -7687,6 +7687,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
 
     const analytics = buildPerformanceAnalytics(rows);
+    renderDeckDepthGlobal(analytics.games);
     const cardSignals = analytics.cardSignals;
     const playDraw = analytics.playDraw;
 
@@ -11573,6 +11574,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     updateChartSummary('boardChartSummary', summarizeBoard(metrics.boardByTurn || [], comparisonMetrics?.boardByTurn || []));
     renderStatTables(m);
     renderDeadWeight(m);
+    renderDeckDepthMatch(m);
     bindStatListToggles();
     bindCardButtons();
   }
@@ -11682,6 +11684,64 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function handRetentionForScope(m){
     // La main adverse est majoritairement privée dans Duels.ink : on ne l'analyse pas comme une donnée fiable.
     return state.scope === 'opponent' ? [] : arrayify(m?.handRetention);
+  }
+
+  // ===== Profondeur de deck + probabilités de pioche (loi hypergéométrique) =====
+  // P(voir ≥ 1 carte parmi `copies` exemplaires, en `seen` cartes vues, deck de 60).
+  function hyperSeeAtLeastOne(copies, seen, deck = 60){
+    copies = n(copies); seen = n(seen);
+    if(copies <= 0 || seen <= 0) return 0;
+    if(seen >= deck) return 1;
+    let pNone = 1;
+    for(let i = 0; i < seen; i++){
+      const num = deck - copies - i;
+      if(num <= 0){ pNone = 0; break; }
+      pNone *= num / (deck - i);
+    }
+    return Math.max(0, Math.min(1, 1 - pNone));
+  }
+  // Cartes vues ≈ main de départ (7) + pioches naturelles (1/tour, sauf T1 si on
+  // commence). Les pioches d'effet ne sont pas encore comptées (estimation basse).
+  function deckDepthCardsSeen(turns, wentFirst){
+    const myTurns = Math.max(0, n(turns));
+    const naturalDraws = Math.max(0, myTurns - (wentFirst ? 1 : 0));
+    return Math.min(60, 7 + naturalDraws);
+  }
+  function deckDepthTableHtml(cardsSeen){
+    const seen = Math.round(cardsSeen);
+    const rows = [1, 2, 3, 4].map(c => {
+      const pct = Math.round(hyperSeeAtLeastOne(c, seen) * 100);
+      return `<div class="deck-depth-row"><span>${c}× exemplaire${c > 1 ? 's' : ''}</span><i><b style="width:${pct}%"></b></i><strong>${pct}%</strong></div>`;
+    }).join('');
+    return `<div class="deck-depth-seen"><strong>${seen}</strong><span>cartes vues (≈)</span></div><div class="deck-depth-table">${rows}</div>`;
+  }
+  function sessionWentFirst(s){
+    if(s?.firstTurnPlayer != null && s?.myPlayerNumber != null) return s.firstTurnPlayer === s.myPlayerNumber;
+    return s?.otp === true || s?.went_first === true || s?.wentFirst === true;
+  }
+  function renderDeckDepthMatch(m){
+    const host = els.deckDepthMatch, panel = els.deckDepthMatchPanel;
+    if(!host) return;
+    const sessions = arrayify(m?.sessions).length ? m.sessions : (m ? [m] : []);
+    const games = sessions.map((s, i) => ({ n: i + 1, cardsSeen: deckDepthCardsSeen(s.turnCount || s.totalTurns, sessionWentFirst(s)) }))
+      .filter(g => g.cardsSeen > 0);
+    if(!games.length){ if(panel) panel.hidden = true; host.innerHTML = ''; return; }
+    if(panel) panel.hidden = false;
+    if(games.length > 1){
+      const avg = games.reduce((sum, g) => sum + g.cardsSeen, 0) / games.length;
+      const perGame = games.map(g => `<div class="deck-depth-game"><h4>Game ${g.n}</h4>${deckDepthTableHtml(g.cardsSeen)}</div>`).join('');
+      host.innerHTML = `<div class="deck-depth-game"><h4>Moyenne BO</h4>${deckDepthTableHtml(avg)}</div>${perGame}`;
+    }else{
+      host.innerHTML = deckDepthTableHtml(games[0].cardsSeen);
+    }
+  }
+  function renderDeckDepthGlobal(games){
+    const host = els.performanceDeckDepth;
+    if(!host) return;
+    const seenVals = arrayify(games).map(g => deckDepthCardsSeen(g.turnCount ?? g.turn_count, g.otp === true)).filter(v => v > 0);
+    if(!seenVals.length){ host.innerHTML = '<div class="empty-line">Pas encore de données sur l’échantillon filtré.</div>'; return; }
+    const avg = seenVals.reduce((sum, v) => sum + v, 0) / seenVals.length;
+    host.innerHTML = `${deckDepthTableHtml(avg)}<p class="deck-depth-note">Moyenne sur ${seenVals.length} partie(s). Estimation basse : les pioches d’effet (scry/draw supplémentaires) ne sont pas encore comptées.</p>`;
   }
 
   function renderDeadWeight(m){
