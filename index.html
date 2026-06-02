@@ -371,6 +371,7 @@
         <nav class="performance-detail-tabs glass" aria-label="Détails des statistiques">
           <button type="button" class="performance-detail-tab active" data-performance-detail="overview">Vue d’ensemble</button>
           <button type="button" class="performance-detail-tab" data-performance-detail="cards">Cartes</button>
+          <button type="button" class="performance-detail-tab" data-performance-detail="draw">Pioche</button>
           <button type="button" class="performance-detail-tab" data-performance-detail="mulligan">Mulligan Lab</button>
           <button type="button" class="performance-detail-tab" data-performance-detail="matchups">Matchups</button>
           <button type="button" class="performance-detail-tab" data-performance-detail="curves">Courbes</button>
@@ -415,6 +416,11 @@
             </div>
             <div id="performanceCardImpactTable" class="table-zone visual-zone"></div>
           </article>
+        </section>
+
+        <section id="perf-detail-draw" class="performance-detail-panel" data-performance-detail-panel="draw" hidden>
+          <p class="perf-detail-intro">Tes chances de piocher tes cartes au fil de la partie, calculées sur ton rythme réel de tirage (toutes pioches et effets compris). Réponds à « est-ce que je verrai ma carte clé à temps&nbsp;? » et « à quelle vitesse je creuse mon deck&nbsp;? ».</p>
+          <article class="glass stat-panel deck-depth-panel"><div class="section-head"><div><h2>Profondeur de deck moyenne <button class="info-dot" type="button" data-info="Quelle part de ton deck (60 cartes) tu as vue en moyenne par partie, et la probabilité d’avoir déjà tiré ≥1 exemplaire d’une carte selon son nombre de copies et le tour. Plus c’est vert, plus c’est probable.">i</button></h2><p>Quelle part de ton deck tu parcours, et tes chances d’avoir déjà vu chaque carte selon ses copies.</p></div></div><div id="performanceDeckDepth" class="deck-depth-body"></div></article>
           <article class="glass stat-panel deck-depth-panel"><div class="section-head"><div><h2>Tes cartes en main de départ <button class="info-dot" type="button" data-info="Tes cartes classées par fréquence d’apparition dans ta main de départ (mulligans compris). Plus tu joues d’exemplaires d’une carte, plus tu la vois tôt. Utile pour vérifier que tes ouvreurs arrivent quand il faut.">i</button></h2><p>Tes cartes les plus souvent en main au début de la partie, classées par fréquence.</p></div></div><div id="performanceOpeningConsistency" class="deck-depth-body"></div></article>
         </section>
 
@@ -455,7 +461,6 @@
         </section>
 
         <section id="perf-detail-data" class="performance-detail-panel" data-performance-detail-panel="data" hidden>
-          <article class="glass stat-panel deck-depth-panel"><div class="section-head"><div><h2>Profondeur de deck moyenne</h2><p>En moyenne sur tes parties : quelle part de ton deck tu parcours, et tes chances d’avoir vu chaque carte.</p></div></div><div id="performanceDeckDepth" class="deck-depth-body"></div></article>
           <section class="performance-trend-grid performance-data-grid" aria-label="Qualité des données">
             <article class="glass performance-trend-card compact-trend">
               <span>Tours moyens</span>
