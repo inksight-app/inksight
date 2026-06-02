@@ -11753,6 +11753,31 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }).join('');
     return `<div class="deck-depth-seen"><strong>${seen}</strong><span>cartes vues (≈) · ${pctDeck}% du deck</span>${cycle}</div><div class="deck-depth-table">${rows}</div>`;
   }
+  // Profil de pioche : vitesse (cartes/tour), tour de deck estimé, et grille de
+  // probabilité « avoir vu ≥1 exemplaire » par palier de tour, calée sur le rythme
+  // réel de pioche (cardsSeen/turns). Répond à « verrai-je ma carte clé à temps ? ».
+  function deckProfileHtml(cardsSeen, turns, deck = 60){
+    const seen = Math.min(deck, Math.round(n(cardsSeen)));
+    const t = Math.max(1, Math.round(n(turns)));
+    const pctDeck = Math.min(100, Math.round((seen / deck) * 100));
+    const cardsPerTurn = seen / t;
+    const drawsPerTurn = Math.max(0, seen - 7) / t;
+    const fullDeckTurn = drawsPerTurn > 0 ? Math.ceil((deck - 7) / drawsPerTurn) : null;
+    const byTurn = nn => Math.min(deck, Math.round(7 + drawsPerTurn * nn));
+    const cols = [3, 5, 8];
+    const head = `<div class="ddp-row ddp-head"><span>Copies</span><span>Main</span>${cols.map(c => `<span>T${c}</span>`).join('')}</div>`;
+    const body = [1, 2, 3, 4].map(c => {
+      const cells = [7, ...cols.map(byTurn)].map(s => `<span>${Math.round(hyperSeeAtLeastOne(c, s, deck) * 100)}%</span>`).join('');
+      return `<div class="ddp-row"><span>${c}×</span>${cells}</div>`;
+    }).join('');
+    const cycle = fullDeckTurn
+      ? `🔄 Tour de deck complet ≈ <strong>T${fullDeckTurn}</strong>`
+      : 'Pioche trop lente pour estimer le tour de deck';
+    return `<div class="ddp-summary"><span><strong>${seen}</strong> vues · ${pctDeck}% du deck</span><span><strong>${cardsPerTurn.toFixed(1)}</strong> cartes/tour</span><span>${cycle}</span></div>
+      <div class="ddp-grid">${head}${body}</div>
+      <p class="deck-depth-note">Probabilité d’avoir vu ≥1 exemplaire d’une carte, par palier de tour, calée sur ton rythme réel (${cardsPerTurn.toFixed(1)} cartes/tour).</p>`;
+  }
+
   function sessionWentFirst(s){
     if(s?.firstTurnPlayer != null && s?.myPlayerNumber != null) return s.firstTurnPlayer === s.myPlayerNumber;
     return s?.otp === true || s?.went_first === true || s?.wentFirst === true;
@@ -11766,6 +11791,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const games = sessions.map((s, i) => ({
       n: i + 1,
       cardsSeen: n(s.cardsSeen) > 0 ? n(s.cardsSeen) : deckDepthCardsSeen(s.turnCount || s.totalTurns, sessionWentFirst(s)),
+      turns: Math.max(1, n(s.turnCount || s.totalTurns)),
       exact: n(s.cardsSeen) > 0
     })).filter(g => g.cardsSeen > 0);
     if(!games.length){ if(panel) panel.hidden = true; host.innerHTML = ''; return; }
@@ -11773,11 +11799,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const exact = games.every(g => g.exact);
     const note = `<p class="deck-depth-note">${exact ? 'Compté depuis les logs (pioches d’effet incluses).' : 'Estimation : main de départ + pioches naturelles (pioches d’effet non comptées sur cette partie).'}</p>`;
     if(games.length > 1){
-      const avg = games.reduce((sum, g) => sum + g.cardsSeen, 0) / games.length;
-      const perGame = games.map(g => `<div class="deck-depth-game"><h4>Game ${g.n}</h4>${deckDepthTableHtml(g.cardsSeen)}</div>`).join('');
-      host.innerHTML = `<div class="deck-depth-game"><h4>Moyenne BO</h4>${deckDepthTableHtml(avg)}</div>${perGame}${note}`;
+      const avgSeen = games.reduce((sum, g) => sum + g.cardsSeen, 0) / games.length;
+      const avgTurns = games.reduce((sum, g) => sum + g.turns, 0) / games.length;
+      const perGame = games.map(g => `<div class="deck-depth-game"><h4>Game ${g.n}</h4>${deckProfileHtml(g.cardsSeen, g.turns)}</div>`).join('');
+      host.innerHTML = `<div class="deck-depth-game"><h4>Moyenne BO</h4>${deckProfileHtml(avgSeen, avgTurns)}</div>${perGame}${note}`;
     }else{
-      host.innerHTML = `${deckDepthTableHtml(games[0].cardsSeen)}${note}`;
+      host.innerHTML = `${deckProfileHtml(games[0].cardsSeen, games[0].turns)}${note}`;
     }
   }
   // Copies par carte (clé = slug de nom) pour le deck sélectionné, si dispo.
@@ -11834,17 +11861,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!host) return;
     // Exact (logs) si dispo, sinon repli sur l'estimation (main + pioches naturelles).
     let exactCount = 0;
-    const seenVals = arrayify(games).map(g => {
-      const exact = n(g.cardsSeen);
-      if(exact > 0){ exactCount += 1; return exact; }
-      return deckDepthCardsSeen(g.turnCount ?? g.turn_count, g.otp === true);
-    }).filter(v => v > 0);
-    if(!seenVals.length){ host.innerHTML = '<div class="empty-line">Pas encore de données sur l’échantillon filtré.</div>'; return; }
-    const avg = seenVals.reduce((sum, v) => sum + v, 0) / seenVals.length;
-    const note = exactCount === seenVals.length
-      ? `Moyenne exacte sur ${seenVals.length} partie(s) (pioches d’effet incluses).`
-      : `Moyenne sur ${seenVals.length} partie(s). ${exactCount} compté(s) exactement ; le reste estimé (main + pioches naturelles) — réimporter met à jour le compte exact.`;
-    host.innerHTML = `${deckDepthTableHtml(avg)}<p class="deck-depth-note">${esc(note)}</p>`;
+    const pairs = arrayify(games).map(g => {
+      const exact = n(g.cardsSeen) > 0;
+      if(exact) exactCount += 1;
+      const seen = exact ? n(g.cardsSeen) : deckDepthCardsSeen(g.turnCount ?? g.turn_count, g.otp === true);
+      return { seen, turns: Math.max(1, n(g.turnCount ?? g.turn_count)) };
+    }).filter(p => p.seen > 0);
+    if(!pairs.length){ host.innerHTML = '<div class="empty-line">Pas encore de données sur l’échantillon filtré.</div>'; return; }
+    const avgSeen = pairs.reduce((s, p) => s + p.seen, 0) / pairs.length;
+    const avgTurns = pairs.reduce((s, p) => s + p.turns, 0) / pairs.length;
+    const note = exactCount === pairs.length
+      ? `Moyenne exacte sur ${pairs.length} partie(s) (pioches d’effet incluses).`
+      : `Moyenne sur ${pairs.length} partie(s). ${exactCount} compté(s) exactement ; le reste estimé — réimporter met à jour le compte exact.`;
+    host.innerHTML = `${deckProfileHtml(avgSeen, avgTurns)}<p class="deck-depth-note">${esc(note)}</p>`;
   }
 
   function renderDeadWeight(m){
