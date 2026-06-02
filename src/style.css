@@ -17248,3 +17248,14 @@ body::before{
 .deck-depth-game{ margin-top:.2rem; }
 .deck-depth-game h4{ margin:.2rem 0 .4rem; font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:rgba(255,255,255,.55); }
 .deck-depth-note{ margin:.5rem 0 0; font-size:.74rem; color:var(--muted); line-height:1.4; }
+
+/* Consistance d'ouverture (théorie vs réalité) */
+.oc-table{ display:grid; gap:.3rem; }
+.oc-row{ display:grid; grid-template-columns:minmax(0,1fr) 44px 54px 54px 48px; align-items:center; gap:.5rem; font-size:.82rem; color:#d4d4d8; padding:.32rem .5rem; border-radius:.6rem; }
+.oc-row:nth-child(even){ background:rgba(255,255,255,.025); }
+.oc-head{ color:rgba(255,255,255,.5); font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.1em; background:none!important; }
+.oc-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.oc-copies,.oc-theo,.oc-real,.oc-gap{ text-align:right; font-variant-numeric:tabular-nums; }
+.oc-real{ color:#fff; font-weight:800; }
+.oc-gap.pos{ color:#36d979; }
+.oc-gap.neg{ color:#ff6b7b; }
