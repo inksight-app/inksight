@@ -17259,3 +17259,6 @@ body::before{
 .oc-real{ color:#fff; font-weight:800; }
 .oc-gap.pos{ color:#36d979; }
 .oc-gap.neg{ color:#ff6b7b; }
+
+/* % du deck parcouru / cycle */
+.deck-depth-cycle{ display:inline-block; margin-left:.5rem; padding:.18rem .5rem; border-radius:999px; background:rgba(54,217,121,.14); border:1px solid rgba(54,217,121,.3); color:#9af5c0; font-size:.72rem; font-weight:800; }
