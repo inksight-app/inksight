@@ -11857,6 +11857,26 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     finally{ _deckDecklistFetching.delete(key); }
   }
 
+  // Tuile « main de départ » : même langage visuel que la galerie Cartes
+  // (image + badge + chiffre héros), centrée sur une info simple : à quelle
+  // fréquence on commence la partie avec cette carte en main.
+  function openingCardTileHtml(r, rank, totalGames){
+    const view = performanceCardView(r.card);
+    const band = r.openingPct >= 50 ? { label: 'Souvent en main', tone: 'success' }
+      : r.openingPct >= 30 ? { label: 'Régulièrement', tone: 'blue' }
+      : r.openingPct >= 15 ? { label: 'De temps en temps', tone: 'neutral' }
+      : { label: 'Rarement', tone: 'neutral' };
+    return `<article class="performance-card-tile performance-card-tile-v2 opening-card-tile is-clickable" role="button" tabindex="0" data-performance-card-key="${escAttr(r.key || '')}" data-performance-card-name="${escAttr(r.name)}">
+      <div class="performance-card-art"><span class="opening-rank">#${rank}</span>${cardThumbHtml(view, 'performance-card-thumb')}</div>
+      <div class="performance-card-body">
+        <h3>${esc(r.name)}</h3>
+        <div class="card-status-row"><span class="card-status-badge ${band.tone}">${band.label}</span><span class="card-status-badge neutral">${r.copies}× au deck</span></div>
+        <div class="opening-hero"><b>${r.openingPct}<span>%</span></b><small>de tes ${totalGames} parties commencent avec cette carte en main (${r.gamesWithOpening}/${totalGames})</small></div>
+        <div class="tiny-meter card-ink-meter" title="${r.openingPct}% de tes mains de départ"><i style="width:${r.openingPct}%"></i></div>
+      </div>
+    </article>`;
+  }
+
   function renderOpeningConsistency(analytics){
     const host = els.performanceOpeningConsistency;
     if(!host) return;
@@ -11882,23 +11902,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const gamesWithOpening = samples.filter(s => n(s.opening) > 0).length;
       const openingPct = Math.round((gamesWithOpening / totalGames) * 100);
       const copies = n(copiesMap.get(card.key));
-      const theoPct = copies > 0 ? Math.round(hyperSeeAtLeastOne(copies, 7) * 100) : null;
-      return { name: fullName(performanceCardView(card)) || card.name || 'Carte', openingPct, copies, theoPct };
+      return { card, key: card.key, name: fullName(performanceCardView(card)) || card.name || 'Carte', openingPct, copies, gamesWithOpening };
     }).filter(r => r.copies > 0)
-      .sort((a, b) => b.openingPct - a.openingPct)
-      .slice(0, 20);
+      .sort((a, b) => b.openingPct - a.openingPct || b.copies - a.copies)
+      .slice(0, 12);
     if(!rows.length){ host.innerHTML = '<div class="empty-line">Pas encore assez de données pour ce deck.</div>'; return; }
-    const body = rows.map(r => {
-      const theo = r.theoPct ?? 0;
-      const gap = r.openingPct - theo;
-      const tone = gap >= 6 ? 'pos' : gap <= -6 ? 'neg' : 'neu';
-      return `<div class="oc2-row">
-        <span class="oc2-name">${esc(r.name)} <em>${r.copies}×</em></span>
-        <span class="oc2-bar"><b style="width:${r.openingPct}%"></b><i style="left:${Math.min(98, theo)}%" title="Normalement ${theo}%"></i></span>
-        <span class="oc2-vals"><b class="oc2-real ${tone}">${r.openingPct}%</b><em class="oc2-theo">normal ${theo}%</em></span>
-      </div>`;
-    }).join('');
-    host.innerHTML = `<div class="oc2-legend"><span><b class="oc2-k-real"></b> Tes parties</span><span><b class="oc2-k-theo"></b> Le trait = ce qui serait normal</span></div><div class="oc2-list">${body}</div><p class="deck-depth-note">Sur tes ${totalGames} parties, dans combien tu commences avec cette carte en main (mulligans compris). Le trait clair = la fréquence « normale » vu le nombre d’exemplaires. <b style="color:#36d979">Vert</b> = tu l’as plus souvent que la normale, <b style="color:#ff6b7b">rouge</b> = moins souvent.</p>`;
+    const tiles = rows.map((r, i) => openingCardTileHtml(r, i + 1, totalGames)).join('');
+    host.innerHTML = `<p class="deck-depth-note oc-intro">À retenir : tes cartes que tu as <b>le plus souvent en main au début de la partie</b> (mulligans compris). Plus tu joues d’exemplaires d’une carte, plus tu la vois tôt — pratique pour vérifier que tes ouvreurs (encrage, petites créatures, cartes clés) arrivent quand il faut.</p>
+      <div class="performance-card-gallery key-card-gallery opening-card-gallery">${tiles}</div>`;
   }
 
   function renderDeckDepthGlobal(games){
