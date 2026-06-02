@@ -11823,37 +11823,64 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
     return byKey.size ? byKey : null;
   }
+  const _deckDecklistFetching = new Set();
+  async function ensureDeckDecklistCached(profileId){
+    const key = String(profileId || '');
+    if(!key || deckCardListCache.has(key) || _deckDecklistFetching.has(key)) return;
+    const match = (state.savedMatches || []).find(r => String(r.deck_profile_id) === key);
+    if(!match) return;
+    _deckDecklistFetching.add(key);
+    try{
+      const full = await getSavedMatch(match.id);
+      const cards = apiDecklistStatus(full, 'mine').cards;
+      const map = new Map(arrayify(cards).map(c => [String(c.id || c.cardId || ''), n(c.count) || 1]).filter(([id]) => id));
+      if(map.size >= 5){ deckCardListCache.set(key, map); globalThis.INKSIGHT_renderPerformanceData?.(); }
+    }catch(_e){}
+    finally{ _deckDecklistFetching.delete(key); }
+  }
+
   function renderOpeningConsistency(analytics){
     const host = els.performanceOpeningConsistency;
     if(!host) return;
+    const panel = host.closest('.stat-panel');
     const totalGames = arrayify(analytics?.games).length;
-    if(!isPerformanceDeckScoped() || totalGames < 3){
-      host.innerHTML = `<div class="empty-line">${isPerformanceDeckScoped() ? 'Échantillon trop faible (3 parties minimum).' : 'Sélectionnez une bicolorité / un deck pour comparer réel et théorique.'}</div>`;
+    const sel = selectedFilterValues('performanceDeckFilter');
+    // Réservé à UNE version de deck précise : on connaît alors exactement la liste et
+    // le nombre de copies. Sinon (bicolorité multi-versions / pas de deck) → masqué.
+    if(sel.length !== 1 || totalGames < 3){
+      if(panel) panel.hidden = true;
+      host.innerHTML = '';
       return;
     }
+    if(panel) panel.hidden = false;
     const copiesMap = selectedDeckCopiesByKey();
+    if(!copiesMap){
+      host.innerHTML = '<div class="empty-line">Chargement de la decklist…</div>';
+      ensureDeckDecklistCached(String(sel[0]).split('|')[0]);
+      return;
+    }
     const rows = arrayify(analytics.cards).map(card => {
       const samples = arrayify(card.samples);
       const gamesWithOpening = samples.filter(s => n(s.opening) > 0).length;
       const openingPct = Math.round((gamesWithOpening / totalGames) * 100);
-      const seenPct = Math.round((n(card.gamesSeen) / totalGames) * 100);
-      const copies = copiesMap ? n(copiesMap.get(card.key)) : 0;
+      const copies = n(copiesMap.get(card.key));
       const theoPct = copies > 0 ? Math.round(hyperSeeAtLeastOne(copies, 7) * 100) : null;
-      return { name: fullName(performanceCardView(card)) || card.name || 'Carte', openingPct, seenPct, copies, theoPct };
-    }).filter(r => r.seenPct > 0 || r.copies > 0)
-      .sort((a, b) => b.openingPct - a.openingPct || b.seenPct - a.seenPct)
-      .slice(0, 24);
-    if(!rows.length){ host.innerHTML = '<div class="empty-line">Pas encore de données cartes sur cet échantillon.</div>'; return; }
-    const hasCopies = rows.some(r => r.copies > 0);
+      return { name: fullName(performanceCardView(card)) || card.name || 'Carte', openingPct, copies, theoPct };
+    }).filter(r => r.copies > 0)
+      .sort((a, b) => b.openingPct - a.openingPct)
+      .slice(0, 20);
+    if(!rows.length){ host.innerHTML = '<div class="empty-line">Pas encore assez de données pour ce deck.</div>'; return; }
     const body = rows.map(r => {
-      const theo = r.theoPct != null ? `${r.theoPct}%` : '—';
-      const gap = r.theoPct != null ? r.openingPct - r.theoPct : null;
-      const gapTxt = gap != null ? `${gap > 0 ? '+' : ''}${gap}` : '';
-      const gapCls = gap == null ? '' : (gap >= 0 ? 'pos' : 'neg');
-      return `<div class="oc-row"><span class="oc-name">${esc(r.name)}</span><span class="oc-copies">${r.copies > 0 ? r.copies + '×' : '—'}</span><span class="oc-theo">${theo}</span><span class="oc-real">${r.openingPct}%</span><span class="oc-gap ${gapCls}">${gapTxt}</span></div>`;
+      const theo = r.theoPct ?? 0;
+      const gap = r.openingPct - theo;
+      const tone = gap >= 6 ? 'pos' : gap <= -6 ? 'neg' : 'neu';
+      return `<div class="oc2-row">
+        <span class="oc2-name">${esc(r.name)} <em>${r.copies}×</em></span>
+        <span class="oc2-bar"><b style="width:${r.openingPct}%"></b><i style="left:${Math.min(98, theo)}%" title="Théorique ${theo}%"></i></span>
+        <span class="oc2-val ${tone}">${r.openingPct}%</span>
+      </div>`;
     }).join('');
-    const legend = hasCopies ? '' : '<p class="deck-depth-note">Rappel théorique (main de départ) : 1× = 12 % · 2× = 22 % · 3× = 32 % · 4× = 40 %. Ouvre la decklist du deck pour afficher les copies et l’écart par carte.</p>';
-    host.innerHTML = `<div class="oc-table"><div class="oc-row oc-head"><span class="oc-name">Carte</span><span class="oc-copies">Cop.</span><span class="oc-theo">Théo.</span><span class="oc-real">Réel</span><span class="oc-gap">Écart</span></div>${body}</div><p class="deck-depth-note">« Réel » = fréquence en main de départ sur tes ${totalGames} parties (mulligans inclus). « Théo. » = probabilité hypergéométrique selon les copies.</p>${legend}`;
+    host.innerHTML = `<div class="oc2-legend"><span><b class="oc2-k-real"></b> Réel · main de départ (mulligans inclus)</span><span><b class="oc2-k-theo"></b> Théorique (selon copies)</span></div><div class="oc2-list">${body}</div><p class="deck-depth-note">Barre = fréquence réelle d'avoir la carte en main de départ sur tes ${totalGames} parties. Le repère vertical = probabilité théorique. Vert/rouge = nettement au-dessus / en dessous.</p>`;
   }
 
   function renderDeckDepthGlobal(games){

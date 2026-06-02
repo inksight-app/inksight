@@ -16627,11 +16627,11 @@ body::before{
 
 .team-section-wrapper {
   padding: clamp(18px, 2.5vw, 28px);
+  margin-top: clamp(16px, 2.4vw, 28px);
   background:
-    radial-gradient(circle at 8% 0%, rgba(122,88,248,.10), transparent 30%),
-    radial-gradient(circle at 95% 10%, rgba(55,148,227,.08), transparent 32%),
-    linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.028)) !important;
-  box-shadow: 0 24px 80px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.055) !important;
+    linear-gradient(180deg, rgba(255,255,255,.065), rgba(255,255,255,.022)),
+    rgba(13,14,17,.82) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.075), 0 22px 70px rgba(0,0,0,.44) !important;
 }
 
 .team-section {
@@ -17272,3 +17272,18 @@ body::before{
 .ddp-row:not(.ddp-head):nth-child(odd){ background:rgba(255,255,255,.025); border-radius:.5rem; }
 .ddp-head{ color:rgba(255,255,255,.5); font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
 .ddp-row span:first-child{ font-weight:700; color:#fff; }
+
+/* Consistance d'ouverture — vue visuelle à barres (v2) */
+.oc2-legend{ display:flex; flex-wrap:wrap; gap:.4rem 1rem; margin-bottom:.7rem; font-size:.74rem; color:var(--muted); }
+.oc2-legend b{ display:inline-block; width:.7rem; height:.7rem; border-radius:3px; vertical-align:middle; margin-right:.25rem; }
+.oc2-k-real{ background:linear-gradient(90deg,var(--theme-color-1),var(--theme-color-2)); }
+.oc2-k-theo{ background:rgba(255,255,255,.55); width:.28rem!important; border-radius:1px!important; height:.8rem!important; }
+.oc2-list{ display:grid; gap:.45rem; }
+.oc2-row{ display:grid; grid-template-columns:minmax(0,1fr) 120px 42px; align-items:center; gap:.6rem; }
+.oc2-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.84rem; color:#e4e4e7; }
+.oc2-name em{ color:var(--muted); font-style:normal; font-weight:700; font-size:.76rem; }
+.oc2-bar{ position:relative; height:10px; border-radius:999px; background:rgba(255,255,255,.07); overflow:hidden; }
+.oc2-bar b{ position:absolute; left:0; top:0; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--theme-color-1),var(--theme-color-2)); }
+.oc2-bar i{ position:absolute; top:-2px; width:2px; height:14px; background:#fff; opacity:.8; }
+.oc2-val{ text-align:right; font-weight:800; font-variant-numeric:tabular-nums; color:#fff; font-size:.82rem; }
+.oc2-val.pos{ color:#36d979; } .oc2-val.neg{ color:#ff6b7b; }
