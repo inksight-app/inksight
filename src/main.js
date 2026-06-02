@@ -11815,7 +11815,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!games.length){ if(panel) panel.hidden = true; host.innerHTML = ''; return; }
     if(panel) panel.hidden = false;
     const exact = games.every(g => g.exact);
-    const note = `<p class="deck-depth-note">${exact ? 'Compté depuis les logs (pioches d’effet incluses).' : 'Estimation : main de départ + pioches naturelles (pioches d’effet non comptées sur cette partie).'}</p>`;
+    const note = `<p class="deck-depth-note">${exact ? 'Mesuré sur le déroulé réel de la partie — toutes tes pioches et effets compris.' : 'Estimation : main de départ + pioches de tour (les pioches venant d’effets de cartes ne sont pas comptées sur cette partie).'}</p>`;
     if(games.length > 1){
       const avgSeen = games.reduce((sum, g) => sum + g.cardsSeen, 0) / games.length;
       const avgTurns = games.reduce((sum, g) => sum + g.turns, 0) / games.length;
@@ -11894,11 +11894,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const tone = gap >= 6 ? 'pos' : gap <= -6 ? 'neg' : 'neu';
       return `<div class="oc2-row">
         <span class="oc2-name">${esc(r.name)} <em>${r.copies}×</em></span>
-        <span class="oc2-bar"><b style="width:${r.openingPct}%"></b><i style="left:${Math.min(98, theo)}%" title="Théorique ${theo}%"></i></span>
-        <span class="oc2-val ${tone}">${r.openingPct}%</span>
+        <span class="oc2-bar"><b style="width:${r.openingPct}%"></b><i style="left:${Math.min(98, theo)}%" title="Normalement ${theo}%"></i></span>
+        <span class="oc2-vals"><b class="oc2-real ${tone}">${r.openingPct}%</b><em class="oc2-theo">normal ${theo}%</em></span>
       </div>`;
     }).join('');
-    host.innerHTML = `<div class="oc2-legend"><span><b class="oc2-k-real"></b> Réel · main de départ (mulligans inclus)</span><span><b class="oc2-k-theo"></b> Théorique (selon copies)</span></div><div class="oc2-list">${body}</div><p class="deck-depth-note">Barre = fréquence réelle d'avoir la carte en main de départ sur tes ${totalGames} parties. Le repère vertical = probabilité théorique. Vert/rouge = nettement au-dessus / en dessous.</p>`;
+    host.innerHTML = `<div class="oc2-legend"><span><b class="oc2-k-real"></b> Tes parties</span><span><b class="oc2-k-theo"></b> Le trait = ce qui serait normal</span></div><div class="oc2-list">${body}</div><p class="deck-depth-note">Sur tes ${totalGames} parties, dans combien tu commences avec cette carte en main (mulligans compris). Le trait clair = la fréquence « normale » vu le nombre d’exemplaires. <b style="color:#36d979">Vert</b> = tu l’as plus souvent que la normale, <b style="color:#ff6b7b">rouge</b> = moins souvent.</p>`;
   }
 
   function renderDeckDepthGlobal(games){
@@ -11916,8 +11916,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const avgSeen = pairs.reduce((s, p) => s + p.seen, 0) / pairs.length;
     const avgTurns = pairs.reduce((s, p) => s + p.turns, 0) / pairs.length;
     const note = exactCount === pairs.length
-      ? `Moyenne exacte sur ${pairs.length} partie(s) (pioches d’effet incluses).`
-      : `Moyenne sur ${pairs.length} partie(s). ${exactCount} compté(s) exactement ; le reste estimé — réimporter met à jour le compte exact.`;
+      ? `Moyenne mesurée sur ${pairs.length} partie(s) — toutes tes pioches et effets compris.`
+      : `Moyenne sur ${pairs.length} partie(s) : ${exactCount} mesurée(s) précisément, le reste estimé. Réimporter ces parties affine le calcul.`;
     host.innerHTML = `${deckProfileHtml(avgSeen, avgTurns)}<p class="deck-depth-note">${esc(note)}</p>`;
   }
 
