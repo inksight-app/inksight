@@ -11736,13 +11736,22 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const naturalDraws = Math.max(0, myTurns - (wentFirst ? 1 : 0));
     return Math.min(60, 7 + naturalDraws);
   }
-  function deckDepthTableHtml(cardsSeen){
+  function deckDepthTableHtml(cardsSeen, deckSize = 60){
     const seen = Math.round(cardsSeen);
+    const deck = deckSize > 0 ? deckSize : 60;
+    const pctDeck = Math.min(100, Math.round((seen / deck) * 100));
+    const loops = seen / deck;
+    // « % du deck parcouru » : on ne connaît pas l'identité des cartes regardées puis
+    // remises au fond, mais on sait combien de cartes ont défilé → quand on a fait le
+    // tour du deck, on a (re)vu l'intégralité de sa liste.
+    const cycle = seen >= deck
+      ? `<span class="deck-depth-cycle">🔄 Deck parcouru ×${loops.toFixed(1)}</span>`
+      : '';
     const rows = [1, 2, 3, 4].map(c => {
-      const pct = Math.round(hyperSeeAtLeastOne(c, seen) * 100);
+      const pct = Math.round(hyperSeeAtLeastOne(c, seen, deck) * 100);
       return `<div class="deck-depth-row"><span>${c}× exemplaire${c > 1 ? 's' : ''}</span><i><b style="width:${pct}%"></b></i><strong>${pct}%</strong></div>`;
     }).join('');
-    return `<div class="deck-depth-seen"><strong>${seen}</strong><span>cartes vues (≈)</span></div><div class="deck-depth-table">${rows}</div>`;
+    return `<div class="deck-depth-seen"><strong>${seen}</strong><span>cartes vues (≈) · ${pctDeck}% du deck</span>${cycle}</div><div class="deck-depth-table">${rows}</div>`;
   }
   function sessionWentFirst(s){
     if(s?.firstTurnPlayer != null && s?.myPlayerNumber != null) return s.firstTurnPlayer === s.myPlayerNumber;
