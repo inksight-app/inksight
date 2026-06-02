@@ -17262,3 +17262,13 @@ body::before{
 
 /* % du deck parcouru / cycle */
 .deck-depth-cycle{ display:inline-block; margin-left:.5rem; padding:.18rem .5rem; border-radius:999px; background:rgba(54,217,121,.14); border:1px solid rgba(54,217,121,.3); color:#9af5c0; font-size:.72rem; font-weight:800; }
+
+/* Profil de pioche : vitesse + grille proba par tour */
+.ddp-summary{ display:flex; flex-wrap:wrap; gap:.4rem .9rem; align-items:baseline; margin-bottom:.55rem; font-size:.84rem; color:var(--muted); }
+.ddp-summary strong{ color:#fff; font-size:1.05rem; letter-spacing:-.02em; }
+.ddp-grid{ display:grid; gap:.28rem; }
+.ddp-row{ display:grid; grid-template-columns:64px repeat(4,1fr); align-items:center; gap:.4rem; font-size:.8rem; color:#d4d4d8; }
+.ddp-row span:not(:first-child){ text-align:right; font-variant-numeric:tabular-nums; }
+.ddp-row:not(.ddp-head):nth-child(odd){ background:rgba(255,255,255,.025); border-radius:.5rem; }
+.ddp-head{ color:rgba(255,255,255,.5); font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+.ddp-row span:first-child{ font-weight:700; color:#fff; }
