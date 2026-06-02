@@ -5854,7 +5854,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const btn = event.target.closest('[data-performance-detail]');
     if(!btn) return;
     event.preventDefault();
-    const allowed = ['overview','cards','mulligan','matchups','curves','data'];
+    const allowed = ['overview','cards','draw','mulligan','matchups','curves','data'];
     state.performanceDetailTab = allowed.includes(btn.dataset.performanceDetail) ? btn.dataset.performanceDetail : 'overview';
     renderPerformanceDetailPanels();
   }
@@ -11815,7 +11815,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!games.length){ if(panel) panel.hidden = true; host.innerHTML = ''; return; }
     if(panel) panel.hidden = false;
     const exact = games.every(g => g.exact);
-    const note = `<p class="deck-depth-note">${exact ? 'Mesuré sur le déroulé réel de la partie — toutes tes pioches et effets compris.' : 'Estimation : main de départ + pioches de tour (les pioches venant d’effets de cartes ne sont pas comptées sur cette partie).'}</p>`;
+    const note = `<p class="deck-depth-note">${exact ? 'Mesuré sur le déroulé réel de la partie — toutes tes pioches et effets compris.' : 'Estimation : main de départ + pioches de tour uniquement (les pioches venant d’effets ne sont pas comptées). Réimporte cette partie pour le calcul exact.'}</p>`;
     if(games.length > 1){
       const avgSeen = games.reduce((sum, g) => sum + g.cardsSeen, 0) / games.length;
       const avgTurns = games.reduce((sum, g) => sum + g.turns, 0) / games.length;
