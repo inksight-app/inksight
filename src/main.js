@@ -11688,14 +11688,34 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return inks.map(key => `<i class="ink-dot ink-${escAttr(key)}"></i>`).join('');
   }
 
+  // Accroche courte calée sur le résultat et l'écart — ton « brag/partage ».
+  function shareHeadline(m, win, global){
+    if(global) return win ? 'Série remportée' : 'Série perdue';
+    const mine = n(m.finalMineLore), opp = n(m.finalOppLore), margin = mine - opp;
+    if(win){
+      if(opp === 0) return 'Victoire parfaite';
+      if(margin >= 12) return 'Victoire dominante';
+      if(margin <= 3) return 'Victoire au finish';
+      return 'Victoire maîtrisée';
+    }
+    if(mine === 0) return 'Jour sans';
+    if(margin >= -3) return 'Défaite au finish';
+    if(margin <= -12) return 'Soirée compliquée';
+    return 'Défaite serrée';
+  }
+
   // Visuel de partage d'un match : score héros, matchup, carte MVP, moment fort
   // et stats clés — teinté aux couleurs du deck. Pensé pour être screenshoté / exporté.
   function buildShareCardHtml(m){
     const global = m.isBO3 || isGlobalView();
     const win = n(m.wins) > n(m.losses);
     const profiles = m.inkProfiles || buildInkProfiles(m);
-    const mineColors = profiles.mine?.colors?.length ? profiles.mine.colors : ['#2f8bd9', '#8b5cc7'];
-    const c1 = mineColors[0], c2 = mineColors[1] || mineColors[0];
+    // Couleurs du deck si détectées ; sinon repli NEUTRE et élégant (et non un
+    // violet arbitraire qui ressemble à un bug quand les encres ne sont pas lues).
+    const inkCols = (profiles.mine?.colors || []).filter(Boolean);
+    const c1 = inkCols[0] || '#3b4a6b';
+    const c2 = inkCols[1] || inkCols[0] || '#27304a';
+    const tagline = shareHeadline(m, win, global);
     const score = global ? `${n(m.wins)}–${n(m.losses)}` : `${n(m.finalMineLore)}–${n(m.finalOppLore)}`;
     const scoreUnit = global ? 'manches' : 'lore';
     const resultLabel = win ? 'VICTOIRE' : 'DÉFAITE';
@@ -11731,6 +11751,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <div class="share-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
         <div class="share-side share-side-opp"><span class="share-dots">${inkDotsHtml(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
       </div>
+      ${tagline ? `<div class="share-tagline">${esc(tagline)}</div>` : ''}
       ${keysBlock}${mfBlock}
       <div class="share-stats">${statsHtml}</div>
       <div class="share-foot"><div class="share-foot-text"><span>inksight-omega.vercel.app</span><span>${esc(dateStr)}</span></div>${_shareQrSvg ? `<div class="share-qr">${_shareQrSvg}</div>` : ''}</div>
@@ -11760,6 +11781,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       modal.id = 'shareModal';
       modal.className = 'share-modal';
       modal.innerHTML = `<div class="share-modal-backdrop" data-share-close></div>
+        <button type="button" class="share-modal-close" data-share-close aria-label="Fermer">×</button>
         <div class="share-modal-inner" role="dialog" aria-modal="true" aria-label="Visuel de partage du match">
           <div class="share-card-stage" id="shareCardStage"></div>
           <div class="share-modal-actions">
@@ -11771,6 +11793,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       document.body.appendChild(modal);
       modal.addEventListener('click', e => { if(e.target.closest('[data-share-close]')) closeShareModal(); });
       modal.querySelector('#shareDownloadBtn').addEventListener('click', downloadShareImage);
+      document.addEventListener('keydown', e => { if(e.key === 'Escape' && !modal.hidden) closeShareModal(); });
     }
     modal.querySelector('#shareCardStage').innerHTML = buildShareCardHtml(m);
     modal.hidden = false;
