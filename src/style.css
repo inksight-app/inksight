@@ -17234,3 +17234,17 @@ body::before{
 .duelink-diag h4{ margin:.7rem 0 .25rem; font-size:.78rem; color:#ffd34d; text-transform:uppercase; letter-spacing:.08em; }
 .duelink-diag-line{ font-size:.76rem; color:#d4d4d8; word-break:break-word; margin:.15rem 0; }
 .duelink-diag-pre{ margin:.35rem 0 0; padding:.6rem; max-height:240px; overflow:auto; background:rgba(0,0,0,.4); border:1px solid rgba(255,255,255,.1); border-radius:.6rem; font-size:.68rem; line-height:1.35; white-space:pre-wrap; word-break:break-word; color:#cbd5e1; }
+
+/* Profondeur de deck + probabilités de pioche (P4) */
+.deck-depth-body{ display:grid; gap:.6rem; }
+.deck-depth-seen{ display:flex; align-items:baseline; gap:.5rem; }
+.deck-depth-seen strong{ font-size:clamp(1.6rem,3.4vw,2.2rem); line-height:1; letter-spacing:-.04em; color:#fff; }
+.deck-depth-seen span{ color:var(--muted); font-size:.8rem; font-weight:700; }
+.deck-depth-table{ display:grid; gap:.4rem; }
+.deck-depth-row{ display:grid; grid-template-columns:120px 1fr 44px; align-items:center; gap:.6rem; font-size:.82rem; color:#d4d4d8; }
+.deck-depth-row i{ display:block; height:8px; border-radius:999px; background:rgba(255,255,255,.08); overflow:hidden; }
+.deck-depth-row i b{ display:block; height:100%; border-radius:999px; background:linear-gradient(90deg,var(--theme-color-1),var(--theme-color-2)); }
+.deck-depth-row strong{ text-align:right; color:#fff; font-weight:800; }
+.deck-depth-game{ margin-top:.2rem; }
+.deck-depth-game h4{ margin:.2rem 0 .4rem; font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:rgba(255,255,255,.55); }
+.deck-depth-note{ margin:.5rem 0 0; font-size:.74rem; color:var(--muted); line-height:1.4; }
