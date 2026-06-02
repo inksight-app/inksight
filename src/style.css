@@ -17300,3 +17300,17 @@ body::before{
 .opening-hero b{ font-size:clamp(1.5rem,3.4vw,2rem); font-weight:800; line-height:1; letter-spacing:-.04em; color:#fff; font-variant-numeric:tabular-nums; }
 .opening-hero b span{ font-size:.5em; color:var(--muted); margin-left:.02em; }
 .opening-hero small{ flex:1 1 130px; min-width:120px; color:rgba(255,255,255,.6); font-size:.72rem; font-weight:650; line-height:1.3; }
+
+/* Encrier tour par tour (récap visuel des cartes mises en encre) */
+.inkwell-timeline{ display:grid; gap:1rem; }
+.inkwell-game-title{ margin:.2rem 0 .5rem; font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; color:rgba(255,255,255,.55); }
+.inkwell-track{ display:flex; gap:.55rem; overflow-x:auto; padding-bottom:.65rem; scroll-snap-type:x proximity; }
+.inkwell-track::-webkit-scrollbar{ height:8px; }
+.inkwell-track::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.14); border-radius:999px; }
+.inkwell-turn{ flex:0 0 auto; display:flex; flex-direction:column; gap:.55rem; padding:.6rem; border-radius:1rem; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.07); scroll-snap-align:start; }
+.inkwell-turn-head{ display:flex; align-items:center; justify-content:space-between; gap:.7rem; font-size:.72rem; font-weight:800; color:rgba(255,255,255,.6); text-transform:uppercase; letter-spacing:.06em; }
+.inkwell-turn-head b{ display:inline-grid; place-items:center; min-width:1.3rem; height:1.3rem; padding:0 .32rem; border-radius:999px; background:color-mix(in srgb,var(--theme-color-1) 28%, rgba(255,255,255,.06)); color:#fff; font-size:.7rem; font-variant-numeric:tabular-nums; }
+.inkwell-turn-cards{ display:flex; gap:.4rem; }
+.inkwell-card{ flex:0 0 auto; }
+.inkwell-card-thumb{ width:62px; aspect-ratio:5/7; object-fit:cover; border-radius:.5rem; border:1px solid rgba(255,255,255,.14); background:#111; display:block; }
+.inkwell-card-thumb.thumb-placeholder{ display:grid; place-items:center; color:#cfd0da; font-weight:800; font-size:.68rem; text-align:center; padding:.2rem; line-height:1.1; }
