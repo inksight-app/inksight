@@ -1681,6 +1681,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
   }
 
+  // Cartes vues (exact) depuis les logs : main de départ + toutes les pioches
+  // (CARD_DRAWN inclut les pioches d'effet, pas seulement la pioche de tour).
+  function computeCardsSeenFromLogs(data, perspective){
+    const logs = Array.isArray(data?.logs) ? data.logs : [];
+    if(!logs.length) return 0;
+    const initial = logs.find(l => l.type === 'INITIAL_HAND');
+    const initialCount = initial ? (arrayify(initial.cardRefs).length || 7) : 7;
+    const draws = logs.filter(l => l.type === 'CARD_DRAWN' && Number(l.player) === Number(perspective)).length;
+    return Math.min(60, initialCount + draws);
+  }
+
   function parseReplay(data, file){
     const perspective = Number(data.perspective || data.baseSnapshot?.viewingAs || 1);
     const playerNames = data.playerNames || {};
@@ -1849,7 +1860,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         mineHandRetention = mergeHandRetention([...mineHandRetention, ...fallbackRetention]);
       }
     }
-    return { fileName:file.name, fileSize:file.size, replaySha256:file.replaySha256 || '', data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate, handRetention:mineHandRetention, opponentHandRetention:finalizeHandRetention(handLifecycle.opponent) };
+    return { fileName:file.name, fileSize:file.size, replaySha256:file.replaySha256 || '', data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate, cardsSeen:computeCardsSeenFromLogs(data, perspective), handRetention:mineHandRetention, opponentHandRetention:finalizeHandRetention(handLifecycle.opponent) };
   }
 
   function fallbackHandRetentionFromMulligan(mulligan, timeline=[], turnRows=[], cards=[]){
@@ -4063,6 +4074,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         otp:session.firstTurnPlayer === session.myPlayerNumber,
         first_turn_player:n(session.firstTurnPlayer),
         turn_count:n(session.turnCount),
+        cards_seen:n(session.cardsSeen),
         final_mine_lore:n(session.finalMineLore),
         final_opp_lore:n(session.finalOppLore),
         mine_colors:mineColors,
@@ -4273,6 +4285,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       api_metadata:meta.apiMeta || null,
       view_mode:state.viewMode,
       format:meta.format,
+      cards_seen:n(m.cardsSeen ?? m.sessions?.[0]?.cardsSeen ?? m.first?.cardsSeen ?? 0),
       result:{
         value:meta.result,
         wins:n(m.wins),
@@ -4416,6 +4429,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function compactGames(sessions=[]){
     return (sessions || []).map((session, index) => ({
       gameNumber:n(session.gameNumber || index + 1),
+      cardsSeen:n(session.cardsSeen),
       playedAt:session.playedAt || session.matchGameInfo?.startedAt || session.matchGameInfo?.createdAt || null,
       replaySha256:session.replaySha256 || null,
       sourceType:'manual',
@@ -4630,6 +4644,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       winner:isWin ? 1 : 2,
       isWin,
       turnCount,
+      cardsSeen:n(isBo3Game ? game?.cardsSeen : (analysis.cards_seen ?? analysis.games?.[0]?.cardsSeen)),
       finalMineLore,
       finalOppLore,
       wins:isWin ? 1 : 0,
@@ -7833,6 +7848,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         isWin:!!game.is_win,
         otp:game.otp === true ? true : (game.otp === false ? false : null),
         turnCount:n(game.turn_count || stored.turnCount),
+        cardsSeen:n(game.cards_seen ?? stored.cardsSeen ?? 0),
         finalMineLore:n(game.final_mine_lore ?? stored.finalMineLore),
         finalOppLore:n(game.final_opp_lore ?? stored.finalOppLore),
         loreSeries:stored.loreSeries,
@@ -11723,25 +11739,41 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const host = els.deckDepthMatch, panel = els.deckDepthMatchPanel;
     if(!host) return;
     const sessions = arrayify(m?.sessions).length ? m.sessions : (m ? [m] : []);
-    const games = sessions.map((s, i) => ({ n: i + 1, cardsSeen: deckDepthCardsSeen(s.turnCount || s.totalTurns, sessionWentFirst(s)) }))
-      .filter(g => g.cardsSeen > 0);
+    // Exact si dispo (compté depuis les logs : pioches d'effet incluses), sinon
+    // repli sur l'estimation main de départ + pioches naturelles.
+    const games = sessions.map((s, i) => ({
+      n: i + 1,
+      cardsSeen: n(s.cardsSeen) > 0 ? n(s.cardsSeen) : deckDepthCardsSeen(s.turnCount || s.totalTurns, sessionWentFirst(s)),
+      exact: n(s.cardsSeen) > 0
+    })).filter(g => g.cardsSeen > 0);
     if(!games.length){ if(panel) panel.hidden = true; host.innerHTML = ''; return; }
     if(panel) panel.hidden = false;
+    const exact = games.every(g => g.exact);
+    const note = `<p class="deck-depth-note">${exact ? 'Compté depuis les logs (pioches d’effet incluses).' : 'Estimation : main de départ + pioches naturelles (pioches d’effet non comptées sur cette partie).'}</p>`;
     if(games.length > 1){
       const avg = games.reduce((sum, g) => sum + g.cardsSeen, 0) / games.length;
       const perGame = games.map(g => `<div class="deck-depth-game"><h4>Game ${g.n}</h4>${deckDepthTableHtml(g.cardsSeen)}</div>`).join('');
-      host.innerHTML = `<div class="deck-depth-game"><h4>Moyenne BO</h4>${deckDepthTableHtml(avg)}</div>${perGame}`;
+      host.innerHTML = `<div class="deck-depth-game"><h4>Moyenne BO</h4>${deckDepthTableHtml(avg)}</div>${perGame}${note}`;
     }else{
-      host.innerHTML = deckDepthTableHtml(games[0].cardsSeen);
+      host.innerHTML = `${deckDepthTableHtml(games[0].cardsSeen)}${note}`;
     }
   }
   function renderDeckDepthGlobal(games){
     const host = els.performanceDeckDepth;
     if(!host) return;
-    const seenVals = arrayify(games).map(g => deckDepthCardsSeen(g.turnCount ?? g.turn_count, g.otp === true)).filter(v => v > 0);
+    // Exact (logs) si dispo, sinon repli sur l'estimation (main + pioches naturelles).
+    let exactCount = 0;
+    const seenVals = arrayify(games).map(g => {
+      const exact = n(g.cardsSeen);
+      if(exact > 0){ exactCount += 1; return exact; }
+      return deckDepthCardsSeen(g.turnCount ?? g.turn_count, g.otp === true);
+    }).filter(v => v > 0);
     if(!seenVals.length){ host.innerHTML = '<div class="empty-line">Pas encore de données sur l’échantillon filtré.</div>'; return; }
     const avg = seenVals.reduce((sum, v) => sum + v, 0) / seenVals.length;
-    host.innerHTML = `${deckDepthTableHtml(avg)}<p class="deck-depth-note">Moyenne sur ${seenVals.length} partie(s). Estimation basse : les pioches d’effet (scry/draw supplémentaires) ne sont pas encore comptées.</p>`;
+    const note = exactCount === seenVals.length
+      ? `Moyenne exacte sur ${seenVals.length} partie(s) (pioches d’effet incluses).`
+      : `Moyenne sur ${seenVals.length} partie(s). ${exactCount} compté(s) exactement ; le reste estimé (main + pioches naturelles) — réimporter met à jour le compte exact.`;
+    host.innerHTML = `${deckDepthTableHtml(avg)}<p class="deck-depth-note">${esc(note)}</p>`;
   }
 
   function renderDeadWeight(m){
