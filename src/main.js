@@ -11738,12 +11738,25 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return `<span class="lore-dias" title="${v} lore">${dia.repeat(count)}${v > max ? '<span class="lore-more">+</span>' : ''}</span>`;
   }
 
+  // Le CDN des cartes n'envoie pas de CORS → html-to-image ne peut pas lire
+  // l'image (canvas « tainté ») et l'export échoue. On relaie via notre proxy
+  // même origine + crossorigin pour un canvas propre.
+  function shareProxyUrl(url){
+    return /^https:\/\/cards\.duels\.ink\//.test(String(url || '')) ? `/api/img-proxy?url=${encodeURIComponent(url)}` : url;
+  }
+  function shareThumbHtml(card, cls){
+    const raw = card.imageSmall || card.image || duelinkImageUrl(card);
+    const label = fullName(card) || card.name || 'Carte';
+    if(!raw) return `<span class="${esc(cls)} thumb-placeholder">${esc(initials(label))}</span>`;
+    return `<img class="${esc(cls)}" src="${esc(shareProxyUrl(raw))}" alt="${escAttr(label)}" crossorigin="anonymous">`;
+  }
+
   // Carte clé : on zoome sur l'illustration (crop haut), nom en surimpression,
   // bordure à la couleur d'encre de la carte, diamants de lore dessous.
   function shareCardArt(card){
     const ink = INK_COLORS[inkKey((card.colors || [])[0] || card.color || '')] || 'rgba(255,255,255,.45)';
     const cut = _shareCutout.get(cardKey(card));
-    const inner = cut ? `<img class="sca-img sca-cut" src="${esc(cut)}" alt="">` : cardThumbHtml(card, 'sca-img');
+    const inner = cut ? `<img class="sca-img sca-cut" src="${esc(cut)}" alt="">` : shareThumbHtml(card, 'sca-img');
     return `<div class="sca${cut ? ' sca-isolated' : ''}" style="--ink:${ink}">
       <div class="sca-crop">${inner}<span class="sca-name">${esc(fullName(card) || card.name || 'Carte')}</span></div>
       ${loreDiamonds(n(card.lore))}
@@ -11794,7 +11807,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const cut = mvp ? _shareCutout.get(cardKey(mvp)) : '';
       const mvpVisual = mvp ? (cut
         ? `<img class="dash-mvp-img dash-mvp-cut" src="${esc(cut)}" alt="">`
-        : `<div class="dash-mvp-art">${cardThumbHtml(mvp, 'dash-mvp-img')}<span class="dash-mvp-fade"></span></div>`) : '';
+        : `<div class="dash-mvp-art">${shareThumbHtml(mvp, 'dash-mvp-img')}<span class="dash-mvp-fade"></span></div>`) : '';
       const bento3 = stats.slice(0, 3).map(s => `<div class="dash-stat">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
       return `<div class="share-card share-dash share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
         <span class="share-glow share-glow-a"></span><span class="share-glow share-glow-b"></span>
@@ -11944,7 +11957,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!mvp){ return; }
     const key = cardKey(mvp);
     if(_shareCutout.has(key)){ _shareVariant = 'hero'; renderShareVariant(); return; }
-    const rawUrl = getCardImage(mvp, 'normal') || duelinkImageUrl(mvp);
+    const rawUrl = duelinkImageUrl(mvp) || getCardImage(mvp, 'normal');
     if(!rawUrl){ return; }
     // Le CDN des cartes n'a pas de CORS → on passe par notre proxy même origine.
     const url = /^https:\/\/cards\.duels\.ink\//.test(rawUrl) ? `/api/img-proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl;
@@ -11953,7 +11966,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     btn.disabled = true;
     try{
       const { removeBackground } = await import('@imgly/background-removal');
-      const blob = await removeBackground(url);
+      const input = await (await fetch(url)).blob();
+      const blob = await removeBackground(input);
       const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
       _shareCutout.set(key, dataUrl);
       _shareVariant = 'hero';
@@ -11982,22 +11996,25 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const blob = await toBlob(card, { pixelRatio, cacheBust: true });
       if(!blob) throw new Error('blob');
       const file = new File([blob], `inksight-match-${Date.now()}.png`, { type: 'image/png' });
-      // Mobile : feuille de partage native (iOS ignore le download d'un lien) → Enregistrer/Partager.
+      const url = URL.createObjectURL(blob);
+      // 1) Partage natif si possible (best effort — peut échouer sur iOS car le
+      // geste utilisateur est perdu après l'await ; on bascule alors sur l'image).
       if(navigator.canShare && navigator.canShare({ files: [file] })){
-        await navigator.share({ files: [file], title: 'Mon match · InkSight' });
-      }else{
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.download = file.name;
-        a.href = url;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        try{ await navigator.share({ files: [file], title: 'Mon match · InkSight' }); URL.revokeObjectURL(url); reset(); return; }
+        catch(e){ if(e && e.name === 'AbortError'){ URL.revokeObjectURL(url); reset(); return; } }
       }
+      // 2) Téléchargement (desktop) + 3) image affichée pour enregistrement
+      // par appui long (le plus fiable sur mobile).
+      const a = document.createElement('a');
+      a.download = file.name; a.href = url;
+      document.body.appendChild(a); a.click(); a.remove();
+      const stage = document.getElementById('shareCardStage');
+      if(stage) stage.innerHTML = `<img class="share-result-img" src="${url}" alt="Visuel du match">`;
+      const hint = document.querySelector('.share-modal-hint');
+      if(hint) hint.textContent = 'Appuie longuement sur l’image pour l’enregistrer (déjà téléchargée sur ordinateur).';
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
       reset();
-    }catch(e){
-      if(e && e.name === 'AbortError'){ reset(); return; } // partage annulé
+    }catch(_e){
       btn.textContent = 'Capture d’écran conseillée';
       setTimeout(reset, 2600);
     }
