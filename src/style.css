@@ -17370,7 +17370,7 @@ body.share-open{ overflow:hidden; }
 .share-modal{ position:fixed; inset:0; z-index:140; display:grid; place-items:center; padding:clamp(16px,5vw,40px); }
 .share-modal[hidden]{ display:none!important; }
 .share-modal-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.66); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
-.share-popup{ position:relative; display:grid; gap:12px; width:min(360px,100%); max-height:90vh; overflow:auto; padding:14px; border-radius:22px; background:linear-gradient(180deg,rgba(30,32,40,.97),rgba(14,15,20,.98)); border:1px solid rgba(255,255,255,.12); box-shadow:0 30px 90px rgba(0,0,0,.6); }
+.share-popup{ position:relative; display:grid; gap:10px; width:min(312px,90vw); max-height:calc(100dvh - 28px); overflow:auto; padding:12px; border-radius:22px; background:linear-gradient(180deg,rgba(30,32,40,.97),rgba(14,15,20,.98)); border:1px solid rgba(255,255,255,.12); box-shadow:0 30px 90px rgba(0,0,0,.6); }
 .share-variant-tabs{ display:grid; grid-template-columns:repeat(3,1fr); gap:4px; padding:4px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); border-radius:12px; }
 .share-variant-tab{ padding:.5rem .3rem; border-radius:9px; border:0; background:transparent; color:rgba(255,255,255,.62); font:inherit; font-size:.74rem; font-weight:750; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .15s ease,color .15s ease; }
 .share-variant-tab.active{ background:rgba(255,255,255,.13); color:#fff; }
@@ -17379,7 +17379,7 @@ body.share-open{ overflow:hidden; }
 .share-modal-hint{ text-align:center; color:var(--muted); font-size:.74rem; margin:0; }
 .share-modal-close{ position:fixed; top:16px; right:16px; z-index:4; width:44px; height:44px; display:grid; place-items:center; border-radius:999px; border:1px solid rgba(255,255,255,.22); background:rgba(10,11,14,.72); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); color:#fff; font-size:1.5rem; line-height:1; cursor:pointer; }
 .share-modal-close:hover{ background:rgba(20,22,28,.9); border-color:rgba(255,255,255,.4); }
-.share-card{ position:relative; width:100%; aspect-ratio:3/4; border-radius:18px; overflow:hidden; padding:20px; display:flex; flex-direction:column; gap:16px; color:#fff; font-family:Inter,system-ui,sans-serif;
+.share-card{ position:relative; width:100%; aspect-ratio:3/4; border-radius:16px; overflow:hidden; padding:15px; display:flex; flex-direction:column; gap:9px; color:#fff; font-family:Inter,system-ui,sans-serif;
   background:
     radial-gradient(120% 80% at 8% -12%, color-mix(in srgb,var(--sc1,#2f8bd9) 62%, transparent), transparent 60%),
     radial-gradient(120% 90% at 112% 8%, color-mix(in srgb,var(--sc2,#8b5cc7) 50%, transparent), transparent 55%),
@@ -17394,7 +17394,7 @@ body.share-open{ overflow:hidden; }
 .share-win .share-result-badge{ background:rgba(52,211,153,.16); border-color:rgba(52,211,153,.42); color:#7ef0ad; }
 .share-loss .share-result-badge{ background:rgba(251,113,133,.14); border-color:rgba(251,113,133,.38); color:#ff9aa6; }
 /* Scoreboard : noms sur une ligne, score en grand sur la suivante (zéro chevauchement). */
-.share-scoreboard{ display:grid; gap:12px; }
+.share-scoreboard{ display:grid; gap:8px; }
 .sb-teams{ display:grid; grid-template-columns:1fr auto 1fr; align-items:start; gap:10px; }
 .sb-team{ display:grid; gap:4px; justify-items:start; min-width:0; }
 .sb-team-opp{ justify-items:end; text-align:right; }
@@ -17403,13 +17403,14 @@ body.share-open{ overflow:hidden; }
 .sb-team small{ font-size:.7rem; color:rgba(255,255,255,.6); }
 .sb-vs{ align-self:center; font-size:.58rem; font-weight:800; letter-spacing:.12em; color:rgba(255,255,255,.4); }
 .sb-score{ text-align:center; }
-.sb-score strong{ display:block; font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:2.7rem; font-weight:800; letter-spacing:-.04em; line-height:1; font-variant-numeric:tabular-nums; }
+.sb-score strong{ display:block; font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:2.15rem; font-weight:800; letter-spacing:-.04em; line-height:1; font-variant-numeric:tabular-nums; }
 .sb-score span{ font-size:.58rem; text-transform:uppercase; letter-spacing:.2em; color:rgba(255,255,255,.5); margin-top:4px; display:block; }
-.share-keys{ display:grid; gap:12px; }
+.share-tagline{ text-align:center; font-weight:700; font-size:.9rem; letter-spacing:-.01em; color:#fff; opacity:.94; }
+.share-keys{ display:grid; gap:8px; }
 .share-keys-label{ font-size:.62rem; font-weight:800; text-transform:uppercase; letter-spacing:.16em; color:var(--sc2,#f6c54d); }
-.share-keys-row{ display:flex; gap:12px; }
-.share-key{ flex:1 1 0; display:grid; gap:8px; justify-items:center; min-width:0; }
-.share-key-thumb{ width:100%; aspect-ratio:5/7; object-fit:cover; border-radius:10px; border:1px solid rgba(255,255,255,.16); box-shadow:0 8px 22px rgba(0,0,0,.32); }
+.share-keys-row{ display:flex; gap:8px; justify-content:center; }
+.share-key{ flex:0 1 auto; display:grid; gap:5px; justify-items:center; min-width:0; }
+.share-key-thumb{ height:108px; width:auto; aspect-ratio:5/7; object-fit:cover; border-radius:9px; border:1px solid rgba(255,255,255,.16); box-shadow:0 8px 22px rgba(0,0,0,.32); }
 .share-key-thumb.thumb-placeholder{ display:grid; place-items:center; color:#cfd0da; font-weight:800; font-size:.6rem; text-align:center; padding:.25rem; line-height:1.1; }
 .share-key-cap{ font-size:.64rem; font-weight:700; color:rgba(255,255,255,.66); font-variant-numeric:tabular-nums; }
 .share-moment{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
@@ -17419,20 +17420,20 @@ body.share-open{ overflow:hidden; }
 .share-stat{ background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:12px 8px; text-align:center; }
 .share-stat strong{ display:block; font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:1.05rem; font-weight:700; font-variant-numeric:tabular-nums; }
 .share-stat span{ font-size:.56rem; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.5); margin-top:4px; display:block; }
-.share-foot{ display:flex; justify-content:space-between; align-items:center; gap:16px; padding-top:4px; border-top:1px solid rgba(255,255,255,.08); }
-.share-foot-text{ display:grid; gap:4px; font-size:.62rem; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.5); }
-.share-qr{ flex:0 0 auto; width:52px; height:52px; opacity:.9; }
+.share-foot{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:auto; padding-top:6px; border-top:1px solid rgba(255,255,255,.08); }
+.share-foot-text{ display:grid; gap:3px; font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.5); }
+.share-qr{ flex:0 0 auto; width:46px; height:46px; opacity:.9; }
 .share-qr svg{ width:100%; height:100%; display:block; }
 /* Variante « Course au lore » */
 .share-lore{ display:grid; gap:8px; }
 .lr-svg{ width:100%; height:auto; display:block; }
 .lr-goal{ stroke:rgba(255,255,255,.28); stroke-width:1; stroke-dasharray:4 4; }
-.lr-area{ fill:color-mix(in srgb,var(--sc1,#2f8bd9) 16%, transparent); stroke:none; }
-.lr-mine{ fill:none; stroke:var(--sc1,#2f8bd9); stroke-width:2.6; stroke-linejoin:round; stroke-linecap:round; }
+.lr-area{ fill:url(#lrMineFill); stroke:none; }
+.lr-mine{ fill:none; stroke:url(#lrMineGrad); stroke-width:2.8; stroke-linejoin:round; stroke-linecap:round; }
 .lr-opp{ fill:none; stroke:rgba(255,255,255,.5); stroke-width:2; stroke-linejoin:round; stroke-linecap:round; }
 .lr-legend{ display:flex; flex-wrap:wrap; gap:12px; font-size:.62rem; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.62); }
 .lr-legend i{ display:inline-block; width:12px; height:3px; border-radius:2px; vertical-align:middle; margin-right:5px; }
-.lr-k-mine{ background:var(--sc1,#2f8bd9); }
+.lr-k-mine{ background:linear-gradient(90deg,var(--sc1,#2f8bd9),var(--sc2,#8b5cc7)); }
 .lr-k-opp{ background:rgba(255,255,255,.5); }
 .lr-k-goal{ opacity:.6; }
 /* Variante « Résumé » : stats agrandies + carte clé compacte */
@@ -17446,3 +17447,17 @@ body.share-open{ overflow:hidden; }
 .share-mvpmini-info small{ font-size:.76rem; color:rgba(255,255,255,.64); }
 .share-modal-actions{ display:grid; grid-template-columns:auto 1fr; gap:.6rem; }
 .share-modal-actions .ghost-button,.share-modal-actions .primary-button{ min-height:46px; }
+
+/* Boutons d'action du résumé de match : même gabarit (largeur pleine, même hauteur),
+   pour que « Créer le visuel », « Sauvegarder » et « Résoudre le Mulligan » s'alignent. */
+.match-read-actions{ margin-top:14px; }
+.match-read-actions .share-match-button,
+#saveAnalysisButton,
+.mulligan-head #mulliganButton,
+#mulliganButton{ width:100%; min-height:50px; }
+@media (max-width:820px){
+  .save-analysis-panel{ flex-direction:column!important; align-items:stretch!important; gap:14px!important; }
+  .match-read-actions .share-match-button,
+  #saveAnalysisButton,
+  #mulliganButton{ width:100%!important; min-height:50px!important; }
+}

@@ -11709,7 +11709,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function loreRaceSvg(m){
     const series = arrayify(m?.loreSeries).filter(r => r && n(r.turn) > 0).sort((a, b) => n(a.turn) - n(b.turn));
     if(series.length < 2) return '';
-    const W = 312, H = 150, pl = 8, pr = 8, pt = 12, pb = 14;
+    const W = 312, H = 128, pl = 8, pr = 8, pt = 10, pb = 14;
     const maxT = series[series.length - 1].turn;
     const maxL = Math.max(20, ...series.map(r => Math.max(n(r.mine), n(r.opponent))));
     const X = t => pl + (maxT > 1 ? (t - 1) / (maxT - 1) : 0) * (W - pl - pr);
@@ -11718,6 +11718,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const area = `${line('mine')} L${X(maxT).toFixed(1)},${(H - pb).toFixed(1)} L${X(1).toFixed(1)},${(H - pb).toFixed(1)} Z`;
     const last = series[series.length - 1];
     return `<svg class="lr-svg" viewBox="0 0 ${W} ${H}">
+        <defs>
+          <linearGradient id="lrMineGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="var(--sc1,#2f8bd9)"/>
+            <stop offset="1" stop-color="var(--sc2,#8b5cc7)"/>
+          </linearGradient>
+          <linearGradient id="lrMineFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="color-mix(in srgb,var(--sc2,#8b5cc7) 28%, transparent)"/>
+            <stop offset="1" stop-color="transparent"/>
+          </linearGradient>
+        </defs>
         <line class="lr-goal" x1="${pl}" y1="${Y(20).toFixed(1)}" x2="${W - pr}" y2="${Y(20).toFixed(1)}"/>
         <path class="lr-area" d="${area}"/>
         <path class="lr-opp" d="${line('opponent')}"/>
@@ -11769,13 +11779,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     let middle;
     if(variant === 'graph'){
       const lore = loreRaceSvg(m);
-      middle = lore ? `<div class="share-lore"><span class="share-keys-label">Course au lore</span>${lore}</div>${mfBlock}${statsStrip}` : `${keysBlock}${statsStrip}`;
+      middle = lore ? `<div class="share-lore"><span class="share-keys-label">Course au lore</span>${lore}</div>` : `${keysBlock}`;
     }else if(variant === 'stats'){
-      const mvp = keyCards[0];
-      const mvpMini = mvp ? `<div class="share-mvpmini">${cardThumbHtml(mvp, 'share-mvpmini-thumb')}<div class="share-mvpmini-info"><span class="share-keys-label">Carte clé</span><strong>${esc(fullName(mvp))}</strong><small>${n(mvp.lore)} lore généré</small></div></div>` : '';
-      middle = `<div class="share-stats share-stats-big">${statsHtml}</div>${mvpMini}${mfBlock}`;
+      middle = `<div class="share-stats share-stats-big">${statsHtml}</div>${mfBlock}`;
     }else{
-      middle = `${keysBlock}${statsStrip}`;
+      middle = keysBlock || statsStrip;
     }
 
     return `<div class="share-card share-${win ? 'win' : 'loss'} share-v-${variant}" style="--sc1:${c1};--sc2:${c2}">
