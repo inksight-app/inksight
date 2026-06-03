@@ -11808,31 +11808,29 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const bento = stats.map(s => `<div class="dash-stat">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span><i class="dash-stat-bar"${s.p ? ` style="--p:${s.p}%"` : ''}></i></div>`).join('');
     const mfText = mf ? `Tour ${mf.turn} · ${mf.swing > 0 ? '+' : '−'}${Math.abs(mf.swing)} lore d’écart` : '';
     const heroNum = global ? n(m.wins) : Math.max(n(m.finalMineLore), n(m.finalOppLore));
-    const lore = global ? '' : loreRaceSvg(m, 120, c1, c2);
+    const lore = global ? '' : loreRaceSvg(m, 150, c1, c2);
 
-    return `<div class="share-card share-dash share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
+    return `<div class="share-card sq-card share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
       <span class="share-glow share-glow-a"></span><span class="share-glow share-glow-b"></span>
       <div class="dash-ghost">${heroNum || ''}</div>
-      <div class="dash-top"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
-      <div class="dash-grid">
-        <div class="dash-left">
-          ${mvp ? `<div class="dash-mvp-art">${shareThumbHtml(mvp, 'dash-mvp-img')}<span class="dash-mvp-fade"></span></div>
-          <div class="dash-mvp-cap"><span class="hero-mvp-seal">Carte MVP</span><strong>${esc(fullName(mvp) || mvp.name || 'Carte')}</strong>${loreDiamonds(n(mvp.lore))}</div>` : ''}
-        </div>
-        <div class="dash-right">
-          <div class="dash-score"><span class="dash-result">${resultLabel}</span><strong>${esc(score)}</strong><span class="dash-unit">${esc(scoreUnit)}</span></div>
-          <div class="dash-tag">${esc(tagline)}</div>
-          <div class="dash-ctx">${turns ? `${turns} tours` : ''}${turns && opening?.code ? ' · ' : ''}${opening?.code ? esc(opening.code) : ''}</div>
-          <div class="dash-matchup">
-            <div class="dash-team"><span class="share-dots">${shareDots(mineP)}</span><b>${esc(playerName)}</b><small>${esc(mineP.label)}</small></div>
-            <span class="dash-vs">VS</span>
-            <div class="dash-team dash-team-opp"><span class="share-dots">${shareDots(oppP)}</span><b>${esc(oppName)}</b><small>${esc(oppP.label)}</small></div>
-          </div>
-          <div class="dash-bento">${bento}</div>
-          ${lore ? `<div class="dash-graph"><span class="share-block-label">Course au lore</span>${lore}</div>` : ''}
-        </div>
+      <div class="sq-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
+      <div class="sq-hero">
+        <div class="sq-score"><span class="sq-result">${resultLabel}</span><strong>${esc(score)}</strong><span class="sq-unit">${esc(scoreUnit)}</span></div>
+        <div class="sq-tag">${esc(tagline)}</div>
+        <div class="sq-ctx">${turns ? `${turns} tours` : ''}${turns && opening?.code ? ' · ' : ''}${opening?.code ? esc(opening.code) : ''}</div>
       </div>
-      <div class="dash-foot">${mfText ? `<span class="dash-foot-mf"><b>Moment fort</b> ${esc(mfText)}</span>` : '<span class="dash-foot-mf">inksight-omega.vercel.app</span>'}<span class="dash-foot-url">inksight-omega.vercel.app</span>${_shareQrSvg ? `<span class="share-qr">${_shareQrSvg}</span>` : ''}</div>
+      <div class="sq-matchup">
+        <div class="sq-team"><span class="share-dots">${shareDots(mineP)}</span><b>${esc(playerName)}</b><small>${esc(mineP.label)}</small></div>
+        <span class="sq-vs">VS</span>
+        <div class="sq-team sq-team-opp"><span class="share-dots">${shareDots(oppP)}</span><b>${esc(oppName)}</b><small>${esc(oppP.label)}</small></div>
+      </div>
+      <div class="sq-stats">${bento}</div>
+      ${lore ? `<div class="sq-graph"><span class="share-block-label">Course au lore</span>${lore}</div>` : ''}
+      <div class="sq-bottom">
+        ${mvp ? `<div class="sq-mvp"><div class="sq-mvp-thumb">${shareThumbHtml(mvp, 'sq-mvp-img')}</div><div class="sq-mvp-info"><span>MVP du match</span><strong>${esc(fullName(mvp) || mvp.name || 'Carte')}</strong>${loreDiamonds(n(mvp.lore))}</div></div>` : ''}
+        ${mfText ? `<div class="sq-moment"><span>Moment fort</span><b>${esc(mfText)}</b></div>` : ''}
+      </div>
+      <div class="sq-foot"><div class="sq-cta"><span class="sq-cta-main">Voir le replay tour par tour</span><span class="sq-cta-url">inksight-omega.vercel.app</span></div>${_shareQrSvg ? `<span class="share-qr">${_shareQrSvg}</span>` : ''}</div>
     </div>`;
   }
 
@@ -11849,11 +11847,45 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return _shareQrSvg;
   }
 
-  function renderShareCard(){
+  let _shareBlob = null;
+
+  // Génère le visuel À TAILLE FIXE (1080×1080) hors écran, puis affiche une
+  // IMAGE — identique sur tous les écrans (le HTML ne s'adapte plus au device).
+  async function renderShareImage(){
     const m = getWorkingData();
     const modal = document.getElementById('shareModal');
     if(!m || !modal) return;
-    modal.querySelector('#shareCardStage').innerHTML = buildShareCardHtml(m);
+    const stage = modal.querySelector('#shareCardStage');
+    stage.innerHTML = '<div class="share-loading">Génération du visuel…</div>';
+    _shareBlob = null;
+    const holder = document.createElement('div');
+    holder.style.cssText = 'position:fixed;left:-99999px;top:0;width:1080px;pointer-events:none;opacity:0;';
+    holder.innerHTML = buildShareCardHtml(m);
+    document.body.appendChild(holder);
+    const card = holder.querySelector('.share-card');
+    try{
+      // Pré-inline les images en data URL (via le proxy même origine) → l'export
+      // ne dépend plus d'un fetch et le canvas n'est jamais « tainté ».
+      await Promise.all([...holder.querySelectorAll('img')].map(async img => {
+        try{
+          const resp = await fetch(img.src, { cache: 'force-cache' });
+          if(!resp.ok) throw new Error('img');
+          const bl = await resp.blob();
+          img.src = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(bl); });
+        }catch(_e){}
+        if(!(img.complete && img.naturalWidth)) await new Promise(res => { img.onload = img.onerror = res; setTimeout(res, 3000); });
+      }));
+      const { toBlob } = await import('html-to-image');
+      const blob = await toBlob(card, { pixelRatio: 2, cacheBust: true, width: 1080, height: card.offsetHeight });
+      if(!blob) throw new Error('blob');
+      _shareBlob = blob;
+      const url = URL.createObjectURL(blob);
+      stage.innerHTML = `<img class="share-result-img" src="${url}" alt="Visuel du match">`;
+    }catch(_e){
+      stage.innerHTML = '<div class="share-loading">Échec de génération — réessaie.</div>';
+    }finally{
+      holder.remove();
+    }
   }
 
   async function openShareModal(){
@@ -11872,16 +11904,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <div class="share-popup-actions">
             <button type="button" class="primary-button" id="shareDownloadBtn">Télécharger l’image</button>
           </div>
-          <p class="share-modal-hint">Sur mobile : appuie longuement sur l’image générée pour l’enregistrer.</p>
+          <p class="share-modal-hint">Sur mobile : appuie longuement sur l’image pour l’enregistrer.</p>
         </div>`;
       document.body.appendChild(modal);
       modal.addEventListener('click', e => { if(e.target.closest('[data-share-close]')) closeShareModal(); });
       modal.querySelector('#shareDownloadBtn').addEventListener('click', downloadShareImage);
       document.addEventListener('keydown', e => { if(e.key === 'Escape' && !modal.hidden) closeShareModal(); });
     }
-    renderShareCard();
     modal.hidden = false;
     document.body.classList.add('share-open');
+    renderShareImage();
   }
 
   function closeShareModal(){
@@ -11893,35 +11925,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   async function downloadShareImage(){
     const btn = document.getElementById('shareDownloadBtn');
     if(!btn) return;
-    let card = document.querySelector('#shareCardStage .share-card');
-    if(!card){ renderShareCard(); card = document.querySelector('#shareCardStage .share-card'); }
-    if(!card) return;
-    const prev = btn.textContent;
-    btn.textContent = 'Génération…';
-    btn.disabled = true;
-    const reset = () => { btn.textContent = prev; btn.disabled = false; };
-    try{
-      const { toBlob } = await import('html-to-image');
-      const pixelRatio = Math.min(4, Math.max(2, 1600 / (card.offsetWidth || 600)));
-      const blob = await toBlob(card, { pixelRatio, cacheBust: true });
-      if(!blob) throw new Error('blob');
-      const url = URL.createObjectURL(blob);
-      // Téléchargement direct (desktop) + image affichée pour enregistrement par
-      // appui long sur mobile. Pas de feuille de partage (non souhaitée).
-      const a = document.createElement('a');
-      a.download = `inksight-match-${Date.now()}.png`;
-      a.href = url;
-      document.body.appendChild(a); a.click(); a.remove();
-      const stage = document.getElementById('shareCardStage');
-      if(stage) stage.innerHTML = `<img class="share-result-img" src="${url}" alt="Visuel du match">`;
-      const hint = document.querySelector('.share-modal-hint');
-      if(hint) hint.textContent = 'Téléchargée. Sur mobile, appuie longuement sur l’image pour l’enregistrer.';
-      setTimeout(() => URL.revokeObjectURL(url), 120000);
-      reset();
-    }catch(_e){
-      btn.textContent = 'Capture d’écran conseillée';
-      setTimeout(reset, 2600);
-    }
+    if(!_shareBlob){ await renderShareImage(); }
+    if(!_shareBlob){ btn.textContent = 'Réessaie'; setTimeout(() => { btn.textContent = 'Télécharger l’image'; }, 2000); return; }
+    const url = URL.createObjectURL(_shareBlob);
+    const a = document.createElement('a');
+    a.download = `inksight-match-${Date.now()}.png`;
+    a.href = url;
+    document.body.appendChild(a); a.click(); a.remove();
+    const hint = document.querySelector('.share-modal-hint');
+    if(hint) hint.textContent = 'Téléchargée. Sur mobile, appuie longuement sur l’image pour l’enregistrer.';
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
   }
 
   function renderQuickInsights(m, metrics){

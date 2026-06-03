@@ -17372,7 +17372,64 @@ body.share-open{ overflow:hidden; }
 .share-modal-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,.66); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
 .share-popup{ position:relative; display:flex; flex-direction:column; gap:12px; width:min(94vw,380px); max-height:calc(100dvh - 32px); overflow-x:hidden; overflow-y:auto; padding:14px; border-radius:24px; background:linear-gradient(180deg,rgba(32,34,43,.97),rgba(15,16,21,.98)); border:1px solid rgba(255,255,255,.12); box-shadow:0 30px 90px rgba(0,0,0,.6); }
 .share-popup:has(.share-dash){ width:min(96vw,840px); }
-.share-result-img{ width:100%; height:auto; display:block; border-radius:16px; box-shadow:0 18px 50px rgba(0,0,0,.45); }
+.share-result-img{ width:100%; height:auto; display:block; border-radius:18px; box-shadow:0 18px 50px rgba(0,0,0,.45); }
+.share-loading{ aspect-ratio:1/1; display:grid; place-items:center; border-radius:18px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); color:var(--muted,#9ca3af); font-size:.9rem; }
+.share-popup:has(.share-loading), .share-popup:has(.share-result-img){ width:min(94vw,560px); }
+
+/* ===== Carte de partage 1:1 (rendue à taille fixe 1080px) ===== */
+.sq-card{ position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; display:grid; grid-template-rows:auto auto auto auto 1fr auto auto; gap:24px; padding:48px; color:#fff; font-family:Inter,system-ui,sans-serif;
+  background:
+    radial-gradient(42% 48% at 12% 16%, color-mix(in srgb,var(--sc1,#2f8bd9) 34%, transparent), transparent 72%),
+    radial-gradient(46% 52% at 90% 88%, color-mix(in srgb,var(--sc2,#8b5cc7) 30%, transparent), transparent 72%),
+    linear-gradient(150deg, #0f111a, #0a0b11 82%); }
+.sq-card .share-glow{ opacity:.16; filter:blur(90px); }
+.sq-card .dash-ghost{ left:50%; top:24%; font-size:34rem; color:rgba(255,255,255,.035); }
+.sq-card>*{ position:relative; z-index:1; }
+.sq-head{ display:flex; align-items:center; justify-content:space-between; }
+.sq-head .share-logo{ font-size:1.5rem; gap:11px; }
+.sq-head .share-logo-mark{ width:30px; height:30px; }
+.sq-head .share-result-badge{ font-size:1rem; padding:.5rem 1.1rem; letter-spacing:.1em; }
+.sq-hero{ display:grid; gap:8px; }
+.sq-score{ display:flex; align-items:baseline; gap:18px; flex-wrap:wrap; }
+.sq-result{ font-size:1.1rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; color:color-mix(in srgb,var(--sc2,#7fd0ff) 64%, #fff); }
+.sq-score strong{ font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:5.4rem; font-weight:800; letter-spacing:-.05em; line-height:.8; color:#fff; }
+.sq-unit{ font-size:.95rem; text-transform:uppercase; letter-spacing:.28em; color:rgba(255,255,255,.55); }
+.sq-tag{ font-size:2.4rem; font-weight:800; letter-spacing:-.02em; line-height:1.02; color:#fff; }
+.sq-ctx{ font-size:.95rem; font-weight:700; text-transform:uppercase; letter-spacing:.16em; color:rgba(255,255,255,.6); }
+.sq-matchup{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+.sq-team{ display:flex; align-items:center; gap:10px; }
+.sq-team .share-dots{ display:inline-flex; gap:6px; }
+.sq-team .share-dots .ink-dot{ width:.92rem; height:.92rem; }
+.sq-team b{ font-size:1.25rem; font-weight:800; }
+.sq-team small{ font-size:.92rem; color:rgba(255,255,255,.72); }
+.sq-vs{ font-size:.85rem; font-weight:800; letter-spacing:.14em; color:rgba(255,255,255,.42); }
+.sq-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+.sq-card .dash-stat{ padding:20px 18px 22px; border-radius:20px; }
+.sq-card .dash-stat .bento-ic{ width:24px; height:24px; }
+.sq-card .dash-stat strong{ font-size:2.2rem; }
+.sq-card .dash-stat span{ font-size:.78rem; }
+.sq-card .dash-stat-bar{ left:18px; right:18px; bottom:11px; height:4px; }
+.sq-graph{ display:grid; gap:12px; align-content:center; }
+.sq-graph .share-block-label{ font-size:.85rem; letter-spacing:.18em; color:rgba(255,255,255,.55); text-align:left; }
+.sq-graph .lr-svg{ width:100%; height:150px; display:block; }
+.sq-graph .lr-legend{ font-size:.82rem; gap:18px; }
+.sq-graph .lr-legend i{ width:16px; height:4px; }
+.sq-bottom{ display:grid; grid-template-columns:1.3fr 1fr; gap:16px; align-items:stretch; }
+.sq-mvp{ display:flex; align-items:center; gap:16px; padding:16px 18px; border-radius:20px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); box-shadow:inset 0 1px 0 rgba(255,255,255,.08); }
+.sq-mvp-thumb{ width:74px; height:74px; flex:0 0 auto; border-radius:14px; overflow:hidden; box-shadow:0 8px 20px rgba(0,0,0,.4); }
+.sq-mvp-img{ width:100%; height:100%; object-fit:cover; object-position:top center; transform:scale(1.18); display:block; }
+.sq-mvp-img.thumb-placeholder{ transform:none; display:grid; place-items:center; background:rgba(255,255,255,.08); color:#cfd0da; font-weight:800; font-size:.8rem; }
+.sq-mvp-info{ display:grid; gap:5px; min-width:0; }
+.sq-mvp-info span{ font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.14em; color:color-mix(in srgb,var(--sc2,#f6c54d) 66%, #fff); }
+.sq-mvp-info strong{ font-size:1.1rem; font-weight:800; line-height:1.12; }
+.sq-moment{ display:grid; gap:5px; align-content:center; padding:16px 18px; border-radius:20px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); }
+.sq-moment span{ font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.14em; color:color-mix(in srgb,var(--sc2,#f6c54d) 66%, #fff); }
+.sq-moment b{ font-size:1.05rem; font-weight:700; color:#fff; }
+.sq-foot{ display:flex; align-items:center; justify-content:space-between; gap:18px; padding-top:8px; border-top:1px solid rgba(255,255,255,.1); }
+.sq-cta{ display:grid; gap:3px; }
+.sq-cta-main{ font-size:1.05rem; font-weight:800; color:#fff; }
+.sq-cta-url{ font-size:.82rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:rgba(255,255,255,.5); }
+.sq-foot .share-qr{ width:84px; height:84px; opacity:.95; }
 .share-variant-tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:4px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); border-radius:12px; }
 .share-variant-tab{ padding:.5rem .3rem; border-radius:9px; border:0; background:transparent; color:rgba(255,255,255,.62); font:inherit; font-size:.74rem; font-weight:750; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .15s ease,color .15s ease; }
 .share-variant-tab.active{ background:rgba(255,255,255,.13); color:#fff; }
