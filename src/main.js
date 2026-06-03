@@ -11750,6 +11750,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!raw) return `<span class="${esc(cls)} thumb-placeholder">${esc(initials(label))}</span>`;
     return `<img class="${esc(cls)}" src="${esc(shareProxyUrl(raw))}" alt="${escAttr(label)}" crossorigin="anonymous">`;
   }
+  // Grande illustration MVP : rendue en BACKGROUND (et non <img object-fit>) car
+  // html-to-image sur iOS Safari ne peint pas un <img object-fit/transform> →
+  // l'image disparaissait sur mobile. Le fond data-URL est fiable partout.
+  function shareMvpArt(card){
+    const raw = card.image || card.imageSmall || duelinkImageUrl(card);
+    const label = fullName(card) || card.name || 'Carte';
+    if(!raw) return `<div class="sqb-mvp-img thumb-placeholder">${esc(initials(label))}</div>`;
+    return `<div class="sqb-mvp-img" data-share-bg="${escAttr(shareProxyUrl(raw))}" role="img" aria-label="${escAttr(label)}"></div>`;
+  }
 
   const SHARE_ICONS = {
     clock: '<svg viewBox="0 0 24 24" class="bento-ic"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
@@ -11815,7 +11824,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <div class="sq-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
       <div class="sqb-main">
         <div class="sqb-mvp">
-          ${mvp ? `<div class="sqb-mvp-art">${shareThumbHtml(mvp, 'sqb-mvp-img')}<span class="sqb-mvp-fade"></span><span class="sqb-mvp-cap"><span class="hero-mvp-seal">MVP du match</span><strong>${esc(fullName(mvp) || mvp.name || 'Carte')}</strong>${loreDiamonds(n(mvp.lore))}</span></div>` : ''}
+          ${mvp ? `<div class="sqb-mvp-art">${shareMvpArt(mvp)}<span class="sqb-mvp-fade"></span><span class="sqb-mvp-cap"><span class="hero-mvp-seal">MVP du match</span><strong>${esc(fullName(mvp) || mvp.name || 'Carte')}</strong>${loreDiamonds(n(mvp.lore))}</span></div>` : ''}
         </div>
         <div class="sqb-right">
           <div class="sq-hero">
@@ -11866,18 +11875,26 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     holder.innerHTML = buildShareCardHtml(m);
     document.body.appendChild(holder);
     const card = holder.querySelector('.share-card');
+    const toDataUrl = async src => {
+      const resp = await fetch(src, { cache: 'force-cache' });
+      if(!resp.ok) throw new Error('img');
+      const bl = await resp.blob();
+      return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(bl); });
+    };
     try{
       // Pré-inline les images en data URL (via le proxy même origine) → l'export
       // ne dépend plus d'un fetch et le canvas n'est jamais « tainté ».
       await Promise.all([...holder.querySelectorAll('img')].map(async img => {
-        try{
-          const resp = await fetch(img.src, { cache: 'force-cache' });
-          if(!resp.ok) throw new Error('img');
-          const bl = await resp.blob();
-          img.src = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(bl); });
-        }catch(_e){}
+        try{ img.src = await toDataUrl(img.src); }catch(_e){}
         if(!(img.complete && img.naturalWidth)) await new Promise(res => { img.onload = img.onerror = res; setTimeout(res, 3000); });
       }));
+      // Illustrations rendues en background-image (fiable sur Safari) : on inline aussi.
+      await Promise.all([...holder.querySelectorAll('[data-share-bg]')].map(async el => {
+        try{ el.style.backgroundImage = `url("${await toDataUrl(el.getAttribute('data-share-bg'))}")`; }catch(_e){}
+      }));
+      // Sans cela, le PNG est capturé avant le chargement des polices (Inter /
+      // JetBrains Mono) → métriques de repli, textes qui se chevauchent sur mobile.
+      try{ await Promise.race([document.fonts.ready, new Promise(res => setTimeout(res, 2500))]); }catch(_e){}
       const { toBlob } = await import('html-to-image');
       const blob = await toBlob(card, { pixelRatio: 2, cacheBust: true, width: 1080, height: card.offsetHeight });
       if(!blob) throw new Error('blob');
