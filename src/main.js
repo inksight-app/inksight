@@ -11797,6 +11797,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <div class="sb-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
       </div>
       ${tagline ? `<div class="share-tagline">${esc(tagline)}</div>` : ''}
+      <div class="share-context">${turns ? `${turns} tour${turns > 1 ? 's' : ''}` : ''}${turns && opening?.code ? ' · ' : ''}${opening?.code ? esc(opening.code) : ''}</div>
       ${middle}
       <div class="share-foot"><div class="share-foot-text"><span>inksight-omega.vercel.app</span><span>${esc(dateStr)}</span></div>${_shareQrSvg ? `<div class="share-qr">${_shareQrSvg}</div>` : ''}</div>
     </div>`;
@@ -11878,18 +11879,30 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const prev = btn.textContent;
     btn.textContent = 'Génération…';
     btn.disabled = true;
+    const reset = () => { btn.textContent = prev; btn.disabled = false; };
     try{
-      const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(card, { pixelRatio: 2, cacheBust: true });
-      const a = document.createElement('a');
-      a.download = `inksight-match-${Date.now()}.png`;
-      a.href = dataUrl;
-      a.click();
-      btn.textContent = prev;
-      btn.disabled = false;
-    }catch(_e){
-      btn.textContent = 'Fais une capture d’écran';
-      setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2600);
+      const { toBlob } = await import('html-to-image');
+      const blob = await toBlob(card, { pixelRatio: 2, cacheBust: true });
+      if(!blob) throw new Error('blob');
+      const file = new File([blob], `inksight-match-${Date.now()}.png`, { type: 'image/png' });
+      // Mobile : feuille de partage native (iOS ignore le download d'un lien) → Enregistrer/Partager.
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        await navigator.share({ files: [file], title: 'Mon match · InkSight' });
+      }else{
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = file.name;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
+      reset();
+    }catch(e){
+      if(e && e.name === 'AbortError'){ reset(); return; } // partage annulé
+      btn.textContent = 'Capture d’écran conseillée';
+      setTimeout(reset, 2600);
     }
   }
 
