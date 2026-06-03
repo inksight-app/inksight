@@ -17436,7 +17436,7 @@ body.share-open{ overflow:hidden; }
 .share-moment strong{ font-size:.88rem; font-weight:700; }
 
 /* Variante « Complet » — dashboard paysage, MVP en grand, aura aux couleurs du deck */
-.share-dash{ position:relative; overflow:hidden; display:grid; grid-template-rows:auto auto auto auto; gap:22px; padding:28px; color:#fff; font-family:Inter,system-ui,sans-serif;
+.share-dash{ position:relative; overflow:hidden; display:grid; grid-template-rows:auto 1fr auto; gap:20px; padding:26px; color:#fff; font-family:Inter,system-ui,sans-serif;
   background:
     radial-gradient(46% 70% at 14% 30%, color-mix(in srgb,var(--sc1,#2f8bd9) 52%, transparent), transparent 72%),
     radial-gradient(50% 76% at 92% 78%, color-mix(in srgb,var(--sc2,#8b5cc7) 50%, transparent), transparent 72%),
@@ -17448,19 +17448,20 @@ body.share-open{ overflow:hidden; }
 .dash-top .share-logo{ font-size:1.2rem; }
 .dash-top .share-logo-mark{ width:24px; height:24px; }
 .dash-top .share-result-badge{ font-size:.84rem; padding:.4rem .85rem; }
-.dash-grid{ display:grid; grid-template-columns:38% 1fr; gap:26px; align-items:center; }
-.dash-left{ position:relative; display:flex; flex-direction:column; gap:12px; }
-.dash-mvp-art{ position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; }
-.dash-mvp-img{ width:100%; height:100%; object-fit:cover; object-position:top center; display:block; }
-.dash-mvp-img.thumb-placeholder{ display:grid; place-items:center; background:rgba(255,255,255,.06); color:#e7e7ee; font-weight:800; font-size:.9rem; }
-/* Fondu sur tous les bords : seule l'illustration ressort, elle se fond dans le décor. */
+.dash-grid{ display:grid; grid-template-columns:38% 1fr; gap:26px; align-items:stretch; }
+.dash-left{ position:relative; display:flex; flex-direction:column; gap:12px; min-width:0; }
+.dash-mvp-art{ position:relative; width:100%; flex:1 1 auto; min-height:200px; overflow:hidden; }
+/* Zoom dans l'illustration (on sort du cadre/des bords noirs de la carte). */
+.dash-mvp-img{ width:100%; height:100%; object-fit:cover; object-position:center 30%; transform:scale(1.1); display:block; }
+.dash-mvp-img.thumb-placeholder{ transform:none; display:grid; place-items:center; background:rgba(255,255,255,.06); color:#e7e7ee; font-weight:800; font-size:.9rem; }
+/* Fondu sur tous les bords (teinté à la 1re couleur) : l'illustration se fond dans le décor. */
 .dash-mvp-fade{ position:absolute; inset:0; pointer-events:none; background:
-   radial-gradient(72% 66% at 50% 40%, transparent 46%, rgba(10,9,17,.72) 86%, rgba(10,9,17,.96) 100%),
-   linear-gradient(to bottom, transparent 44%, rgba(10,9,17,.96) 99%); }
+   radial-gradient(66% 60% at 50% 42%, transparent 38%, color-mix(in srgb,var(--sc1,#2f8bd9) 24%, #0a0911) 82%, color-mix(in srgb,var(--sc1,#2f8bd9) 20%, #0a0911) 100%),
+   linear-gradient(to bottom, transparent 50%, color-mix(in srgb,var(--sc1,#2f8bd9) 20%, #0a0911) 100%); }
 .dash-mvp-cap{ display:grid; gap:6px; justify-items:start; }
 .dash-mvp-cap .hero-mvp-seal{ font-size:.62rem; font-weight:900; letter-spacing:.16em; color:#08090c; background:linear-gradient(135deg,var(--sc1,#2f8bd9),var(--sc2,#8b5cc7)); padding:.22rem .6rem; border-radius:999px; }
 .dash-mvp-cap strong{ font-size:1.2rem; font-weight:800; line-height:1.1; color:#fff; }
-.dash-right{ display:flex; flex-direction:column; justify-content:center; gap:14px; min-width:0; }
+.dash-right{ display:flex; flex-direction:column; justify-content:center; gap:12px; min-width:0; }
 .dash-score{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
 .dash-result{ font-size:.86rem; font-weight:900; letter-spacing:.1em; text-transform:uppercase; color:color-mix(in srgb,var(--sc2,#fff) 60%, #fff); }
 .dash-score strong{ font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:clamp(3.2rem,9vw,4.8rem); font-weight:800; letter-spacing:-.06em; line-height:.82; color:#fff; }
@@ -17481,9 +17482,9 @@ body.share-open{ overflow:hidden; }
 .dash-stat strong{ font-family:var(--font-mono,"JetBrains Mono",monospace); font-size:1.75rem; font-weight:700; line-height:1; color:#fff; }
 .dash-stat span{ font-size:.62rem; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.66); }
 .dash-stat-bar{ position:absolute; left:14px; right:14px; bottom:9px; height:3px; border-radius:2px; background:linear-gradient(90deg, color-mix(in srgb,var(--sc1,#2f8bd9) 80%, var(--sc2,#8b5cc7)) var(--p,100%), rgba(255,255,255,.12) var(--p,100%)); }
-.dash-graph{ display:grid; gap:10px; padding:16px 18px; border-radius:18px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
-.dash-graph .share-block-label{ color:color-mix(in srgb,var(--sc2,#f6c54d) 70%, #fff); }
-.dash-graph .lr-svg{ height:auto; }
+.dash-graph{ display:grid; gap:8px; padding-top:12px; border-top:1px solid rgba(255,255,255,.1); }
+.dash-graph .share-block-label{ color:rgba(255,255,255,.55); }
+.dash-graph .lr-svg{ width:100%; height:120px; display:block; }
 .dash-foot{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding-top:4px; }
 .dash-foot-mf{ font-size:.78rem; font-weight:600; color:rgba(255,255,255,.82); }
 .dash-foot-mf b{ color:color-mix(in srgb,var(--sc2,#fff) 65%, #fff); font-weight:800; text-transform:uppercase; letter-spacing:.08em; font-size:.66rem; margin-right:6px; }
