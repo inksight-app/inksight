@@ -11754,7 +11754,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   // html-to-image sur iOS Safari ne peint pas un <img object-fit/transform> →
   // l'image disparaissait sur mobile. Le fond data-URL est fiable partout.
   function shareMvpArt(card){
-    const raw = card.image || card.imageSmall || duelinkImageUrl(card);
+    // Image pleine résolution (et non la vignette) car on zoome fort pour ne
+    // garder QUE l'illustration : la vignette deviendrait floue à l'agrandissement.
+    const raw = String(card.image || card.imageSmall || duelinkImageUrl(card) || '').replace('/thumbnail/', '/full/');
     const label = fullName(card) || card.name || 'Carte';
     if(!raw) return `<div class="sqb-mvp-img thumb-placeholder">${esc(initials(label))}</div>`;
     return `<div class="sqb-mvp-img" data-share-bg="${escAttr(shareProxyUrl(raw))}" role="img" aria-label="${escAttr(label)}"></div>`;
@@ -11821,14 +11823,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     return `<div class="share-card sqb-card share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
       <span class="share-glow share-glow-a"></span><span class="share-glow share-glow-b"></span>
-      <div class="sq-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
+      <div class="sq-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge"><i class="rb-dot"></i>${resultLabel}</span></div>
       <div class="sqb-main">
         <div class="sqb-mvp">
           ${mvp ? `<div class="sqb-mvp-art">${shareMvpArt(mvp)}<span class="sqb-mvp-fade"></span><span class="sqb-mvp-cap"><span class="hero-mvp-seal">MVP du match</span><strong>${esc(fullName(mvp) || mvp.name || 'Carte')}</strong>${loreDiamonds(n(mvp.lore))}</span></div>` : ''}
         </div>
         <div class="sqb-right">
           <div class="sq-hero">
-            <div class="sq-score"><span class="sq-result">${global ? 'Score du match' : 'Score au lore'}</span><strong>${esc(score)}</strong><span class="sq-unit">${esc(scoreUnit)}</span></div>
+            <div class="sq-score"><strong>${esc(score)}</strong><span class="sq-unit">${esc(scoreUnit)}</span></div>
             <div class="sq-tag">${esc(tagline)}</div>
             <div class="sq-ctx">${turns ? `${turns} tours` : ''}${turns && opening?.code ? ' · ' : ''}${opening?.code ? esc(opening.code) : ''}</div>
           </div>
@@ -11838,11 +11840,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
             <div class="sq-team sq-team-opp"><span class="share-dots">${shareDots(oppP)}</span><b>${esc(oppName)}</b><small>${esc(oppP.label)}</small></div>
           </div>
           <div class="sq-stats">${bento}</div>
-          ${lore ? `<div class="sq-graph"><span class="share-block-label">Course au lore</span>${lore}</div>` : ''}
+          ${lore ? `<div class="sq-graph">${lore}</div>` : ''}
           ${mfText ? `<div class="sq-moment"><span>Moment fort</span><b>${esc(mfText)}</b></div>` : ''}
         </div>
       </div>
-      <div class="sq-foot"><div class="sq-cta"><span class="sq-cta-main">Voir le replay tour par tour</span><span class="sq-cta-url">inksight-omega.vercel.app</span></div>${_shareQrSvg ? `<span class="share-qr">${_shareQrSvg}</span>` : ''}</div>
+      <div class="sq-foot"><div class="sq-cta"><span class="sq-cta-main">Revis le match tour par tour</span><span class="sq-cta-url">inksight-omega.vercel.app</span></div>${_shareQrSvg ? `<div class="sq-qr"><span class="share-qr">${_shareQrSvg}</span><span class="sq-qr-label">Scanne pour rejouer</span></div>` : ''}</div>
     </div>`;
   }
 
