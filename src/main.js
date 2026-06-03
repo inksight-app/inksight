@@ -11706,24 +11706,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   // Mini-graphe « course au lore » (toi vs adversaire par tour), en SVG inline
   // pour un export fiable (sans dépendance ni souci CORS).
-  function loreRaceSvg(m, H = 78){
+  // Couleurs en attributs SVG inline (et non via CSS var/color-mix, que
+  // html-to-image ne sait pas résoudre → rendait un aplat noir à l'export).
+  function loreRaceSvg(m, H, c1, c2){
     const series = arrayify(m?.loreSeries).filter(r => r && n(r.turn) > 0).sort((a, b) => n(a.turn) - n(b.turn));
     if(series.length < 2) return '';
-    const W = 312, pl = 8, pr = 8, pt = 6, pb = 10;
+    const W = 320, pl = 4, pr = 4, pt = 8, pb = 8;
     const maxT = series[series.length - 1].turn;
     const maxL = Math.max(20, ...series.map(r => Math.max(n(r.mine), n(r.opponent))));
     const X = t => pl + (maxT > 1 ? (t - 1) / (maxT - 1) : 0) * (W - pl - pr);
     const Y = l => H - pb - (l / maxL) * (H - pt - pb);
     const line = key => series.map((r, i) => `${i ? 'L' : 'M'}${X(r.turn).toFixed(1)},${Y(n(r[key])).toFixed(1)}`).join(' ');
-    const area = `${line('mine')} L${X(maxT).toFixed(1)},${(H - pb).toFixed(1)} L${X(1).toFixed(1)},${(H - pb).toFixed(1)} Z`;
     const last = series[series.length - 1];
-    return `<svg class="lr-svg" viewBox="0 0 ${W} ${H}">
-        <line class="lr-goal" x1="${pl}" y1="${Y(20).toFixed(1)}" x2="${W - pr}" y2="${Y(20).toFixed(1)}"/>
-        <path class="lr-area" d="${area}"/>
-        <path class="lr-opp" d="${line('opponent')}"/>
-        <path class="lr-mine" d="${line('mine')}"/>
+    return `<svg class="lr-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <line x1="${pl}" y1="${Y(20).toFixed(1)}" x2="${W - pr}" y2="${Y(20).toFixed(1)}" stroke="rgba(255,255,255,.22)" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+        <path d="${line('opponent')}" fill="none" stroke="${c2}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+        <path d="${line('mine')}" fill="none" stroke="${c1}" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
       </svg>
-      <div class="lr-legend"><span><i class="lr-k-mine"></i>Toi ${n(last.mine)}</span><span><i class="lr-k-opp"></i>Adv. ${n(last.opponent)}</span><span class="lr-k-goal">objectif&nbsp;20</span></div>`;
+      <div class="lr-legend"><span><i style="background:${c1}"></i>Toi ${n(last.mine)}</span><span><i style="background:${c2}"></i>Adv. ${n(last.opponent)}</span><span class="lr-k-goal">objectif&nbsp;20</span></div>`;
   }
 
   // Visuel de partage d'un match, en 3 variantes (cartes / course au lore / résumé).
@@ -11808,7 +11808,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const bento = stats.map(s => `<div class="dash-stat">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span><i class="dash-stat-bar"${s.p ? ` style="--p:${s.p}%"` : ''}></i></div>`).join('');
     const mfText = mf ? `Tour ${mf.turn} · ${mf.swing > 0 ? '+' : '−'}${Math.abs(mf.swing)} lore d’écart` : '';
     const heroNum = global ? n(m.wins) : Math.max(n(m.finalMineLore), n(m.finalOppLore));
-    const lore = global ? '' : loreRaceSvg(m, 150);
+    const lore = global ? '' : loreRaceSvg(m, 120, c1, c2);
 
     return `<div class="share-card share-dash share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
       <span class="share-glow share-glow-a"></span><span class="share-glow share-glow-b"></span>
@@ -11829,10 +11829,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
             <div class="dash-team dash-team-opp"><span class="share-dots">${shareDots(oppP)}</span><b>${esc(oppName)}</b><small>${esc(oppP.label)}</small></div>
           </div>
           <div class="dash-bento">${bento}</div>
+          ${lore ? `<div class="dash-graph"><span class="share-block-label">Course au lore</span>${lore}</div>` : ''}
         </div>
       </div>
-      ${lore ? `<div class="dash-graph"><span class="share-block-label">Course au lore</span>${lore}</div>` : ''}
-      <div class="dash-foot">${mfText ? `<span class="dash-foot-mf"><b>Moment fort</b> ${esc(mfText)}</span>` : '<span>inksight-omega.vercel.app</span>'}<span class="dash-foot-url">inksight-omega.vercel.app</span>${_shareQrSvg ? `<span class="share-qr">${_shareQrSvg}</span>` : ''}</div>
+      <div class="dash-foot">${mfText ? `<span class="dash-foot-mf"><b>Moment fort</b> ${esc(mfText)}</span>` : '<span class="dash-foot-mf">inksight-omega.vercel.app</span>'}<span class="dash-foot-url">inksight-omega.vercel.app</span>${_shareQrSvg ? `<span class="share-qr">${_shareQrSvg}</span>` : ''}</div>
     </div>`;
   }
 
