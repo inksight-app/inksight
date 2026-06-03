@@ -11833,7 +11833,6 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <div class="sq-hero">
             <div class="sq-score"><strong>${esc(score)}</strong><span class="sq-unit">${esc(scoreUnit)}</span></div>
             <div class="sq-tag">${esc(tagline)}</div>
-            <div class="sq-ctx">${turns ? `${turns} tours` : ''}${turns && opening?.code ? ' · ' : ''}${opening?.code ? esc(opening.code) : ''}</div>
           </div>
           <div class="sq-matchup">
             <div class="sq-team"><span class="share-dots">${shareDots(mineP)}</span><b>${esc(playerName)}</b><small>${esc(mineP.label)}</small></div>
