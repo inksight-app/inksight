@@ -11756,10 +11756,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function shareMvpArt(card){
     // Image pleine résolution (et non la vignette) car on zoome fort pour ne
     // garder QUE l'illustration : la vignette deviendrait floue à l'agrandissement.
-    const raw = String(card.image || card.imageSmall || duelinkImageUrl(card) || '').replace('/thumbnail/', '/full/');
+    const base = String(card.image || card.imageSmall || duelinkImageUrl(card) || '');
+    const full = base.replace('/thumbnail/', '/full/');
     const label = fullName(card) || card.name || 'Carte';
-    if(!raw) return `<div class="sqb-mvp-img thumb-placeholder">${esc(initials(label))}</div>`;
-    return `<div class="sqb-mvp-img" data-share-bg="${escAttr(shareProxyUrl(raw))}" role="img" aria-label="${escAttr(label)}"></div>`;
+    if(!base) return `<div class="sqb-mvp-img thumb-placeholder">${esc(initials(label))}</div>`;
+    return `<img class="sqb-mvp-img" data-share-bg="${escAttr(shareProxyUrl(full))}" data-share-bg-alt="${escAttr(shareProxyUrl(base))}" alt="${escAttr(label)}">`;
   }
 
   const SHARE_ICONS = {
@@ -11886,19 +11887,31 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       // Pré-inline les images en data URL (via le proxy même origine) → l'export
       // ne dépend plus d'un fetch et le canvas n'est jamais « tainté ».
-      await Promise.all([...holder.querySelectorAll('img')].map(async img => {
+      await Promise.all([...holder.querySelectorAll('img:not([data-share-bg])')].map(async img => {
         try{ img.src = await toDataUrl(img.src); }catch(_e){}
         if(!(img.complete && img.naturalWidth)) await new Promise(res => { img.onload = img.onerror = res; setTimeout(res, 3000); });
       }));
-      // Illustrations rendues en background-image (fiable sur Safari) : on inline aussi.
+      // Illustration MVP : <img> dont on injecte le data URL dans src (le plus
+      // fiable sur iOS Safari — object-fit et background-image n'y sont pas
+      // peints par html-to-image). Repli sur la vignette si la pleine réso manque.
       await Promise.all([...holder.querySelectorAll('[data-share-bg]')].map(async el => {
-        try{ el.style.backgroundImage = `url("${await toDataUrl(el.getAttribute('data-share-bg'))}")`; }catch(_e){}
+        const isImg = el.tagName === 'IMG';
+        let data = null;
+        try{ data = await toDataUrl(el.getAttribute('data-share-bg')); }
+        catch(_e){ const alt = el.getAttribute('data-share-bg-alt'); if(alt){ try{ data = await toDataUrl(alt); }catch(_e2){} } }
+        if(!data) return;
+        if(isImg){ el.src = data; if(!(el.complete && el.naturalWidth)) await new Promise(res => { el.onload = el.onerror = res; setTimeout(res, 3000); }); }
+        else el.style.backgroundImage = `url("${data}")`;
       }));
       // Sans cela, le PNG est capturé avant le chargement des polices (Inter /
       // JetBrains Mono) → métriques de repli, textes qui se chevauchent sur mobile.
       try{ await Promise.race([document.fonts.ready, new Promise(res => setTimeout(res, 2500))]); }catch(_e){}
       const { toBlob } = await import('html-to-image');
-      const blob = await toBlob(card, { pixelRatio: 2, cacheBust: true, width: 1080, height: card.offsetHeight });
+      const opts = { pixelRatio: 2, cacheBust: true, width: 1080, height: card.offsetHeight };
+      // iOS Safari saute souvent les images au 1er passage : un rendu de chauffe
+      // amorce le cache des ressources, le 2e capture l'image complète.
+      try{ await toBlob(card, opts); }catch(_e){}
+      const blob = await toBlob(card, opts);
       if(!blob) throw new Error('blob');
       _shareBlob = blob;
       const url = URL.createObjectURL(blob);

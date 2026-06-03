@@ -17442,8 +17442,12 @@ body.share-open{ overflow:hidden; }
 .sqb-main{ display:grid; grid-template-columns:42% 1fr; gap:38px; min-height:0; }
 .sqb-mvp{ position:relative; display:flex; min-height:0; }
 .sqb-mvp-art{ position:relative; flex:1; width:100%; overflow:hidden; }
-.sqb-mvp-img{ width:100%; height:100%; background-size:auto 172%; background-position:center 9%; background-repeat:no-repeat; display:block; }
-.sqb-mvp-img.thumb-placeholder{ display:grid; place-items:center; background:rgba(255,255,255,.06); color:#cfd0da; font-weight:800; font-size:1.5rem; }
+/* <img> positionné en absolu (et non object-fit/background : non peints par
+   html-to-image sur iOS Safari). Le cadrage reproduit « auto 172% / center 9% »
+   pour ne garder que l'illustration ; le rendu d'export est toujours à 1080px
+   donc cette géométrie est déterministe. */
+.sqb-mvp-img{ position:absolute; width:229%; height:auto; left:-64.5%; top:-6.5%; display:block; }
+.sqb-mvp-img.thumb-placeholder{ position:absolute; inset:0; width:100%; height:100%; left:0; top:0; display:grid; place-items:center; background:rgba(255,255,255,.06); color:#cfd0da; font-weight:800; font-size:1.5rem; }
 .sqb-mvp-art{ background:linear-gradient(160deg, color-mix(in srgb,var(--sc1,#2f8bd9) 26%, #0b0c13), color-mix(in srgb,var(--sc2,#8b5cc7) 18%, #0b0c13)); }
 .sqb-mvp-fade{ position:absolute; inset:0; pointer-events:none; background:
    radial-gradient(72% 66% at 50% 38%, transparent 48%, color-mix(in srgb,var(--sc1,#2f8bd9) 14%, rgba(11,12,19,.55)) 86%, rgba(11,12,19,.92) 100%),
@@ -17453,7 +17457,9 @@ body.share-open{ overflow:hidden; }
 .sqb-mvp-cap .hero-mvp-seal{ font-size:.74rem; font-weight:900; letter-spacing:.14em; color:#08090c; background:linear-gradient(135deg,var(--sc1,#2f8bd9),var(--sc2,#8b5cc7)); padding:.24rem .65rem; border-radius:999px; }
 .sqb-mvp-cap strong{ font-size:1.45rem; font-weight:800; line-height:1.1; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.8); }
 .sqb-right{ display:flex; flex-direction:column; justify-content:center; gap:22px; min-width:0; }
-.sqb-right .sq-score strong{ font-size:4.8rem; }
+.sqb-right .sq-hero{ gap:12px; }
+/* line-height serré (.8) débordait sur la tagline en dessous (visible sur Safari). */
+.sqb-right .sq-score strong{ font-size:4.8rem; line-height:1; }
 .sqb-right .sq-graph .lr-svg{ height:128px; }
 /* Badge résultat neutre : un petit point coloré porte le signal victoire/défaite
    (évite le pavé vert qui jurait avec un deck émeraude). */
