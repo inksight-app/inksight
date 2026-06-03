@@ -11789,26 +11789,35 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     // Variante « Complet » : grande image tout-en-un (matchup, score, bento,
     // course au lore, cartes clés, moment fort) — style sobre/encre.
     if(variant === 'hero'){
-      const bento = stats.map(s => `<div class="bento-cell">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
-      const lore = loreRaceSvg(m, 118);
-      const arts = keyCards.length ? `<div class="ai-section"><span class="share-block-label">Cartes clés</span><div class="share-arts">${keyCards.map(shareCardArt).join('')}</div></div>` : '';
-      const graph = lore ? `<div class="ai-section"><span class="share-block-label">Course au lore</span>${lore}</div>` : '';
-      return `<div class="share-card share-allin share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
+      const mvp = keyCards[0];
+      const heroNum = global ? n(m.wins) : n(m.finalMineLore);
+      const cut = mvp ? _shareCutout.get(cardKey(mvp)) : '';
+      const mvpVisual = mvp ? (cut
+        ? `<img class="dash-mvp-img dash-mvp-cut" src="${esc(cut)}" alt="">`
+        : `<div class="dash-mvp-art">${cardThumbHtml(mvp, 'dash-mvp-img')}<span class="dash-mvp-fade"></span></div>`) : '';
+      const bento3 = stats.slice(0, 3).map(s => `<div class="dash-stat">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
+      return `<div class="share-card share-dash share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
         <span class="share-glow share-glow-a"></span><span class="share-glow share-glow-b"></span>
-        <div class="ai-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
-        <div class="ai-matchup">
-          <div class="ai-team"><span class="share-dots">${shareInkDots(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
-          <span class="ai-vs">VS</span>
-          <div class="ai-team ai-team-opp"><span class="share-dots">${shareInkDots(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
+        <div class="dash-ghost">${heroNum || ''}</div>
+        <div class="dash-top"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
+        <div class="dash-grid">
+          <div class="dash-left">
+            ${mvpVisual}
+            ${mvp ? `<div class="dash-mvp-cap"><span class="hero-mvp-seal">Carte MVP</span><strong>${esc(fullName(mvp) || mvp.name || 'Carte')}</strong>${loreDiamonds(n(mvp.lore))}</div>` : ''}
+          </div>
+          <div class="dash-right">
+            <div class="dash-score"><span class="dash-result">${resultLabel}</span><strong>${esc(score)}</strong><span class="dash-unit">${esc(scoreUnit)}</span></div>
+            <div class="dash-tag">${esc(tagline)}</div>
+            <div class="dash-ctx">${turns ? `${turns} tours` : ''}${turns && opening?.code ? ' · ' : ''}${opening?.code ? esc(opening.code) : ''}</div>
+            <div class="dash-matchup">
+              <div class="dash-team"><span class="share-dots">${shareInkDots(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
+              <span class="dash-vs">VS</span>
+              <div class="dash-team dash-team-opp"><span class="share-dots">${shareInkDots(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
+            </div>
+            <div class="dash-bento">${bento3}</div>
+          </div>
         </div>
-        <div class="ai-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
-        <div class="ai-tag">${esc(tagline)}</div>
-        <div class="ai-ctx">${turns ? `${turns} tours` : ''}${turns && opening?.code ? ' · ' : ''}${opening?.code ? esc(opening.code) : ''}</div>
-        <div class="hero-bento">${bento}</div>
-        ${graph}
-        ${arts}
-        ${mfText ? `<div class="ai-moment"><span>Moment fort</span><b>${esc(mfText)}</b></div>` : ''}
-        <div class="ai-foot"><div class="ai-foot-text"><span>inksight-omega.vercel.app</span><small>Replay tour par tour sur inksight-omega.vercel.app</small></div>${_shareQrSvg ? `<span class="share-qr">${_shareQrSvg}</span>` : ''}</div>
+        <div class="dash-foot">${mfText ? `<span class="dash-foot-mf"><b>Moment fort</b> ${esc(mfText)}</span>` : '<span>inksight-omega.vercel.app · replay tour par tour</span>'}${_shareQrSvg ? `<span class="share-qr">${_shareQrSvg}</span>` : ''}</div>
       </div>`;
     }
 
@@ -11935,8 +11944,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!mvp){ return; }
     const key = cardKey(mvp);
     if(_shareCutout.has(key)){ _shareVariant = 'hero'; renderShareVariant(); return; }
-    const url = getCardImage(mvp, 'normal') || duelinkImageUrl(mvp);
-    if(!url){ return; }
+    const rawUrl = getCardImage(mvp, 'normal') || duelinkImageUrl(mvp);
+    if(!rawUrl){ return; }
+    // Le CDN des cartes n'a pas de CORS → on passe par notre proxy même origine.
+    const url = /^https:\/\/cards\.duels\.ink\//.test(rawUrl) ? `/api/img-proxy?url=${encodeURIComponent(rawUrl)}` : rawUrl;
     const prev = btn.textContent;
     btn.textContent = 'Détourage…';
     btn.disabled = true;
