@@ -11683,7 +11683,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       .trim();
   }
 
-  function inkDotsHtml(profile){
+  function shareInkDots(profile){
     const inks = profile?.inks?.length ? profile.inks : ['inkless'];
     return inks.map(key => `<i class="ink-dot ink-${escAttr(key)}"></i>`).join('');
   }
@@ -11709,7 +11709,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function loreRaceSvg(m){
     const series = arrayify(m?.loreSeries).filter(r => r && n(r.turn) > 0).sort((a, b) => n(a.turn) - n(b.turn));
     if(series.length < 2) return '';
-    const W = 312, H = 150, pl = 8, pr = 8, pt = 12, pb = 14;
+    const W = 312, H = 78, pl = 8, pr = 8, pt = 6, pb = 10;
     const maxT = series[series.length - 1].turn;
     const maxL = Math.max(20, ...series.map(r => Math.max(n(r.mine), n(r.opponent))));
     const X = t => pl + (maxT > 1 ? (t - 1) / (maxT - 1) : 0) * (W - pl - pr);
@@ -11728,6 +11728,26 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   // Visuel de partage d'un match, en 3 variantes (cartes / course au lore / résumé).
   // Teinté aux couleurs du deck, pensé pour l'export PNG ou la capture.
+  // Rangée de diamants de Lore (style Lorcana) — bien plus parlant qu'un « x lore ».
+  function loreDiamonds(lore){
+    const v = Math.max(0, Math.round(n(lore)));
+    if(!v) return '';
+    const max = 7;
+    const count = Math.min(v, max);
+    const dia = `<svg class="lore-dia" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 L15 8 L8 15 L1 8 Z"/></svg>`;
+    return `<span class="lore-dias" title="${v} lore">${dia.repeat(count)}${v > max ? '<span class="lore-more">+</span>' : ''}</span>`;
+  }
+
+  // Carte clé : on zoome sur l'illustration (crop haut), nom en surimpression,
+  // bordure à la couleur d'encre de la carte, diamants de lore dessous.
+  function shareCardArt(card){
+    const ink = INK_COLORS[inkKey((card.colors || [])[0] || card.color || '')] || 'rgba(255,255,255,.45)';
+    return `<div class="sca" style="--ink:${ink}">
+      <div class="sca-crop">${cardThumbHtml(card, 'sca-img')}<span class="sca-name">${esc(fullName(card) || card.name || 'Carte')}</span></div>
+      ${loreDiamonds(n(card.lore))}
+    </div>`;
+  }
+
   function buildShareCardHtml(m, variant = 'cards'){
     const global = m.isBO3 || isGlobalView();
     const win = n(m.wins) > n(m.losses);
@@ -11741,56 +11761,57 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const resultLabel = win ? 'VICTOIRE' : 'DÉFAITE';
     const playerName = stripDecoEmoji(cleanCardName(m.myName || m.first?.myName || 'Joueur')) || 'Joueur';
     const oppName = stripDecoEmoji(cleanCardName(m.opponentName || m.first?.opponentName || 'Adversaire')) || 'Adversaire';
-    const dateStr = m.playedAt ? formatSavedDate(m.playedAt) : '';
     const keyCards = loreEngineCards(cardsForScope(m, 'mine')).sort(compareLoreEngines).slice(0, 3);
     const mf = global ? null : computeMomentFort(m);
-    const mfBlock = mf ? `<div class="share-moment"><span>Moment fort</span><strong>Tour ${mf.turn} · ${mf.swing > 0 ? "+" : "−"}${Math.abs(mf.swing)} lore d’écart</strong></div>` : '';
     const opening = global ? bo3OpeningStatus(m) : gameOpeningStatus(m);
     const metrics = m.proMetrics || {};
     const g = (!global && arrayify(m.sessions)[0]) ? m.sessions[0] : m;
     const turns = global ? Math.round(n(m.avgTurns)) : n(g.turnCount || g.totalTurns || m.turnCount);
     const seen = global ? 0 : Math.min(60, n(g.cardsSeen || m.cardsSeen));
-    const stats = [
-      { k: 'Tours', v: turns || '—' },
-      { k: 'Départ', v: opening?.code || '—' },
-      { k: 'Quêtes/Défis', v: `${n(metrics.questCount)}/${n(metrics.challengeCount)}` },
-      { k: 'Deck vu', v: seen ? `${Math.round(seen / 60 * 100)}%` : '—' }
-    ];
-    const statsHtml = stats.map(s => `<div class="share-stat"><strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
-    const statsStrip = `<div class="share-stats">${statsHtml}</div>`;
-    const keysBlock = keyCards.length ? `
-      <div class="share-keys">
-        <span class="share-keys-label">${keyCards.length > 1 ? 'Cartes clés' : 'Carte clé'}</span>
-        <div class="share-keys-row">
-          ${keyCards.map(c => `<div class="share-key">${cardThumbHtml(c, 'share-key-thumb')}<span class="share-key-cap">${n(c.lore)} lore</span></div>`).join('')}
-        </div>
-      </div>` : '';
+    const badges = [
+      turns ? `<span class="share-badge">${turns} tour${turns > 1 ? 's' : ''}</span>` : '',
+      opening?.code ? `<span class="share-badge">${esc(opening.code)}</span>` : '',
+      tagline ? `<span class="share-badge share-badge-hl">${esc(tagline)}</span>` : ''
+    ].join('');
 
-    let middle;
+    let body;
     if(variant === 'graph'){
       const lore = loreRaceSvg(m);
-      middle = lore ? `<div class="share-lore"><span class="share-keys-label">Course au lore</span>${lore}</div>${mfBlock}${statsStrip}` : `${keysBlock}${statsStrip}`;
+      body = lore
+        ? `<div class="share-block"><span class="share-block-label">Course au lore</span>${lore}</div>`
+        : `<div class="share-arts">${keyCards.map(shareCardArt).join('')}</div>`;
     }else if(variant === 'stats'){
-      const mvp = keyCards[0];
-      const mvpMini = mvp ? `<div class="share-mvpmini">${cardThumbHtml(mvp, 'share-mvpmini-thumb')}<div class="share-mvpmini-info"><span class="share-keys-label">Carte clé</span><strong>${esc(fullName(mvp))}</strong><small>${n(mvp.lore)} lore généré</small></div></div>` : '';
-      middle = `<div class="share-stats share-stats-big">${statsHtml}</div>${mvpMini}${mfBlock}`;
+      const stats = [
+        { k: 'Tours', v: turns || '—' },
+        { k: 'Départ', v: opening?.code || '—' },
+        { k: 'Quêtes/Défis', v: `${n(metrics.questCount)}/${n(metrics.challengeCount)}` },
+        { k: 'Deck vu', v: seen ? `${Math.round(seen / 60 * 100)}%` : '—' }
+      ];
+      const statsHtml = stats.map(s => `<div class="share-stat"><strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
+      const mfBlock = mf ? `<div class="share-moment"><span>Moment fort</span><strong>Tour ${mf.turn} · ${mf.swing > 0 ? "+" : "−"}${Math.abs(mf.swing)} lore d’écart</strong></div>` : '';
+      body = `<div class="share-stats">${statsHtml}</div>${mfBlock}`;
     }else{
-      middle = `${keysBlock}${statsStrip}`;
+      body = keyCards.length
+        ? `<div class="share-block"><span class="share-block-label">Cartes clés</span><div class="share-arts">${keyCards.map(shareCardArt).join('')}</div></div>`
+        : '';
     }
 
     return `<div class="share-card share-${win ? 'win' : 'loss'} share-v-${variant}" style="--sc1:${c1};--sc2:${c2}">
-      <div class="share-card-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
-      <div class="share-scoreboard">
-        <div class="sb-teams">
-          <div class="sb-team"><span class="share-dots">${inkDotsHtml(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
-          <span class="sb-vs">VS</span>
-          <div class="sb-team sb-team-opp"><span class="share-dots">${inkDotsHtml(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
-        </div>
-        <div class="sb-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
+      <span class="share-glow share-glow-a"></span><span class="share-glow share-glow-b"></span>
+      <div class="share-head">
+        <span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span>
+        <span class="share-result-badge">${resultLabel}</span>
       </div>
-      ${tagline ? `<div class="share-tagline">${esc(tagline)}</div>` : ''}
-      ${middle}
-      <div class="share-foot"><div class="share-foot-text"><span>inksight-omega.vercel.app</span><span>${esc(dateStr)}</span></div>${_shareQrSvg ? `<div class="share-qr">${_shareQrSvg}</div>` : ''}</div>
+      <div class="share-badges">${badges}</div>
+      <div class="share-body">
+        <div class="share-pseudo"><span class="share-dots">${shareInkDots(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
+        <div class="share-bigscore"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
+        <div class="share-pseudo share-pseudo-opp"><span class="share-dots">${shareInkDots(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
+      </div>
+      <div class="share-foot-zone">
+        ${body}
+        <div class="share-watermark"><span>inksight-omega.app</span>${_shareQrSvg ? `<span class="share-qr">${_shareQrSvg}</span>` : ''}</div>
+      </div>
     </div>`;
   }
 
@@ -11870,18 +11891,33 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const prev = btn.textContent;
     btn.textContent = 'Génération…';
     btn.disabled = true;
+    const reset = () => { btn.textContent = prev; btn.disabled = false; };
     try{
-      const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(card, { pixelRatio: 2, cacheBust: true });
-      const a = document.createElement('a');
-      a.download = `inksight-match-${Date.now()}.png`;
-      a.href = dataUrl;
-      a.click();
-      btn.textContent = prev;
-      btn.disabled = false;
-    }catch(_e){
-      btn.textContent = 'Fais une capture d’écran';
-      setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2600);
+      const { toBlob } = await import('html-to-image');
+      // Vise ~1080px de large quelle que soit la taille d'affichage de la carte.
+      const targetPx = 1080;
+      const pixelRatio = Math.min(4, Math.max(2, targetPx / (card.offsetWidth || 360)));
+      const blob = await toBlob(card, { pixelRatio, cacheBust: true });
+      if(!blob) throw new Error('blob');
+      const file = new File([blob], `inksight-match-${Date.now()}.png`, { type: 'image/png' });
+      // Mobile : feuille de partage native (iOS ignore le download d'un lien) → Enregistrer/Partager.
+      if(navigator.canShare && navigator.canShare({ files: [file] })){
+        await navigator.share({ files: [file], title: 'Mon match · InkSight' });
+      }else{
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = file.name;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
+      reset();
+    }catch(e){
+      if(e && e.name === 'AbortError'){ reset(); return; } // partage annulé
+      btn.textContent = 'Capture d’écran conseillée';
+      setTimeout(reset, 2600);
     }
   }
 
