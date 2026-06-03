@@ -11683,7 +11683,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       .trim();
   }
 
-  function inkDotsHtml(profile){
+  function shareInkDots(profile){
     const inks = profile?.inks?.length ? profile.inks : ['inkless'];
     return inks.map(key => `<i class="ink-dot ink-${escAttr(key)}"></i>`).join('');
   }
@@ -11782,9 +11782,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <div class="share-card-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
       <div class="share-scoreboard">
         <div class="sb-teams">
-          <div class="sb-team"><span class="share-dots">${inkDotsHtml(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
+          <div class="sb-team"><span class="share-dots">${shareInkDots(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
           <span class="sb-vs">VS</span>
-          <div class="sb-team sb-team-opp"><span class="share-dots">${inkDotsHtml(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
+          <div class="sb-team sb-team-opp"><span class="share-dots">${shareInkDots(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
         </div>
         <div class="sb-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
       </div>
