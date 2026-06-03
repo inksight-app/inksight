@@ -17430,6 +17430,30 @@ body.share-open{ overflow:hidden; }
 .sq-cta-main{ font-size:1.05rem; font-weight:800; color:#fff; }
 .sq-cta-url{ font-size:.82rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:rgba(255,255,255,.5); }
 .sq-foot .share-qr{ width:84px; height:84px; opacity:.95; }
+
+/* ===== Carte 1:1 avec MVP en grand (sqb) ===== */
+.sqb-card{ position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; display:grid; grid-template-rows:auto 1fr auto; gap:30px; padding:48px; color:#fff; font-family:Inter,system-ui,sans-serif;
+  background:
+    radial-gradient(40% 46% at 12% 16%, color-mix(in srgb,var(--sc1,#2f8bd9) 30%, transparent), transparent 72%),
+    radial-gradient(44% 50% at 90% 86%, color-mix(in srgb,var(--sc2,#8b5cc7) 26%, transparent), transparent 72%),
+    linear-gradient(150deg, #0f111a, #0a0b11 82%); }
+.sqb-card .share-glow{ opacity:.14; filter:blur(94px); }
+.sqb-card>*{ position:relative; z-index:1; }
+.sqb-main{ display:grid; grid-template-columns:42% 1fr; gap:38px; min-height:0; }
+.sqb-mvp{ position:relative; display:flex; min-height:0; }
+.sqb-mvp-art{ position:relative; flex:1; width:100%; overflow:hidden; }
+.sqb-mvp-img{ width:100%; height:100%; object-fit:cover; object-position:center 26%; transform:scale(1.12); display:block; }
+.sqb-mvp-img.thumb-placeholder{ transform:none; display:grid; place-items:center; background:rgba(255,255,255,.06); color:#cfd0da; font-weight:800; font-size:1rem; }
+.sqb-mvp-fade{ position:absolute; inset:0; pointer-events:none; background:
+   radial-gradient(72% 66% at 50% 38%, transparent 50%, rgba(11,12,19,.55) 86%, rgba(11,12,19,.92) 100%),
+   linear-gradient(to bottom, transparent 46%, rgba(11,12,19,.95) 100%),
+   linear-gradient(to right, rgba(11,12,19,.6), transparent 14%, transparent 86%, rgba(11,12,19,.6)); }
+.sqb-mvp-cap{ position:absolute; left:6px; right:6px; bottom:8px; z-index:1; display:grid; gap:8px; justify-items:start; }
+.sqb-mvp-cap .hero-mvp-seal{ font-size:.74rem; font-weight:900; letter-spacing:.14em; color:#08090c; background:linear-gradient(135deg,var(--sc1,#2f8bd9),var(--sc2,#8b5cc7)); padding:.24rem .65rem; border-radius:999px; }
+.sqb-mvp-cap strong{ font-size:1.45rem; font-weight:800; line-height:1.1; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.8); }
+.sqb-right{ display:flex; flex-direction:column; justify-content:center; gap:20px; min-width:0; }
+.sqb-right .sq-score strong{ font-size:4.6rem; }
+.sqb-right .sq-graph .lr-svg{ height:128px; }
 .share-variant-tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:4px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); border-radius:12px; }
 .share-variant-tab{ padding:.5rem .3rem; border-radius:9px; border:0; background:transparent; color:rgba(255,255,255,.62); font:inherit; font-size:.74rem; font-weight:750; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .15s ease,color .15s ease; }
 .share-variant-tab.active{ background:rgba(255,255,255,.13); color:#fff; }
