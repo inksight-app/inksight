@@ -11706,10 +11706,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   // Mini-graphe « course au lore » (toi vs adversaire par tour), en SVG inline
   // pour un export fiable (sans dépendance ni souci CORS).
-  function loreRaceSvg(m){
+  function loreRaceSvg(m, H = 78){
     const series = arrayify(m?.loreSeries).filter(r => r && n(r.turn) > 0).sort((a, b) => n(a.turn) - n(b.turn));
     if(series.length < 2) return '';
-    const W = 312, H = 78, pl = 8, pr = 8, pt = 6, pb = 10;
+    const W = 312, pl = 8, pr = 8, pt = 6, pb = 10;
     const maxT = series[series.length - 1].turn;
     const maxL = Math.max(20, ...series.map(r => Math.max(n(r.mine), n(r.opponent))));
     const X = t => pl + (maxT > 1 ? (t - 1) / (maxT - 1) : 0) * (W - pl - pr);
@@ -11742,11 +11742,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   // bordure à la couleur d'encre de la carte, diamants de lore dessous.
   function shareCardArt(card){
     const ink = INK_COLORS[inkKey((card.colors || [])[0] || card.color || '')] || 'rgba(255,255,255,.45)';
-    return `<div class="sca" style="--ink:${ink}">
-      <div class="sca-crop">${cardThumbHtml(card, 'sca-img')}<span class="sca-name">${esc(fullName(card) || card.name || 'Carte')}</span></div>
+    const cut = _shareCutout.get(cardKey(card));
+    const inner = cut ? `<img class="sca-img sca-cut" src="${esc(cut)}" alt="">` : cardThumbHtml(card, 'sca-img');
+    return `<div class="sca${cut ? ' sca-isolated' : ''}" style="--ink:${ink}">
+      <div class="sca-crop">${inner}<span class="sca-name">${esc(fullName(card) || card.name || 'Carte')}</span></div>
       ${loreDiamonds(n(card.lore))}
     </div>`;
   }
+
+  const _shareCutout = new Map(); // cardKey -> dataURL détouré (POC IA)
+  const SHARE_ICONS = {
+    clock: '<svg viewBox="0 0 24 24" class="bento-ic"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    flag: '<svg viewBox="0 0 24 24" class="bento-ic"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+    target: '<svg viewBox="0 0 24 24" class="bento-ic"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>',
+    eye: '<svg viewBox="0 0 24 24" class="bento-ic"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>'
+  };
 
   function buildShareCardHtml(m, variant = 'cards'){
     const global = m.isBO3 || isGlobalView();
@@ -11768,6 +11778,40 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const g = (!global && arrayify(m.sessions)[0]) ? m.sessions[0] : m;
     const turns = global ? Math.round(n(m.avgTurns)) : n(g.turnCount || g.totalTurns || m.turnCount);
     const seen = global ? 0 : Math.min(60, n(g.cardsSeen || m.cardsSeen));
+    const stats = [
+      { k: 'Tours', v: turns || '—', ic: 'clock' },
+      { k: 'Départ', v: opening?.code || '—', ic: 'flag' },
+      { k: 'Quêtes/Défis', v: `${n(metrics.questCount)}/${n(metrics.challengeCount)}`, ic: 'target' },
+      { k: 'Deck vu', v: seen ? `${Math.round(seen / 60 * 100)}%` : '—', ic: 'eye' }
+    ];
+    const mfText = mf ? `Tour ${mf.turn} · ${mf.swing > 0 ? '+' : '−'}${Math.abs(mf.swing)} lore d’écart` : '';
+
+    // Variante « Complet » : grande image tout-en-un (matchup, score, bento,
+    // course au lore, cartes clés, moment fort) — style sobre/encre.
+    if(variant === 'hero'){
+      const bento = stats.map(s => `<div class="bento-cell">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
+      const lore = loreRaceSvg(m, 118);
+      const arts = keyCards.length ? `<div class="ai-section"><span class="share-block-label">Cartes clés</span><div class="share-arts">${keyCards.map(shareCardArt).join('')}</div></div>` : '';
+      const graph = lore ? `<div class="ai-section"><span class="share-block-label">Course au lore</span>${lore}</div>` : '';
+      return `<div class="share-card share-allin share-${win ? 'win' : 'loss'}" style="--sc1:${c1};--sc2:${c2}">
+        <span class="share-glow share-glow-a"></span><span class="share-glow share-glow-b"></span>
+        <div class="ai-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge">${resultLabel}</span></div>
+        <div class="ai-matchup">
+          <div class="ai-team"><span class="share-dots">${shareInkDots(profiles.mine)}</span><b>${esc(playerName)}</b><small>${esc(profiles.mine?.label || '')}</small></div>
+          <span class="ai-vs">VS</span>
+          <div class="ai-team ai-team-opp"><span class="share-dots">${shareInkDots(profiles.opponent)}</span><b>${esc(oppName)}</b><small>${esc(profiles.opponent?.label || '')}</small></div>
+        </div>
+        <div class="ai-score"><strong>${esc(score)}</strong><span>${esc(scoreUnit)}</span></div>
+        <div class="ai-tag">${esc(tagline)}</div>
+        <div class="ai-ctx">${turns ? `${turns} tours` : ''}${turns && opening?.code ? ' · ' : ''}${opening?.code ? esc(opening.code) : ''}</div>
+        <div class="hero-bento">${bento}</div>
+        ${graph}
+        ${arts}
+        ${mfText ? `<div class="ai-moment"><span>Moment fort</span><b>${esc(mfText)}</b></div>` : ''}
+        <div class="ai-foot"><div class="ai-foot-text"><span>inksight-omega.vercel.app</span><small>Replay tour par tour sur inksight-omega.vercel.app</small></div>${_shareQrSvg ? `<span class="share-qr">${_shareQrSvg}</span>` : ''}</div>
+      </div>`;
+    }
+
     const badges = [
       turns ? `<span class="share-badge">${turns} tour${turns > 1 ? 's' : ''}</span>` : '',
       opening?.code ? `<span class="share-badge">${esc(opening.code)}</span>` : '',
@@ -11781,14 +11825,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         ? `<div class="share-block"><span class="share-block-label">Course au lore</span>${lore}</div>`
         : `<div class="share-arts">${keyCards.map(shareCardArt).join('')}</div>`;
     }else if(variant === 'stats'){
-      const stats = [
-        { k: 'Tours', v: turns || '—' },
-        { k: 'Départ', v: opening?.code || '—' },
-        { k: 'Quêtes/Défis', v: `${n(metrics.questCount)}/${n(metrics.challengeCount)}` },
-        { k: 'Deck vu', v: seen ? `${Math.round(seen / 60 * 100)}%` : '—' }
-      ];
       const statsHtml = stats.map(s => `<div class="share-stat"><strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
-      const mfBlock = mf ? `<div class="share-moment"><span>Moment fort</span><strong>Tour ${mf.turn} · ${mf.swing > 0 ? "+" : "−"}${Math.abs(mf.swing)} lore d’écart</strong></div>` : '';
+      const mfBlock = mfText ? `<div class="share-moment"><span>Moment fort</span><strong>${esc(mfText)}</strong></div>` : '';
       body = `<div class="share-stats">${statsHtml}</div>${mfBlock}`;
     }else{
       body = keyCards.length
@@ -11828,8 +11866,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return _shareQrSvg;
   }
 
-  let _shareVariant = 'cards';
+  let _shareVariant = 'hero';
   const SHARE_VARIANTS = [
+    { id: 'hero', label: 'Complet' },
     { id: 'cards', label: 'Cartes' },
     { id: 'graph', label: 'Lore' },
     { id: 'stats', label: 'Résumé' }
@@ -11859,6 +11898,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           </div>
           <div class="share-card-stage" id="shareCardStage"></div>
           <div class="share-popup-actions">
+            <button type="button" class="ghost-button" id="shareCutoutBtn">Détourer le MVP (IA · beta)</button>
             <button type="button" class="primary-button" id="shareDownloadBtn">Télécharger l’image</button>
           </div>
           <p class="share-modal-hint">Choisis un visuel, puis télécharge ou fais une capture.</p>
@@ -11870,9 +11910,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(e.target.closest('[data-share-close]')) closeShareModal();
       });
       modal.querySelector('#shareDownloadBtn').addEventListener('click', downloadShareImage);
+      modal.querySelector('#shareCutoutBtn').addEventListener('click', tryCutoutMvp);
       document.addEventListener('keydown', e => { if(e.key === 'Escape' && !modal.hidden) closeShareModal(); });
     }
-    _shareVariant = 'cards';
+    _shareVariant = 'hero';
     renderShareVariant();
     modal.hidden = false;
     document.body.classList.add('share-open');
@@ -11882,6 +11923,36 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const modal = document.getElementById('shareModal');
     if(modal) modal.hidden = true;
     document.body.classList.remove('share-open');
+  }
+
+  // POC : détourage IA du personnage de la carte MVP (suppression de fond côté
+  // client). Résultat variable sur de l'art peint — d'où le « beta ».
+  async function tryCutoutMvp(){
+    const m = getWorkingData();
+    const btn = document.getElementById('shareCutoutBtn');
+    if(!m || !btn) return;
+    const mvp = loreEngineCards(cardsForScope(m, 'mine')).sort(compareLoreEngines)[0];
+    if(!mvp){ return; }
+    const key = cardKey(mvp);
+    if(_shareCutout.has(key)){ _shareVariant = 'hero'; renderShareVariant(); return; }
+    const url = getCardImage(mvp, 'normal') || duelinkImageUrl(mvp);
+    if(!url){ return; }
+    const prev = btn.textContent;
+    btn.textContent = 'Détourage…';
+    btn.disabled = true;
+    try{
+      const { removeBackground } = await import('@imgly/background-removal');
+      const blob = await removeBackground(url);
+      const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+      _shareCutout.set(key, dataUrl);
+      _shareVariant = 'hero';
+      renderShareVariant();
+      btn.textContent = 'Détourage appliqué';
+      btn.disabled = false;
+    }catch(_e){
+      btn.textContent = 'Détourage indisponible';
+      setTimeout(() => { btn.textContent = prev; btn.disabled = false; }, 2800);
+    }
   }
 
   async function downloadShareImage(){
