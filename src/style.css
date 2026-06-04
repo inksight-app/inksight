@@ -17452,15 +17452,16 @@ body.share-open{ overflow:hidden; }
    donc cette géométrie est déterministe. */
 .sqb-mvp-img{ position:absolute; width:229%; height:auto; left:-64.5%; top:-6.5%; display:block; }
 .sqb-mvp-img.thumb-placeholder{ position:absolute; inset:0; width:100%; height:100%; left:0; top:0; display:grid; place-items:center; background:rgba(255,255,255,.06); color:#cfd0da; font-weight:800; font-size:1.5rem; }
-.sqb-mvp-art{ background:linear-gradient(160deg, color-mix(in srgb,var(--sc1,#2f8bd9) 26%, #0b0c13), color-mix(in srgb,var(--sc2,#8b5cc7) 18%, #0b0c13)); }
-.sqb-mvp-fade{ position:absolute; inset:0; pointer-events:none; background:
-   radial-gradient(72% 66% at 50% 38%, transparent 48%, color-mix(in srgb,var(--sc1,#2f8bd9) 14%, rgba(11,12,19,.55)) 86%, rgba(11,12,19,.92) 100%),
-   linear-gradient(to bottom, transparent 46%, rgba(11,12,19,.95) 100%),
-   linear-gradient(to right, rgba(11,12,19,.6), transparent 14%, transparent 86%, rgba(11,12,19,.6)); }
-/* Plus d'air entre le sceau MVP, le titre et le lore. */
-.sqb-mvp-cap{ position:absolute; left:8px; right:8px; bottom:10px; z-index:1; display:grid; gap:13px; justify-items:start; }
+/* Panneau « héros » : illustration détourée dans un cadre arrondi propre + léger
+   liseré, plutôt qu'un fondu multi-dégradés qui bavait (coin bas-droite). */
+.sqb-mvp-art{ border-radius:24px; border:1px solid rgba(255,255,255,.1); box-shadow:0 18px 50px rgba(0,0,0,.5); background:linear-gradient(160deg, color-mix(in srgb,var(--sc1,#2f8bd9) 26%, #0b0c13), color-mix(in srgb,var(--sc2,#8b5cc7) 18%, #0b0c13)); }
+/* Un SEUL dégradé bas → haut (lisibilité de la légende), rien sur les côtés. */
+.sqb-mvp-fade{ position:absolute; inset:0; pointer-events:none; border-radius:inherit; background:
+   linear-gradient(to top, rgba(7,8,12,.96) 0%, rgba(7,8,12,.78) 18%, rgba(7,8,12,.32) 38%, transparent 56%); }
+/* Légende bien margée du bord du cadre + air entre sceau, nom et lore. */
+.sqb-mvp-cap{ position:absolute; left:20px; right:20px; bottom:20px; z-index:1; display:grid; gap:13px; justify-items:start; }
 .sqb-mvp-cap .hero-mvp-seal{ font-size:.74rem; font-weight:900; letter-spacing:.14em; color:#08090c; background:linear-gradient(135deg,var(--sc1,#2f8bd9),var(--sc2,#8b5cc7)); padding:.26rem .68rem; border-radius:999px; }
-.sqb-mvp-cap strong{ font-size:1.45rem; font-weight:800; line-height:1.16; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.85); }
+.sqb-mvp-cap strong{ font-size:1.55rem; font-weight:800; line-height:1.12; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.85); }
 /* La colonne droite occupe toute la hauteur (plus de bande vide en bas). */
 .sqb-right{ display:flex; flex-direction:column; justify-content:space-between; gap:18px; min-width:0; }
 .sqb-right .sq-hero{ gap:10px; }
@@ -17476,9 +17477,14 @@ body.share-open{ overflow:hidden; }
    pour des « traits » parasites) — même verre que les autres blocs. */
 .sqb-card .sq-graph{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:16px 20px 13px; box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
 /* Lore du MVP en pastille dorée bien distincte (avant : petits diamants noyés). */
-.sqb-mvp-lore{ display:inline-flex; align-items:center; gap:8px; background:rgba(8,9,13,.66); border:1px solid color-mix(in srgb,#ffd76a 45%, transparent); padding:.34rem .78rem .34rem .62rem; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.45); }
+.sqb-mvp-lore{ display:inline-flex; align-items:center; gap:8px; white-space:nowrap; background:rgba(8,9,13,.66); border:1px solid color-mix(in srgb,#ffd76a 45%, transparent); padding:.34rem .82rem .34rem .64rem; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.45); }
 .sqb-mvp-lore .lore-gem{ width:17px; height:17px; flex:0 0 auto; }
-.sqb-mvp-lore em{ font-style:normal; font-weight:800; font-size:1.08rem; color:#ffe7a6; letter-spacing:.01em; }
+.sqb-mvp-lore em{ font-style:normal; font-weight:800; font-size:1.08rem; color:#ffe7a6; letter-spacing:.01em; white-space:nowrap; }
+/* Moment fort : mini-vignettes détourées des cartes ayant quêté ce tour. */
+.sqb-card .sq-moment{ position:relative; }
+.sq-mf-thumbs{ display:flex; gap:9px; margin-top:4px; }
+.sq-mf-thumb{ position:relative; width:54px; height:54px; border-radius:11px; overflow:hidden; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); flex:0 0 auto; box-shadow:0 4px 12px rgba(0,0,0,.35); }
+.sq-mf-thumb-img{ position:absolute; height:205%; width:auto; left:-26%; top:-12%; display:block; }
 /* Match-up : l'archétype (encres) en avant, le pseudo en secondaire, robuste
    aux longs noms (2 lignes propres + troncature). */
 .sqb-card .sq-matchup{ display:grid; gap:11px; }
