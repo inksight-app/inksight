@@ -17432,14 +17432,15 @@ body.share-open{ overflow:hidden; }
 .sq-foot .share-qr{ width:84px; height:84px; opacity:.95; }
 
 /* ===== Carte 1:1 avec MVP en grand (sqb) ===== */
-.sqb-card{ position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; display:grid; grid-template-rows:auto 1fr auto; gap:30px; padding:48px; color:#fff; font-family:Inter,system-ui,sans-serif;
+.sqb-card{ position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; display:grid; grid-template-rows:auto 1fr auto; gap:30px; padding:56px; color:#fff; font-family:Inter,system-ui,sans-serif;
   background:
-    radial-gradient(40% 46% at 12% 16%, color-mix(in srgb,var(--sc1,#2f8bd9) 30%, transparent), transparent 72%),
-    radial-gradient(44% 50% at 90% 86%, color-mix(in srgb,var(--sc2,#8b5cc7) 26%, transparent), transparent 72%),
-    linear-gradient(150deg, #0f111a, #0a0b11 82%); }
-.sqb-card .share-glow{ opacity:.14; filter:blur(94px); }
+    radial-gradient(58% 50% at 16% 8%, color-mix(in srgb,var(--sc1,#2f8bd9) 22%, transparent), transparent 70%),
+    radial-gradient(58% 52% at 88% 96%, color-mix(in srgb,var(--sc2,#8b5cc7) 18%, transparent), transparent 70%),
+    #0b0c12; }
+/* Pas de blobs flous parasites : ils créaient des « formes » qui nuisaient à la lisibilité. */
+.sqb-card .share-glow{ display:none; }
 .sqb-card>*{ position:relative; z-index:1; }
-.sqb-main{ display:grid; grid-template-columns:42% 1fr; gap:38px; min-height:0; }
+.sqb-main{ display:grid; grid-template-columns:40% 1fr; gap:46px; min-height:0; }
 .sqb-mvp{ position:relative; display:flex; min-height:0; }
 .sqb-mvp-art{ position:relative; flex:1; width:100%; overflow:hidden; }
 /* <img> positionné en absolu (et non object-fit/background : non peints par
@@ -17463,7 +17464,8 @@ body.share-open{ overflow:hidden; }
    largeur dans son clone, ce qui cassait « 8–5 » en deux lignes par-dessus la
    tagline. nowrap + line-height 1 le verrouillent sur une ligne. */
 .sqb-right .sq-score{ flex-wrap:nowrap; }
-.sqb-right .sq-score strong{ font-size:4.8rem; line-height:1; white-space:nowrap; overflow-wrap:normal; word-break:keep-all; }
+/* letter-spacing négatif collait les chiffres au tiret « 8–5 » → espacement neutre. */
+.sqb-right .sq-score strong{ font-size:4.8rem; line-height:1; letter-spacing:0; white-space:nowrap; overflow-wrap:normal; word-break:keep-all; }
 .sqb-right .sq-tag{ font-size:2.5rem; }
 .sqb-right .sq-graph .lr-svg{ height:120px; }
 /* Stats plus grandes (le base 1.75rem rendait le texte minuscule). */
@@ -17482,14 +17484,15 @@ body.share-open{ overflow:hidden; }
 .sqb-card.share-loss .share-result-badge .rb-dot{ background:#fb7185; box-shadow:0 0 10px rgba(251,113,133,.7); }
 /* 60/30/10 : une seule couleur dominante sur les micro-barres (moins de bruit). */
 .sqb-card .dash-stat-bar{ background:linear-gradient(90deg, var(--sc1,#2f8bd9) var(--p,100%), rgba(255,255,255,.12) var(--p,100%)); }
-/* Footer : CTA en pastille d'accent + QR labellisé, textes lisibles. */
-.sqb-card .sq-foot{ align-items:center; gap:24px; padding-top:14px; }
-.sqb-card .sq-cta{ gap:12px; justify-items:start; }
-.sqb-card .sq-cta-main{ font-size:1.22rem; font-weight:800; color:#08090c; background:linear-gradient(135deg,var(--sc1,#2f8bd9),var(--sc2,#8b5cc7)); padding:.64rem 1.2rem; border-radius:999px; }
-.sqb-card .sq-cta-url{ font-size:.95rem; }
-.sq-qr{ display:grid; justify-items:center; gap:7px; flex:0 0 auto; }
-.sq-qr .share-qr{ width:96px; height:96px; opacity:.97; }
-.sq-qr-label{ font-size:.74rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.6); text-align:center; line-height:1.1; }
+/* Footer : bloc de marque (et non un faux bouton) + QR, qui remplit le bas. */
+.sqb-card .sq-foot{ align-items:center; gap:30px; padding-top:26px; border-top:1px solid rgba(255,255,255,.1); }
+.sqb-card .sq-cta{ display:grid; gap:7px; justify-items:start; align-content:center; }
+.sqb-card .sq-cta-main{ font-size:1.55rem; font-weight:800; letter-spacing:-.01em; color:#fff; }
+.sqb-card .sq-cta-sub{ font-size:1.02rem; font-weight:600; color:rgba(255,255,255,.66); }
+.sqb-card .sq-cta-url{ font-size:.92rem; font-weight:800; text-transform:uppercase; letter-spacing:.12em; color:color-mix(in srgb,var(--sc1,#2f8bd9) 62%, #fff); margin-top:5px; }
+.sq-qr{ display:grid; justify-items:center; gap:8px; flex:0 0 auto; }
+.sq-qr .share-qr{ width:108px; height:108px; opacity:.97; }
+.sq-qr-label{ font-size:.76rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.62); text-align:center; line-height:1.1; }
 .share-variant-tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:4px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); border-radius:12px; }
 .share-variant-tab{ padding:.5rem .3rem; border-radius:9px; border:0; background:transparent; color:rgba(255,255,255,.62); font:inherit; font-size:.74rem; font-weight:750; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .15s ease,color .15s ease; }
 .share-variant-tab.active{ background:rgba(255,255,255,.13); color:#fff; }
