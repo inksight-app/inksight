@@ -174,6 +174,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.cardModal?.addEventListener('click', e => { if(e.target === els.cardModal) closeCardModal(); });
     document.addEventListener('keydown', handleModalKeydown);
     bindTeamEvents();
+    bindOpponentEvents();
   }
 
 
@@ -7374,6 +7375,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return currentAppView() === 'performances' && currentPerformanceView() === 'history';
   }
 
+  function isOpponentsPerformanceViewActive(){
+    return currentAppView() === 'performances' && currentPerformanceView() === 'opponents';
+  }
+
   function isAccountViewActive(){
     return currentAppView() === 'account';
   }
@@ -7397,6 +7402,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       safe('team-ctx', updateTeamContextBars);
       if(isStatsPerformanceViewActive()) safe('statistiques', renderSavedStats);
       if(isHistoryPerformanceViewActive()) safe('historique', renderSavedHistory);
+      if(isOpponentsPerformanceViewActive()) safe('adversaires', renderOpponentsView);
       return;
     }
 
@@ -7406,6 +7412,249 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   globalThis.INKSIGHT_renderPerformanceData = renderPerformanceData;
+
+  // ===== Adversaires (suivi tête-à-tête) =================================
+  // Agrégation 100% dérivée de state.savedMatches (aucune entité stockée par
+  // adversaire). Clé = pseudo normalisé (best-effort, le jeu ne fournit pas
+  // d'ID stable). Notes en localStorage (abstraction prête pour un futur table).
+  function opState(){
+    return state.opponentsUi || (state.opponentsUi = { sort:'played', color:'all', format:'all', result:'all', search:'', selected:null });
+  }
+  function normalizeOpponentKey(name){
+    return stripDecoEmoji(String(name || '')).replace(/\s+/g, ' ').trim().toLowerCase();
+  }
+  const OPP_GENERIC = new Set(['adversaire', 'opponent', 'joueur', 'player', '']);
+  function matchTimestamp(r){
+    const v = r.played_at || r.duelink_updated_at || r.created_at;
+    const t = v ? Date.parse(v) : 0;
+    return Number.isFinite(t) ? t : 0;
+  }
+  function buildOpponentProfiles(){
+    const map = new Map();
+    for(const r of arrayify(state.savedMatches)){
+      const rawName = String(r.opponent_name || '').trim();
+      const key = normalizeOpponentKey(rawName);
+      if(!key || OPP_GENERIC.has(key)) continue;
+      let p = map.get(key);
+      if(!p){ p = { key, name:rawName, matches:[], wins:0, losses:0, colorCounts:new Map(), lastPlayed:0 }; map.set(key, p); }
+      p.matches.push(r);
+      if(r.result === 'win') p.wins++; else if(r.result === 'loss') p.losses++;
+      const colKey = rowOpponentColors(r).slice().sort().join('/');
+      if(colKey) p.colorCounts.set(colKey, (p.colorCounts.get(colKey) || 0) + 1);
+      const t = matchTimestamp(r);
+      if(t >= p.lastPlayed){ p.lastPlayed = t; p.name = rawName; }
+    }
+    return [...map.values()].map(p => {
+      p.count = p.matches.length;
+      const decided = p.wins + p.losses;
+      p.winrate = decided ? p.wins / decided : 0;
+      p.topColors = [...p.colorCounts.entries()].sort((a, b) => b[1] - a[1]).map(([k, c]) => ({ colors:k.split('/').filter(Boolean), count:c }));
+      return p;
+    });
+  }
+  function opponentNotesStore(){
+    const uid = state.currentUser?.id || 'local';
+    try{ return JSON.parse(localStorage.getItem(`inksight_opp_notes_${uid}`) || '{}') || {}; }
+    catch(_e){ return {}; }
+  }
+  function opponentNote(key){ return opponentNotesStore()[key] || ''; }
+  function setOpponentNote(key, text){
+    const uid = state.currentUser?.id || 'local';
+    const store = opponentNotesStore();
+    if(text && text.trim()) store[key] = text; else delete store[key];
+    try{ localStorage.setItem(`inksight_opp_notes_${uid}`, JSON.stringify(store)); }catch(_e){}
+  }
+  function relativeMatchDate(ts){
+    if(!ts) return '—';
+    const d = Math.floor((Date.now() - ts) / 86400000);
+    if(d <= 0) return "aujourd'hui";
+    if(d === 1) return 'hier';
+    if(d < 7) return `il y a ${d} j`;
+    if(d < 30) return `il y a ${Math.floor(d / 7)} sem`;
+    if(d < 365) return `il y a ${Math.floor(d / 30)} mois`;
+    return `il y a ${Math.floor(d / 365)} an${d >= 730 ? 's' : ''}`;
+  }
+  function filteredSortedOpponents(){
+    const ui = opState();
+    let list = buildOpponentProfiles().filter(p => p.count >= 2);
+    const q = normalizeOpponentKey(ui.search);
+    if(q) list = list.filter(p => p.key.includes(q));
+    if(ui.color !== 'all') list = list.filter(p => p.topColors.some(tc => tc.colors.includes(ui.color)));
+    if(ui.format !== 'all') list = list.filter(p => p.matches.some(m => String(m.format || '').toLowerCase() === ui.format));
+    if(ui.result === 'win') list = list.filter(p => p.wins > p.losses);
+    else if(ui.result === 'loss') list = list.filter(p => p.losses > p.wins);
+    const sorters = {
+      played: (a, b) => b.count - a.count || b.lastPlayed - a.lastPlayed,
+      winrate_low: (a, b) => a.winrate - b.winrate || b.count - a.count,
+      winrate_high: (a, b) => b.winrate - a.winrate || b.count - a.count,
+      recent: (a, b) => b.lastPlayed - a.lastPlayed,
+      name: (a, b) => a.key.localeCompare(b.key),
+    };
+    list.sort(sorters[ui.sort] || sorters.played);
+    return list;
+  }
+  function opponentRecordClass(p){
+    return p.wins > p.losses ? 'pos' : (p.losses > p.wins ? 'neg' : 'even');
+  }
+  function opponentCardHtml(p){
+    const wr = Math.round(p.winrate * 100);
+    const top = p.topColors[0];
+    const topDots = top ? inkDotsHtml(top.colors) : '';
+    return `<button type="button" class="opp-card" data-opp-key="${escAttr(p.key)}">
+      <div class="opp-card-head"><span class="opp-name">${esc(p.name)}</span>${topDots}</div>
+      <div class="opp-record opp-${opponentRecordClass(p)}"><strong>${p.wins}</strong><span>V</span><em>–</em><strong>${p.losses}</strong><span>D</span></div>
+      <div class="opp-meta"><span>${p.count} match${p.count > 1 ? 's' : ''}</span><span class="opp-wr">${wr}% WR</span><span>${relativeMatchDate(p.lastPlayed)}</span></div>
+    </button>`;
+  }
+  function opponentEmptyHtml(totalCrossed){
+    const extra = totalCrossed ? ` (${totalCrossed} adversaire${totalCrossed > 1 ? 's' : ''} croisé${totalCrossed > 1 ? 's' : ''} une seule fois)` : '';
+    return `<div class="opp-empty"><strong>Aucun rival pour l'instant.</strong><span>Les adversaires affrontés au moins 2 fois apparaîtront ici.${extra}</span></div>`;
+  }
+  function renderOpponentListHtml(list, totalCrossed){
+    const ui = opState();
+    const colorOptions = ['all', 'amber', 'amethyst', 'emerald', 'ruby', 'sapphire', 'steel'];
+    const opt = (v, label, cur) => `<option value="${escAttr(v)}"${cur === v ? ' selected' : ''}>${esc(label)}</option>`;
+    const colorSel = colorOptions.map(c => opt(c, c === 'all' ? 'Toutes bicolorités' : inkLabel(c), ui.color)).join('');
+    const sortSel = [['played', 'Le + joué'], ['winrate_low', 'Pire winrate'], ['winrate_high', 'Meilleur winrate'], ['recent', 'Plus récent'], ['name', 'Nom (A-Z)']].map(([v, l]) => opt(v, l, ui.sort)).join('');
+    const fmtSel = [['all', 'Tous formats'], ['bo1', 'BO1'], ['bo3', 'BO3']].map(([v, l]) => opt(v, l, ui.format)).join('');
+    const resSel = [['all', 'Tous bilans'], ['win', 'Avantage (+)'], ['loss', 'Désavantage (−)']].map(([v, l]) => opt(v, l, ui.result)).join('');
+    const cards = list.length ? `<div class="opp-grid">${list.map(opponentCardHtml).join('')}</div>` : opponentEmptyHtml(totalCrossed);
+    return `
+      <article class="glass opp-toolbar">
+        <div class="filter-header-copy"><div class="kicker">Adversaires</div><h2>Tête-à-tête</h2><p>Vos rivaux récurrents (≥ 2 matchs) : bilan, decks joués et notes.</p></div>
+        <div class="opp-controls">
+          <input id="opponentSearch" class="opp-search" type="search" placeholder="Rechercher un pseudo…" value="${escAttr(ui.search)}" />
+          <select id="opponentSort" class="sort-select" aria-label="Trier">${sortSel}</select>
+          <select id="opponentColorFilter" class="sort-select" aria-label="Bicolorité adverse">${colorSel}</select>
+          <select id="opponentFormatFilter" class="sort-select" aria-label="Format">${fmtSel}</select>
+          <select id="opponentResultFilter" class="sort-select" aria-label="Bilan">${resSel}</select>
+        </div>
+      </article>
+      ${cards}`;
+  }
+  function topMyDecks(p){
+    const counts = new Map();
+    for(const m of p.matches){
+      const cols = rowMineColors(m);
+      const k = cols.slice().sort().join('/');
+      if(!k) continue;
+      const cur = counts.get(k) || { colors:cols, count:0, wins:0 };
+      cur.count++; if(m.result === 'win') cur.wins++;
+      counts.set(k, cur);
+    }
+    const list = [...counts.values()].sort((a, b) => b.count - a.count).slice(0, 3);
+    if(!list.length) return '<span class="opp-color-unknown">—</span>';
+    return list.map(d => `<div class="opp-color-row">${inkDotsHtml(d.colors)}<span class="opp-color-count">${d.count}× · ${Math.round(d.wins / d.count * 100)}% WR</span></div>`).join('');
+  }
+  function opponentTheirColorsHtml(p){
+    if(!p.topColors.length) return '<span class="opp-color-unknown">Encres non détectées</span>';
+    return p.topColors.slice(0, 3).map(tc => `<div class="opp-color-row">${inkDotsHtml(tc.colors) || '<span class="opp-color-unknown">Inconnu</span>'}<span class="opp-color-count">${tc.count}×</span></div>`).join('');
+  }
+  function opponentMatchRowHtml(m){
+    const res = m.result === 'win' ? 'win' : 'loss';
+    const score = m.score_label || `${n(m.final_mine_lore)}–${n(m.final_opp_lore)}`;
+    const dots = colorMatchupDotsHtml(rowMineColors(m), rowOpponentColors(m), m.matchup_label);
+    return `<button type="button" class="opp-match" data-opp-open-match="${escAttr(m.id)}">
+      <span class="opp-match-res opp-match-${res}">${res === 'win' ? 'V' : 'D'}</span>
+      <span class="opp-match-score">${esc(score)}</span>
+      <span class="opp-match-dots">${dots}</span>
+      <span class="opp-match-date">${relativeMatchDate(matchTimestamp(m))}</span>
+    </button>`;
+  }
+  function renderOpponentDetailHtml(p){
+    const wr = Math.round(p.winrate * 100);
+    const note = opponentNote(p.key);
+    const matchesHtml = p.matches.slice().sort((a, b) => matchTimestamp(b) - matchTimestamp(a)).map(opponentMatchRowHtml).join('');
+    return `
+      <div class="opp-detail">
+        <button type="button" class="ghost-button compact opp-back" data-opp-back="1">← Tous les adversaires</button>
+        <article class="glass opp-detail-head opp-${opponentRecordClass(p)}">
+          <div class="opp-detail-title"><h2>${esc(p.name)}</h2><span class="opp-detail-sub">${p.count} match${p.count > 1 ? 's' : ''} · dernier ${relativeMatchDate(p.lastPlayed)}</span></div>
+          <div class="opp-h2h"><strong>${p.wins}</strong><small>V</small><i>–</i><strong>${p.losses}</strong><small>D</small><em>${wr}%</em></div>
+        </article>
+        <div class="opp-bento">
+          <article class="glass opp-bento-card"><div class="kicker">Ses bicolorités</div>${opponentTheirColorsHtml(p)}</article>
+          <article class="glass opp-bento-card"><div class="kicker">Tes decks utilisés</div>${topMyDecks(p)}</article>
+          <article class="glass opp-bento-card opp-notes-card"><div class="kicker">Notes du coach</div><textarea id="opponentNote" class="opp-notes" rows="4" placeholder="Ex. joue Saphir/Rubis très agressif, ne pas over-commit au tour 7…">${esc(note)}</textarea><div class="opp-notes-row"><span id="opponentNoteStatus" class="opp-notes-status"></span><button type="button" class="ghost-button compact" data-opp-save-note="1">Enregistrer</button></div></article>
+        </div>
+        <article class="glass opp-matches"><div class="kicker">Vos affrontements</div><div class="opp-matches-list">${matchesHtml}</div></article>
+      </div>`;
+  }
+  function renderOpponentsView(){
+    const panel = document.getElementById('performance-opponents');
+    if(!panel) return;
+    if(!isAuthenticatedForShell()){
+      panel.innerHTML = '<div class="glass opp-empty"><strong>Connectez-vous pour suivre vos adversaires.</strong><span>Vos matchs sauvegardés alimentent automatiquement le suivi tête-à-tête.</span></div>';
+      return;
+    }
+    const ui = opState();
+    const all = buildOpponentProfiles();
+    if(ui.selected){
+      const profile = all.find(p => p.key === ui.selected);
+      if(profile){ panel.innerHTML = renderOpponentDetailHtml(profile); return; }
+      ui.selected = null;
+    }
+    const totalCrossed = all.filter(p => p.count < 2).length;
+    panel.innerHTML = renderOpponentListHtml(filteredSortedOpponents(), totalCrossed);
+  }
+  function renderOpponentGridOnly(){
+    const panel = document.getElementById('performance-opponents');
+    const grid = panel?.querySelector('.opp-grid');
+    const list = filteredSortedOpponents();
+    if(grid){
+      if(list.length){ grid.innerHTML = list.map(opponentCardHtml).join(''); return; }
+    }
+    // bascule liste <-> vide : on régénère la zone résultats sans toucher la barre
+    const toolbar = panel?.querySelector('.opp-toolbar');
+    if(!toolbar) { renderOpponentsView(); return; }
+    const old = panel.querySelector('.opp-grid, .opp-empty');
+    const totalCrossed = buildOpponentProfiles().filter(p => p.count < 2).length;
+    const html = list.length ? `<div class="opp-grid">${list.map(opponentCardHtml).join('')}</div>` : opponentEmptyHtml(totalCrossed);
+    if(old) old.outerHTML = html; else toolbar.insertAdjacentHTML('afterend', html);
+  }
+  let _oppSearchTimer = null;
+  function openSavedMatchFromOpponent(id){
+    if(!id) return;
+    state.selectedSavedMatchId = id;
+    setPerformanceView('history');
+    renderPerformanceData();
+    document.getElementById('historyDetail')?.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+  function saveOpponentNoteFromUi(){
+    const ta = document.getElementById('opponentNote');
+    const ui = opState();
+    if(!ta || !ui.selected) return;
+    setOpponentNote(ui.selected, ta.value);
+    const st = document.getElementById('opponentNoteStatus');
+    if(st){ st.textContent = 'Note enregistrée ✓'; setTimeout(() => { if(st) st.textContent = ''; }, 2200); }
+  }
+  function bindOpponentEvents(){
+    const panel = document.getElementById('performance-opponents');
+    if(!panel) return;
+    panel.addEventListener('input', e => {
+      if(e.target.id === 'opponentSearch'){ opState().search = e.target.value; clearTimeout(_oppSearchTimer); _oppSearchTimer = setTimeout(renderOpponentGridOnly, 180); }
+    });
+    panel.addEventListener('change', e => {
+      const ui = opState();
+      const id = e.target.id;
+      if(id === 'opponentSort') ui.sort = e.target.value;
+      else if(id === 'opponentColorFilter') ui.color = e.target.value;
+      else if(id === 'opponentFormatFilter') ui.format = e.target.value;
+      else if(id === 'opponentResultFilter') ui.result = e.target.value;
+      else return;
+      renderOpponentsView();
+    });
+    panel.addEventListener('click', e => {
+      const back = e.target.closest('[data-opp-back]');
+      const openM = e.target.closest('[data-opp-open-match]');
+      const saveN = e.target.closest('[data-opp-save-note]');
+      const card = e.target.closest('[data-opp-key]');
+      if(back){ opState().selected = null; renderOpponentsView(); return; }
+      if(openM){ openSavedMatchFromOpponent(openM.getAttribute('data-opp-open-match')); return; }
+      if(saveN){ saveOpponentNoteFromUi(); return; }
+      if(card){ opState().selected = card.getAttribute('data-opp-key'); renderOpponentsView(); window.scrollTo({ top:0, behavior:'smooth' }); }
+    });
+  }
 
   function selectedValuesForMode(mode, key){
     const prefix = mode === 'stats' ? 'performance' : 'history';
@@ -14207,7 +14456,7 @@ function initAppShell() {
   }
 
   function setPerformanceView(view = 'stats') {
-    const next = view === 'history' ? 'history' : 'stats';
+    const next = (view === 'history' || view === 'opponents') ? view : 'stats';
     document.body.dataset.performanceView = next;
 
     perfButtons.forEach((button) => {
@@ -14295,9 +14544,10 @@ function initAppShell() {
   perfButtons.forEach((button) => {
     button.addEventListener('click', () => {
       setPerformanceView(button.dataset.performanceView);
-      if(button.dataset.performanceView === 'history'){
+      if(button.dataset.performanceView === 'history' || button.dataset.performanceView === 'opponents'){
         globalThis.INKSIGHT_refreshSavedMatches?.({ silent:true });
       }
+      renderPerformanceData();
     });
   });
 
