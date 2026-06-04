@@ -11798,7 +11798,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const c1 = mineP.colors[0] || '#3b4a6b';
     const c2 = mineP.colors[1] || mineP.colors[0] || '#27304a';
     const tagline = shareHeadline(m, win, global);
-    const score = global ? `${n(m.wins)}–${n(m.losses)}` : `${n(m.finalMineLore)}–${n(m.finalOppLore)}`;
+    const score = global ? `${n(m.wins)} – ${n(m.losses)}` : `${n(m.finalMineLore)} – ${n(m.finalOppLore)}`;
     const scoreUnit = global ? 'manches' : 'lore';
     const resultLabel = win ? 'VICTOIRE' : 'DÉFAITE';
     const playerName = stripDecoEmoji(cleanCardName(m.myName || m.first?.myName || 'Joueur')) || 'Joueur';
@@ -11844,7 +11844,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           ${mfText ? `<div class="sq-moment"><span>Moment fort</span><b>${esc(mfText)}</b></div>` : ''}
         </div>
       </div>
-      <div class="sq-foot"><div class="sq-cta"><span class="sq-cta-main">Revis le match tour par tour</span><span class="sq-cta-url">inksight-omega.vercel.app</span></div>${_shareQrSvg ? `<div class="sq-qr"><span class="share-qr">${_shareQrSvg}</span><span class="sq-qr-label">Scanne pour rejouer</span></div>` : ''}</div>
+      <div class="sq-foot"><div class="sq-cta"><span class="sq-cta-main">Analyse tes parties sur InkSight</span><span class="sq-cta-sub">Replays, statistiques &amp; matchups Lorcana</span><span class="sq-cta-url">inksight-omega.vercel.app</span></div>${_shareQrSvg ? `<div class="sq-qr"><span class="share-qr">${_shareQrSvg}</span><span class="sq-qr-label">Scanne pour essayer</span></div>` : ''}</div>
     </div>`;
   }
 
