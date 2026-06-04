@@ -11762,12 +11762,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!base) return `<div class="sqb-mvp-img thumb-placeholder">${esc(initials(label))}</div>`;
     return `<img class="sqb-mvp-img" data-share-bg="${escAttr(shareProxyUrl(full))}" data-share-bg-alt="${escAttr(shareProxyUrl(base))}" alt="${escAttr(label)}">`;
   }
+  // Mini-vignette détourée (illustration seule) pour les cartes du moment fort.
+  function shareMiniArt(card){
+    const base = String(card.image || card.imageSmall || duelinkImageUrl(card) || '');
+    if(!base) return '';
+    const full = base.replace('/thumbnail/', '/full/');
+    return `<span class="sq-mf-thumb"><img class="sq-mf-thumb-img" data-share-bg="${escAttr(shareProxyUrl(full))}" data-share-bg-alt="${escAttr(shareProxyUrl(base))}" alt="${escAttr(fullName(card) || card.name || 'Carte')}"></span>`;
+  }
 
   const SHARE_ICONS = {
     clock: '<svg viewBox="0 0 24 24" class="bento-ic"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     flag: '<svg viewBox="0 0 24 24" class="bento-ic"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
     target: '<svg viewBox="0 0 24 24" class="bento-ic"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>',
-    eye: '<svg viewBox="0 0 24 24" class="bento-ic"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>'
+    eye: '<svg viewBox="0 0 24 24" class="bento-ic"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg>',
+    mull: '<svg viewBox="0 0 24 24" class="bento-ic"><rect x="3" y="7" width="12" height="14" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-2"/></svg>'
   };
 
   // Encres avec repli : si non détectées (matchs de l'historique reconstruits),
@@ -11804,20 +11812,30 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const playerName = stripDecoEmoji(cleanCardName(m.myName || m.first?.myName || 'Joueur')) || 'Joueur';
     const oppName = stripDecoEmoji(cleanCardName(m.opponentName || m.first?.opponentName || 'Adversaire')) || 'Adversaire';
     const mvp = loreEngineCards(cardsForScope(m, 'mine')).sort(compareLoreEngines)[0];
+    // Nom du perso uniquement (avant le « - ») : tient sur une ligne et laisse
+    // de l'air dans la pastille MVP.
+    const mvpName = mvp ? String(fullName(mvp) || mvp.name || "Carte").split(" - ")[0].trim() : "";
     const mf = global ? null : computeMomentFort(m);
     const opening = global ? bo3OpeningStatus(m) : gameOpeningStatus(m);
     const metrics = m.proMetrics || {};
     const g = (!global && arrayify(m.sessions)[0]) ? m.sessions[0] : m;
     const turns = global ? Math.round(n(m.avgTurns)) : n(g.turnCount || g.totalTurns || m.turnCount);
-    const seen = global ? 0 : Math.min(60, n(g.cardsSeen || m.cardsSeen));
-    const seenPct = seen ? Math.round(seen / 60 * 100) : 0;
+    const mull = g?.mulligan || m?.mulligan || (arrayify(m?.sessions)[0] || {}).mulligan || m?.first?.mulligan || null;
+    const mullSwapped = mull ? n(Array.isArray(mull.replaced) ? mull.replaced.length : (mull.kept != null ? Math.max(0, 7 - n(mull.kept)) : 0)) : 0;
+    const mullVal = !mull ? '—' : (mullSwapped > 0 ? `−${mullSwapped}` : 'Gardée');
     const stats = [
       { k: 'Tours', v: turns || '—', ic: 'clock', p: 0 },
       { k: 'Départ', v: opening?.code || '—', ic: 'flag', p: 0 },
       { k: 'Quêtes·Défis', v: `${n(metrics.questCount)}/${n(metrics.challengeCount)}`, ic: 'target', p: 0 },
-      { k: 'Deck vu', v: seenPct ? `${seenPct}%` : '—', ic: 'eye', p: seenPct }
+      { k: 'Mulligan', v: mullVal, ic: 'mull', p: 0 }
     ];
     const bento = stats.map(s => `<div class="dash-stat">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span><i class="dash-stat-bar"${s.p ? ` style="--p:${s.p}%"` : ''}></i></div>`).join('');
+    const mfSeen = new Set();
+    const mfCards = mf ? arrayify(m?.timeline)
+      .filter(t => t && t.owner === 'mine' && t.type === 'quest' && n(t.turn) === mf.turn && t.card)
+      .filter(t => { const k = cardKey(t.card); if(mfSeen.has(k)) return false; mfSeen.add(k); return true; })
+      .slice(0, 4) : [];
+    const mfThumbs = mfCards.map(t => shareMiniArt(t.card)).join('');
     const mfText = mf ? (mf.swing > 0
       ? `Tour ${mf.turn} : +${Math.abs(mf.swing)} de lore, tu fais basculer la course`
       : `Tour ${mf.turn} : −${Math.abs(mf.swing)} de lore, la course bascule contre toi`) : '';
@@ -11829,7 +11847,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <div class="sq-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge"><i class="rb-dot"></i>${resultLabel}</span></div>
       <div class="sqb-main">
         <div class="sqb-mvp">
-          ${mvp ? `<div class="sqb-mvp-art">${shareMvpArt(mvp)}<span class="sqb-mvp-fade"></span><span class="sqb-mvp-cap"><span class="hero-mvp-seal">MVP du match</span><strong>${esc(fullName(mvp) || mvp.name || 'Carte')}</strong><span class="sqb-mvp-lore"><svg class="lore-gem" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 L15 8 L8 15 L1 8 Z" fill="#ffd76a"/></svg><em>${n(mvp.lore)} lore</em></span></span></div>` : ''}
+          ${mvp ? `<div class="sqb-mvp-art">${shareMvpArt(mvp)}<span class="sqb-mvp-fade"></span><span class="sqb-mvp-cap"><span class="hero-mvp-seal">MVP du match</span><strong>${esc(mvpName)}</strong><span class="sqb-mvp-lore"><svg class="lore-gem" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 L15 8 L8 15 L1 8 Z" fill="#ffd76a"/></svg><em>${n(mvp.lore)} lore</em></span></span></div>` : ''}
         </div>
         <div class="sqb-right">
           <div class="sq-hero">
@@ -11843,7 +11861,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           </div>
           <div class="sq-stats">${bento}</div>
           ${lore ? `<div class="sq-graph">${lore}</div>` : ''}
-          ${mfText ? `<div class="sq-moment"><span>Moment fort</span><b>${esc(mfText)}</b></div>` : ''}
+          ${mfText ? `<div class="sq-moment"><span>Moment fort</span><b>${esc(mfText)}</b>${mfThumbs ? `<div class="sq-mf-thumbs">${mfThumbs}</div>` : ''}</div>` : ''}
         </div>
       </div>
       <div class="sq-foot"><div class="sq-cta"><span class="sq-cta-main">Analyse tes parties sur InkSight</span><span class="sq-cta-sub">Replays, statistiques &amp; matchups Lorcana</span><span class="sq-cta-url">inksight-omega.vercel.app</span></div>${_shareQrSvg ? `<div class="sq-qr"><span class="share-qr">${_shareQrSvg}</span><span class="sq-qr-label">Scanne pour essayer</span></div>` : ''}</div>
