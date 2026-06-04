@@ -17425,6 +17425,12 @@ body.share-open{ overflow:hidden; }
 .sq-moment{ display:grid; gap:5px; align-content:center; padding:16px 18px; border-radius:20px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1); }
 .sq-moment span{ font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.14em; color:color-mix(in srgb,var(--sc2,#f6c54d) 66%, #fff); }
 .sq-moment b{ font-size:1.05rem; font-weight:700; color:#fff; }
+/* Bande « moment fort » pleine largeur sous les 2 colonnes : texte à gauche,
+   vignettes des cartes à droite — remplit l'espace sans rien décaler. */
+.sqb-card .sq-moment{ display:flex; align-items:center; justify-content:space-between; gap:30px; padding:20px 28px; flex:0 0 auto; }
+.sqb-card .sq-moment-text{ display:grid; gap:7px; min-width:0; }
+.sqb-card .sq-moment-kicker{ font-size:.78rem; font-weight:900; text-transform:uppercase; letter-spacing:.16em; color:color-mix(in srgb,var(--sc2,#34d399) 60%, #fff); }
+.sqb-card .sq-moment-text b{ font-size:1.32rem; font-weight:700; color:#fff; }
 .sq-foot{ display:flex; align-items:center; justify-content:space-between; gap:18px; padding-top:8px; border-top:1px solid rgba(255,255,255,.1); }
 .sq-cta{ display:grid; gap:3px; }
 .sq-cta-main{ font-size:1.05rem; font-weight:800; color:#fff; }
@@ -17435,7 +17441,7 @@ body.share-open{ overflow:hidden; }
 /* .share-card.sqb-card (et non .sqb-card seul) : la base .share-card est définie
    PLUS BAS dans la feuille, à spécificité égale elle écrasait padding/gap/grilles
    (le footer héritait du 1fr → bande vide géante en bas, marges à 18px). */
-.share-card.sqb-card{ position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; display:grid; grid-template-rows:auto 1fr auto; gap:30px; padding:56px; color:#fff; font-family:Inter,system-ui,sans-serif;
+.share-card.sqb-card{ position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; display:flex; flex-direction:column; gap:26px; padding:54px; color:#fff; font-family:Inter,system-ui,sans-serif;
   background:
     radial-gradient(58% 50% at 16% 8%, color-mix(in srgb,var(--sc1,#2f8bd9) 22%, transparent), transparent 70%),
     radial-gradient(58% 52% at 88% 96%, color-mix(in srgb,var(--sc2,#8b5cc7) 18%, transparent), transparent 70%),
@@ -17443,14 +17449,19 @@ body.share-open{ overflow:hidden; }
 /* Pas de blobs flous parasites : ils créaient des « formes » qui nuisaient à la lisibilité. */
 .sqb-card .share-glow{ display:none; }
 .sqb-card>*{ position:relative; z-index:1; }
-.sqb-main{ display:grid; grid-template-columns:40% 1fr; gap:46px; min-height:0; }
+/* main = zone flexible : prend tout l'espace restant entre l'en-tête et la bande
+   « moment fort » + footer → la colonne MVP s'arrête pile au bas du graphe. */
+.sqb-main{ flex:1 1 auto; display:grid; grid-template-columns:38% 1fr; gap:42px; min-height:0; }
 .sqb-mvp{ position:relative; display:flex; min-height:0; }
 .sqb-mvp-art{ position:relative; flex:1; width:100%; overflow:hidden; }
 /* <img> positionné en absolu (et non object-fit/background : non peints par
    html-to-image sur iOS Safari). Le cadrage reproduit « auto 172% / center 9% »
    pour ne garder que l'illustration ; le rendu d'export est toujours à 1080px
    donc cette géométrie est déterministe. */
-.sqb-mvp-img{ position:absolute; width:229%; height:auto; left:-64.5%; top:-6.5%; display:block; }
+/* Colonne très portrait → zoom marqué sur la bande illustration (haut-centre de
+   la carte). On ne montre que ~5–58% de la hauteur et la zone centrale : le
+   personnage est cadré, le bas de carte (nom/type/liseré) sort du cadre. */
+.sqb-mvp-img{ position:absolute; width:250%; height:auto; left:-75%; top:-9%; display:block; }
 .sqb-mvp-img.thumb-placeholder{ position:absolute; inset:0; width:100%; height:100%; left:0; top:0; display:grid; place-items:center; background:rgba(255,255,255,.06); color:#cfd0da; font-weight:800; font-size:1.5rem; }
 /* Panneau « héros » : illustration détourée dans un cadre arrondi propre + léger
    liseré, plutôt qu'un fondu multi-dégradés qui bavait (coin bas-droite). */
@@ -17458,10 +17469,13 @@ body.share-open{ overflow:hidden; }
 /* Un SEUL dégradé bas → haut (lisibilité de la légende), rien sur les côtés. */
 .sqb-mvp-fade{ position:absolute; inset:0; pointer-events:none; border-radius:inherit; background:
    linear-gradient(to top, rgba(7,8,12,.96) 0%, rgba(7,8,12,.78) 18%, rgba(7,8,12,.32) 38%, transparent 56%); }
-/* Légende bien margée du bord du cadre + air entre sceau, nom et lore. */
-.sqb-mvp-cap{ position:absolute; left:20px; right:20px; bottom:20px; z-index:1; display:grid; gap:13px; justify-items:start; }
-.sqb-mvp-cap .hero-mvp-seal{ font-size:.74rem; font-weight:900; letter-spacing:.14em; color:#08090c; background:linear-gradient(135deg,var(--sc1,#2f8bd9),var(--sc2,#8b5cc7)); padding:.26rem .68rem; border-radius:999px; }
-.sqb-mvp-cap strong{ font-size:1.55rem; font-weight:800; line-height:1.12; color:#fff; text-shadow:0 2px 10px rgba(0,0,0,.85); }
+/* Hiérarchie typo classique (surtitre / titre / méta) plutôt que 3 pastilles
+   empilées : surtitre coloré discret, NOM en grand, lore en méta dorée légère. */
+.sqb-mvp-cap{ position:absolute; left:22px; right:22px; bottom:22px; z-index:1; display:grid; gap:7px; justify-items:start; }
+.sqb-mvp-kicker{ font-size:.82rem; font-weight:900; letter-spacing:.18em; text-transform:uppercase; color:color-mix(in srgb,var(--sc1,#2f8bd9) 50%, #fff); text-shadow:0 1px 6px rgba(0,0,0,.8); }
+.sqb-mvp-name{ font-size:2.15rem; font-weight:800; line-height:1.05; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.9); }
+.sqb-mvp-meta{ display:inline-flex; align-items:center; gap:7px; font-size:1.02rem; font-weight:700; color:#f4d488; text-shadow:0 1px 8px rgba(0,0,0,.85); margin-top:2px; }
+.sqb-mvp-meta .lore-gem{ width:16px; height:16px; flex:0 0 auto; }
 /* La colonne droite occupe toute la hauteur (plus de bande vide en bas). */
 .sqb-right{ display:flex; flex-direction:column; justify-content:space-between; gap:18px; min-width:0; }
 .sqb-right .sq-hero{ gap:10px; }
@@ -17481,19 +17495,16 @@ body.share-open{ overflow:hidden; }
 .sqb-mvp-lore .lore-gem{ width:17px; height:17px; flex:0 0 auto; }
 .sqb-mvp-lore em{ font-style:normal; font-weight:800; font-size:1.08rem; color:#ffe7a6; letter-spacing:.01em; white-space:nowrap; }
 /* Moment fort : mini-vignettes détourées des cartes ayant quêté ce tour. */
-.sqb-card .sq-moment{ position:relative; }
-.sq-mf-thumbs{ display:flex; gap:9px; margin-top:4px; }
-.sq-mf-thumb{ position:relative; width:54px; height:54px; border-radius:11px; overflow:hidden; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); flex:0 0 auto; box-shadow:0 4px 12px rgba(0,0,0,.35); }
+.sq-mf-thumbs{ display:flex; gap:10px; flex:0 0 auto; }
+.sq-mf-thumb{ position:relative; width:58px; height:58px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); flex:0 0 auto; box-shadow:0 4px 12px rgba(0,0,0,.35); }
 .sq-mf-thumb-img{ position:absolute; height:205%; width:auto; left:-26%; top:-12%; display:block; }
-/* Match-up : l'archétype (encres) en avant, le pseudo en secondaire, robuste
-   aux longs noms (2 lignes propres + troncature). */
+/* Match-up épuré : les pastilles de couleur portent déjà l'info d'encres, donc on
+   ne garde que les ronds + le pseudo du joueur (en avant). */
 .sqb-card .sq-matchup{ display:grid; gap:11px; }
-.sqb-card .sq-team{ display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:14px; }
-.sqb-card .sq-team .share-dots{ display:inline-flex; gap:6px; }
-.sqb-card .sq-team-id{ display:flex; align-items:baseline; gap:11px; min-width:0; }
-.sqb-card .sq-team-id b{ font-size:1.3rem; font-weight:800; color:#fff; white-space:nowrap; flex:0 0 auto; }
-.sqb-card .sq-team-opp .sq-team-id b{ color:rgba(255,255,255,.92); }
-.sqb-card .sq-team-id small{ font-size:1rem; font-weight:700; color:rgba(255,255,255,.55); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.sqb-card .sq-team{ display:flex; align-items:center; gap:15px; min-width:0; }
+.sqb-card .sq-team .share-dots{ display:inline-flex; gap:7px; flex:0 0 auto; }
+.sqb-card .sq-team>b{ font-size:1.6rem; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.sqb-card .sq-team-opp>b{ color:rgba(255,255,255,.94); }
 .sqb-card .sq-vs-row{ display:flex; align-items:center; gap:13px; }
 .sqb-card .sq-vs-row i{ flex:1; height:1px; background:rgba(255,255,255,.12); }
 .sqb-card .sq-vs-row .sq-vs{ font-size:.76rem; font-weight:800; letter-spacing:.18em; color:rgba(255,255,255,.45); }
@@ -17501,15 +17512,14 @@ body.share-open{ overflow:hidden; }
    on sépare par l'espace. Contenu centré verticalement, QR séparé d'un trait. */
 .sqb-card .sq-foot{ border-top:none; align-items:center; gap:30px; padding-top:0; margin-top:6px; }
 .sqb-card .sq-qr{ border-left:1px solid rgba(255,255,255,.12); padding-left:30px; }
-/* Stats plus grandes (le base 1.75rem rendait le texte minuscule). */
-.sqb-card .dash-stat{ padding:20px 13px 22px; border-radius:20px; align-content:start; }
+/* Stats : contenu centré et réparti pour remplir la bulle (icône / chiffre /
+   libellé), plus de micro-jauge décorative qui n'avait pas de sens. */
+.sqb-card .dash-stat{ padding:16px 12px; border-radius:20px; display:grid; justify-items:center; text-align:center; align-content:center; gap:9px; }
 .sqb-card .dash-stat .bento-ic{ width:24px; height:24px; }
-.sqb-card .dash-stat strong{ font-size:2.3rem; }
+.sqb-card .dash-stat strong{ font-size:2.3rem; line-height:1; }
 /* Sous-titres sur une seule ligne → chiffres alignés d'une case à l'autre. */
 .sqb-card .dash-stat span{ font-size:.66rem; letter-spacing:.01em; white-space:nowrap; }
-.sqb-card .dash-stat-bar{ left:13px; right:13px; bottom:11px; height:4px; }
-.sqb-card .sq-moment span{ font-size:.78rem; }
-.sqb-card .sq-moment b{ font-size:1.18rem; }
+.sqb-card .dash-stat-bar{ display:none; }
 /* Badge résultat neutre : un petit point coloré porte le signal victoire/défaite
    (évite le pavé vert qui jurait avec un deck émeraude). */
 .sqb-card .share-result-badge{ display:inline-flex; align-items:center; gap:.5rem; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); color:#fff; font-size:.92rem; padding:.42rem 1rem; letter-spacing:.1em; }
@@ -17518,15 +17528,16 @@ body.share-open{ overflow:hidden; }
 .sqb-card.share-loss .share-result-badge .rb-dot{ background:#fb7185; box-shadow:0 0 10px rgba(251,113,133,.7); }
 /* 60/30/10 : une seule couleur dominante sur les micro-barres (moins de bruit). */
 .sqb-card .dash-stat-bar{ background:linear-gradient(90deg, var(--sc1,#2f8bd9) var(--p,100%), rgba(255,255,255,.12) var(--p,100%)); }
-/* Footer : bloc de marque (et non un faux bouton) + QR, qui remplit le bas. */
-.sqb-card .sq-foot{ align-items:center; gap:30px; padding-top:26px; border-top:1px solid rgba(255,255,255,.1); }
-.sqb-card .sq-cta{ display:grid; gap:7px; justify-items:start; align-content:center; }
-.sqb-card .sq-cta-main{ font-size:1.55rem; font-weight:800; letter-spacing:-.01em; color:#fff; }
-.sqb-card .sq-cta-sub{ font-size:1.02rem; font-weight:600; color:rgba(255,255,255,.66); }
-.sqb-card .sq-cta-url{ font-size:.92rem; font-weight:800; text-transform:uppercase; letter-spacing:.12em; color:color-mix(in srgb,var(--sc1,#2f8bd9) 62%, #fff); margin-top:5px; }
-.sq-qr{ display:grid; justify-items:center; gap:8px; flex:0 0 auto; }
-.sq-qr .share-qr{ width:108px; height:108px; opacity:.97; }
-.sq-qr-label{ font-size:.76rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.62); text-align:center; line-height:1.1; }
+/* Footer compact : moins haut, QR plus petit (inutile de réserver autant de place). */
+.sqb-card .sq-foot{ flex:0 0 auto; align-items:center; gap:26px; padding-top:0; border-top:none; }
+.sqb-card .sq-cta{ display:grid; gap:4px; justify-items:start; align-content:center; }
+.sqb-card .sq-cta-main{ font-size:1.32rem; font-weight:800; letter-spacing:-.01em; color:#fff; }
+.sqb-card .sq-cta-sub{ font-size:.94rem; font-weight:600; color:rgba(255,255,255,.66); }
+.sqb-card .sq-cta-url{ font-size:.86rem; font-weight:800; text-transform:uppercase; letter-spacing:.12em; color:color-mix(in srgb,var(--sc1,#2f8bd9) 62%, #fff); margin-top:3px; }
+.sq-qr{ display:grid; justify-items:center; gap:6px; flex:0 0 auto; }
+.sq-qr .share-qr{ width:74px; height:74px; opacity:.97; }
+.sq-qr-label{ font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:rgba(255,255,255,.62); text-align:center; line-height:1.1; }
+.sqb-card .sq-qr{ border-left:none; padding-left:0; }
 .share-variant-tabs{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:4px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.07); border-radius:12px; }
 .share-variant-tab{ padding:.5rem .3rem; border-radius:9px; border:0; background:transparent; color:rgba(255,255,255,.62); font:inherit; font-size:.74rem; font-weight:750; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; transition:background .15s ease,color .15s ease; }
 .share-variant-tab.active{ background:rgba(255,255,255,.13); color:#fff; }
