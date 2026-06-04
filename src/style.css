@@ -17697,3 +17697,67 @@ body.share-open{ overflow:hidden; }
   #saveAnalysisButton,
   #mulliganButton{ width:100%!important; min-height:50px!important; }
 }
+
+/* ===== Adversaires (suivi tête-à-tête) ===== */
+.opp-toolbar{ display:grid; gap:16px; padding:20px 22px; }
+.opp-toolbar .filter-header-copy h2{ margin:.2rem 0 .15rem; font-size:1.4rem; }
+.opp-toolbar .filter-header-copy p{ margin:0; color:rgba(255,255,255,.6); font-size:.92rem; max-width:60ch; }
+.opp-controls{ display:flex; flex-wrap:wrap; gap:10px; }
+.opp-controls .sort-select,.opp-search{ min-height:42px; flex:0 1 auto; }
+.opp-search{ flex:1 1 200px; min-width:170px; padding:.5rem .9rem; border-radius:12px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.14); color:#fff; font:inherit; }
+.opp-search::placeholder{ color:rgba(255,255,255,.42); }
+.opp-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(248px,1fr)); gap:14px; margin-top:16px; }
+.opp-card{ display:grid; gap:12px; text-align:left; padding:18px 18px 16px; border-radius:18px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); color:#fff; font:inherit; cursor:pointer; transition:border-color .15s ease, background .15s ease, transform .15s ease; }
+.opp-card:hover{ background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.22); transform:translateY(-2px); }
+.opp-card-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.opp-name{ font-size:1.18rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.opp-record{ display:flex; align-items:baseline; gap:6px; font-weight:800; }
+.opp-record strong{ font-size:2.1rem; line-height:1; }
+.opp-record span{ font-size:.78rem; font-weight:700; color:rgba(255,255,255,.5); margin-right:6px; }
+.opp-record em{ font-style:normal; font-size:1.4rem; color:rgba(255,255,255,.4); margin:0 2px; }
+.opp-pos .opp-record strong:first-of-type,.opp-pos .opp-h2h strong:first-of-type{ color:#34d399; }
+.opp-neg .opp-record strong:first-of-type,.opp-neg .opp-h2h strong:first-of-type{ color:#fb7185; }
+.opp-record.opp-neg strong:last-of-type{ color:#fb7185; }
+.opp-record.opp-pos strong:last-of-type{ color:rgba(255,255,255,.85); }
+.opp-meta{ display:flex; flex-wrap:wrap; gap:6px 14px; font-size:.82rem; color:rgba(255,255,255,.55); }
+.opp-meta .opp-wr{ color:rgba(255,255,255,.8); font-weight:700; }
+.opp-empty{ padding:28px; border-radius:16px; background:rgba(255,255,255,.04); border:1px dashed rgba(255,255,255,.14); display:grid; gap:6px; margin-top:16px; }
+.opp-empty strong{ font-size:1.05rem; }
+.opp-empty span{ color:rgba(255,255,255,.6); font-size:.92rem; }
+/* Détail adversaire */
+.opp-detail{ display:grid; gap:16px; }
+.opp-back{ justify-self:start; }
+.opp-detail-head{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; padding:22px 24px; }
+.opp-detail-title h2{ margin:0 0 .2rem; font-size:1.7rem; }
+.opp-detail-sub{ color:rgba(255,255,255,.55); font-size:.9rem; }
+.opp-h2h{ display:flex; align-items:baseline; gap:7px; font-weight:800; }
+.opp-h2h strong{ font-size:2.4rem; line-height:1; }
+.opp-h2h small{ font-size:.8rem; color:rgba(255,255,255,.5); font-weight:700; margin-right:8px; }
+.opp-h2h i{ font-style:normal; font-size:1.5rem; color:rgba(255,255,255,.35); }
+.opp-h2h em{ font-style:normal; font-size:1.05rem; padding:.2rem .6rem; border-radius:999px; background:rgba(255,255,255,.08); color:rgba(255,255,255,.8); margin-left:6px; }
+.opp-bento{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+.opp-bento-card{ padding:18px 20px; display:grid; gap:10px; align-content:start; }
+.opp-bento-card .kicker{ margin-bottom:2px; }
+.opp-color-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.opp-color-count{ font-size:.85rem; color:rgba(255,255,255,.62); font-weight:600; }
+.opp-color-unknown{ color:rgba(255,255,255,.45); font-size:.9rem; }
+.opp-notes-card{ grid-column:span 1; }
+.opp-notes{ width:100%; resize:vertical; min-height:84px; padding:.7rem .8rem; border-radius:12px; background:rgba(0,0,0,.28); border:1px solid rgba(255,255,255,.14); color:#fff; font:inherit; font-size:.92rem; line-height:1.4; }
+.opp-notes:focus{ outline:none; border-color:rgba(255,255,255,.32); }
+.opp-notes-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.opp-notes-status{ font-size:.82rem; color:#34d399; font-weight:700; }
+.opp-matches{ padding:18px 20px; display:grid; gap:10px; }
+.opp-matches-list{ display:grid; gap:8px; }
+.opp-match{ display:flex; align-items:center; gap:14px; padding:11px 14px; border-radius:12px; background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.09); color:#fff; font:inherit; cursor:pointer; text-align:left; transition:background .15s ease, border-color .15s ease; }
+.opp-match:hover{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.2); }
+.opp-match-res{ width:26px; height:26px; flex:0 0 auto; display:grid; place-items:center; border-radius:8px; font-weight:800; font-size:.85rem; }
+.opp-match-win{ background:rgba(52,211,153,.18); color:#34d399; }
+.opp-match-loss{ background:rgba(251,113,133,.18); color:#fb7185; }
+.opp-match-score{ font-weight:800; font-variant-numeric:tabular-nums; min-width:54px; }
+.opp-match-dots{ flex:1; }
+.opp-match-date{ color:rgba(255,255,255,.5); font-size:.82rem; white-space:nowrap; }
+@media (max-width:760px){
+  .opp-bento{ grid-template-columns:1fr; }
+  .opp-controls{ width:100%; }
+  .opp-controls .sort-select,.opp-search{ flex:1 1 140px; }
+}
