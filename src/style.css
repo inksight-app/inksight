@@ -17432,7 +17432,10 @@ body.share-open{ overflow:hidden; }
 .sq-foot .share-qr{ width:84px; height:84px; opacity:.95; }
 
 /* ===== Carte 1:1 avec MVP en grand (sqb) ===== */
-.sqb-card{ position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; display:grid; grid-template-rows:auto 1fr auto; gap:30px; padding:56px; color:#fff; font-family:Inter,system-ui,sans-serif;
+/* .share-card.sqb-card (et non .sqb-card seul) : la base .share-card est définie
+   PLUS BAS dans la feuille, à spécificité égale elle écrasait padding/gap/grilles
+   (le footer héritait du 1fr → bande vide géante en bas, marges à 18px). */
+.share-card.sqb-card{ position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; display:grid; grid-template-rows:auto 1fr auto; gap:30px; padding:56px; color:#fff; font-family:Inter,system-ui,sans-serif;
   background:
     radial-gradient(58% 50% at 16% 8%, color-mix(in srgb,var(--sc1,#2f8bd9) 22%, transparent), transparent 70%),
     radial-gradient(58% 52% at 88% 96%, color-mix(in srgb,var(--sc2,#8b5cc7) 18%, transparent), transparent 70%),
@@ -17467,7 +17470,17 @@ body.share-open{ overflow:hidden; }
 /* letter-spacing négatif collait les chiffres au tiret « 8–5 » → espacement neutre. */
 .sqb-right .sq-score strong{ font-size:4.8rem; line-height:1; letter-spacing:0; white-space:nowrap; overflow-wrap:normal; word-break:keep-all; }
 .sqb-right .sq-tag{ font-size:2.5rem; }
-.sqb-right .sq-graph .lr-svg{ height:120px; }
+.sqb-right .sq-graph .lr-svg{ height:118px; }
+/* Graphe dans un panneau discret (et non des lignes flottantes qui passaient
+   pour des « traits » parasites) — même verre que les autres blocs. */
+.sqb-card .sq-graph{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:16px 20px 13px; box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
+/* Lore du MVP bien visible : diamants dorés plus grands + « X lore ». */
+.sqb-mvp-lore{ display:inline-flex; align-items:center; gap:11px; }
+.sqb-mvp-lore .lore-dias{ gap:3px; }
+.sqb-mvp-lore .lore-dia{ width:16px; height:16px; }
+.sqb-mvp-lore .lore-dia path{ fill:#ffd76a; }
+.sqb-mvp-lore .lore-more{ color:#ffd76a; font-size:.95rem; }
+.sqb-mvp-lore em{ font-style:normal; font-weight:800; font-size:1.12rem; color:#fff; text-shadow:0 2px 8px rgba(0,0,0,.85); }
 /* Stats plus grandes (le base 1.75rem rendait le texte minuscule). */
 .sqb-card .dash-stat{ padding:20px 18px 24px; border-radius:20px; }
 .sqb-card .dash-stat .bento-ic{ width:24px; height:24px; }
