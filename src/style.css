@@ -17476,12 +17476,9 @@ body.share-open{ overflow:hidden; }
    pour des « traits » parasites) — même verre que les autres blocs. */
 .sqb-card .sq-graph{ background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:18px; padding:16px 20px 13px; box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
 /* Lore du MVP en pastille dorée bien distincte (avant : petits diamants noyés). */
-.sqb-mvp-lore{ display:inline-flex; align-items:center; gap:9px; background:rgba(8,9,13,.66); border:1px solid color-mix(in srgb,#ffd76a 45%, transparent); padding:.32rem .72rem .32rem .6rem; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.45); }
-.sqb-mvp-lore .lore-dias{ gap:3px; }
-.sqb-mvp-lore .lore-dia{ width:16px; height:16px; }
-.sqb-mvp-lore .lore-dia path{ fill:#ffd76a; }
-.sqb-mvp-lore .lore-more{ color:#ffd76a; font-size:.95rem; }
-.sqb-mvp-lore em{ font-style:normal; font-weight:800; font-size:1.05rem; color:#ffe7a6; letter-spacing:.01em; }
+.sqb-mvp-lore{ display:inline-flex; align-items:center; gap:8px; background:rgba(8,9,13,.66); border:1px solid color-mix(in srgb,#ffd76a 45%, transparent); padding:.34rem .78rem .34rem .62rem; border-radius:999px; box-shadow:0 6px 18px rgba(0,0,0,.45); }
+.sqb-mvp-lore .lore-gem{ width:17px; height:17px; flex:0 0 auto; }
+.sqb-mvp-lore em{ font-style:normal; font-weight:800; font-size:1.08rem; color:#ffe7a6; letter-spacing:.01em; }
 /* Match-up : l'archétype (encres) en avant, le pseudo en secondaire, robuste
    aux longs noms (2 lignes propres + troncature). */
 .sqb-card .sq-matchup{ display:grid; gap:11px; }
@@ -17494,14 +17491,17 @@ body.share-open{ overflow:hidden; }
 .sqb-card .sq-vs-row{ display:flex; align-items:center; gap:13px; }
 .sqb-card .sq-vs-row i{ flex:1; height:1px; background:rgba(255,255,255,.12); }
 .sqb-card .sq-vs-row .sq-vs{ font-size:.76rem; font-weight:800; letter-spacing:.18em; color:rgba(255,255,255,.45); }
-/* Footer : séparateur vertical avant le QR pour structurer l'espace. */
-.sqb-card .sq-qr{ border-left:1px solid rgba(255,255,255,.1); padding-left:30px; }
+/* Footer : pas de ligne horizontale (le bloc « moment fort » y était collé) ;
+   on sépare par l'espace. Contenu centré verticalement, QR séparé d'un trait. */
+.sqb-card .sq-foot{ border-top:none; align-items:center; gap:30px; padding-top:0; margin-top:6px; }
+.sqb-card .sq-qr{ border-left:1px solid rgba(255,255,255,.12); padding-left:30px; }
 /* Stats plus grandes (le base 1.75rem rendait le texte minuscule). */
-.sqb-card .dash-stat{ padding:20px 18px 24px; border-radius:20px; }
+.sqb-card .dash-stat{ padding:20px 13px 22px; border-radius:20px; align-content:start; }
 .sqb-card .dash-stat .bento-ic{ width:24px; height:24px; }
-.sqb-card .dash-stat strong{ font-size:2.35rem; }
-.sqb-card .dash-stat span{ font-size:.82rem; }
-.sqb-card .dash-stat-bar{ left:18px; right:18px; bottom:12px; height:4px; }
+.sqb-card .dash-stat strong{ font-size:2.3rem; }
+/* Sous-titres sur une seule ligne → chiffres alignés d'une case à l'autre. */
+.sqb-card .dash-stat span{ font-size:.66rem; letter-spacing:.01em; white-space:nowrap; }
+.sqb-card .dash-stat-bar{ left:13px; right:13px; bottom:11px; height:4px; }
 .sqb-card .sq-moment span{ font-size:.78rem; }
 .sqb-card .sq-moment b{ font-size:1.18rem; }
 /* Badge résultat neutre : un petit point coloré porte le signal victoire/défaite

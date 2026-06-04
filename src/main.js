@@ -11814,7 +11814,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const stats = [
       { k: 'Tours', v: turns || '—', ic: 'clock', p: 0 },
       { k: 'Départ', v: opening?.code || '—', ic: 'flag', p: 0 },
-      { k: 'Quêtes / Défis', v: `${n(metrics.questCount)}/${n(metrics.challengeCount)}`, ic: 'target', p: 0 },
+      { k: 'Quêtes·Défis', v: `${n(metrics.questCount)}/${n(metrics.challengeCount)}`, ic: 'target', p: 0 },
       { k: 'Deck vu', v: seenPct ? `${seenPct}%` : '—', ic: 'eye', p: seenPct }
     ];
     const bento = stats.map(s => `<div class="dash-stat">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span><i class="dash-stat-bar"${s.p ? ` style="--p:${s.p}%"` : ''}></i></div>`).join('');
@@ -11829,11 +11829,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <div class="sq-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge"><i class="rb-dot"></i>${resultLabel}</span></div>
       <div class="sqb-main">
         <div class="sqb-mvp">
-          ${mvp ? `<div class="sqb-mvp-art">${shareMvpArt(mvp)}<span class="sqb-mvp-fade"></span><span class="sqb-mvp-cap"><span class="hero-mvp-seal">MVP du match</span><strong>${esc(fullName(mvp) || mvp.name || 'Carte')}</strong><span class="sqb-mvp-lore">${loreDiamonds(n(mvp.lore))}<em>${n(mvp.lore)} lore</em></span></span></div>` : ''}
+          ${mvp ? `<div class="sqb-mvp-art">${shareMvpArt(mvp)}<span class="sqb-mvp-fade"></span><span class="sqb-mvp-cap"><span class="hero-mvp-seal">MVP du match</span><strong>${esc(fullName(mvp) || mvp.name || 'Carte')}</strong><span class="sqb-mvp-lore"><svg class="lore-gem" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 L15 8 L8 15 L1 8 Z" fill="#ffd76a"/></svg><em>${n(mvp.lore)} lore</em></span></span></div>` : ''}
         </div>
         <div class="sqb-right">
           <div class="sq-hero">
-            <div class="sq-score"><strong>${esc(score)}</strong><span class="sq-unit">${esc(scoreUnit)}</span></div>
+            <div class="sq-score"><strong>${esc(score)}</strong>${global ? `<span class="sq-unit">${esc(scoreUnit)}</span>` : ''}</div>
             <div class="sq-tag">${esc(tagline)}</div>
           </div>
           <div class="sq-matchup">
