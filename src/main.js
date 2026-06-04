@@ -11818,7 +11818,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       { k: 'Deck vu', v: seenPct ? `${seenPct}%` : '—', ic: 'eye', p: seenPct }
     ];
     const bento = stats.map(s => `<div class="dash-stat">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span><i class="dash-stat-bar"${s.p ? ` style="--p:${s.p}%"` : ''}></i></div>`).join('');
-    const mfText = mf ? `Tour ${mf.turn} · ${mf.swing > 0 ? '+' : '−'}${Math.abs(mf.swing)} lore d’écart` : '';
+    const mfText = mf ? (mf.swing > 0
+      ? `Tour ${mf.turn} : +${Math.abs(mf.swing)} de lore, tu fais basculer la course`
+      : `Tour ${mf.turn} : −${Math.abs(mf.swing)} de lore, la course bascule contre toi`) : '';
     const heroNum = global ? n(m.wins) : Math.max(n(m.finalMineLore), n(m.finalOppLore));
     const lore = global ? '' : loreRaceSvg(m, 150, c1, c2);
 
@@ -11835,9 +11837,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
             <div class="sq-tag">${esc(tagline)}</div>
           </div>
           <div class="sq-matchup">
-            <div class="sq-team"><span class="share-dots">${shareDots(mineP)}</span><b>${esc(playerName)}</b><small>${esc(mineP.label)}</small></div>
-            <span class="sq-vs">VS</span>
-            <div class="sq-team sq-team-opp"><span class="share-dots">${shareDots(oppP)}</span><b>${esc(oppName)}</b><small>${esc(oppP.label)}</small></div>
+            <div class="sq-team"><span class="share-dots">${shareDots(mineP)}</span><span class="sq-team-id"><b>${esc(mineP.label || playerName)}</b><small>${esc(playerName)}</small></span></div>
+            <div class="sq-vs-row"><i></i><span class="sq-vs">VS</span><i></i></div>
+            <div class="sq-team sq-team-opp"><span class="share-dots">${shareDots(oppP)}</span><span class="sq-team-id"><b>${esc(oppP.label || oppName)}</b><small>${esc(oppName)}</small></span></div>
           </div>
           <div class="sq-stats">${bento}</div>
           ${lore ? `<div class="sq-graph">${lore}</div>` : ''}
@@ -11872,6 +11874,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const stage = modal.querySelector('#shareCardStage');
     stage.innerHTML = '<div class="share-loading">Génération du visuel…</div>';
     _shareBlob = null;
+    // Le visuel utilise des rem : si le navigateur/OS a une taille de police par
+    // défaut > 16px (fréquent sur desktop/accessibilité), tout déborde de la mise
+    // en page fixe à 1080px (incohérence desktop/mobile). On épingle la racine à
+    // 16px le temps de la capture → rendu identique partout.
+    const rootEl = document.documentElement;
+    const prevRootFont = rootEl.style.fontSize;
+    rootEl.style.fontSize = '16px';
     const holder = document.createElement('div');
     holder.style.cssText = 'position:fixed;left:-99999px;top:0;width:1080px;pointer-events:none;opacity:0;';
     holder.innerHTML = buildShareCardHtml(m);
@@ -11919,6 +11928,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       stage.innerHTML = '<div class="share-loading">Échec de génération — réessaie.</div>';
     }finally{
       holder.remove();
+      rootEl.style.fontSize = prevRootFont;
     }
   }
 
