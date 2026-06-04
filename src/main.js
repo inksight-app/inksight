@@ -11830,7 +11830,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       { k: 'Quêtes·Défis', v: `${n(metrics.questCount)}/${n(metrics.challengeCount)}`, ic: 'target', p: 0 },
       { k: 'Cartes mull.', v: mullVal, ic: 'mull', p: 0 }
     ];
-    const bento = stats.map(s => `<div class="dash-stat">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
+    const bento = stats.map(s => `<div class="dash-stat"><strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
     const mfSeen = new Set();
     const mfCards = mf ? arrayify(m?.timeline)
       .filter(t => t && t.owner === 'mine' && t.type === 'quest' && n(t.turn) === mf.turn && t.card)

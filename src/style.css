@@ -17442,10 +17442,15 @@ body.share-open{ overflow:hidden; }
    PLUS BAS dans la feuille, à spécificité égale elle écrasait padding/gap/grilles
    (le footer héritait du 1fr → bande vide géante en bas, marges à 18px). */
 .share-card.sqb-card{ position:relative; width:100%; aspect-ratio:1/1; overflow:hidden; display:flex; flex-direction:column; gap:26px; padding:54px; color:#fff; font-family:Inter,system-ui,sans-serif;
-  background:
-    radial-gradient(58% 50% at 16% 8%, color-mix(in srgb,var(--sc1,#2f8bd9) 22%, transparent), transparent 70%),
-    radial-gradient(58% 52% at 88% 96%, color-mix(in srgb,var(--sc2,#8b5cc7) 18%, transparent), transparent 70%),
-    #0b0c12; }
+  /* Fond « aurora » bicolore : deux halos doux et larges (pas de blob net) +
+     une fine couche de grain pour casser le banding/pixelisation à l'export. */
+  background-color:#0a0b10;
+  background-image:
+    url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAP20lEQVR42l2b2bakug4EDWY20///LHfVPhl0XB5q7e4qwLYsS5kpUZ7n2Uop3fM8y/M8QynlLKVcz/P0z/OMpZTteZ69lDI/zzNzbSllzHfr75P79ud5rlLK9HvG7//5fslfrv2NteXj6w/9dmQeR577m+eYOU6Z0+/vmLnOeUYtpQz57vfvLc/5/dbn/vt3/d+zn+cppZSWRU2ZwKJF33koBul+C8n/zxjoeJ6ny6BTJrrluzmL3zIxT3zKws6Me8doNZ/f+CXP5549k+/zrN9nyJy6zKvLvV0WvOVeNmLO9b+x/ya1ZeLn8zwtC7gyuZoHbRm8Zqd+Rhsymd+9Lc+65S0tg/cZtGVBfQbf5QU1C7qyoDHXr7n+wvNy3RnDbPGsqgWueW7J9fbOJcZtf3PKIo5Yas/fmsXeWRCLPzIIE5/y8JZFsxtHPr9FHzHmmbHwjp7j93PJTPqIATDuGa9r8couk+do1BzJhsHzfZe5lGzemmta5tO/xz0L6nNjz8NivSkPOLOIOQvdNNle7oVBhny/xzh7XPz4GHLT/bfjQnb0yHhLDLLEqHe+62OEI/P+W0MMtGW+azzzyPzmbPDf5pQslvO45ELcrsUVlyy2y3UH5y2LW9mZWH1LPGmZLPGhI8jm9/0TU64shEWVuPoaV2bnFmIHsUpHh52eMnZPkMabNf5SsqA9uzzlhyO71OOqMdKhSHrknkPuvMbKS3ZuyqL3PHvLTu5yxcY4ua7LPUPun2IkXHnKQpxVOBJ31rLFSFxTciRHZZv/DMbZeNPCfxcN+fx2orBbuWYlumvwW2e5Zgdw1yHuzYRGfTdlbL5b4jVNqe2Uq89kEAIlxwYjK32u2aAaT7tiiE1HaSty/ys7eMkAYxZJFF+yUKy4Z6IXmSIeMis9ViI2x0LnccrCcE3S1xxjkbJOZZmW+azMId7Rxavu3NNlTrtS8pkjStBeS74k0Mycnxhl/eRQHtRlYSxuy7WNwJjFDhps/MSGCVCjc9ln10i/fTbmUupcstBB3oJ3AtKuGOQNwMQGzbXL9/+djeRnUtia3R1JKTm7WxZDwDs1edy6gvziGYV4kOs23Q+wOjMHJkkq7nTNnWfOee6a34541Ca3J5uAVitHLc9e8/cqWRwRf1GAWgxEQFRxoV6GuxWMerl+4YjkeWSNQxmgl9e0D6Bq2dE3E2VBvWIHgRZvrZkfm0Uav3LvBHTPesaivH0J2HDDTmTGwgmKIMaF9JlrN2H1prQIICG4HUqHG2lMuRxjdLp2Fdwd40W4/ySwxC4PGXdSIN0J1BzDAvbGIgQMRXEWWWPx/YO5DzB6POGK0c782yhzz6Cr0yOpFI9Q+pyzwE5B88hcyO1bFrTreXuMsSqtA7enbPh/JC/uscMJREbIBLsY4IQ7CZpy9kk9oL1J6RLXXWSMNd8vImBVBpiF/kYdqy0GqLlnkoeNuWYViwUbgA45WsPfeLgJACP/34j+elgTQ2SCXSxcM/goHAGVnkVAIC2zGBw7NoqL2N2htCtGybGasohBgRSc0ER/d8UrjuQKWywiInesT/49lT6GeMGpxUKBgc9N12II0iRnFbZn2M3u7UJrLZ9VPIAdJSMRoxq8QRloV9BrygKHoPsfrC8KGH0szDmpQE7tNLC4ZhBcsClt9fD3TODIpG4hxiY+v4gS74o/twSYYr4A4cnchnzIRIeoMnpGr+zyjg8UPrVzRFECDCgPmAxAsdUZvArczDlOg7g5Lr1lzONDvPCOmjGXD8jq5REt2QjStH48knUAjqo8EKPBMV7czK7eEiDIwbgOEx6kzkBlcb1D7G3P/T0Ly9mfBL+tFo2fhS+Z/JndL8IqPOfWmAvkJwvEa1o8iUBsCv/3QCgkER/3OYkJ0gEnozGhrzm/nzLamMBUxSinl4v/E1HQ8UZtAhAYw5wSZ0ahTQIcTJGjvGRcyBsUuIuB/gvaWnhFtRG0NbbnAewMwuKsFNRn0bc8pZdhgLCr4PEifrBql1fAFQKG8D90u0jcAIVeL9OLXhDvRhTB8GCIlzn1IiAIHpsEiV0RveXfk6DnKLcka4zK5QSgRUao8hyM4xiyCDtUsc1e/GTVTgPOiuA7czo5ThJcmvMpu+EcSco4xazsIbdByhtZc64zgT7P7yRbw9/RAqp2hsltcAjR6y7XX3L//qNPnKLFa54zCB22GOHNAqg0Vmx3YXVw+CuJI2oCZEB5cX1IDghxhEuI66+KzKu8B+5+S4u8JbRCe8kEN8RNQXgSCYPiXx8tsweBFoRHTZxoDwi6cTs4vuLDC0YIkB/8zv2d8MYsIDVkcuNHboeUHVkkjO4QdqiCzqthuUGY0jksdNRmdEXwlp1octtDQshIziadiGWdYohNpIQzfgsHFJGdSbi8aKHkaBv2Fmbh2IJeO+ERgjafRUbjeLPOf6pwdrJI0GQHL6WXQwDDJSx2HDn7kiJEFiDjkPeLzj0ptldQHGUogA6pdJa20AnpNSFNYgia4S2ZD7LXFSMiApjOnXk6ORp5usTii9LP8akFjGKXjViCroe+IDhNPW8laMVgvXjFhMqE5h9DkBGaFOYmoQTjd8Iof5og0bJTMEFeOhQIGzo9ZS67KAsHpKgGMIkVVoGaWWe+iooPnyrOG/xIsXAP3F8FHcpjnURQCjou8KJm/3n9KNpocRHlZRHy49yC56ty+GbtMJPpVWgddIyGTwWoqgQ2C5MgdVlvPIQ/CHS9sAlB3VXtQxR+V43hKDqf26cgAcvqlfJIP5dI06xUugiT7x/9vgpDrBImN+mPpN5FGsUJqJJEjkxGrDLRajLCKP1iE+Te3swnTZDyNLm9kys3CSP87pjRpPiscvdeqG9IIKKMNQuZ7dIUqipCyGrDR9GZVdGeJXJ0yRYXyjNBWGjW8WsiDdJAQDwATJyyWLMOr13ulN+RrdEZHBP4vgjKXkJxHcbNNZeOUZN0d6n8Reahh6CpsWMUXP9XCIkclzn1RTVBJogSZHzNIE2RdpPkvaivoCj9kVLpE+A5t4LpqJI2MQb9zzI4VHyRLtiLY+yS7jeBIivGQPfzzWAqfp6Cm4ekqz6WrAo61PnIwZ12qFfLy1tUQR0WShw/CpSLJMjl94dmn8L1ZJZdlST4zKi07EDbf8pst0vZiBC3ih+zanFOR7fgMyKEzzaLnLODSGu3OADnefgchUvgpcnwvXoDimS1QQr2rPRZVPLrMvYuyk9QLMhflSYGRFLV3EY1UEGRZ1FkzjlcYRHnrpLSO7XeUI6zHkDcGdWPdKhN51JxFXi7ixVOSumvqiS1eJInoXW+Z31Q4WJHKFEryqpeISpJhzo7iMaIoa+kLfS2SIhwl8ghkEPT1KQ63600TKxgAZ0wiktzb2+RSNolIeatC+zKseRyVJSi+lunM3uocDp/0uSo+DGogoSo2VQlqroGjj9KtCha9CW9f5T++Erjef6r9UkL6CXFnyJxS9H56oSfF6m3vdzu0m4RpChbn2paOlWi3tSpNdBap2LHptLVKMRokWZSdbnGm3qJG8eHkSKe4GVV3Wqk1P9gukDHqihpjg/2HtQvNHy6uOqnRjArLd0CW4fwQSdRlEIlZx/pbRFM3jTGpkbIQyj2UBreXrDzL1VCjFbpnC8KbGo6+hpmkYufSj0EPMTLXUJElZ7YxUiHmNhmDU+Tp59vl5qMjF2FGEGYRZ1nLwj79Dow56qgjwzwKqiL+PSUVAd4QJlp2qVK4VGubNBCvLg/wWyTZk+nSFVzZufKLh0fUqeR6s1L8MYm7t/p2JI9rk/3S3XJqUjqBlZOn3x/KeA0BaMqNniKKF1mdSJYVQGvk3I0iUkOIluDtIRRBZqiZ48STUh1t2oIToWAsK185GLQW5P83KmX51azBAFq0EAOOlaGMOYuxXiV4DIrwk9yb4LzDEoUFniZn+X3/NtBe7MWmblObwxRGkF8sIy0iqKi1vZqg3txBChQAgj9QUWNi1y3SJDAYF8IPn2aM3sxw1l8YkFYET1+m7EVuKu8+u10KdL+zQfY5U0tLrfOaVNbzC6M0Ms7wOxAZ4DM/BExqjj/4r5geguIEWreoslyUk/zqX7BAVCkID98miZGeoQWYfNdBYZdOXUTft6F9Re1zZ9WZaQGT68A+a9nyPI5XeKn+nwvqb8UV0/Fq1Gaw6VulU36YCe0eokZArSAzmWRpQa/dKAmpFEvGbyFC917KGhd6soEPhfV8kZVjClSnuo0mdWbaA+ratnZ1GdEn+EtFQhCR80ADXFSIJ+LzkEv9wFQ9CqYLjpHNEhMqvTAA2YVMnf1DyO2dJ/zPgslbmrabGplu6Q0YXB0Rlx6k6J8oQB/qPYh6e5Sq9+rqlQFB6IvbSebXq3ZhaY2palXp1eq6SScUJfHldmtquZIXHZRR9giHbHoWZfaaiZ1rJDGT5GySZt6SYT5e2HC79Jsn6gMYju1qF2LOlXA/OrzvTj8i/nVaVaVBne1vhE/NjVs/19FWMUUd7KfIk6W1Zjn8HlvoKdX2ILmJel4VE3gxfWSrnoxt07tbuunjWaSht/0pskoxrirn6Cqz+dWqiVb3Or46LToJklvEK4ZVMWqarOf6RO8dX4OBa1Fmt8qGZqG5iL4fEr+mnSm/b7OLD1xVcFyUKTvJVhOUp0ncZNRRtxVdp/lOae0DY7RIS4yvVRc5OJW2jskkLjM3JTOyL1F6W9VcFw/TU/08W8iSruU5Fmlq059hLNb4/2miN4/IECPel3nVEVrUKAeBaGrJ7+pd+ZQZ2ivxXQCLVV0eZJAOWsCk/r6SIk3fUDqJ7KhB6detcef8p4mAy2qKEHARqNapT+O1/t6TpHeZ+FwV8Xnkos1crB090sBjHofxuRtk6qCBbU6SuK7yuRUfScJLbMWsIjlcWx2cZhZx3gU07zEOXrVKLf3hQnLyWqcos+PXLupIFHVxTFLoxsEZXu9MkeJjVr+232mGuL2kdIuCSmHcn+n95WoJDfJ6CjJ1Z3pCtjj27UaV3wbkajRqQFilVQ9qkDC7+XzbsBJKhKfN3Lb1cExy0iL+hWrusLPD5vbpfk1veIzgUX89ot6mEGKg8DZHxcYreN9ukB6vRG2qAVtlyw+Kd0hfE4SQtmRW4SEVhze7KxqhFh0zi+Vud2KD+oc5e6zMAA1wNXahXSKVQH3H0b+FBCKGh0uKT2TVONLFZhRxY9D5/wUsVqkIh1vm8q/dnkC7yp4u3wUnEkbRsl8FrCaJOudevaorhWySi06u6tiwaWg+H+vq4jLd2qOWNWhCQBalX6aIHJTl/ikjNNLUzCep554SQu8IDKuS6oXaRT4gSw19RVdbxwQbkaGQj+/1G5eBFIupa5BndyL3iPsxLvdSLXrHYRF7/1uevnRPYaD3k55+wVo4NLb7m+nuwJr88LVZ3QoQI7/A4mC5LIc67dyAAAAAElFTkSuQmCC"),
+    radial-gradient(95% 75% at 10% 3%, color-mix(in srgb,var(--sc1,#2f8bd9) 17%, transparent), transparent 58%),
+    radial-gradient(95% 80% at 92% 99%, color-mix(in srgb,var(--sc2,#8b5cc7) 14%, transparent), transparent 60%);
+  background-size:64px 64px, 100% 100%, 100% 100%;
+  background-repeat:repeat, no-repeat, no-repeat; }
 /* Pas de blobs flous parasites : ils créaient des « formes » qui nuisaient à la lisibilité. */
 .sqb-card .share-glow{ display:none; }
 .sqb-card>*{ position:relative; z-index:1; }
@@ -17465,16 +17470,18 @@ body.share-open{ overflow:hidden; }
 .sqb-mvp-img.thumb-placeholder{ position:absolute; inset:0; width:100%; height:100%; left:0; top:0; display:grid; place-items:center; background:rgba(255,255,255,.06); color:#cfd0da; font-weight:800; font-size:1.5rem; }
 /* Panneau « héros » : illustration détourée dans un cadre arrondi propre + léger
    liseré, plutôt qu'un fondu multi-dégradés qui bavait (coin bas-droite). */
-.sqb-mvp-art{ border-radius:24px; border:1px solid rgba(255,255,255,.1); box-shadow:0 18px 50px rgba(0,0,0,.5); background:linear-gradient(160deg, color-mix(in srgb,var(--sc1,#2f8bd9) 26%, #0b0c13), color-mix(in srgb,var(--sc2,#8b5cc7) 18%, #0b0c13)); }
+.sqb-mvp-art{ border-radius:24px; border:1px solid rgba(255,255,255,.1); background:linear-gradient(160deg, color-mix(in srgb,var(--sc1,#2f8bd9) 26%, #0b0c13), color-mix(in srgb,var(--sc2,#8b5cc7) 18%, #0b0c13)); }
 /* Un SEUL dégradé bas → haut (lisibilité de la légende), rien sur les côtés. */
 .sqb-mvp-fade{ position:absolute; inset:0; pointer-events:none; border-radius:inherit; background:
    linear-gradient(to top, rgba(7,8,12,.96) 0%, rgba(7,8,12,.78) 18%, rgba(7,8,12,.32) 38%, transparent 56%); }
 /* Hiérarchie typo classique (surtitre / titre / méta) plutôt que 3 pastilles
    empilées : surtitre coloré discret, NOM en grand, lore en méta dorée légère. */
-.sqb-mvp-cap{ position:absolute; left:22px; right:22px; bottom:22px; z-index:1; display:grid; gap:7px; justify-items:start; }
-.sqb-mvp-kicker{ font-size:.82rem; font-weight:900; letter-spacing:.18em; text-transform:uppercase; color:color-mix(in srgb,var(--sc1,#2f8bd9) 50%, #fff); text-shadow:0 1px 6px rgba(0,0,0,.8); }
-.sqb-mvp-name{ font-size:2.15rem; font-weight:800; line-height:1.05; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.9); }
-.sqb-mvp-meta{ display:inline-flex; align-items:center; gap:7px; font-size:1.02rem; font-weight:700; color:#f4d488; text-shadow:0 1px 8px rgba(0,0,0,.85); margin-top:2px; }
+.sqb-mvp-cap{ position:absolute; left:22px; right:22px; bottom:22px; z-index:1; display:grid; gap:9px; justify-items:start; }
+/* nowrap : sur la police système (iOS) « MVP DU MATCH » repassait à la ligne et
+   chevauchait le nom. line-height serré pour des paliers nets. */
+.sqb-mvp-kicker{ font-size:.74rem; font-weight:800; letter-spacing:.16em; line-height:1; white-space:nowrap; text-transform:uppercase; color:color-mix(in srgb,var(--sc1,#2f8bd9) 48%, #fff); text-shadow:0 1px 6px rgba(0,0,0,.85); }
+.sqb-mvp-name{ font-size:2.1rem; font-weight:800; line-height:1.04; color:#fff; text-shadow:0 2px 12px rgba(0,0,0,.92); }
+.sqb-mvp-meta{ display:inline-flex; align-items:center; gap:7px; font-size:.98rem; font-weight:600; color:#f0cf86; text-shadow:0 1px 8px rgba(0,0,0,.88); }
 .sqb-mvp-meta .lore-gem{ width:16px; height:16px; flex:0 0 auto; }
 /* La colonne droite occupe toute la hauteur (plus de bande vide en bas). */
 .sqb-right{ display:flex; flex-direction:column; justify-content:space-between; gap:18px; min-width:0; }
@@ -17485,7 +17492,9 @@ body.share-open{ overflow:hidden; }
 .sqb-right .sq-score{ flex-wrap:nowrap; }
 /* letter-spacing négatif collait les chiffres au tiret « 8–5 » → espacement neutre. */
 .sqb-right .sq-score strong{ font-size:4.8rem; line-height:1; letter-spacing:0; white-space:nowrap; overflow-wrap:normal; word-break:keep-all; }
-.sqb-right .sq-tag{ font-size:2.5rem; }
+/* Hiérarchie : le score (4.8rem) domine, la verdict-line est nettement en
+   dessous (≈2rem) → on ne met pas deux blocs « héros » côte à côte. */
+.sqb-right .sq-tag{ font-size:2.05rem; font-weight:800; color:#f4f5f7; }
 .sqb-right .sq-graph .lr-svg{ height:118px; }
 /* Graphe dans un panneau discret (et non des lignes flottantes qui passaient
    pour des « traits » parasites) — même verre que les autres blocs. */
@@ -17496,15 +17505,17 @@ body.share-open{ overflow:hidden; }
 .sqb-mvp-lore em{ font-style:normal; font-weight:800; font-size:1.08rem; color:#ffe7a6; letter-spacing:.01em; white-space:nowrap; }
 /* Moment fort : mini-vignettes détourées des cartes ayant quêté ce tour. */
 .sq-mf-thumbs{ display:flex; gap:10px; flex:0 0 auto; }
-.sq-mf-thumb{ position:relative; width:58px; height:58px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); flex:0 0 auto; box-shadow:0 4px 12px rgba(0,0,0,.35); }
+.sq-mf-thumb{ position:relative; width:58px; height:58px; border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.05); flex:0 0 auto; }
 .sq-mf-thumb-img{ position:absolute; height:205%; width:auto; left:-26%; top:-12%; display:block; }
 /* Match-up épuré : les pastilles de couleur portent déjà l'info d'encres, donc on
    ne garde que les ronds + le pseudo du joueur (en avant). */
 .sqb-card .sq-matchup{ display:grid; gap:11px; }
 .sqb-card .sq-team{ display:flex; align-items:center; gap:15px; min-width:0; }
 .sqb-card .sq-team .share-dots{ display:inline-flex; gap:7px; flex:0 0 auto; }
-.sqb-card .sq-team>b{ font-size:1.6rem; font-weight:800; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
-.sqb-card .sq-team-opp>b{ color:rgba(255,255,255,.94); }
+/* Pseudos = info tertiaire : graisse + taille moindres que le score/verdict
+   pour casser l'effet « tout en gras » et créer un vrai palier. */
+.sqb-card .sq-team>b{ font-size:1.4rem; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.sqb-card .sq-team-opp>b{ font-weight:600; color:rgba(255,255,255,.82); }
 .sqb-card .sq-vs-row{ display:flex; align-items:center; gap:13px; }
 .sqb-card .sq-vs-row i{ flex:1; height:1px; background:rgba(255,255,255,.12); }
 .sqb-card .sq-vs-row .sq-vs{ font-size:.76rem; font-weight:800; letter-spacing:.18em; color:rgba(255,255,255,.45); }
@@ -17514,9 +17525,12 @@ body.share-open{ overflow:hidden; }
 .sqb-card .sq-qr{ border-left:1px solid rgba(255,255,255,.12); padding-left:30px; }
 /* Stats : contenu centré et réparti pour remplir la bulle (icône / chiffre /
    libellé), plus de micro-jauge décorative qui n'avait pas de sens. */
-.sqb-card .dash-stat{ padding:16px 12px; border-radius:20px; display:grid; justify-items:center; text-align:center; align-content:center; gap:9px; }
-.sqb-card .dash-stat .bento-ic{ width:24px; height:24px; }
-.sqb-card .dash-stat strong{ font-size:2.3rem; line-height:1; }
+/* Pas de grosse ombre portée (la base .dash-stat en a une) : sur fond sombre ça
+   créait des « taches » d'ombre disgracieuses. Bordure + léger reflet suffisent. */
+.sqb-card .dash-stat{ padding:20px 12px; border-radius:20px; display:grid; justify-items:center; text-align:center; align-content:center; gap:7px; box-shadow:inset 0 1px 0 rgba(255,255,255,.07); background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.1); }
+/* Icônes retirées : elles n'apportaient pas d'info et alourdissaient la bulle. */
+.sqb-card .dash-stat .bento-ic{ display:none; }
+.sqb-card .dash-stat strong{ font-size:2.55rem; line-height:1; }
 /* Sous-titres sur une seule ligne → chiffres alignés d'une case à l'autre. */
 .sqb-card .dash-stat span{ font-size:.66rem; letter-spacing:.01em; white-space:nowrap; }
 .sqb-card .dash-stat-bar{ display:none; }
