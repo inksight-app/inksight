@@ -11822,14 +11822,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const turns = global ? Math.round(n(m.avgTurns)) : n(g.turnCount || g.totalTurns || m.turnCount);
     const mull = g?.mulligan || m?.mulligan || (arrayify(m?.sessions)[0] || {}).mulligan || m?.first?.mulligan || null;
     const mullSwapped = mull ? n(Array.isArray(mull.replaced) ? mull.replaced.length : (mull.kept != null ? Math.max(0, 7 - n(mull.kept)) : 0)) : 0;
-    const mullVal = !mull ? '—' : (mullSwapped > 0 ? `−${mullSwapped}` : 'Gardée');
+    // Lecture claire : nb de cartes échangées à la pioche de départ (0 = main gardée).
+    const mullVal = !mull ? '—' : String(mullSwapped);
     const stats = [
       { k: 'Tours', v: turns || '—', ic: 'clock', p: 0 },
       { k: 'Départ', v: opening?.code || '—', ic: 'flag', p: 0 },
       { k: 'Quêtes·Défis', v: `${n(metrics.questCount)}/${n(metrics.challengeCount)}`, ic: 'target', p: 0 },
-      { k: 'Mulligan', v: mullVal, ic: 'mull', p: 0 }
+      { k: 'Cartes mull.', v: mullVal, ic: 'mull', p: 0 }
     ];
-    const bento = stats.map(s => `<div class="dash-stat">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span><i class="dash-stat-bar"${s.p ? ` style="--p:${s.p}%"` : ''}></i></div>`).join('');
+    const bento = stats.map(s => `<div class="dash-stat">${SHARE_ICONS[s.ic] || ''}<strong>${esc(String(s.v))}</strong><span>${esc(s.k)}</span></div>`).join('');
     const mfSeen = new Set();
     const mfCards = mf ? arrayify(m?.timeline)
       .filter(t => t && t.owner === 'mine' && t.type === 'quest' && n(t.turn) === mf.turn && t.card)
@@ -11847,7 +11848,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <div class="sq-head"><span class="share-logo"><svg class="share-logo-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 L21.5 12 L12 22 L2.5 12 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 7.2 L16.8 12 L12 16.8 L7.2 12 Z" fill="currentColor"/></svg>InkSight</span><span class="share-result-badge"><i class="rb-dot"></i>${resultLabel}</span></div>
       <div class="sqb-main">
         <div class="sqb-mvp">
-          ${mvp ? `<div class="sqb-mvp-art">${shareMvpArt(mvp)}<span class="sqb-mvp-fade"></span><span class="sqb-mvp-cap"><span class="hero-mvp-seal">MVP du match</span><strong>${esc(mvpName)}</strong><span class="sqb-mvp-lore"><svg class="lore-gem" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 L15 8 L8 15 L1 8 Z" fill="#ffd76a"/></svg><em>${n(mvp.lore)} lore</em></span></span></div>` : ''}
+          ${mvp ? `<div class="sqb-mvp-art">${shareMvpArt(mvp)}<span class="sqb-mvp-fade"></span><span class="sqb-mvp-cap"><span class="sqb-mvp-kicker">MVP du match</span><strong class="sqb-mvp-name">${esc(mvpName)}</strong><span class="sqb-mvp-meta"><svg class="lore-gem" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 L15 8 L8 15 L1 8 Z" fill="#ffd76a"/></svg>${n(mvp.lore)} lore généré${n(mvp.lore) > 1 ? 's' : ''}</span></span></div>` : ''}
         </div>
         <div class="sqb-right">
           <div class="sq-hero">
@@ -11855,15 +11856,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
             <div class="sq-tag">${esc(tagline)}</div>
           </div>
           <div class="sq-matchup">
-            <div class="sq-team"><span class="share-dots">${shareDots(mineP)}</span><span class="sq-team-id"><b>${esc(mineP.label || playerName)}</b><small>${esc(playerName)}</small></span></div>
+            <div class="sq-team"><span class="share-dots">${shareDots(mineP)}</span><b>${esc(playerName || mineP.label || 'Toi')}</b></div>
             <div class="sq-vs-row"><i></i><span class="sq-vs">VS</span><i></i></div>
-            <div class="sq-team sq-team-opp"><span class="share-dots">${shareDots(oppP)}</span><span class="sq-team-id"><b>${esc(oppP.label || oppName)}</b><small>${esc(oppName)}</small></span></div>
+            <div class="sq-team sq-team-opp"><span class="share-dots">${shareDots(oppP)}</span><b>${esc(oppName || oppP.label || 'Adversaire')}</b></div>
           </div>
           <div class="sq-stats">${bento}</div>
           ${lore ? `<div class="sq-graph">${lore}</div>` : ''}
-          ${mfText ? `<div class="sq-moment"><span>Moment fort</span><b>${esc(mfText)}</b>${mfThumbs ? `<div class="sq-mf-thumbs">${mfThumbs}</div>` : ''}</div>` : ''}
         </div>
       </div>
+      ${mfText ? `<div class="sq-moment"><div class="sq-moment-text"><span class="sq-moment-kicker">Moment fort</span><b>${esc(mfText)}</b></div>${mfThumbs ? `<div class="sq-mf-thumbs">${mfThumbs}</div>` : ''}</div>` : ''}
       <div class="sq-foot"><div class="sq-cta"><span class="sq-cta-main">Analyse tes parties sur InkSight</span><span class="sq-cta-sub">Replays, statistiques &amp; matchups Lorcana</span><span class="sq-cta-url">inksight-omega.vercel.app</span></div>${_shareQrSvg ? `<div class="sq-qr"><span class="share-qr">${_shareQrSvg}</span><span class="sq-qr-label">Scanne pour essayer</span></div>` : ''}</div>
     </div>`;
   }
