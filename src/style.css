@@ -1999,7 +1999,7 @@ body.bo3-global .quick-insight.bo3-scope-summary small{
 
 .performance-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 1rem;
   padding: 8px;

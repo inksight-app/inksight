@@ -7510,7 +7510,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const extra = totalCrossed ? ` (${totalCrossed} adversaire${totalCrossed > 1 ? 's' : ''} croisé${totalCrossed > 1 ? 's' : ''} une seule fois)` : '';
     return `<div class="opp-empty"><strong>Aucun rival pour l'instant.</strong><span>Les adversaires affrontés au moins 2 fois apparaîtront ici.${extra}</span></div>`;
   }
-  function renderOpponentListHtml(list, totalCrossed){
+  function renderOpponentToolbarHtml(){
     const ui = opState();
     const colorOptions = ['all', 'amber', 'amethyst', 'emerald', 'ruby', 'sapphire', 'steel'];
     const opt = (v, label, cur) => `<option value="${escAttr(v)}"${cur === v ? ' selected' : ''}>${esc(label)}</option>`;
@@ -7518,9 +7518,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const sortSel = [['played', 'Le + joué'], ['winrate_low', 'Pire winrate'], ['winrate_high', 'Meilleur winrate'], ['recent', 'Plus récent'], ['name', 'Nom (A-Z)']].map(([v, l]) => opt(v, l, ui.sort)).join('');
     const fmtSel = [['all', 'Tous formats'], ['bo1', 'BO1'], ['bo3', 'BO3']].map(([v, l]) => opt(v, l, ui.format)).join('');
     const resSel = [['all', 'Tous bilans'], ['win', 'Avantage (+)'], ['loss', 'Désavantage (−)']].map(([v, l]) => opt(v, l, ui.result)).join('');
-    const cards = list.length ? `<div class="opp-grid">${list.map(opponentCardHtml).join('')}</div>` : opponentEmptyHtml(totalCrossed);
-    return `
-      <article class="glass opp-toolbar">
+    return `<article class="glass opp-toolbar">
         <div class="filter-header-copy"><div class="kicker">Adversaires</div><h2>Tête-à-tête</h2><p>Vos rivaux récurrents (≥ 2 matchs) : bilan, decks joués et notes.</p></div>
         <div class="opp-controls">
           <input id="opponentSearch" class="opp-search" type="search" placeholder="Rechercher un pseudo…" value="${escAttr(ui.search)}" />
@@ -7529,8 +7527,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <select id="opponentFormatFilter" class="sort-select" aria-label="Format">${fmtSel}</select>
           <select id="opponentResultFilter" class="sort-select" aria-label="Bilan">${resSel}</select>
         </div>
-      </article>
-      ${cards}`;
+      </article>`;
+  }
+  function opponentResultsHtml(){
+    const all = buildOpponentProfiles();
+    const totalCrossed = all.filter(p => p.count < 2).length;
+    const list = filteredSortedOpponents();
+    return list.length ? `<div class="opp-grid">${list.map(opponentCardHtml).join('')}</div>` : opponentEmptyHtml(totalCrossed);
   }
   function topMyDecks(p){
     const counts = new Map();
@@ -7588,28 +7591,32 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
     const ui = opState();
-    const all = buildOpponentProfiles();
+    // Vue détail (protégée : si elle échoue on retombe sur la liste).
     if(ui.selected){
-      const profile = all.find(p => p.key === ui.selected);
-      if(profile){ panel.innerHTML = renderOpponentDetailHtml(profile); return; }
+      try{
+        const profile = buildOpponentProfiles().find(p => p.key === ui.selected);
+        if(profile){ panel.innerHTML = renderOpponentDetailHtml(profile); return; }
+      }catch(err){ console.error('[adversaires] détail', err); }
       ui.selected = null;
     }
-    const totalCrossed = all.filter(p => p.count < 2).length;
-    panel.innerHTML = renderOpponentListHtml(filteredSortedOpponents(), totalCrossed);
+    // La barre s'affiche toujours ; seul le calcul des résultats est protégé,
+    // pour ne jamais laisser un panneau vide en cas d'imprévu sur une donnée.
+    let results;
+    try{ results = opponentResultsHtml(); }
+    catch(err){
+      console.error('[adversaires] liste', err);
+      results = `<div class="opp-empty"><strong>Affichage indisponible.</strong><span>${esc((err && err.message) || String(err))}</span></div>`;
+    }
+    panel.innerHTML = renderOpponentToolbarHtml() + results;
   }
   function renderOpponentGridOnly(){
     const panel = document.getElementById('performance-opponents');
-    const grid = panel?.querySelector('.opp-grid');
-    const list = filteredSortedOpponents();
-    if(grid){
-      if(list.length){ grid.innerHTML = list.map(opponentCardHtml).join(''); return; }
-    }
-    // bascule liste <-> vide : on régénère la zone résultats sans toucher la barre
     const toolbar = panel?.querySelector('.opp-toolbar');
-    if(!toolbar) { renderOpponentsView(); return; }
+    if(!toolbar){ renderOpponentsView(); return; }
     const old = panel.querySelector('.opp-grid, .opp-empty');
-    const totalCrossed = buildOpponentProfiles().filter(p => p.count < 2).length;
-    const html = list.length ? `<div class="opp-grid">${list.map(opponentCardHtml).join('')}</div>` : opponentEmptyHtml(totalCrossed);
+    let html;
+    try{ html = opponentResultsHtml(); }
+    catch(err){ html = `<div class="opp-empty"><strong>Affichage indisponible.</strong><span>${esc((err && err.message) || String(err))}</span></div>`; }
     if(old) old.outerHTML = html; else toolbar.insertAdjacentHTML('afterend', html);
   }
   let _oppSearchTimer = null;
@@ -14470,6 +14477,9 @@ function initAppShell() {
       panel.hidden = !active;
       panel.classList.toggle('active', active);
     });
+    // Rendu immédiat de la section Adversaires dès qu'elle devient active (sans
+    // dépendre du pipeline renderPerformanceData).
+    if(next === 'opponents'){ try{ renderOpponentsView(); }catch(err){ console.error('[adversaires] view', err); } }
     updateMobileBottomNav(document.body.dataset.appView || 'analysis', next);
   }
 
