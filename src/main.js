@@ -7412,6 +7412,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   globalThis.INKSIGHT_renderPerformanceData = renderPerformanceData;
+  // Pont inter-scopes : setPerformanceView vit dans le 2e scope du fichier (après
+  // le `})();` ~ligne 14239) et ne peut pas voir renderOpponentsView directement.
+  globalThis.INKSIGHT_renderOpponentsView = () => renderOpponentsView();
 
   // ===== Adversaires (suivi tête-à-tête) =================================
   // Agrégation 100% dérivée de state.savedMatches (aucune entité stockée par
@@ -7476,7 +7479,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
   function filteredSortedOpponents(){
     const ui = opState();
-    let list = buildOpponentProfiles().filter(p => p.count >= 2);
+    // On montre TOUS les adversaires (même croisés une seule fois) ; le tri par
+    // défaut « le + joué » fait remonter les rivaux récurrents en tête.
+    let list = buildOpponentProfiles();
     const q = normalizeOpponentKey(ui.search);
     if(q) list = list.filter(p => p.key.includes(q));
     if(ui.color !== 'all') list = list.filter(p => p.topColors.some(tc => tc.colors.includes(ui.color)));
@@ -7506,9 +7511,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <div class="opp-meta"><span>${p.count} match${p.count > 1 ? 's' : ''}</span><span class="opp-wr">${wr}% WR</span><span>${relativeMatchDate(p.lastPlayed)}</span></div>
     </button>`;
   }
-  function opponentEmptyHtml(totalCrossed){
-    const extra = totalCrossed ? ` (${totalCrossed} adversaire${totalCrossed > 1 ? 's' : ''} croisé${totalCrossed > 1 ? 's' : ''} une seule fois)` : '';
-    return `<div class="opp-empty"><strong>Aucun rival pour l'instant.</strong><span>Les adversaires affrontés au moins 2 fois apparaîtront ici.${extra}</span></div>`;
+  function opponentEmptyHtml(){
+    return `<div class="opp-empty"><strong>Aucun adversaire pour l'instant.</strong><span>Sauvegarde tes analyses de matchs : chaque adversaire affronté apparaîtra ici avec ton bilan tête-à-tête.</span></div>`;
   }
   function renderOpponentToolbarHtml(){
     const ui = opState();
@@ -7519,7 +7523,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const fmtSel = [['all', 'Tous formats'], ['bo1', 'BO1'], ['bo3', 'BO3']].map(([v, l]) => opt(v, l, ui.format)).join('');
     const resSel = [['all', 'Tous bilans'], ['win', 'Avantage (+)'], ['loss', 'Désavantage (−)']].map(([v, l]) => opt(v, l, ui.result)).join('');
     return `<article class="glass opp-toolbar">
-        <div class="filter-header-copy"><div class="kicker">Adversaires</div><h2>Tête-à-tête</h2><p>Vos rivaux récurrents (≥ 2 matchs) : bilan, decks joués et notes.</p></div>
+        <div class="filter-header-copy"><div class="kicker">Adversaires</div><h2>Tête-à-tête</h2><p>Tous tes adversaires : bilan, decks joués et notes. Triés par défaut du plus affronté au moins affronté.</p></div>
         <div class="opp-controls">
           <input id="opponentSearch" class="opp-search" type="search" placeholder="Rechercher un pseudo…" value="${escAttr(ui.search)}" />
           <select id="opponentSort" class="sort-select" aria-label="Trier">${sortSel}</select>
@@ -7530,10 +7534,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       </article>`;
   }
   function opponentResultsHtml(){
-    const all = buildOpponentProfiles();
-    const totalCrossed = all.filter(p => p.count < 2).length;
     const list = filteredSortedOpponents();
-    return list.length ? `<div class="opp-grid">${list.map(opponentCardHtml).join('')}</div>` : opponentEmptyHtml(totalCrossed);
+    return list.length ? `<div class="opp-grid">${list.map(opponentCardHtml).join('')}</div>` : opponentEmptyHtml();
   }
   function topMyDecks(p){
     const counts = new Map();
@@ -7586,7 +7588,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function renderOpponentsView(){
     const panel = document.getElementById('performance-opponents');
     if(!panel) return;
-    if(!isAuthenticatedForShell()){
+    // Test inline (isAuthenticatedForShell est dans l'autre scope du fichier).
+    if(!document.body.classList.contains('is-authenticated')){
       panel.innerHTML = '<div class="glass opp-empty"><strong>Connectez-vous pour suivre vos adversaires.</strong><span>Vos matchs sauvegardés alimentent automatiquement le suivi tête-à-tête.</span></div>';
       return;
     }
@@ -7623,7 +7626,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function openSavedMatchFromOpponent(id){
     if(!id) return;
     state.selectedSavedMatchId = id;
-    setPerformanceView('history');
+    // setPerformanceView est dans l'autre scope → on passe par le pont globalThis.
+    globalThis.INKSIGHT_setPerformanceView?.('history');
     renderPerformanceData();
     document.getElementById('historyDetail')?.scrollIntoView({ behavior:'smooth', block:'start' });
   }
@@ -14477,11 +14481,12 @@ function initAppShell() {
       panel.hidden = !active;
       panel.classList.toggle('active', active);
     });
-    // Rendu immédiat de la section Adversaires dès qu'elle devient active (sans
-    // dépendre du pipeline renderPerformanceData).
-    if(next === 'opponents'){ try{ renderOpponentsView(); }catch(err){ console.error('[adversaires] view', err); } }
+    // Rendu immédiat de la section Adversaires dès qu'elle devient active. La vue
+    // vit dans l'autre scope du fichier → on l'appelle via le pont globalThis.
+    if(next === 'opponents'){ try{ globalThis.INKSIGHT_renderOpponentsView?.(); }catch(err){ console.error('[adversaires] view', err); } }
     updateMobileBottomNav(document.body.dataset.appView || 'analysis', next);
   }
+  globalThis.INKSIGHT_setPerformanceView = setPerformanceView;
 
   function isAuthenticatedForShell() {
     return document.body.classList.contains('is-authenticated');
@@ -14557,7 +14562,8 @@ function initAppShell() {
       if(button.dataset.performanceView === 'history' || button.dataset.performanceView === 'opponents'){
         globalThis.INKSIGHT_refreshSavedMatches?.({ silent:true });
       }
-      renderPerformanceData();
+      // renderPerformanceData vit dans l'autre scope → pont globalThis.
+      globalThis.INKSIGHT_renderPerformanceData?.();
     });
   });
 
