@@ -14500,10 +14500,10 @@ button[data-performance-full-list]::after,
     display:none!important;
   }
 
-  /* Tabs Stats/Historique : vrai segmented control 50/50, sans zone sombre asymétrique. */
+  /* Segmented control sur 3 onglets (Stats / Historique / Adversaires). */
   .performance-tabs{
     display:grid!important;
-    grid-template-columns:1fr 1fr!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
     gap:6px!important;
     padding:6px!important;
     overflow:hidden!important;
