@@ -16,6 +16,54 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 });
 
 
+// --- Observabilite : remonte les erreurs avalees vers public.client_errors ---
+// Objectif : ne plus laisser un fallback silencieux masquer un echec 100% en
+// prod (cf. incident saved_match_analysis du 2026-06-12). reportError ne doit
+// JAMAIS lever d'exception ni casser le flux appelant.
+const ERR_MAX_PER_SESSION = 25;
+const ERR_SEEN = new Set();
+let ERR_SENT = 0;
+
+export async function reportError(context, error, meta = {}) {
+  try {
+    const message = (error && (error.message || error.msg)) ? (error.message || error.msg) : String(error || 'unknown');
+    const ctx = String(context || 'unknown').slice(0, 200);
+    const dedupeKey = ctx + '|' + String(message).slice(0, 120);
+    if (ERR_SEEN.has(dedupeKey) || ERR_SENT >= ERR_MAX_PER_SESSION) return;
+
+    const { data: { user } = { user: null } } = await supabase.auth.getUser();
+    if (!user) return; // RLS : on ne logge que les sessions authentifiees
+
+    ERR_SEEN.add(dedupeKey);
+    ERR_SENT += 1;
+    await supabase.from('client_errors').insert({
+      user_id: user.id,
+      context: ctx,
+      message: String(message).slice(0, 1000),
+      meta: {
+        ...meta,
+        stack: error && error.stack ? String(error.stack).slice(0, 2000) : undefined,
+        url: typeof location !== 'undefined' ? location.href : undefined,
+        ua: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+      },
+    });
+  } catch (_) {
+    // Le reporter ne doit jamais devenir lui-meme une source d'erreur.
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (e) => {
+    reportError('window.onerror', e?.error || { message: e?.message }, {
+      filename: e?.filename, line: e?.lineno, col: e?.colno,
+    });
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    reportError('unhandledrejection', e?.reason || { message: 'unhandledrejection' });
+  });
+}
+
+
 function sanitizeDuelinkStoredData(value, seen = new WeakSet()) {
   const sensitiveKeys = new Set([
     'opponentDecklist', 'opponent_decklist', 'oppDecklist', 'opp_decklist',
@@ -316,6 +364,7 @@ export async function saveMatchAnalysis(payload, details = {}) {
       // Filet de sécurité : si l'écriture déportée échoue, on remet le JSON dans
       // la colonne historique pour ne rien perdre (l'écran détail le relira).
       console.warn('saved_match_analysis insert failed, fallback to inline column:', analysisError.message);
+      reportError('saveMatch.analysisDeferredInsert', analysisError, { match_id: data.id });
       await supabase.from('saved_matches').update({ analysis_json: analysisJson }).eq('id', data.id);
     }
     // Le retour conserve analysis_json pour les appelants existants.
