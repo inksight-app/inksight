@@ -14,6 +14,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const SET_CODE_TO_NUM = Object.fromEntries(Object.entries(SET_NUM_TO_CODE).map(([n,c]) => [c,n]));
   // Aliases so legacy data using the older codes still resolves.
   Object.assign(SET_CODE_TO_NUM, { FC:'1', TFC:'1', SHS:'5', SSK:'5', WITW:'10', WHW:'10', WIS:'11', WIN:'11', WUN:'12', WIL:'12' });
+  // Rotation Core (juillet 2026, sortie du chapitre 13) : le format Core ne garde
+  // que les cinq derniers chapitres. Core-legal = sets 9 à 13 (Fabuleux, Lueurs dans
+  // les Profondeurs, Givresort, Contrées Inconnues, Invasion Épineuse !). Les sets 1
+  // à 8 sont sortis du Core (toujours jouables en Infinity).
+  const CORE_LEGAL_SET_NUMS = new Set(['9', '10', '11', '12', '13']);
   const SET_LABELS = { TFC:'Premier Chapitre', FC:'Premier Chapitre', ROTF:'L’Ascension des Floodborn', ITI:'Les Terres d’Encres', URR:'Le Retour d’Ursula', SSK:'Ciel Scintillant', AZS:'La Mer Azurite', ARI:'L’Île d’Archazia', ROJ:'Le Règne de Jafar', FAB:'Fabuleux', WHW:'Lueurs dans les Profondeurs', WIN:'Givresort', WIL:'Contrées Inconnues', AOTV:'Invasion Épineuse !', SET13:'Invasion Épineuse !', SET14:'Hyperia City', P1:'Cartes Promo — Année 1', P2:'Cartes Promo — Année 2', P3:'Cartes Promo — Année 3' };
   const INK_FR = { amber:'Ambre', amethyst:'Améthyste', emerald:'Émeraude', ruby:'Rubis', sapphire:'Saphir', steel:'Acier', Amber:'Ambre', Amethyst:'Améthyste', Emerald:'Émeraude', Ruby:'Rubis', Sapphire:'Saphir', Steel:'Acier', 'Dual Ink':'Double encre' };
   const RARITY_FR = { common:'Commune', uncommon:'Inhabituelle', rare:'Rare', 'super rare':'Très rare', super_rare:'Très rare', legendary:'Légendaire', enchanted:'Enchantée', iconic:'Iconique', promo:'Promo', Common:'Commune', Uncommon:'Inhabituelle', Rare:'Rare', Legendary:'Légendaire', Enchanted:'Enchantée', Iconic:'Iconique', Promo:'Promo' };
@@ -25,7 +30,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
-  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), team:null, teamMode:false, teamMemberIds:[], teamDisplayNames:{}, dateFilter:{ stats:{ preset:'all', from:null, to:null }, history:{ preset:'all', from:null, to:null } } };
+  const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', coreOnly:false, lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), team:null, teamMode:false, teamMemberIds:[], teamDisplayNames:{}, dateFilter:{ stats:{ preset:'all', from:null, to:null }, history:{ preset:'all', from:null, to:null } } };
 
 
   function perfMark(label, startedAt, extra={}){
@@ -123,6 +128,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.analysisTabs?.addEventListener('keydown', handleTabsKeydown);
     document.querySelectorAll('[data-scope]').forEach(btn => btn.addEventListener('click', () => setScope(btn.dataset.scope)));
     document.querySelectorAll('[data-card-filter]').forEach(btn => btn.addEventListener('click', () => setCardFilter(btn.dataset.cardFilter)));
+    document.querySelector('[data-core-only]')?.addEventListener('click', toggleCoreOnly);
     document.addEventListener('click', handleOpponentDeckExportClick);
     [els.topQuestersSort, els.mostInkedSort, els.playTimingSort, els.challengeSort, els.timelineFilter].forEach(el => el?.addEventListener('change', renderAll));
     els.closeModal?.addEventListener('click', closeCardModal);
@@ -12892,6 +12898,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const estimate = m.opponentDeckEstimate || finalizeOpponentDeckEstimate(new Map());
     const estimateByKey = new Map((estimate.cards || []).map(row => [row.cardKey || row.key, row]));
     let cards = state.cardFilter === 'all' ? m.cards : cardsForScope(m, state.cardFilter);
+    if(state.coreOnly) cards = cards.filter(c => coreLegality(c) !== 'rotated');
     cards = cards.sort((a,b)=>{
       if(isOpponent){
         const ea = estimateByKey.get(statCardKey(a) || cardKey(a));
@@ -12920,7 +12927,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const mainMeta = [rarityLabel(c.rarity), shortSetLabel(c), `#${c.number || '—'}`].filter(Boolean).join(' · ');
       const estimatedChip = estimateRow ? `<span class="meta-chip meta-chip-estimate">Estimé ${esc(estimateRow.estimatedCopies)}${estimateRow.fallbackOnly ? '+' : ''}</span>` : '';
       const zoneChip = estimateRow?.seenZones?.length ? `<span class="meta-chip">Vu ${esc(formatSeenZones(estimateRow.seenZones).slice(0, 24))}</span>` : '';
-      return `<button type="button" class="card-mini card-mini-v81" data-card-key="${esc(cardKey(c))}">${cardThumbHtml(c, 'card-mini-thumb')}<div class="card-mini-copy"><h3>${esc(fullName(c))}</h3><p>${esc(mainMeta)}</p><div class="mini-meta">${estimatedChip}<span class="meta-chip">Vue ${n(c.seen)}</span><span class="meta-chip">Jouée ${n(c.played)}</span><span class="meta-chip">Encrée ${n(c.inked)}</span>${zoneChip}</div></div></button>`;
+      return `<button type="button" class="card-mini card-mini-v81" data-card-key="${esc(cardKey(c))}">${cardThumbHtml(c, 'card-mini-thumb')}<div class="card-mini-copy"><h3>${esc(fullName(c))}</h3><p>${esc(mainMeta)}</p><div class="mini-meta">${estimatedChip}<span class="meta-chip">Vue ${n(c.seen)}</span><span class="meta-chip">Jouée ${n(c.played)}</span><span class="meta-chip">Encrée ${n(c.inked)}</span>${zoneChip}${coreLegalityChip(c)}</div></div></button>`;
     }).join('');
     els.cardsGrid.innerHTML = exportPanel + cardHtml;
     bindCardButtons();
@@ -13099,7 +13106,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const imageHtml = detailImage ? `<img src="${esc(detailImage)}" alt="${esc(fullName(c))}" loading="lazy">` : `<div class="card-art-placeholder"><strong>${esc(initials(fullName(c)))}</strong><span>${esc(fullName(c))}</span><small>Image indisponible</small></div>`;
     const universe = cardUniverse(c);
     const artists = cardArtists(c);
-    return `<div class="card-detail"><div class="card-image">${imageHtml}</div><div class="card-detail-main"><section class="detail-panel"><div class="kicker">Carte</div><h2 class="detail-title"><span class="ink-dot ink-${color}"></span>${esc(fullName(c))}</h2><div class="chip-row"><span class="chip">${esc(setLabel(c) || 'Chapitre inconnu')}</span><span class="chip">${esc(rarityLabel(c.rarity) || 'Rareté —')}</span><span class="chip">#${esc(c.number || '—')}</span><span class="chip">${esc(inkLabel(c.colors?.[0]) || 'Encre —')}</span></div><div class="detail-grid" style="margin-top:1rem">${field('Type', typeLabel(c.type))}${field('Coût', c.cost ?? '—')}${field('Encrable', c.inkable === true ? 'Oui' : c.inkable === false ? 'Non' : '—')}${field('Rareté', rarityLabel(c.rarity) || '—')}${field('Force', c.strength ?? '—')}${field('Volonté', c.willpower ?? '—')}${field('Lore', c.lore ?? '—')}</div></section><section class="detail-panel detail-panel-info"><div class="kicker">Informations</div><div class="detail-grid">${field('Chapitre', setLabel(c) || '—')}${field('Univers', universe)}${field('Artiste(s)', artists)}</div></section>${text ? `<section class="detail-panel"><div class="kicker">Texte de carte</div><div class="card-text">${text}</div></section>` : ''}<section class="detail-panel"><div class="kicker">Classifications</div><div class="chip-row">${(c.classifications || []).length ? c.classifications.map(x=>`<span class="chip">${esc(x)}</span>`).join('') : '<span class="chip">—</span>'}</div></section></div></div>`;
+    return `<div class="card-detail"><div class="card-image">${imageHtml}</div><div class="card-detail-main"><section class="detail-panel"><div class="kicker">Carte</div><h2 class="detail-title"><span class="ink-dot ink-${color}"></span>${esc(fullName(c))}</h2><div class="chip-row"><span class="chip">${esc(setLabel(c) || 'Chapitre inconnu')}</span><span class="chip">${esc(rarityLabel(c.rarity) || 'Rareté —')}</span><span class="chip">#${esc(c.number || '—')}</span><span class="chip">${esc(inkLabel(c.colors?.[0]) || 'Encre —')}</span>${coreLegalityChip(c)}</div><div class="detail-grid" style="margin-top:1rem">${field('Type', typeLabel(c.type))}${field('Coût', c.cost ?? '—')}${field('Encrable', c.inkable === true ? 'Oui' : c.inkable === false ? 'Non' : '—')}${field('Rareté', rarityLabel(c.rarity) || '—')}${field('Force', c.strength ?? '—')}${field('Volonté', c.willpower ?? '—')}${field('Lore', c.lore ?? '—')}</div></section><section class="detail-panel detail-panel-info"><div class="kicker">Informations</div><div class="detail-grid">${field('Chapitre', setLabel(c) || '—')}${field('Univers', universe)}${field('Artiste(s)', artists)}</div></section>${text ? `<section class="detail-panel"><div class="kicker">Texte de carte</div><div class="card-text">${text}</div></section>` : ''}<section class="detail-panel"><div class="kicker">Classifications</div><div class="chip-row">${(c.classifications || []).length ? c.classifications.map(x=>`<span class="chip">${esc(x)}</span>`).join('') : '<span class="chip">—</span>'}</div></section></div></div>`;
   }
   function metadataFallbackCard(c){
     const keys = new Set(cardReferenceKeys(c));
@@ -13900,6 +13907,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     syncChartsWithTheme(scope);
   }
   function setCardFilter(filter){ state.cardFilter = filter; document.querySelectorAll('[data-card-filter]').forEach(b=>b.classList.toggle('active', b.dataset.cardFilter === filter)); renderCards(); }
+  function toggleCoreOnly(){
+    state.coreOnly = !state.coreOnly;
+    const btn = document.querySelector('[data-core-only]');
+    if(btn){ btn.classList.toggle('active', state.coreOnly); btn.setAttribute('aria-pressed', String(state.coreOnly)); }
+    renderCards();
+  }
 
   function handleModalKeydown(e){
     if(!els.cardModal?.classList.contains('active')) return;
@@ -14160,6 +14173,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function normalizeSetCode(v){ const raw=String(v||'').trim().toUpperCase(); return raw ? ({ FC:'TFC', SHS:'SSK', WITW:'WHW', WIS:'WIN', WUN:'WIL' }[raw] || raw) : ''; }
   function setLabel(c){ const code = c.setCode || c.setCodes?.[0] || ''; return code ? `${code} — ${SET_LABELS[code] || code}` : ''; }
   function shortSetLabel(c){ return c?.setCode || c?.setCodes?.[0] || ''; }
+  function cardSetNumber(c){
+    const code = normalizeSetCode(c?.setCode || c?.setCodes?.[0] || c?.set || c?.raw?.set || c?.raw?.setCode || '');
+    return code ? (SET_CODE_TO_NUM[code] || '') : '';
+  }
+  // 'legal' = jouable en Core (chapitres 9–13), 'rotated' = sortie du Core après la
+  // rotation de juillet 2026, 'unknown' = set non résolu (on n'affiche alors rien).
+  function coreLegality(c){
+    let num = cardSetNumber(c);
+    if(!num){ const fb = metadataFallbackCard(c); if(fb) num = cardSetNumber(fb); }
+    if(!num) return 'unknown';
+    return CORE_LEGAL_SET_NUMS.has(String(num)) ? 'legal' : 'rotated';
+  }
+  function coreLegalityChip(c){
+    const status = coreLegality(c);
+    if(status === 'legal') return '<span class="legal-badge legal-core" title="Légale en format Core (chapitres 9–13)">Core</span>';
+    if(status === 'rotated') return '<span class="legal-badge legal-rotated" title="Sortie du format Core après la rotation de juillet 2026 — jouable en Infinity">Hors&nbsp;Core</span>';
+    return '';
+  }
   function inkLabel(v){ return INK_FR[v] || v || ''; }
   function rarityLabel(v){ const raw=String(v||''); return RARITY_FR[raw] || RARITY_FR[raw.toLowerCase()] || raw; }
   function typeLabel(v){ if(Array.isArray(v)) return v.map(typeLabel).join(' · '); return TYPE_FR[v] || TYPE_FR[String(v||'').toLowerCase()] || v || '—'; }
