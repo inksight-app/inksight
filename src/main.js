@@ -14173,21 +14173,39 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function normalizeSetCode(v){ const raw=String(v||'').trim().toUpperCase(); return raw ? ({ FC:'TFC', SHS:'SSK', WITW:'WHW', WIS:'WIN', WUN:'WIL' }[raw] || raw) : ''; }
   function setLabel(c){ const code = c.setCode || c.setCodes?.[0] || ''; return code ? `${code} — ${SET_LABELS[code] || code}` : ''; }
   function shortSetLabel(c){ return c?.setCode || c?.setCodes?.[0] || ''; }
-  function cardSetNumber(c){
-    const code = normalizeSetCode(c?.setCode || c?.setCodes?.[0] || c?.set || c?.raw?.set || c?.raw?.setCode || '');
-    return code ? (SET_CODE_TO_NUM[code] || '') : '';
+  // Tous les numéros de set d'une carte, réimpressions comprises. Les reprints sont
+  // stockés fusionnés dans le D:local (ex. setCodes ['TFC','FAB'], set "TFC\nFAB"),
+  // et le DB local est consulté en repli car une carte de replay ne porte souvent
+  // qu'un seul setCode (mergeCard n'écrase pas un setCodes déjà rempli).
+  function cardSetNumbers(c){
+    const nums = new Set();
+    const collect = src => {
+      if(!src) return;
+      arrayify(src.setCodes?.length ? src.setCodes : src.setCode || src.set || src.raw?.set || src.raw?.setCode || src.raw?.setCodes || '')
+        .flatMap(v => String(v).split(/[\n,+/]/))
+        .map(normalizeSetCode)
+        .forEach(code => { const num = code && SET_CODE_TO_NUM[code]; if(num) nums.add(String(num)); });
+    };
+    collect(c);
+    collect(metadataFallbackCard(c));
+    return [...nums];
   }
-  // 'legal' = jouable en Core (chapitres 9–13), 'rotated' = sortie du Core après la
-  // rotation de juillet 2026, 'unknown' = set non résolu (on n'affiche alors rien).
+  // 'legal' = jouable en Core (une réimpression au moins dans les chapitres 9–13),
+  // 'rotated' = sortie du Core après la rotation de juillet 2026, 'unknown' = set non
+  // résolu (on n'affiche alors aucun badge). Une carte du chapitre 1 réimprimée dans
+  // Fabuleux (set 9) est donc bien « legal ».
   function coreLegality(c){
-    let num = cardSetNumber(c);
-    if(!num){ const fb = metadataFallbackCard(c); if(fb) num = cardSetNumber(fb); }
-    if(!num) return 'unknown';
-    return CORE_LEGAL_SET_NUMS.has(String(num)) ? 'legal' : 'rotated';
+    const nums = cardSetNumbers(c);
+    if(!nums.length) return 'unknown';
+    return nums.some(num => CORE_LEGAL_SET_NUMS.has(num)) ? 'legal' : 'rotated';
   }
   function coreLegalityChip(c){
     const status = coreLegality(c);
-    if(status === 'legal') return '<span class="legal-badge legal-core" title="Légale en format Core (chapitres 9–13)">Core</span>';
+    if(status === 'legal'){
+      const via = cardSetNumbers(c).filter(num => CORE_LEGAL_SET_NUMS.has(num)).sort((a, b) => Number(a) - Number(b));
+      const label = via.length ? ` (chapitre${via.length > 1 ? 's' : ''} ${via.join(', ')})` : '';
+      return `<span class="legal-badge legal-core" title="Légale en format Core${esc(label)}">Core</span>`;
+    }
     if(status === 'rotated') return '<span class="legal-badge legal-rotated" title="Sortie du format Core après la rotation de juillet 2026 — jouable en Infinity">Hors&nbsp;Core</span>';
     return '';
   }
