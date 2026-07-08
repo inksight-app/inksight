@@ -10,11 +10,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const PERF_DEBUG = true;
   // Master codes here must match the `set` field on cards in
   // /lorcana-cards-import-ready.json so hydrateCard resolves IDs like "12-139".
-  const SET_NUM_TO_CODE = { '1':'TFC', '2':'ROTF', '3':'ITI', '4':'URR', '5':'SHS', '6':'AZS', '7':'ARI', '8':'ROJ', '9':'FAB', '10':'WITW', '11':'WIS', '12':'WUN', '13':'SET13', '14':'SET14' };
+  const SET_NUM_TO_CODE = { '1':'TFC', '2':'ROTF', '3':'ITI', '4':'URR', '5':'SHS', '6':'AZS', '7':'ARI', '8':'ROJ', '9':'FAB', '10':'WITW', '11':'WIS', '12':'WUN', '13':'AOTV', '14':'SET14' };
   const SET_CODE_TO_NUM = Object.fromEntries(Object.entries(SET_NUM_TO_CODE).map(([n,c]) => [c,n]));
   // Aliases so legacy data using the older codes still resolves.
   Object.assign(SET_CODE_TO_NUM, { FC:'1', TFC:'1', SHS:'5', SSK:'5', WITW:'10', WHW:'10', WIS:'11', WIN:'11', WUN:'12', WIL:'12' });
-  const SET_LABELS = { TFC:'Premier Chapitre', FC:'Premier Chapitre', ROTF:'L’Ascension des Floodborn', ITI:'Les Terres d’Encres', URR:'Le Retour d’Ursula', SSK:'Ciel Scintillant', AZS:'La Mer Azurite', ARI:'L’Île d’Archazia', ROJ:'Le Règne de Jafar', FAB:'Fabuleux', WHW:'Lueurs dans les Profondeurs', WIN:'Givresort', WIL:'Contrées Inconnues', SET13:'Invasion Épineuse !', SET14:'Hyperia City', P1:'Cartes Promo — Année 1', P2:'Cartes Promo — Année 2', P3:'Cartes Promo — Année 3' };
+  const SET_LABELS = { TFC:'Premier Chapitre', FC:'Premier Chapitre', ROTF:'L’Ascension des Floodborn', ITI:'Les Terres d’Encres', URR:'Le Retour d’Ursula', SSK:'Ciel Scintillant', AZS:'La Mer Azurite', ARI:'L’Île d’Archazia', ROJ:'Le Règne de Jafar', FAB:'Fabuleux', WHW:'Lueurs dans les Profondeurs', WIN:'Givresort', WIL:'Contrées Inconnues', AOTV:'Invasion Épineuse !', SET13:'Invasion Épineuse !', SET14:'Hyperia City', P1:'Cartes Promo — Année 1', P2:'Cartes Promo — Année 2', P3:'Cartes Promo — Année 3' };
   const INK_FR = { amber:'Ambre', amethyst:'Améthyste', emerald:'Émeraude', ruby:'Rubis', sapphire:'Saphir', steel:'Acier', Amber:'Ambre', Amethyst:'Améthyste', Emerald:'Émeraude', Ruby:'Rubis', Sapphire:'Saphir', Steel:'Acier', 'Dual Ink':'Double encre' };
   const RARITY_FR = { common:'Commune', uncommon:'Inhabituelle', rare:'Rare', 'super rare':'Très rare', super_rare:'Très rare', legendary:'Légendaire', enchanted:'Enchantée', iconic:'Iconique', promo:'Promo', Common:'Commune', Uncommon:'Inhabituelle', Rare:'Rare', Legendary:'Légendaire', Enchanted:'Enchantée', Iconic:'Iconique', Promo:'Promo' };
   const TYPE_FR = { character:'Personnage', action:'Action', song:'Chanson', item:'Objet', location:'Lieu', Character:'Personnage', Action:'Action', Item:'Objet', Location:'Lieu' };
