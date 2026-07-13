@@ -130,6 +130,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.querySelectorAll('[data-card-filter]').forEach(btn => btn.addEventListener('click', () => setCardFilter(btn.dataset.cardFilter)));
     document.querySelector('[data-core-only]')?.addEventListener('click', toggleCoreOnly);
     document.addEventListener('click', handleOpponentDeckExportClick);
+    document.addEventListener('click', handleDeckExportClick);
     [els.topQuestersSort, els.mostInkedSort, els.playTimingSort, els.challengeSort, els.timelineFilter].forEach(el => el?.addEventListener('change', renderAll));
     els.closeModal?.addEventListener('click', closeCardModal);
     els.mulliganButton?.addEventListener('click', toggleMulliganResolution);
@@ -2229,11 +2230,47 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return { cards:rows, totalConfirmedCards:sum(rows, 'estimatedCopies'), exportText:buildOpponentDeckExportText(rows) };
   }
 
-  function buildOpponentDeckExportText(cards){
-    return (cards || [])
-      .filter(card => n(card.estimatedCopies) > 0 && card.cardName && card.cardName !== 'Carte inconnue')
-      .map(card => `${Math.min(4, n(card.estimatedCopies))} ${cleanCardName(card.cardName)}`)
+  // Format decklist standard « <n> <Nom complet> » (compatible Duels.ink /
+  // Lorcahub / Dreamborn). Réutilisé par l'export adverse ET l'export du joueur.
+  function formatDecklistLines(entries){
+    return (entries || [])
+      .map(e => ({ name:cleanCardName(e.name || e.cardName || ''), count:Math.max(1, Math.min(4, n(e.count ?? e.estimatedCopies))) }))
+      .filter(e => e.name && e.name !== 'Carte inconnue')
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(e => `${e.count} ${e.name}`)
       .join('\n');
+  }
+
+  function buildOpponentDeckExportText(cards){
+    return formatDecklistLines((cards || [])
+      .filter(card => n(card.estimatedCopies) > 0)
+      .map(card => ({ name:card.cardName, count:card.estimatedCopies })));
+  }
+
+  // Decklist du joueur : la liste officielle Duels.ink (my_decklist) est
+  // prioritaire et exacte ; à défaut, estimation depuis les cartes vues.
+  function buildOwnDeckExport(){
+    const status = apiDecklistStatus(state.matchMeta || {}, 'mine');
+    if(status.source === 'api' && status.cards?.length){
+      return { text:formatDecklistLines(status.cards), count:n(status.copies), unique:n(status.unique), source:'api' };
+    }
+    const m = getWorkingData();
+    const mineCards = m ? cardsForScope(m, 'mine') : [];
+    const entries = mineCards
+      .filter(c => !isPlaceholderCard(c))
+      .map(c => ({ name:cleanCardName(fullName(c)), count:Math.max(1, Math.min(4, n(c.uniqueCopies) || 1)) }));
+    const text = formatDecklistLines(entries);
+    const count = text ? text.split('\n').reduce((s, l) => s + (parseInt(l, 10) || 0), 0) : 0;
+    return { text, count, unique:entries.length, source:'estimated' };
+  }
+
+  function downloadTextFile(filename, text){
+    const blob = new Blob([text], { type:'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   async function copyTextToClipboard(text){
@@ -2274,6 +2311,40 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         button.textContent = original || 'Copier la decklist partielle';
         button.classList.remove('copied');
       }, 1800);
+    }
+  }
+
+  // Export « ma decklist » (copie / .txt) + téléchargement de la decklist adverse.
+  async function handleDeckExportClick(event){
+    const copyOwn = event.target?.closest?.('[data-export-own-deck]');
+    const dlOwn = event.target?.closest?.('[data-download-own-deck]');
+    const dlOpp = event.target?.closest?.('[data-download-opponent-deck]');
+    if(copyOwn || dlOwn){
+      const own = buildOwnDeckExport();
+      if(!own.text.trim()) return;
+      if(dlOwn){ downloadTextFile('inksight-ma-decklist.txt', own.text); return; }
+      const original = copyOwn.textContent;
+      copyOwn.disabled = true;
+      try{
+        await copyTextToClipboard(own.text);
+        copyOwn.textContent = `Decklist copiée · ${n(own.count)} cartes`;
+        copyOwn.classList.add('copied');
+      }catch(err){
+        console.warn(err);
+        copyOwn.textContent = 'Copie impossible';
+      }finally{
+        window.setTimeout(() => {
+          copyOwn.disabled = false;
+          copyOwn.textContent = original || 'Copier la decklist';
+          copyOwn.classList.remove('copied');
+        }, 1800);
+      }
+      return;
+    }
+    if(dlOpp){
+      const est = getWorkingData()?.opponentDeckEstimate;
+      const text = est?.exportText || buildOpponentDeckExportText(est?.cards || []);
+      if(text.trim()) downloadTextFile('inksight-decklist-adverse.txt', text);
     }
   }
 
@@ -12913,14 +12984,36 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }else{
       els.cardsSubtitle.textContent = global ? `${cards.length} carte(s) ${scopeLabel} sur l’ensemble du BO3.` : `${cards.length} carte(s) détectée(s).`;
     }
-    const exportPanel = isOpponent && estimate.cards?.length ? `
+    let exportPanel = '';
+    if(isOpponent && estimate.cards?.length){
+      exportPanel = `
       <div class="opponent-deck-export">
         <div>
           <strong>Decklist adverse partielle</strong>
           <span>${esc(n(estimate.totalConfirmedCards))} carte(s) confirmée(s) minimum · basée sur les exemplaires visibles.</span>
         </div>
-        <button type="button" class="ghost-button opponent-export-button" data-export-opponent-deck>Copier la decklist partielle</button>
-      </div>` : '';
+        <div class="deck-export-actions">
+          <button type="button" class="ghost-button opponent-export-button" data-export-opponent-deck>Copier la decklist partielle</button>
+          <button type="button" class="ghost-button" data-download-opponent-deck>Télécharger .txt</button>
+        </div>
+      </div>`;
+    }else if(!isOpponent){
+      const own = buildOwnDeckExport();
+      if(own.text){
+        const label = own.source === 'api' ? 'liste complète Duels.ink' : 'estimée depuis le replay';
+        exportPanel = `
+      <div class="opponent-deck-export">
+        <div>
+          <strong>Votre decklist</strong>
+          <span>${esc(n(own.unique))} carte(s) unique(s) · ${esc(n(own.count))} au total · ${label}.</span>
+        </div>
+        <div class="deck-export-actions">
+          <button type="button" class="ghost-button" data-export-own-deck>Copier la decklist</button>
+          <button type="button" class="ghost-button" data-download-own-deck>Télécharger .txt</button>
+        </div>
+      </div>`;
+      }
+    }
     const cardHtml = cards.map(c => {
       const key = statCardKey(c) || cardKey(c);
       const estimateRow = isOpponent ? estimateByKey.get(key) : null;
@@ -14204,9 +14297,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(status === 'legal'){
       const via = cardSetNumbers(c).filter(num => CORE_LEGAL_SET_NUMS.has(num)).sort((a, b) => Number(a) - Number(b));
       const label = via.length ? ` (chapitre${via.length > 1 ? 's' : ''} ${via.join(', ')})` : '';
-      return `<span class="legal-badge legal-core" title="Légale en format Core${esc(label)}">Core</span>`;
+      return `<span class="badge badge--core" title="Légale en format Core${esc(label)}">Core</span>`;
     }
-    if(status === 'rotated') return '<span class="legal-badge legal-rotated" title="Sortie du format Core après la rotation de juillet 2026 — jouable en Infinity">Hors&nbsp;Core</span>';
+    if(status === 'rotated') return '<span class="badge badge--rotated" title="Sortie du format Core après la rotation de juillet 2026 — jouable en Infinity">Hors&nbsp;Core</span>';
     return '';
   }
   function inkLabel(v){ return INK_FR[v] || v || ''; }

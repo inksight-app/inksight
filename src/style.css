@@ -1,8 +1,41 @@
 
+/* ============================================================================
+   InkSight — Design tokens canoniques (source unique de vérité · D1)
+   Étend le bloc historique sans en changer les valeurs. Les nouveaux composants
+   (Badge, etc.) et les migrations à venir consomment CES tokens. Objectif : à
+   terme, remplacer les redefinitions dispersees des prefixes --ab- --ac- --ad- par ceux-ci.
+   ============================================================================ */
 :root{
+  /* Fonds & texte (historique — inchangé) */
   --bg:#050506; --surface:#111216; --surface2:#17181d; --line:rgba(255,255,255,.11);
   --text:#f5f5f6; --muted:#a1a1aa; --faint:#777783; --good:#34d399; --warn:#f6c54d; --bad:#fb7185;
   --blue:#2f8bd9; --violet:#8b5cc7; --card-radius:1.65rem; --mx:50%; --my:16%;
+
+  /* Accent (aligné sur --blue/--violet) */
+  --accent:var(--blue); --accent-2:var(--violet);
+
+  /* Tints sémantiques réutilisables (badges, callouts, états) */
+  --good-bg:rgba(52,211,153,.12); --warn-bg:rgba(246,197,77,.14);
+  --bad-bg:rgba(251,113,133,.12); --accent-bg:rgba(47,139,217,.14);
+  --neutral-bg:rgba(255,255,255,.055); --neutral-border:rgba(255,255,255,.16);
+
+  /* Palette d'encre Lorcana (catégorielle — mêmes teintes que .ink-*) */
+  --ink-amber:#f7c84b; --ink-amethyst:#8e5bbf; --ink-emerald:#35a86b;
+  --ink-ruby:#c94343; --ink-sapphire:#2e8bd6; --ink-steel:#9ca3af; --ink-inkless:#73737d;
+
+  /* Échelle d'espacement (4 · 8 · 12 · 16 · 24 · 32 · 48 · 64) */
+  --space-1:.25rem; --space-2:.5rem; --space-3:.75rem; --space-4:1rem;
+  --space-5:1.5rem; --space-6:2rem; --space-7:3rem; --space-8:4rem;
+
+  /* Rayons & ombres */
+  --radius-sm:.6rem; --radius-md:1rem; --radius-lg:1.45rem; --radius-pill:999px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.3),0 8px 22px rgba(0,0,0,.32);
+  --shadow-md:0 14px 40px rgba(0,0,0,.42); --shadow-lg:0 22px 70px rgba(0,0,0,.46);
+
+  /* Rôles typographiques */
+  --font-sans:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-serif:"Lora",Georgia,"Times New Roman",serif;
+  --font-num:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
 }
 *{box-sizing:border-box} html{background:var(--bg);scroll-behavior:smooth} body{margin:0;min-height:100vh;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text);background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.11),transparent 30rem),radial-gradient(circle at 10% 5%,rgba(60,120,255,.08),transparent 24rem),radial-gradient(circle at 92% 5%,rgba(246,197,77,.075),transparent 28rem),linear-gradient(180deg,#08090b 0%,#050506 55%,#020203 100%);letter-spacing:-.012em}.hidden{display:none!important}
 .file-input-native{position:absolute!important;width:1px!important;height:1px!important;opacity:.01!important;left:1rem!important;top:1rem!important;pointer-events:none!important}
@@ -451,25 +484,36 @@ p,
 .mini-meta .meta-chip:nth-child(2){
   border-color:color-mix(in srgb,var(--theme-color-2) 34%,rgba(255,255,255,.18))!important;
 }
-/* Badge de légalité Core (rotation chapitre 13) */
-.legal-badge{
-  display:inline-flex;align-items:center;border-radius:999px;
-  padding:.28rem .55rem;font-size:.68rem;font-weight:800;
-  letter-spacing:.01em;line-height:1;white-space:nowrap;border:1px solid transparent;
+/* ---- Composant Badge unifié (D2) ------------------------------------------
+   Une seule primitive à variantes, consommant les tokens canoniques. Remplace
+   les anciens .legal-badge / puces de statut éparses. Usage :
+     <span class="badge badge--core">Core</span>
+     <span class="badge badge--warn">3 images</span>
+   .legal-badge/.legal-core/.legal-rotated restent des alias rétro-compatibles. */
+.badge,.legal-badge{
+  display:inline-flex;align-items:center;gap:.32rem;
+  font-family:var(--font-num);font-size:.68rem;font-weight:700;letter-spacing:.02em;
+  line-height:1;white-space:nowrap;border-radius:var(--radius-pill);
+  padding:.3rem .55rem;border:1px solid var(--neutral-border);
+  color:var(--muted);background:var(--neutral-bg);
 }
-.legal-badge.legal-core{
-  color:#6ee7b7;border-color:rgba(52,211,153,.45);
-  background:rgba(52,211,153,.12);
+.badge--good,.legal-badge.legal-core,.badge--core{
+  color:#6ee7b7;background:var(--good-bg);border-color:rgba(52,211,153,.42);
 }
-.legal-badge.legal-rotated{
-  color:#d4d4d8;border-color:rgba(255,255,255,.16);
-  background:rgba(255,255,255,.04);
+.badge--warn{ color:#f6d488;background:var(--warn-bg);border-color:transparent }
+.badge--bad{ color:#fda4af;background:var(--bad-bg);border-color:transparent }
+.badge--accent{ color:#9ec9f0;background:var(--accent-bg);border-color:transparent }
+.badge--neutral,.badge--rotated,.legal-badge.legal-rotated{
+  color:var(--muted);background:var(--neutral-bg);border-color:var(--neutral-border);
 }
-.chip-row .legal-badge{padding:.4rem .68rem;font-size:.74rem}
+.chip-row .badge,.chip-row .legal-badge{padding:.4rem .68rem;font-size:.74rem}
 .core-only-toggle.active{
-  background:rgba(52,211,153,.16)!important;color:#6ee7b7!important;
+  background:var(--good-bg)!important;color:#6ee7b7!important;
   border-color:rgba(52,211,153,.5)!important;box-shadow:none!important;
 }
+/* Rangée d'actions d'export decklist (F2) */
+.deck-export-actions{display:flex;flex-wrap:wrap;gap:.5rem}
+.ghost-button.copied{color:#6ee7b7;border-color:rgba(52,211,153,.5)}
 
 /* Compact replacement for the oversized donut matrix */
 .action-matrix-panel{
