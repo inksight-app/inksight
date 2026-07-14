@@ -19,6 +19,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   // les Profondeurs, Givresort, Contrées Inconnues, Invasion Épineuse !). Les sets 1
   // à 8 sont sortis du Core (toujours jouables en Infinity).
   const CORE_LEGAL_SET_NUMS = new Set(['9', '10', '11', '12', '13']);
+  // Chrome des graphes (D3) — source unique pour la couleur des axes, grilles et
+  // repères (les séries, elles, prennent la couleur d'encre réelle du deck). Les
+  // valeurs sont identiques à l'existant : centralisation, pas de changement visuel.
+  const CHART_CHROME = {
+    tick:'#c9cad3', tickMobile:'rgba(255,255,255,.62)', legend:'#ececf0',
+    grid:'rgba(255,255,255,.065)', crosshair:'rgba(255,255,255,.16)',
+    endpointRing:'rgba(255,255,255,.72)', reference:'rgba(255,255,255,.24)'
+  };
   const SET_LABELS = { TFC:'Premier Chapitre', FC:'Premier Chapitre', ROTF:'L’Ascension des Floodborn', ITI:'Les Terres d’Encres', URR:'Le Retour d’Ursula', SSK:'Ciel Scintillant', AZS:'La Mer Azurite', ARI:'L’Île d’Archazia', ROJ:'Le Règne de Jafar', FAB:'Fabuleux', WHW:'Lueurs dans les Profondeurs', WIN:'Givresort', WIL:'Contrées Inconnues', AOTV:'Invasion Épineuse !', SET13:'Invasion Épineuse !', SET14:'Hyperia City', P1:'Cartes Promo — Année 1', P2:'Cartes Promo — Année 2', P3:'Cartes Promo — Année 3' };
   const INK_FR = { amber:'Ambre', amethyst:'Améthyste', emerald:'Émeraude', ruby:'Rubis', sapphire:'Saphir', steel:'Acier', Amber:'Ambre', Amethyst:'Améthyste', Emerald:'Émeraude', Ruby:'Rubis', Sapphire:'Saphir', Steel:'Acier', 'Dual Ink':'Double encre' };
   const RARITY_FR = { common:'Commune', uncommon:'Inhabituelle', rare:'Rare', 'super rare':'Très rare', super_rare:'Très rare', legendary:'Légendaire', enchanted:'Enchantée', iconic:'Iconique', promo:'Promo', Common:'Commune', Uncommon:'Inhabituelle', Rare:'Rare', Legendary:'Légendaire', Enchanted:'Enchantée', Iconic:'Iconique', Promo:'Promo' };
@@ -13775,7 +13783,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const datasets = [
       mineDataset,
       opponentDataset,
-      { label:'Ligne de victoire · 20 lore', data:rows.map(()=>20), borderColor:'rgba(255,255,255,.24)', borderDash:[5,6], borderWidth:1, pointRadius:0, pointHoverRadius:0, fill:false, tension:0, noGlow:true, tooltipSkip:true }
+      { label:'Ligne de victoire · 20 lore', data:rows.map(()=>20), borderColor:CHART_CHROME.reference, borderDash:[5,6], borderWidth:1, pointRadius:0, pointHoverRadius:0, fill:false, tension:0, noGlow:true, tooltipSkip:true }
     ];
     charts.lore = chart(charts.lore, 'loreChart', 'line', { labels, datasets }, { scales:{ y:{ beginAtZero:true, suggestedMax:21 } } });
     updateChartDataTable('loreChart', labels, datasets, 'Données du graphique de course aux 20 lore');
@@ -13897,12 +13905,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       layout:{ padding: mobileChart ? { top:12, right:8, bottom:8, left:4 } : { top:22, right:28, bottom:18, left:18 } },
       interaction:{ mode:'index', intersect:false },
       plugins:{
-        legend:{ position: mobileChart ? 'bottom' : 'top', labels:{ color:'#ececf0', usePointStyle:true, padding:mobileChart ? 10 : 18, font:{ size:mobileChart ? 11 : 12, weight:'700' } } },
+        legend:{ position: mobileChart ? 'bottom' : 'top', labels:{ color:CHART_CHROME.legend, usePointStyle:true, padding:mobileChart ? 10 : 18, font:{ size:mobileChart ? 11 : 12, weight:'700' } } },
         tooltip:{ enabled:false, external:externalTooltipHandler }
       },
       scales:{
-        x:{ ticks:{ color: mobileChart ? 'rgba(255,255,255,.62)' : '#c9cad3', padding:8, font:{ size:mobileChart ? 11 : 12, weight:'700' } }, grid:{ display:false, color:'rgba(255,255,255,.065)' }, border:{ display:false } },
-        y:{ ticks:{ color: mobileChart ? 'rgba(255,255,255,.62)' : '#c9cad3', padding:8, font:{ size:mobileChart ? 11 : 12, weight:'700' } }, grid:{ display:false, color:'rgba(255,255,255,.065)' }, border:{ display:false }, grace:'8%' }
+        x:{ ticks:{ color: mobileChart ? CHART_CHROME.tickMobile : CHART_CHROME.tick, padding:8, font:{ size:mobileChart ? 11 : 12, weight:'700' } }, grid:{ display:false, color:CHART_CHROME.grid }, border:{ display:false } },
+        y:{ ticks:{ color: mobileChart ? CHART_CHROME.tickMobile : CHART_CHROME.tick, padding:8, font:{ size:mobileChart ? 11 : 12, weight:'700' } }, grid:{ display:false, color:CHART_CHROME.grid }, border:{ display:false }, grace:'8%' }
       },
       elements:{
         line:{ borderCapStyle:'round', borderJoinStyle:'round' },
@@ -13952,7 +13960,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         ctx.moveTo(x, area.top);
         ctx.lineTo(x, area.bottom);
         ctx.lineWidth = 1;
-        ctx.strokeStyle = 'rgba(255,255,255,.16)';
+        ctx.strokeStyle = CHART_CHROME.crosshair;
         ctx.setLineDash([4,6]);
         ctx.stroke();
         ctx.setLineDash([]);
@@ -13969,7 +13977,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           ctx.fillStyle = color;
           ctx.fill();
           ctx.lineWidth = 1.25;
-          ctx.strokeStyle = 'rgba(255,255,255,.72)';
+          ctx.strokeStyle = CHART_CHROME.endpointRing;
           ctx.stroke();
         });
         ctx.restore();
