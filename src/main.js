@@ -129,6 +129,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.querySelectorAll('[data-scope]').forEach(btn => btn.addEventListener('click', () => setScope(btn.dataset.scope)));
     document.querySelectorAll('[data-card-filter]').forEach(btn => btn.addEventListener('click', () => setCardFilter(btn.dataset.cardFilter)));
     document.querySelector('[data-core-only]')?.addEventListener('click', toggleCoreOnly);
+    bindDrawCalculator();
     document.addEventListener('click', handleOpponentDeckExportClick);
     document.addEventListener('click', handleDeckExportClick);
     [els.topQuestersSort, els.mostInkedSort, els.playTimingSort, els.challengeSort, els.timelineFilter].forEach(el => el?.addEventListener('change', renderAll));
@@ -14080,6 +14081,67 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     syncChartsWithTheme(scope);
   }
   function setCardFilter(filter){ state.cardFilter = filter; document.querySelectorAll('[data-card-filter]').forEach(b=>b.classList.toggle('active', b.dataset.cardFilter === filter)); renderCards(); }
+  // ---- Calculateur de pioche hypergéométrique (F1) -------------------------
+  // Probabilité de tirer au moins `atLeast` copies parmi `sample` cartes vues,
+  // dans un deck de `deck` cartes contenant `copies` exemplaires. log-factoriels
+  // mémoïsés pour rester stable sur les grands binomiaux.
+  const _logFactCache = [0, 0];
+  function logFact(x){
+    x = Math.max(0, Math.floor(x));
+    if(x < _logFactCache.length) return _logFactCache[x];
+    let s = _logFactCache[_logFactCache.length - 1];
+    for(let i = _logFactCache.length; i <= x; i += 1){ s += Math.log(i); _logFactCache[i] = s; }
+    return _logFactCache[x];
+  }
+  function logChoose(nn, kk){ if(kk < 0 || kk > nn || nn < 0) return -Infinity; return logFact(nn) - logFact(kk) - logFact(nn - kk); }
+  function hypergeomAtLeast(deck, copies, sample, atLeast){
+    deck = Math.max(1, Math.floor(deck));
+    copies = Math.max(0, Math.min(Math.floor(copies), deck));
+    sample = Math.max(0, Math.min(Math.floor(sample), deck));
+    const lo = Math.max(Math.floor(atLeast), 0);
+    const hi = Math.min(copies, sample);
+    if(lo > hi) return lo === 0 ? 1 : 0;
+    const denom = logChoose(deck, sample);
+    let p = 0;
+    for(let i = lo; i <= hi; i += 1){ p += Math.exp(logChoose(copies, i) + logChoose(deck - copies, sample - i) - denom); }
+    return Math.min(1, Math.max(0, p));
+  }
+  function bindDrawCalculator(){
+    ['drawDeckSize', 'drawCopies', 'drawWanted', 'drawSeen', 'drawMulligan'].forEach(id => {
+      document.getElementById(id)?.addEventListener('input', updateDrawCalculator);
+    });
+    document.getElementById('drawWhen')?.addEventListener('change', updateDrawCalculator);
+    updateDrawCalculator();
+  }
+  function updateDrawCalculator(){
+    const deckEl = document.getElementById('drawDeckSize');
+    if(!deckEl) return;
+    const deck = n(deckEl.value) || 60;
+    const copies = n(document.getElementById('drawCopies')?.value) || 0;
+    const wanted = Math.max(1, n(document.getElementById('drawWanted')?.value) || 1);
+    const whenSel = document.getElementById('drawWhen');
+    const custom = whenSel?.value === 'custom';
+    const seenWrap = document.getElementById('drawSeenWrap');
+    if(seenWrap) seenWrap.hidden = !custom;
+    const baseSeen = custom ? (n(document.getElementById('drawSeen')?.value) || 7) : (n(whenSel?.value) || 7);
+    const mulligan = !!document.getElementById('drawMulligan')?.checked;
+    const sample = Math.min(deck, baseSeen + (mulligan ? 7 : 0));
+    const p = hypergeomAtLeast(deck, copies, sample, wanted);
+    const pct = Math.round(p * 1000) / 10;
+    const pctEl = document.getElementById('drawResultPct');
+    const textEl = document.getElementById('drawResultText');
+    const fill = document.getElementById('drawGaugeFill');
+    if(pctEl) pctEl.textContent = `${pct}%`;
+    if(fill){
+      fill.style.width = `${Math.round(p * 100)}%`;
+      fill.style.background = p >= 0.7 ? 'var(--good)' : (p >= 0.4 ? 'var(--warn)' : 'var(--bad)');
+    }
+    if(textEl){
+      const copyWord = wanted > 1 ? `${wanted} exemplaires` : '1 exemplaire';
+      textEl.textContent = `${pct}% de voir au moins ${copyWord} sur ${sample} carte(s) vue(s)${mulligan ? ' · mulligan inclus' : ''}.`;
+    }
+  }
+
   function toggleCoreOnly(){
     state.coreOnly = !state.coreOnly;
     const btn = document.querySelector('[data-core-only]');

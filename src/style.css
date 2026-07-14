@@ -535,6 +535,25 @@ p,
 .tempo-note{color:var(--faint);font-size:.72rem;font-family:var(--font-num)}
 .tempo-hint{color:var(--faint);font-size:.82rem;margin-top:.7rem;line-height:1.5}
 
+/* Calculateur de pioche hypergéométrique (F1) */
+.draw-calc{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:1.2rem;margin-top:.6rem}
+@media(max-width:640px){.draw-calc{grid-template-columns:1fr}}
+.draw-calc-inputs{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;align-content:start}
+.draw-calc-inputs label{display:flex;flex-direction:column;gap:.3rem;font-size:.76rem;color:var(--muted);font-weight:600}
+.draw-calc-inputs input[type=number],.draw-calc-inputs select{
+  font:inherit;font-family:var(--font-num);font-size:.95rem;color:var(--text);
+  background:rgba(0,0,0,.28);border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:.5rem .6rem;min-height:42px}
+.draw-calc-inputs .draw-check{flex-direction:row;align-items:center;gap:.5rem;grid-column:1/-1;color:var(--text);font-size:.85rem}
+.draw-calc-inputs .draw-check input{width:1.05rem;height:1.05rem;accent-color:var(--good)}
+.draw-calc-result{display:flex;flex-direction:column;justify-content:center;align-items:center;
+  text-align:center;gap:.65rem;border:1px solid var(--line);border-radius:var(--radius-md);
+  background:rgba(0,0,0,.22);padding:1.3rem}
+.draw-calc-result strong{font-family:var(--font-num);font-size:2.9rem;font-weight:700;letter-spacing:-.03em;line-height:1;color:var(--text);font-variant-numeric:tabular-nums}
+.draw-calc-result span{color:var(--muted);font-size:.85rem;line-height:1.45;max-width:34ch}
+.draw-gauge{width:100%;height:.55rem;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.draw-gauge-fill{height:100%;width:0;border-radius:999px;transition:width .25s ease,background .25s ease}
+
 /* Compact replacement for the oversized donut matrix */
 .action-matrix-panel{
   min-height:0!important;

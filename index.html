@@ -444,6 +444,37 @@
 
         <section id="perf-detail-draw" class="performance-detail-panel" data-performance-detail-panel="draw" hidden>
           <p class="perf-detail-intro">Tes chances de piocher tes cartes au fil de la partie, calculées sur ton rythme réel de tirage (toutes pioches et effets compris). Réponds à « est-ce que je verrai ma carte clé à temps&nbsp;? » et « à quelle vitesse je creuse mon deck&nbsp;? ».</p>
+
+          <article class="glass stat-panel draw-calc-panel">
+            <div class="section-head"><div>
+              <h2>Calculateur de pioche <button class="info-dot" type="button" data-info="Probabilité hypergéométrique — 100% théorique, indépendante de tes matchs. Le mulligan de Lorcana (remettre des cartes sous le deck et repiocher) est modélisé comme +7 cartes vues au départ.">i</button></h2>
+              <p>« Vais-je avoir mon ouverture&nbsp;? » Probabilité théorique d’avoir tes copies à temps.</p>
+            </div></div>
+            <div class="draw-calc">
+              <div class="draw-calc-inputs">
+                <label>Cartes dans le deck<input type="number" id="drawDeckSize" value="60" min="1" max="300" inputmode="numeric"></label>
+                <label>Copies dans le deck<input type="number" id="drawCopies" value="4" min="1" max="60" inputmode="numeric"></label>
+                <label>Copies voulues (au moins)<input type="number" id="drawWanted" value="1" min="1" max="9" inputmode="numeric"></label>
+                <label>Quand&nbsp;?
+                  <select id="drawWhen">
+                    <option value="7">Main de départ (7 vues)</option>
+                    <option value="9">Tour 3 (≈9 vues)</option>
+                    <option value="11">Tour 5 (≈11 vues)</option>
+                    <option value="13">Tour 7 (≈13 vues)</option>
+                    <option value="custom">Cartes vues…</option>
+                  </select>
+                </label>
+                <label id="drawSeenWrap" hidden>Cartes vues<input type="number" id="drawSeen" value="7" min="1" max="300" inputmode="numeric"></label>
+                <label class="draw-check"><input type="checkbox" id="drawMulligan" checked> Mulligan (fond de deck)</label>
+              </div>
+              <div class="draw-calc-result">
+                <div class="draw-gauge"><div class="draw-gauge-fill" id="drawGaugeFill"></div></div>
+                <strong id="drawResultPct">—</strong>
+                <span id="drawResultText">Renseigne les valeurs ci-contre.</span>
+              </div>
+            </div>
+          </article>
+
           <article class="glass stat-panel deck-depth-panel"><div class="section-head"><div><h2>Profondeur de deck moyenne <button class="info-dot" type="button" data-info="Quelle part de ton deck (60 cartes) tu as vue en moyenne par partie, et la probabilité d’avoir déjà tiré ≥1 exemplaire d’une carte selon son nombre de copies et le tour. Plus c’est vert, plus c’est probable.">i</button></h2><p>Quelle part de ton deck tu parcours, et tes chances d’avoir déjà vu chaque carte selon ses copies.</p></div></div><div id="performanceDeckDepth" class="deck-depth-body"></div></article>
           <article class="glass stat-panel deck-depth-panel"><div class="section-head"><div><h2>Tes cartes en main de départ <button class="info-dot" type="button" data-info="Tes cartes classées par fréquence d’apparition dans ta main de départ (mulligans compris). Plus tu joues d’exemplaires d’une carte, plus tu la vois tôt. Utile pour vérifier que tes ouvreurs arrivent quand il faut.">i</button></h2><p>Tes cartes les plus souvent en main au début de la partie, classées par fréquence.</p></div></div><div id="performanceOpeningConsistency" class="deck-depth-body"></div></article>
         </section>
