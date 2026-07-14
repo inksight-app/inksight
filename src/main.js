@@ -13895,7 +13895,29 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }).filter(Boolean);
   }
 
+  // Retente le rendu des graphes une fois Chart.js (CDN) enfin disponible.
+  let _chartRetryTimer = null;
+  function scheduleChartRetryWhenReady(){
+    if(_chartRetryTimer || typeof Chart !== 'undefined') return;
+    let tries = 0;
+    _chartRetryTimer = window.setInterval(() => {
+      tries += 1;
+      if(typeof Chart !== 'undefined'){
+        window.clearInterval(_chartRetryTimer); _chartRetryTimer = null;
+        try{ if(getWorkingData()) renderStats(); }catch(_err){ /* no-op */ }
+        try{ renderPerformanceData(); }catch(_err){ /* no-op */ }
+      }else if(tries > 40){ window.clearInterval(_chartRetryTimer); _chartRetryTimer = null; }
+    }, 250);
+  }
+
   function chart(existing, id, type, data, options={}){
+    // Chart.js est chargé depuis un CDN (defer). Si ce CDN est injoignable/lent,
+    // on dégrade proprement au lieu de lever « Chart is not defined » : on garde
+    // le tableau de données de secours et on retentera au prochain rendu.
+    if(typeof Chart === 'undefined'){
+      scheduleChartRetryWhenReady();
+      return existing || null;
+    }
     if(existing) existing.destroy();
     const canvas = $(id); if(!canvas) return null;
     const mobileChart = window.matchMedia?.('(max-width:820px)')?.matches === true;
@@ -13910,7 +13932,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       },
       scales:{
         x:{ ticks:{ color: mobileChart ? CHART_CHROME.tickMobile : CHART_CHROME.tick, padding:8, font:{ size:mobileChart ? 11 : 12, weight:'700' } }, grid:{ display:false, color:CHART_CHROME.grid }, border:{ display:false } },
-        y:{ ticks:{ color: mobileChart ? CHART_CHROME.tickMobile : CHART_CHROME.tick, padding:8, font:{ size:mobileChart ? 11 : 12, weight:'700' } }, grid:{ display:false, color:CHART_CHROME.grid }, border:{ display:false }, grace:'8%' }
+        y:{ ticks:{ color: mobileChart ? CHART_CHROME.tickMobile : CHART_CHROME.tick, padding:8, font:{ size:mobileChart ? 11 : 12, weight:'700' } }, grid:{ display:true, drawTicks:false, lineWidth:1, color:CHART_CHROME.grid }, border:{ display:false }, grace:'8%' }
       },
       elements:{
         line:{ borderCapStyle:'round', borderJoinStyle:'round' },
@@ -13983,7 +14005,36 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         ctx.restore();
       }
     };
-    return new Chart(canvas, { type, data, options:deepMerge(defaults, options), plugins:[neonLinePlugin, activeAxisPlugin] });
+    // D3 — point final accentué sur chaque courbe (ancre la fin de série, sans
+    // surcharger : un seul marqueur par ligne, au dernier point non nul).
+    const endpointPlugin = {
+      id:'inkSightEndpoint',
+      afterDatasetsDraw(chart){
+        if(chart.config.type !== 'line') return;
+        const ctx = chart.ctx;
+        chart.data.datasets.forEach((dataset, di) => {
+          if(dataset.noGlow || dataset.tooltipSkip) return;
+          const meta = chart.getDatasetMeta(di);
+          if(meta.hidden || !meta.data?.length) return;
+          let idx = -1;
+          for(let i = meta.data.length - 1; i >= 0; i -= 1){ const v = dataset.data[i]; if(v !== null && v !== undefined){ idx = i; break; } }
+          if(idx < 0) return;
+          const pt = meta.data[idx];
+          if(!pt) return;
+          const color = chartColorAt(dataset.borderColor || dataset.backgroundColor, idx) || '#fff';
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, mobileChart ? 3 : 3.6, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = CHART_CHROME.endpointRing;
+          ctx.stroke();
+          ctx.restore();
+        });
+      }
+    };
+    return new Chart(canvas, { type, data, options:deepMerge(defaults, options), plugins:[neonLinePlugin, activeAxisPlugin, endpointPlugin] });
   }
 
   function externalTooltipHandler(context){
