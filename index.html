@@ -384,6 +384,7 @@
           <button type="button" class="performance-detail-tab" data-performance-detail="draw">Pioche</button>
           <button type="button" class="performance-detail-tab" data-performance-detail="mulligan">Mulligan Lab</button>
           <button type="button" class="performance-detail-tab" data-performance-detail="matchups">Matchups</button>
+          <button type="button" class="performance-detail-tab" data-performance-detail="tempo">Tempo V/D</button>
           <button type="button" class="performance-detail-tab" data-performance-detail="curves">Courbes</button>
           <button type="button" class="performance-detail-tab" data-performance-detail="data">Données</button>
         </nav>
@@ -415,6 +416,18 @@
               <small id="performanceOtpSplitHelp">Impact du joueur qui commence.</small>
             </article>
           </section>
+        </section>
+
+        <section id="perf-detail-tempo" class="performance-detail-panel" data-performance-detail-panel="tempo" hidden>
+          <article class="glass stat-panel performance-analytics-panel">
+            <div class="section-head">
+              <div>
+                <h2>Tempo — victoires vs défaites <button class="info-dot" type="button" data-info="Compare le déroulé moyen de vos parties gagnées et perdues : durée, encre gaspillée, quêtes, défis, top-deck et lore final. Révèle ce qui change réellement quand vous gagnez.">i</button></h2>
+                <p>Ce qui distingue vos parties gagnées de vos parties perdues, sur l’échantillon filtré.</p>
+              </div>
+            </div>
+            <div id="performanceTempoSplit"></div>
+          </article>
         </section>
 
         <section id="perf-detail-cards" class="performance-detail-panel" data-performance-detail-panel="cards" hidden>
