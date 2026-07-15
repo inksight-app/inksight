@@ -8214,29 +8214,44 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   // parties filtrées. Les métriques d'encre/quêtes/défis/top-deck viennent des
   // analytics détaillées (dispo quand une bicolorité est sélectionnée) ; durée,
   // lore final et premier/second restent disponibles même en repli.
-  function computeTempoSplit(games){
+  function computeTempoSplit(games, turnRows){
     const arr = arrayify(games);
+    // Encre gaspillée / quêtes / défis / top-deck vivent dans les stats par tour
+    // (saved_turn_stats), pas sur l'objet game. On agrège par partie (côté joueur).
+    const perGame = new Map();
+    arrayify(turnRows).forEach(row => {
+      if(row.owner !== 'mine') return;
+      const key = `${row.match_id || row.matchId || ''}::${n(row.game_number || row.gameNumber || 1)}`;
+      const e = perGame.get(key) || { inkWasted:0, quests:0, challenges:0, topDeck:0, turns:0 };
+      e.inkWasted += n(row.ink_float);
+      e.quests += n(row.quests);
+      e.challenges += n(row.challenges);
+      if(n(row.hand_count) <= 1) e.topDeck += 1;
+      e.turns += 1;
+      perGame.set(key, e);
+    });
+    const gameKey = g => `${g.matchId || g.match_id || ''}::${n(g.gameNumber || g.game_number || 1)}`;
     const groups = { win:[], loss:[] };
-    arr.forEach(g => (g.isWin ? groups.win : groups.loss).push(g));
+    arr.forEach(g => (g.isWin ? groups.win : groups.loss).push({ g, d:perGame.get(gameKey(g)) || null }));
     const meanOf = (list, pick) => {
       const vals = list.map(pick).filter(v => v !== null && v !== undefined && Number.isFinite(Number(v))).map(Number);
       return vals.length ? round1(vals.reduce((s, v) => s + v, 0) / vals.length) : null;
     };
     const otpRateOf = list => {
-      const known = list.filter(g => g.otp === true || g.otp === false);
-      return known.length ? Math.round(known.filter(g => g.otp === true).length / known.length * 100) : null;
+      const known = list.filter(x => x.g.otp === true || x.g.otp === false);
+      return known.length ? Math.round(known.filter(x => x.g.otp === true).length / known.length * 100) : null;
     };
     const build = list => ({
       n:list.length,
-      avgTurns:meanOf(list, g => g.turnCount || null),
-      avgInkWasted:meanOf(list, g => g.proMetrics ? g.proMetrics.totalInkFloat : null),
-      avgQuests:meanOf(list, g => g.proMetrics ? g.proMetrics.questCount : null),
-      avgChallenges:meanOf(list, g => g.proMetrics ? g.proMetrics.challengeCount : null),
-      avgTopDeck:meanOf(list, g => g.proMetrics ? g.proMetrics.topDeckTurns : null),
-      avgFinalLore:meanOf(list, g => g.finalMineLore),
+      avgTurns:meanOf(list, x => x.g.turnCount || null),
+      avgInkWasted:meanOf(list, x => x.d ? round1(x.d.inkWasted) : null),
+      avgQuests:meanOf(list, x => x.d ? x.d.quests : null),
+      avgChallenges:meanOf(list, x => x.d ? x.d.challenges : null),
+      avgTopDeck:meanOf(list, x => x.d ? x.d.topDeck : null),
+      avgFinalLore:meanOf(list, x => x.g.finalMineLore),
       otpRate:otpRateOf(list)
     });
-    return { win:build(groups.win), loss:build(groups.loss), hasMetrics:arr.some(g => g.proMetrics), total:arr.length };
+    return { win:build(groups.win), loss:build(groups.loss), hasMetrics:perGame.size > 0, total:arr.length };
   }
 
   function performanceTempoSplitHtml(analytics){
@@ -8363,7 +8378,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       cards:cardValues,
       deadWeight:performanceDeadWeight,
       playDraw,
-      tempoSplit:computeTempoSplit(games),
+      tempoSplit:computeTempoSplit(games, turnRows),
       avgTurns:avgTurns === null ? null : round1(avgTurns),
       avgFinalLore:avgFinalLore === null ? null : round1(avgFinalLore),
       avgTopDeck:avgTopDeck === null ? null : round1(avgTopDeck),
