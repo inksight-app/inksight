@@ -554,6 +554,12 @@ p,
 .draw-gauge{width:100%;height:.55rem;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
 .draw-gauge-fill{height:100%;width:0;border-radius:999px;transition:width .25s ease,background .25s ease}
 
+/* Fiche carte / modale au-dessus de la barre de nav mobile (D5). Une règle
+   « flatten » met #cardModal à z-index:1!important (spécificité ID) ; on la bat
+   avec une spécificité supérieure (ID+classe) pour que la modale couvre la nav. */
+#cardModal.modal-backdrop{z-index:10000!important}
+.modal-backdrop{z-index:10000!important}
+
 /* Filtre d'import « Core · Set 13 uniquement » */
 .filter-pill-set13{border-color:rgba(52,211,153,.35)}
 .filter-pill-set13[aria-pressed="true"]{
@@ -5253,7 +5259,7 @@ h1,h2,h3,.hero-section h1,.app-page-hero h1,.match-read h2,.detail-title,.perfor
   .hero-section h1{font-size:clamp(4rem,18vw,6.4rem)!important;line-height:.86!important;letter-spacing:-.08em!important;}
   .hero-slogan{font-size:clamp(1.25rem,7vw,1.85rem)!important;}
   .match-read h2{font-size:clamp(2.25rem,10vw,3.6rem)!important;line-height:1.02!important;}
-  .detail-title{font-size:clamp(2.1rem,11vw,3.4rem)!important;letter-spacing:-.06em!important;}
+  .detail-title{font-size:clamp(1.55rem,7vw,2.4rem)!important;letter-spacing:-.04em!important;line-height:1.05!important;}
   .metric-card,.pro-card,.performance-trend-card{min-height:112px!important;}
 }
 
