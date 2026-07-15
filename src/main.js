@@ -397,12 +397,25 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(f.includes('BO1')) return 'BO1';
     return '';
   }
+  // Chaîne complète pour identifier la file (queue + format + source).
+  function gameFullQueueString(game){
+    return [game?.queue, game?.format, game?.source, game?.queue_id, game?.apiRow?.queue, game?.apiRow?.format]
+      .map(value => String(value || '')).filter(Boolean).join(' ').toLowerCase();
+  }
+  // Files « Core + Set 13 » (Quick Play Core+Set 13 BETA BO1/BO3, et les futures
+  // Core BO1/BO3 - Set 13) : toutes contiennent « core » et « set 13 ».
+  function isCoreSet13Game(game){
+    const q = gameFullQueueString(game);
+    if(!q || !q.includes('core')) return false;
+    return /set\s*_?-?\s*13\b/.test(q) || q.includes('set13') || q.includes('chapitre 13') || q.includes('chapter 13');
+  }
   function duelinkImportFilters(){
     const f = state.duelinkImportFilters || {};
-    return { format:f.format || 'all', pool:f.pool || 'all' };
+    return { format:f.format || 'all', pool:f.pool || 'all', set13:!!f.set13 };
   }
   function gamePassesImportFilters(game){
     const f = duelinkImportFilters();
+    if(f.set13 && !isCoreSet13Game(game)) return false;
     if(f.format !== 'all' && gameFormatKey(game) !== f.format) return false;
     if(f.pool !== 'all' && gamePool(game) !== f.pool) return false;
     return true;
@@ -650,14 +663,18 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const formats = new Set(games.map(gameFormatKey).filter(Boolean));
     const pools = new Set(games.map(gamePool).filter(Boolean));
     const poolLabels = { core:'Core', infinity:'Infinity', limited:'Limité' };
+    const set13Count = games.filter(isCoreSet13Game).length;
+    const set13Row = games.length ? `<div class="duelink-filter-row"><span class="duelink-filter-label">Chapitre</span>
+        <button type="button" class="filter-pill filter-pill-set13" data-duelink-import-filter="set13" data-value="${f.set13 ? 'off' : 'on'}" aria-pressed="${f.set13 ? 'true' : 'false'}">Core · Set 13 uniquement (${set13Count})</button>
+      </div>` : '';
     const formatRow = formats.size > 1 ? `<div class="duelink-filter-row"><span class="duelink-filter-label">Format</span>
         ${pill('format','all','Tous', f.format === 'all')}${[...formats].sort().map(v => pill('format', v, v, f.format === v)).join('')}
       </div>` : '';
     const poolRow = pools.size > 1 ? `<div class="duelink-filter-row"><span class="duelink-filter-label">Pool</span>
         ${pill('pool','all','Tous', f.pool === 'all')}${[...pools].sort().map(v => pill('pool', v, poolLabels[v] || v, f.pool === v)).join('')}
       </div>` : '';
-    if(!formatRow && !poolRow) return '';
-    return `<div class="duelink-import-filters">${formatRow}${poolRow}</div>`;
+    if(!set13Row && !formatRow && !poolRow) return '';
+    return `<div class="duelink-import-filters">${set13Row}${formatRow}${poolRow}</div>`;
   }
 
   function duelinkQueueReadoutHtml(games=[]){
@@ -679,8 +696,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!btn) return;
     const group = btn.dataset.duelinkImportFilter;
     const value = btn.dataset.value || 'all';
-    if(group !== 'format' && group !== 'pool') return;
-    state.duelinkImportFilters = { ...duelinkImportFilters(), [group]:value };
+    if(group !== 'format' && group !== 'pool' && group !== 'set13') return;
+    const next = group === 'set13' ? { set13: value === 'on' } : { [group]: value };
+    state.duelinkImportFilters = { ...duelinkImportFilters(), ...next };
     syncDuelinkActionButtons();
     renderDuelinkPreviewResult({ games:(state.duelinkPreviewRows || []).map(row => row.game), classified:state.duelinkPreviewRows });
   }
