@@ -9704,6 +9704,18 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
+  // Intervalle de confiance de Wilson à 95% pour une proportion (winrate) —
+  // borne l'incertitude selon la taille d'échantillon (n=1 → très large).
+  function wilsonBounds(wins, total, z = 1.96){
+    if(!total) return null;
+    const p = wins / total;
+    const z2 = z * z;
+    const denom = 1 + z2 / total;
+    const centre = (p + z2 / (2 * total)) / denom;
+    const margin = (z * Math.sqrt((p * (1 - p) + z2 / (4 * total)) / total)) / denom;
+    return { low: Math.max(0, Math.round((centre - margin) * 100)), high: Math.min(100, Math.round((centre + margin) * 100)) };
+  }
+
   function renderPerformanceMatchups(rows, analytics, meta={}){
     if(!els.performanceMatchupBreakdown) return;
     if(!meta.deckScoped){
@@ -9711,13 +9723,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
     const gamesByMatch = new Map();
+    const otpByOpp = new Map();
     (analytics.games || []).forEach(game => {
       const key = game.matchId || game.match_id || '';
-      if(!key) return;
-      const item = gamesByMatch.get(key) || { total:0, wins:0 };
-      item.total += 1;
-      if(game.isWin) item.wins += 1;
-      gamesByMatch.set(key,item);
+      if(key){
+        const item = gamesByMatch.get(key) || { total:0, wins:0 };
+        item.total += 1;
+        if(game.isWin) item.wins += 1;
+        gamesByMatch.set(key,item);
+      }
+      // Split premier/second (OTP/OTD) par bicolorité adverse.
+      const oppKey = game.opponentKey || 'unknown';
+      const e = otpByOpp.get(oppKey) || { otpG:0, otpW:0, otdG:0, otdW:0 };
+      if(game.otp === true){ e.otpG += 1; if(game.isWin) e.otpW += 1; }
+      else if(game.otp === false){ e.otdG += 1; if(game.isWin) e.otdW += 1; }
+      otpByOpp.set(oppKey, e);
     });
     const buckets = new Map();
     (rows || []).forEach(row => {
@@ -9743,10 +9763,19 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.performanceMatchupBreakdown.innerHTML = items.map(item => {
       const wr = pct(item.wins,item.matches);
       const gameWr = pct(item.gameWins,item.games);
+      const ci = wilsonBounds(item.wins, item.matches);
+      const ciBand = ci ? `<span class="matchup-ci-band" style="left:${ci.low}%;right:${100 - ci.high}%"></span>` : '';
+      const ciText = ci ? `<span class="matchup-ci" title="Intervalle de confiance de Wilson à 95% : la vraie valeur est probablement dans cette fourchette. Plus l'échantillon est petit, plus elle est large.">IC 95% ${ci.low}–${ci.high}%</span>` : '';
+      const otp = otpByOpp.get(item.key) || {};
+      const otpParts = [];
+      if(otp.otpG) otpParts.push(`<span class="otp-tag">Premier ${pct(otp.otpW, otp.otpG)}% <small>${otp.otpW}/${otp.otpG}</small></span>`);
+      if(otp.otdG) otpParts.push(`<span class="otp-tag">Second ${pct(otp.otdW, otp.otdG)}% <small>${otp.otdW}/${otp.otdG}</small></span>`);
+      const otpLine = otpParts.length ? `<div class="matchup-breakdown-otp">${otpParts.join('')}</div>` : '';
       return `<article class="matchup-breakdown-card">
         <div class="matchup-breakdown-title">${inkDotsHtml(item.colors)}<strong>${esc(item.label)}</strong></div>
-        <div class="matchup-breakdown-meter"><span style="width:${Math.max(0, Math.min(100, wr))}%"></span></div>
-        <div class="matchup-breakdown-meta"><span>${wr}% WR match</span><span>${item.wins}V / ${item.matches}</span><span>${gameWr}% WR game</span></div>
+        <div class="matchup-breakdown-meter">${ciBand}<span style="width:${Math.max(0, Math.min(100, wr))}%"></span></div>
+        <div class="matchup-breakdown-meta"><span>${wr}% WR match</span>${ciText}<span>${item.wins}V / ${item.matches}</span><span>${gameWr}% WR game</span></div>
+        ${otpLine}
       </article>`;
     }).join('');
   }

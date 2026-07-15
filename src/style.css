@@ -560,6 +560,19 @@ p,
 #cardModal.modal-backdrop{z-index:10000!important}
 .modal-backdrop{z-index:10000!important}
 
+/* Matchups (F4) : bande d'incertitude Wilson + split premier/second */
+.matchup-breakdown-meter{position:relative}
+.matchup-ci-band{position:absolute;top:0;bottom:0;background:rgba(255,255,255,.16);
+  border-radius:999px;pointer-events:none}
+.matchup-ci{font-family:var(--font-num);font-size:.66rem;color:var(--faint);
+  border:1px dashed rgba(255,255,255,.18);background:transparent;border-radius:999px;
+  padding:.24rem .5rem;letter-spacing:.02em}
+.matchup-breakdown-otp{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.55rem}
+.otp-tag{display:inline-flex;align-items:center;gap:.3rem;font-family:var(--font-num);
+  font-size:.68rem;font-weight:700;color:var(--muted);border:1px solid var(--neutral-border);
+  background:var(--neutral-bg);border-radius:999px;padding:.26rem .55rem}
+.otp-tag small{color:var(--faint);font-weight:600}
+
 /* Filtre d'import « Core · Set 13 uniquement » */
 .filter-pill-set13{border-color:rgba(52,211,153,.35)}
 .filter-pill-set13[aria-pressed="true"]{
