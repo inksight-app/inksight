@@ -1,0 +1,5 @@
+src/data/catalog.json
+src/data/meta.json
+dist
+dist-ios
+node_modules
