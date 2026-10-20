@@ -185,7 +185,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
     els.analysisTabs?.addEventListener('keydown', handleTabsKeydown);
     els.labContent?.addEventListener('click', event => {
-      const close = event.target.closest('[data-lab-close]');
+      const close = event.target.closest('.lab-inspect-close') || (event.target.matches?.('.lab-inspect-backdrop') ? event.target : null);
       if(close){ state.labInspect=null; renderLab(); return; }
       const cardButton = event.target.closest('[data-lab-card]');
       if(cardButton){
@@ -230,6 +230,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.labStep = Math.max(0, Math.min(steps.length - 1, next));
       state.labInspect=null;
       renderLab();
+    });
+    document.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){
+        if(state.labInspect){state.labInspect=null;renderLab();}
+        else if(state.labImmersive){state.labImmersive=false;document.body.classList.remove('lab-immersive-mode');renderLab();}
+      }
+      if(!state.labImmersive || state.labInspect || ['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return;
+      if(event.key==='ArrowRight'||event.key==='ArrowLeft'){
+        event.preventDefault();
+        const timeline=currentLabTimeline();
+        if(!timeline)return;
+        state.labStep=Math.max(0,Math.min(timeline.frameCount,state.labStep+(event.key==='ArrowRight'?1:-1)));
+        renderLab();
+      }
     });
     els.labContent?.addEventListener('input', event => { if(event.target?.id === 'labScrubber'){ state.labStep = Number(event.target.value); renderLab(); } });
     els.labContent?.addEventListener('change', event => {
