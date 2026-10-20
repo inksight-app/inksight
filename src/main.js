@@ -10327,18 +10327,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function historySummaryHtml(rows, total){
     const visibleRows = rows || [];
-    const wins = visibleRows.filter(row => row.result === 'win').length;
-    const losses = visibleRows.filter(row => row.result === 'loss').length;
-    const draws=visibleRows.filter(row=>row.result==='draw').length;
-    const known=wins+losses+draws;
+    const summary=resultSummary(visibleRows).games;
+    const {wins,losses,draws,n:known}=summary;
     const winrate = known ? Math.round((wins / known) * 100) : 0;
     const latest = visibleRows[0];
     const latestColors = latest ? rowMineColors(latest) : [];
     const latestDeck = latestColors.length ? inkDotsHtml(latestColors) : esc(latest?.deck_name || latest?.analysis_json?.deck?.name || '—');
     return `<div class="history-summary-strip" aria-label="Résumé de l’historique filtré">
       <div><span>Total</span><strong>${esc(total)}</strong><small>manches enregistrées</small></div>
-      <div><span>Vue actuelle</span><strong>${esc(visibleRows.length)}</strong><small>matchs filtrés</small></div>
-      <div><span>Winrate</span><strong>${known ? `${winrate}%` : '—'}</strong><small>${wins} V · ${losses} D${draws?' · '+draws+' N':''}</small></div>
+      <div><span>Vue actuelle</span><strong>${esc(visibleRows.length)}</strong><small>manches filtrées</small></div>
+      <div><span>Victoires par manche</span><strong>${known ? `${winrate}%` : '—'}</strong><small>${wins} V · ${losses} D${draws?' · '+draws+' N':''}</small></div>
       <div><span>Dernière bicolorité</span><strong class="history-summary-colors">${latestDeck}</strong><small>${esc(latest ? formatSavedDate(getSavedMatchPlayedAt(latest)) : '—')}</small></div>
     </div>`;
   }
@@ -10427,7 +10425,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
 
-    const rows = collapseSeriesForHistory(filteredSavedMatches());
+    const filteredRows=filteredSavedMatches();
+    const rows = collapseSeriesForHistory(filteredRows);
     const total = state.savedMatches.length;
     const filterKey = historyFilterStateKey();
     if(state.historyLastFilterKey !== filterKey){
@@ -10440,20 +10439,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const remaining = Math.max(0, rows.length - visibleRows.length);
     if(els.historyStatus){
       els.historyStatus.textContent = total
-        ? `${rows.length} résultat(s) sur ${total} analyse(s). ${visibleRows.length} affiché(s).`
-        : 'Aucune analyse sauvegardée pour le moment.';
+        ? `${filteredRows.length} manche(s) · ${visibleRows.length} résultat(s) affiché(s).`
+        : 'Aucune partie enregistrée pour le moment.';
     }
 
     if(!total){
       renderPostImportCleanup();
-      els.historyList.innerHTML = '<div class="history-empty-state"><strong>Aucune analyse sauvegardée.</strong><span>Importez un replay, connectez-vous, puis utilisez “Sauvegarder l’analyse”.</span><button type="button" class="primary-button compact-primary" data-app-view="analysis">Importer un replay</button></div>';
+      els.historyList.innerHTML = '<div class="history-empty-state"><strong>Aucune partie enregistrée.</strong><span>Synchronisez Duels.ink ou importez un replay.</span><button type="button" class="primary-button compact-primary" data-app-view="analysis">Importer un replay</button></div>';
       if(els.historyDetail){ els.historyDetail.hidden = true; els.historyDetail.innerHTML = ''; }
       return;
     }
 
     if(!rows.length){
       renderPostImportCleanup();
-      els.historyList.innerHTML = `<div class="history-list-head">${historySummaryHtml(rows, total)}<div class="history-active-filters">${historyActiveFilterBadges()}</div></div><div class="empty-line">Aucun match ne correspond aux filtres actuels.</div>`;
+      els.historyList.innerHTML = `<div class="history-list-head">${historySummaryHtml(filteredRows, total)}<div class="history-active-filters">${historyActiveFilterBadges()}</div></div><div class="empty-line">Aucun match ne correspond aux filtres actuels.</div>`;
       if(els.historyDetail){ els.historyDetail.hidden = true; }
       return;
     }
@@ -10461,7 +10460,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!rows.some(row => row.id === state.selectedSavedMatchId)) state.selectedSavedMatchId = rows[0].id;
 
     const listHead = `<div class="history-list-head">
-      ${historySummaryHtml(rows, total)}
+      ${historySummaryHtml(filteredRows, total)}
       <div class="history-active-filters">${historyActiveFilterBadges()}</div>
     </div>`;
     const loadMore = remaining

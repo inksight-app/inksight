@@ -49,3 +49,11 @@ test('every unanalysed BO3 game stays reachable and confirmed series count once'
   const analyses=rows.map((row,i)=>({...row,id:'saved-'+i,_metadataOnly:false}));
   assert.equal(api.collapseSeriesForHistory(analyses).length,1);
 });
+test('history win rate keeps the same per-game unit before and after BO3 replay analysis',()=>{
+  const api=analyzerHarness();api.state.currentUser={id:'owner'};api.state.savedMatchesLoaded=true;api.els.historyList={};
+  const rows=['win','loss','win'].map((result,i)=>resultAsSavedRow({game_id:'game-'+i,native:native({game_id:'game-'+i,queue_id:'core-bo3',match_format:'bo3',match_id:'series-a',match_game_number:i+1,result})}));
+  api.state.savedMatches=rows;api.renderSavedHistory();
+  assert.match(api.els.historyList.innerHTML,/Victoires par manche<\/span><strong>67%/);
+  api.state.savedMatches=rows.map((row,i)=>({...row,id:'saved-'+i,_metadataOnly:false}));api.renderSavedHistory();
+  assert.match(api.els.historyList.innerHTML,/Victoires par manche<\/span><strong>67%/);
+});
