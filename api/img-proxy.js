@@ -1,25 +1,17 @@
-// Proxy d'image (origine identique) pour permettre le détourage IA côté client :
-// le CDN des cartes n'envoie pas d'en-têtes CORS, ce qui bloque fetch()/canvas.
-// On relaie l'image depuis une liste blanche d'hôtes, avec CORS permissif.
-const ALLOWED_HOSTS = ['cards.duels.ink'];
-
+import { fetchBounded, jsonError, HttpError, softRateLimit } from './_http.js';
 export default async function handler(req, res) {
-  const url = req.query && req.query.url ? String(req.query.url) : '';
-  let parsed;
-  try { parsed = new URL(url); } catch { res.statusCode = 400; res.end('URL invalide'); return; }
-  if (parsed.protocol !== 'https:' || !ALLOWED_HOSTS.includes(parsed.hostname)) {
-    res.statusCode = 400; res.end('Hôte non autorisé'); return;
-  }
   try {
-    const upstream = await fetch(parsed.toString());
-    if (!upstream.ok) { res.statusCode = upstream.status; res.end('Image indisponible'); return; }
-    const buffer = Buffer.from(await upstream.arrayBuffer());
-    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'image/webp');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); throw new HttpError(405, 'Méthode non autorisée.'); }
+    softRateLimit('image:' + (req.headers['x-forwarded-for'] ?? 'unknown'), { maximum: 240 });
+    const response = await fetchBounded(String(req.query?.url ?? ''), { hosts: ['cards.duels.ink'], maximum: 8 * 1024 * 1024, timeout: 10000 });
+    if (!response.ok) throw new HttpError(502, 'Image distante indisponible.');
+    const type = response.headers.get('content-type')?.split(';')[0]?.toLowerCase();
+    if (!['image/png','image/jpeg','image/webp','image/avif','image/gif'].includes(type)) throw new HttpError(502, 'Ce contenu n’est pas une image autorisée.');
     res.statusCode = 200;
-    res.end(buffer);
-  } catch {
-    res.statusCode = 502; res.end('Erreur proxy');
-  }
+    res.setHeader('Content-Type', type);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; sandbox");
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.end(Buffer.from(response.bytes));
+  } catch (error) { return jsonError(res, error); }
 }

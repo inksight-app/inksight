@@ -1,31 +1,8 @@
 import { resolveDuelinkToken } from './_duelink-token-store.js';
+import { json, readJsonBody, jsonError } from './_http.js';
+import { requestDuelsJson, expireSavedConnection } from './_duels-client.js';
 
 const DUELINK_BASE_URL = 'https://duels.ink';
-
-function json(res, status, payload) {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(payload));
-}
-
-function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let raw = '';
-    req.on('data', chunk => {
-      raw += chunk;
-      if (raw.length > 1024 * 1024) {
-        reject(new Error('Requête trop volumineuse.'));
-        req.destroy();
-      }
-    });
-    req.on('end', () => {
-      if (!raw.trim()) return resolve({});
-      try { resolve(JSON.parse(raw)); }
-      catch { reject(new Error('JSON invalide.')); }
-    });
-    req.on('error', reject);
-  });
-}
 
 function cleanToken(value) {
   return String(value || '').trim().replace(/^Bearer\s+/i, '');
@@ -33,8 +10,8 @@ function cleanToken(value) {
 
 function safeLimit(value) {
   const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) return 1000;
-  return Math.max(1, Math.min(1000, parsed));
+  if (!Number.isFinite(parsed)) return 250;
+  return Math.max(1, Math.min(250, parsed));
 }
 
 function getByPath(obj, path) {
@@ -82,7 +59,7 @@ function stripSensitiveOpponentDeckData(value, seen = new WeakSet()) {
   if (seen.has(value)) return null;
   seen.add(value);
   if (Array.isArray(value)) return value.map(item => stripSensitiveOpponentDeckData(item, seen));
-  const clean = {};
+  const clean = Object.create(null);
   for (const [key, nested] of Object.entries(value)) {
     if (sensitiveKeys.has(key) || /^opp(?:onent)?_?deck(list)?$/i.test(key) || /^enemy_?deck(list)?$/i.test(key)) continue;
     clean[key] = stripSensitiveOpponentDeckData(nested, seen);
@@ -206,6 +183,7 @@ function summarizeGame(row) {
   return {
     id,
     replayId: pickReplayId(row),
+    startedAt: firstValue(row, ['started_at','startedAt','created_at','createdAt']) || null,
     source: pickSource(row),
     queue: pickQueue(row),
     opponent: pickOpponent(row),
@@ -249,29 +227,7 @@ export default async function handler(req, res) {
     if (from) url.searchParams.set('from', from);
     if (to) url.searchParams.set('to', to);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    });
-
-    const text = await response.text();
-    let payload = null;
-    try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
-
-    if (!response.ok) {
-      const message = payload?.error || payload?.message || `Duels.ink a répondu ${response.status}.`;
-      const mappedStatus = response.status === 401 || response.status === 403 ? 401 : (response.status === 429 ? 429 : 502);
-      const retryAfter = response.headers.get('retry-after');
-      return json(res, mappedStatus, {
-        success: false,
-        status: response.status,
-        retryAfter: retryAfter ? Number(retryAfter) || retryAfter : null,
-        error: response.status === 429 ? 'Limite Duels.ink atteinte. Réessayez dans quelques secondes.' : message,
-      });
-    }
+    const payload = await requestDuelsJson(url.pathname + url.search, { token, onUnauthorized: () => expireSavedConnection(resolved) });
 
     const games = Array.isArray(payload?.games) ? payload.games
       : Array.isArray(payload?.items) ? payload.items
@@ -286,13 +242,7 @@ export default async function handler(req, res) {
       count: games.length,
       next_cursor: payload?.next_cursor || payload?.nextCursor || null,
       games: summaries,
-      sample: games.slice(0, Math.min(3, games.length)).map(row => stripSensitiveOpponentDeckData(row)),
+      sample: summaries.slice(0, 3).map(({ apiRow, ...summary }) => summary),
     });
-  } catch (error) {
-    const status = error?.code === 'AUTH_REQUIRED' ? 401 : (error?.code === 'TOKEN_MISSING' ? 400 : 500);
-    return json(res, status, {
-      success: false,
-      error: error?.message || 'Erreur inconnue pendant le test Duels.ink.',
-    });
-  }
+  } catch (error) { return jsonError(res, error); }
 }

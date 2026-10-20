@@ -17,6 +17,7 @@
  * }
  */
 
+import { json, jsonError, readJsonBody, checkOrigin, softRateLimit, HttpError } from './_http.js';
 const MAX_TITLE = 68;
 const MAX_DESCRIPTION = 360;
 
@@ -1104,38 +1105,15 @@ export function generateLocalCoachCommentary(body = {}) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-
-  if (req.method === "OPTIONS") return res.status(200).end();
-
-  if (req.method === "GET") {
-    return res.status(200).json({
-      ok: true,
-      name: "InkSight Coach Culture DB",
-      version: "v129.2",
-      entries: ALL_LINES.length,
-    });
-  }
-
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed." });
-  }
-
   try {
-    const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
+    checkOrigin(req);
+    if (req.method === 'GET') return json(res, 200, { ok: true, name: 'Inksight local coach', entries: ALL_LINES.length });
+    if (req.method !== 'POST') { res.setHeader('Allow','GET,POST'); throw new HttpError(405,'Méthode non autorisée.'); }
+    softRateLimit(`coach:${req.headers['x-forwarded-for'] ?? 'unknown'}`);
+    const body = await readJsonBody(req, 16384);
     const commentary = generateLocalCoachCommentary(body);
-    return res.status(200).json(commentary);
+    return json(res, 200, commentary);
   } catch (error) {
-    console.error("getCoachCommentary v129.2 error:", error);
-    return res.status(200).json({
-      title: "Coach muet.",
-      description: "Le diagnostic local a raté son top deck. Le replay reste analysable, mais le commentaire a pris un carton rouge technique.",
-      sourceLine: "Fallback InkSight.",
-      source: "Coach DB Culture V129.2",
-      reason: "local_error",
-      debug: error?.message || String(error),
-    });
+    return jsonError(res, error);
   }
 }

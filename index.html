@@ -5,14 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>InkSight — Replay Intelligence for Lorcana</title>
   <meta name="description" content="Analyseur de replays Lorcana : mulligan, économie d’encre, moteurs de victoire et statistiques de deck.">
-  <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script type="module" src="/src/main.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap">
   <meta name="theme-color" content="#050506">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -219,14 +215,15 @@
       </article>
 
       <section class="pro-grid">
-        <article class="pro-card warn"><span>Économie d’Encre</span><strong id="inkFloatTotal">—</strong><small id="inkFloatAverage">Encre non convertie en pression.</small></article>
+        <article class="pro-card warn"><span>Encre permanente disponible</span><strong id="inkFloatTotal">—</strong><small id="inkFloatAverage">Encre restée disponible, distincte des inkdrops.</small></article>
         <article class="pro-card good"><span>Pression (Lore vs Trade)</span><strong id="actionRatioKpi">—</strong><small id="actionRatioLabel">Ratio quête / défi.</small></article>
         <article class="pro-card"><span>Cartes en main</span><strong id="topDeckTurns">—</strong><small id="topDeckBadge">Mesuré en fin de tour.</small></article>
       </section>
 
       <section class="chart-grid stats-charts">
         <article class="glass chart-panel">
-          <div class="section-head"><div><h2>Économie d’Encre</h2><p id="inkChartSubtitle">Encre investie, conservée ou perdue dans le tempo.</p></div></div>
+          <div class="section-head"><div><h2>Économie d’Encre</h2><p id="inkChartSubtitle">Encre permanente : inclinaisons observées et réserve disponible.</p></div></div>
+          <p id="inkDropSummary" class="chart-subtitle">Inkdrops : mesurées séparément après import d’un replay.</p>
           <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="inkFloatChart"><span>Lecture du tour</span><strong>Survolez une barre</strong><small>Encre dépensée et inutilisée s’affichent ici.</small></div><div class="chart-wrap"><canvas id="inkFloatChart" role="img" aria-label="Économie d’encre tour par tour" aria-describedby="inkChartSummary"></canvas></div><p id="inkChartSummary" class="sr-only">Résumé du graphique économie d’encre disponible après import.</p>
         </article>
         <article class="glass chart-panel action-stats-panel">
@@ -261,7 +258,7 @@
       <article class="glass cards-panel">
         <div class="section-head cards-head">
           <div><h2>Cartes vues pendant la partie</h2><p id="cardsSubtitle">Importez un replay pour afficher les cartes détectées.</p></div>
-          <div class="card-tabs"><button type="button" data-card-filter="all" class="card-filter active">Toutes</button><button type="button" data-card-filter="mine" class="card-filter">Moi</button><button type="button" data-card-filter="opponent" class="card-filter">Adversaire</button><button type="button" data-core-only class="card-filter core-only-toggle" aria-pressed="false" title="Masquer les cartes sorties du format Core (rotation de juillet 2026)">Core-legal</button></div>
+          <div class="card-tabs"><button type="button" data-card-filter="all" class="card-filter active">Toutes</button><button type="button" data-card-filter="mine" class="card-filter">Moi</button><button type="button" data-card-filter="opponent" class="card-filter">Adversaire</button><button type="button" data-core-only class="card-filter core-only-toggle" aria-pressed="false" title="Filtrer le pool Core actuel (sets 9–14 et réimpressions). Ne vérifie pas les cartes bannies.">Pool Core</button></div>
         </div>
         <div id="cardsGrid" class="cards-grid"><div class="empty-line">Aucune carte détectée pour le moment.</div></div>
       </article>
@@ -307,6 +304,12 @@
       </nav>
 
       <section id="performance-stats" class="performance-panel active" data-performance-panel="stats">
+        <article class="glass community-meta-panel" id="communityMetaPanel" aria-labelledby="communityMetaTitle">
+          <div class="section-head"><div><h2 id="communityMetaTitle">Repères de la communauté</h2><p>Agrégats publics duels.ink · ère courante · séparés de tes résultats</p></div></div>
+          <div class="filter-pill-row"><button type="button" class="filter-pill" data-meta-queue="core-bo1" aria-pressed="true">Core BO1</button><button type="button" class="filter-pill" data-meta-queue="core-bo3" aria-pressed="false">Core BO3</button></div>
+          <div data-meta-body aria-live="polite">Chargement des agrégats publics…</div>
+          <a href="https://duels.ink/stats/core-bo1" target="_blank" rel="noopener noreferrer">Source : statistiques duels.ink</a>
+        </article>
         <div class="team-context-bar" id="teamContextBarStats" hidden>
           <button type="button" class="team-ctx-btn active" data-team-ctx="solo">Mes stats</button>
           <button type="button" class="team-ctx-btn" data-team-ctx="team">Équipe</button>

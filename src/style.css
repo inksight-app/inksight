@@ -573,9 +573,13 @@ p,
   background:var(--neutral-bg);border-radius:999px;padding:.26rem .55rem}
 .otp-tag small{color:var(--faint);font-weight:600}
 
-/* Filtre d'import « Core · Set 13 uniquement » */
-.filter-pill-set13{border-color:rgba(52,211,153,.35)}
-.filter-pill-set13[aria-pressed="true"]{
+/* Current-set Core import filter */
+.community-meta-panel{padding:20px;margin-bottom:20px}
+.community-meta-panel [data-meta-body]{margin:16px 0;color:var(--text-muted,#b6bac6);line-height:1.6}
+.community-meta-panel ul{padding-left:20px}
+#inkDropSummary{font-size:13px;line-height:1.5;color:#b6bac6;margin:8px 0 16px}
+.filter-pill-set14{border-color:rgba(52,211,153,.35)}
+.filter-pill-set14[aria-pressed="true"]{
   background:var(--good-bg);color:#6ee7b7;border-color:rgba(52,211,153,.55);font-weight:750
 }
 

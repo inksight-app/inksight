@@ -1,82 +1,20 @@
 import { resolveDuelinkToken } from './_duelink-token-store.js';
-
-const DUELINK_BASE_URL = 'https://duels.ink';
-
-function json(res, status, payload) {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(payload));
-}
-
-function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let raw = '';
-    req.on('data', chunk => {
-      raw += chunk;
-      if (raw.length > 1024 * 1024) {
-        reject(new Error('Requête trop volumineuse.'));
-        req.destroy();
-      }
-    });
-    req.on('end', () => {
-      if (!raw.trim()) return resolve({});
-      try { resolve(JSON.parse(raw)); }
-      catch { reject(new Error('JSON invalide.')); }
-    });
-    req.on('error', reject);
-  });
-}
-
-function cleanToken(value) {
-  return String(value || '').trim().replace(/^Bearer\s+/i, '');
-}
-
-function cleanId(value) {
-  return String(value || '').trim().replace(/[^a-zA-Z0-9_-]/g, '');
-}
-
+import { fetchBounded, HttpError, jsonError, readJsonBody, retryAfterSeconds } from './_http.js';
+import { expireSavedConnection } from './_duels-client.js';
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return json(res, 405, { success: false, error: 'Méthode non autorisée.' });
-  }
-
   try {
-    const body = await readJsonBody(req);
-    const resolved = await resolveDuelinkToken(req, body);
-    const token = resolved.token;
-    const id = cleanId(body.id);
-    if (!id) return json(res, 400, { success: false, error: 'Replay id manquant.' });
-
-    const response = await fetch(`${DUELINK_BASE_URL}/r/${encodeURIComponent(id)}`, {
-      method: 'GET',
-      redirect: 'follow',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/octet-stream, application/gzip, */*',
-      },
-    });
-
-    if (!response.ok) {
-      const retryAfter = response.headers.get('retry-after');
-      const mappedStatus = response.status === 401 || response.status === 403 ? 401 : (response.status === 429 ? 429 : 502);
-      return json(res, mappedStatus, {
-        success: false,
-        status: response.status,
-        retryAfter: retryAfter ? Number(retryAfter) || retryAfter : null,
-        error: response.status === 429
-          ? 'Limite Duels.ink atteinte. Réessayez dans quelques secondes.'
-          : `Impossible de télécharger le replay ${id}. Duels.ink a répondu ${response.status}.`,
-      });
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
+    if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); throw new HttpError(405, 'Méthode non autorisée.'); }
+    const body = await readJsonBody(req), resolved = await resolveDuelinkToken(req, body);
+    if (typeof body.id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(body.id)) throw new HttpError(400, 'Identifiant de replay invalide.');
+    const response = await fetchBounded('https://duels.ink/r/' + encodeURIComponent(body.id), { hosts: ['duels.ink','cdn.duels.ink'], maximum: 48 * 1024 * 1024, timeout: 20000, headers: { Authorization: 'Bearer ' + resolved.token, Accept: 'application/octet-stream, application/gzip' } });
+    if ([401,403].includes(response.status)) { await expireSavedConnection(resolved); throw new HttpError(401, 'Reconnectez votre compte Duels.ink.', 'DUELS_RECONNECT'); }
+    if (response.status === 429) { const e = new HttpError(429, 'Limite de téléchargement Duels.ink atteinte.'); e.retryAfter = retryAfterSeconds(response.headers.get('retry-after')); throw e; }
+    if (!response.ok) throw new HttpError(502, 'Replay non disponible sur Duels.ink.');
     res.statusCode = 200;
-    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/gzip');
-    res.setHeader('Content-Disposition', `attachment; filename="${id}.replay.gz"`);
+    res.setHeader('Content-Type', 'application/gzip');
+    res.setHeader('Content-Disposition', 'attachment; filename="' + body.id + '.replay.gz"');
     res.setHeader('Cache-Control', 'no-store');
-    res.end(buffer);
-  } catch (error) {
-    return json(res, 500, { success: false, error: error?.message || 'Erreur inconnue pendant le téléchargement Duels.ink.' });
-  }
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.end(Buffer.from(response.bytes));
+  } catch (error) { return jsonError(res, error); }
 }
