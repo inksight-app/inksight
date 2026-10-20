@@ -9,6 +9,8 @@ import { CORE_SET_NUMBERS, isCurrentCoreGame } from './lorcana/format.js';
 import { analyzeInkDrops, combineInkDrops, replayCancellations } from './lorcana/resources.js';
 import { CURRENT_CORE_SCOPE, DEFAULT_ERAS, eraCatalog, classifyGameContext, contextFields, isCurrentCoreRow, resultSummary, scopeEraStart, coherentDeckList, observedDeckCohort, recordedDeckList } from './lorcana/seasons.js';
 import { inkDropChartModel } from './lorcana/inkdrop-chart.js';
+import { mergeDuelinkResults, gameFromResultRow, nativeMmrDelta } from './lorcana/duels-results.js';
+import { listDuelinkResults } from './supabase.js';
 import { applyReplayPatch, decodeReplayBytes, readZipEntry, MAX_REPLAY_BYTES, MAX_REPLAY_FILES } from './security/replay.js';
 import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, patchSavedMatchTeamVisible, listDeckProfiles, upsertDeckProfile, ensureDeckProfileByExternalId, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun, updateDeckProfilePoolTag } from './supabase.js';
 
@@ -52,6 +54,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
   const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', coreOnly:false, lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), team:null, teamMode:false, teamMemberIds:[], teamDisplayNames:{}, dateFilter:{ stats:{ preset:'all', from:null, to:null }, history:{ preset:'all', from:null, to:null } } };
 
+
+  state.duelinkResults=[];
+  state.duelinkContinuation=null;
+  state.duelinkAnalysisPending=false;
 
   function statisticsScope(){ return CURRENT_CORE_SCOPE; }
   function currentEras(){return state.erasByQueue?.['core-bo1'] || state.erasByQueue?.['core-bo3'] || DEFAULT_ERAS;}
@@ -347,6 +353,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const replayIds = new Set();
     const rows = Array.isArray(state.savedMatches) ? state.savedMatches : [];
     rows.forEach(row => {
+      if(row?._metadataOnly)return;
       if(row?.duelink_match_id) gameIds.add(String(row.duelink_match_id));
       if(row?.analysis_json?.duelink_game_id) gameIds.add(String(row.analysis_json.duelink_game_id));
       if(row?.analysis_json?.duelink_replay_id) replayIds.add(String(row.analysis_json.duelink_replay_id));
@@ -464,12 +471,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       button.textContent = limit === 'all' ? 'Tout importer' : `Importer ${numericLimit}`;
       return;
     }
-    button.textContent = limit === 'all' ? `Tout importer (${count})` : `Importer ${toImport}`;
+    button.textContent = limit === 'all' ? `Tout analyser (${count})` : `Analyser ${toImport}`;
   }
 
   function syncDuelinkActionButtons(newCount=null){
     const count = newCount === null ? getDuelinkImportableRows().length : n(newCount);
-    const busy = !!(state.duelinkScanning || state.duelinkImporting || state.duelinkAutoSaving);
+    const busy = !!(state.duelinkScanning || state.duelinkImporting || state.duelinkAutoSaving || state.duelinkAnalysisPending);
     setDuelinkBatchButton(els.duelinkImportButton, count, 25, busy);
     setDuelinkBatchButton(els.duelinkImport50Button, count, 50, busy);
     setDuelinkBatchButton(els.duelinkImport100Button, count, 100, busy);
@@ -642,24 +649,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
 
-    const sourceSummary = stats.sources.join(', ') || 'Sources inconnues';
     const ready = stats.newWithReplay.length;
-    const filteredReady = getDuelinkImportableRows().length;
     const already = stats.existing.length + stats.queued.length;
     els.duelinkTestResult.innerHTML = `
       <div class="duelink-result-summary duelink-result-summary-compact">
-        <div><strong>Synchronisation prête</strong><span>${games.length} partie${games.length > 1 ? 's' : ''} trouvée${games.length > 1 ? 's' : ''}. Affinez éventuellement par format/pool puis choisissez un volume d’import.</span></div>
+        <div><strong>Statistiques à jour</strong><span>Les analyses détaillées restent disponibles à la demande dans l’historique, ou par lot ci-dessus.</span></div>
         <div class="duelink-mini-stats" aria-label="Résumé synchronisation Duels.ink">
-          <span><b>${games.length}</b><small>trouvées</small></span>
-          <span><b>${ready}</b><small>nouvelles</small></span>
-          <span><b>${filteredReady}</b><small>après filtres</small></span>
-          <span><b>${already}</b><small>déjà dans InkSight</small></span>
-          <span><b>${stats.missingReplay.length}</b><small>sans replay</small></span>
-          <span><b>${esc(formatShortDateTime(stats.newest?.updatedAt))}</b><small>plus récent</small></span>
+          <span><b>${games.length}</b><small>manches enregistrées</small></span>
+          <span><b>${ready}</b><small>replays à analyser</small></span>
+          <span><b>${already}</b><small>analyses déjà prêtes</small></span>
         </div>
-        ${duelinkImportFiltersHtml(games)}
-        ${duelinkQueueReadoutHtml(games)}
-        ${duelinkReplayDiagnosticHtml(games)}
       </div>`;
   }
 
@@ -725,7 +724,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     session.duelinkQueue = game.queue || '';
     session.duelinkFormat = game.format || '';
     session.duelinkUpdatedAt = game.updatedAt || null;
-    session.playedAt = session.playedAt || game.updatedAt || null;
+    session.playedAt = game.startedAt || session.playedAt || null;
     session.replaySha256 = replaySha256 || session.replaySha256 || '';
     session.myDecklist = Array.isArray(game.myDecklist) ? game.myDecklist : null;
     delete session.opponentDecklist;
@@ -789,6 +788,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         await wait(delay); accountBoundary.assertCurrent(ticket); continue;
       }
       if(payload.code === 'DUELS_RECONNECT'){ state.duelinkConnection = null; updateDuelinkStoredTokenUi(); }
+      if(response.status===429)throw new Error(`Limite Duels.ink : réessayez dans ${Math.ceil(duelinkRetryDelayMs(payload)/1000)} secondes.`);
       throw new Error(payload.error || `Erreur HTTP ${response.status}`);
     }
   }
@@ -872,6 +872,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const payload = await requestDuelinkJson('/api/duelink-token', {token}, ticket);
       state.duelinkConnection = payload;
+      state.duelinkContinuation=null;
       if(els.duelinkTokenInput) els.duelinkTokenInput.value = '';
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Connexion mémorisée'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
       updateDuelinkStoredTokenUi();
@@ -893,6 +894,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const payload = await requestDuelinkJson('/api/duelink-token', undefined, ticket, 'DELETE');
       state.duelinkConnection = payload;
+      state.duelinkContinuation=null;
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Clé supprimée'; els.duelinkTokenStatus.className = 'duelink-status-chip'; }
       updateDuelinkStoredTokenUi();
     }catch(err){
@@ -921,7 +923,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         method:'POST',
         headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' },ticket),
         body:JSON.stringify({ ...(tokenPayload || {}), id:replayId }),
-        signal:AbortSignal.timeout(30000)
+        signal:AbortSignal.timeout(60000)
       });
       accountBoundary.assertCurrent(ticket);
       if(response.ok){ const bytes=await response.arrayBuffer(); accountBoundary.assertCurrent(ticket); return bytes; }
@@ -997,6 +999,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function importDuelinkPreviewToBulkQueue(options={}){
+    if(state.duelinkAnalysisPending)return;
     const ticket = accountBoundary.capture(),scopeKey=JSON.stringify(statisticsScope());
     const tokenPayload = await duelinkTokenPayload();
     accountBoundary.assertCurrent(ticket);
@@ -1075,15 +1078,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         state.bulkQueue.push(item);
         if(!options.autoSave) renderBulkQueue();
         try{
-          // Le manifeste bulk peut refuser certains IDs alors que le téléchargement direct /r/{id}
-          // reste parfois disponible. On tente donc le téléchargement direct au lieu de bloquer tout le lot.
-          if(missingIds.has(replayId)){
-            item.message = 'Replay absent du manifeste bulk · tentative directe…';
-            if(!options.autoSave) renderBulkQueue();
-          }
-          // Duels.ink limite les appels à environ 30 requêtes/minute.
-          // On cadence les téléchargements pour éviter les 429 pendant les imports 50/100/tout importer.
-          if(rowIndex > 0) await wait(2100);
+          if(missingIds.has(replayId) || !file)throw new Error('Replay indisponible pour ce compte.');
+          // Manifest URLs may be public /r links (10/minute), including with OAuth.
+          if(rowIndex > 0) await wait(6100);
           const buffer = await downloadDuelinkReplayBuffer(tokenPayload, replayId, ticket);
           item.fileSize = buffer.byteLength || 0;
           const replaySha256 = await replaySha256FromBuffer(buffer);
@@ -1095,7 +1092,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
             parentName:'Duels.ink API',
             isDuelinkApi:true,
             lastModified:0,
-            playedAt:game.updatedAt || null,
+            playedAt:game.startedAt || null,
             replaySha256
           };
           const session = parseReplay(replay, pseudoFile);
@@ -1245,9 +1242,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Ajoutez votre clé Duels.ink pour synchroniser vos parties.</strong></div>';
       return;
     }
-    if(state.duelinkScanning || state.duelinkImporting || state.duelinkAutoSaving) return;
+    if(state.duelinkScanning || state.duelinkImporting || state.duelinkAutoSaving || state.duelinkAnalysisPending) return;
     state.duelinkScanning=true;
-    const scanScope=statisticsScope(),scanEras=currentEras();
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Scan en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
     state.duelinkPreviewRows = [];
     state.duelinkSkippedGameIds = new Set();
@@ -1263,26 +1259,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(state.currentUser){
         await refreshSavedMatches({ force:true, silent:true });
       }
-      const allGames = [];
-      let cursor = '';
+      let continuation=state.duelinkContinuation;
+      let seen=0;
       let page = 0;
-      const seenCursors = new Set();
       do{
         if(page) await wait(3100); // Official history quota: 20 requests/minute, sequential pages.
         page += 1;
-        if(page > 1000) throw new Error('Historique trop volumineux : affinez la période avant de reprendre.');
-        const from=scopeEraStart(scanScope,scanEras);
-        const payload = await requestDuelinkJson('/api/duelink-history', {...tokenPayload,limit:250,cursor,...(from?{from}:{}),...(scanScope.queue!=='all'?{source:'matchmaking',queue:scanScope.queue}:{})}, ticket);
-        const games = Array.isArray(payload.games) ? payload.games : [];
-        allGames.push(...games);
-        cursor = payload.next_cursor || payload.nextCursor || '';
-        renderDuelinkScanProgress({ page, total:allGames.length, cursor });
-        if(cursor && seenCursors.has(cursor)){
-          console.warn('Duels.ink next_cursor déjà vu, arrêt de sécurité.', cursor);
-          cursor = '';
-        }
-        if(cursor) seenCursors.add(cursor);
-      }while(cursor);
+        if(page>1000)throw new Error('Synchronisation interrompue : trop de pages.');
+        const payload=await requestDuelinkJson('/api/duelink-sync',{...tokenPayload,continuation},ticket);
+        seen+=Number(payload.count)||0;
+        continuation=payload.continuation || null;
+        if(payload.complete!==true && !continuation)throw new Error('Synchronisation incomplète. Relancez-la.');
+        state.duelinkContinuation=continuation;
+        renderDuelinkScanProgress({page,total:seen,cursor:continuation?'suite':null});
+      }while(continuation);
+      await refreshSavedMatches({force:true,silent:true});
+      accountBoundary.assertCurrent(ticket);
+      // Include replay analyses still pending from earlier syncs, not only the latest page.
+      const allGames=state.savedMatches.filter(row=>row.duelink_match_id && row.api_metadata?.api_row?.raw).map(gameFromResultRow);
 
       const classified = classifyDuelinkRows(allGames);
       const stats = duelinkPreviewStats(classified);
@@ -1307,11 +1301,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         matches_imported:0,
         matches_skipped:stats.existing.length + stats.queued.length + stats.missingReplay.length,
         matches_failed:0,
-        details:{ mode:'full_history_scan', pages:page, ready_to_import:stats.newWithReplay.length, missing_replay:stats.missingReplay.length }
+        details:{ mode:'incremental_results_sync', pages:page, refreshed_results:seen, ready_to_import:stats.newWithReplay.length, missing_replay:stats.missingReplay.length }
       }).catch(err => console.warn('Duels.ink scan log unavailable:', err));
     }catch(err){
       if(!accountBoundary.isCurrent(ticket)) return;
-      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec scan'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
+      if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Synchronisation interrompue'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
+      // Partial pages are already durable. Refresh them without advancing the checkpoint.
+      await refreshSavedMatches({force:true,silent:true});
+      if(!accountBoundary.isCurrent(ticket))return;
+      if(/expirée ou modifiée/.test(String(err.message)))state.duelinkContinuation=null;
       renderDuelinkScanProgress({ error:`Impossible de synchroniser Duels.ink : ${err.message || err}` });
       await logDuelinkSyncRun({
         started_at:startedAt,
@@ -1322,7 +1320,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         matches_skipped:0,
         matches_failed:0,
         error:String(err.message || err),
-        details:{ mode:'full_history_scan' }
+        details:{ mode:'incremental_results_sync' }
       }).catch(logErr => console.warn('Duels.ink scan log unavailable:', logErr));
     }finally{
       if(!accountBoundary.isCurrent(ticket)) return;
@@ -3900,6 +3898,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.team = null; state.teamMode = false; state.teamMemberIds = []; state.teamDisplayNames = {};
       state.duelinkConnection = null; state.duelinkConnectionLoaded = !user;
       state.duelinkPreviewRows = []; state.duelinkSyncSummary = null;
+      state.duelinkResults=[];state.duelinkContinuation=null;state.duelinkAnalysisPending=false;
       state.duelinkImporting = false; state.duelinkAutoSaving = false; state.duelinkScanning=false;
       for(const key of ['duelinkPreparedGameIds','duelinkPreparedReplayIds','duelinkSkippedGameIds','duelinkSkippedReplayIds']) state[key] = new Set();
       if(els.duelinkTokenInput) els.duelinkTokenInput.value = '';
@@ -3990,7 +3989,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function saveCurrentAnalysis(){
     const ticket = accountBoundary.capture();
-    if(state.savePending) return;
+    if(state.savePending || state.duelinkAnalysisPending) return;
     if(state.lastSavedMatchId || state.loadedSavedMatchId){
       syncSaveButton('Ce match est déjà dans votre historique. Aucun doublon créé.');
       return;
@@ -4044,7 +4043,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   async function saveBulkQueue(){
     const ticket = accountBoundary.capture();
-    if(state.bulkSaving) return { saved:0, duplicates:0, errors:0 };
+    if(state.bulkSaving || state.duelinkAnalysisPending) return { saved:0, duplicates:0, errors:0 };
     if(!state.currentUser){
       if(els.bulkImportStatus) els.bulkImportStatus.textContent = 'Connectez-vous avec Discord avant de sauvegarder un lot.';
       return;
@@ -4209,10 +4208,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const wins = n(m.wins);
     const losses = n(m.losses);
     const win = wins > losses;
-    const result = win ? 'win' : 'loss';
+    const result = apiRaw && Object.hasOwn(apiRaw,'result')?apiRaw.result:(win ? 'win' : 'loss');
     const scoreLabel = global ? `${wins}-${losses}` : `${n(m.finalMineLore)}-${n(m.finalOppLore)}`;
     const matchup = m.matchupLabel || formatMatchupLabel(profiles);
-    const title = `${format} · ${win ? 'Victoire' : 'Défaite'} ${scoreLabel} · ${matchup}`;
+    const resultLabel=({win:'Victoire',loss:'Défaite',draw:'Nul',abandoned:'Abandonnée'})[result] || 'Non confirmé';
+    const title = `${format} · ${resultLabel} ${scoreLabel} · ${matchup}`;
     const quality = auditCurrentAnalysisQuality(m, details, deckProfile);
     const fingerprint = savedMatchSignatureFromM(m);
     const playedAt = detectPlayedAt(m) || null;
@@ -4222,8 +4222,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       title,
       format,
       result,
-      wins,
-      losses,
+      wins:apiRaw?Number(result==='win'):wins,
+      losses:apiRaw?Number(result==='loss'):losses,
       score_label:scoreLabel,
       matchup_label:matchup,
       mine_colors:(profiles.mine?.inks || []).map(inkLabel),
@@ -4663,7 +4663,58 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }));
   }
 
+  async function analyzeDuelinkResult(row){
+    if(state.duelinkAnalysisPending || state.duelinkImporting || state.duelinkAutoSaving || state.bulkSaving || state.savePending)return;
+    const ticket=accountBoundary.capture(),game=gameFromResultRow(row);
+    if(!game.replayId){if(els.historyStatus)els.historyStatus.textContent='Replay indisponible.';return;}
+    state.duelinkAnalysisPending=true;
+    renderSavedHistory();
+    if(els.historyStatus)els.historyStatus.textContent='Analyse de la partie…';
+    try{
+      const tokenPayload=await duelinkTokenPayload();
+      accountBoundary.assertCurrent(ticket);
+      await ensureLocalCardsLoaded();
+      accountBoundary.assertCurrent(ticket);
+      const buffer=await downloadDuelinkReplayBuffer(tokenPayload,game.replayId,ticket);
+      const replaySha256=await replaySha256FromBuffer(buffer);
+      const replay=await readReplayBuffer(buffer,game.replayId+'.replay.gz');
+      accountBoundary.assertCurrent(ticket);
+      const file={name:game.replayId+'.replay.gz',size:buffer.byteLength,parentName:'Duels.ink API',isDuelinkApi:true,lastModified:0,playedAt:game.startedAt || null,replaySha256};
+      const session=parseReplay(replay,file);
+      attachDuelinkMetadataToSession(session,game,replaySha256);
+      const merged=mergeSessions([session]);
+      if(!merged || !isCurrentCoreGame(game))throw new Error('Ce replay ne correspond pas au format actuel.');
+      attachDuelinkMetadataToSession(merged,game,replaySha256);
+      merged.sessions=[session];
+      await refreshSavedMatches({force:true,silent:true});
+      accountBoundary.assertCurrent(ticket);
+      const duplicate=findDuplicateSavedMatchForData(merged);
+      if(duplicate){await loadSavedAnalysis(duplicate);return;}
+      const deck=await resolveAutoDeckProfile(merged);
+      accountBoundary.assertCurrent(ticket);
+      const previous=snapshotCurrentReplayState();
+      let details,payload;
+      try{
+        restoreReplayStateFromBulkItem({sessions:[session],merged,replays:[{file,replay,session,replaySha256}],matchMeta:null});
+        details=buildSavedAnalysisDetails(merged);
+        payload=buildSavedMatchPayload(merged,deck,details);
+      }finally{restoreReplayStateSnapshot(previous);}
+      const saved=await saveMatchAnalysis(payload,details,ticket.userId);
+      accountBoundary.assertCurrent(ticket);
+      await refreshSavedMatches({force:true,silent:true});
+      accountBoundary.assertCurrent(ticket);
+      const hydrated=state.savedMatches.find(item=>item.id===saved.id) || saved;
+      await loadSavedAnalysis({...hydrated,analysis_json:saved.analysis_json});
+      if(els.historyStatus)els.historyStatus.textContent='Analyse enregistrée.';
+    }catch(error){
+      if(accountBoundary.isCurrent(ticket) && els.historyStatus)els.historyStatus.textContent='Analyse impossible : '+(error.message || error);
+    }finally{
+      if(accountBoundary.isCurrent(ticket)){state.duelinkAnalysisPending=false;renderSavedHistory();}
+    }
+  }
+
   async function loadSavedAnalysis(row){
+    if(row?._metadataOnly)return analyzeDuelinkResult(row);
     const ticket = accountBoundary.capture();
     if(!row){
       if(els.historyStatus) els.historyStatus.textContent = 'Analyse sauvegardée introuvable.';
@@ -4675,6 +4726,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(els.historyStatus) els.historyStatus.textContent = 'Chargement de l’analyse sauvegardée…';
         hydratedRow = await getSavedMatch(hydratedRow.id);
         if(!accountBoundary.isCurrent(ticket)) return;
+        if(hydratedRow)hydratedRow=mergeDuelinkResults([hydratedRow],(state.duelinkResults || []).filter(record=>record.game_id===hydratedRow.duelink_match_id),state.deckProfiles)[0];
         const index = state.savedMatches.findIndex(item => item.id === hydratedRow.id);
         if(index >= 0) state.savedMatches[index] = { ...state.savedMatches[index], ...hydratedRow };
       }
@@ -4687,7 +4739,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const seriesId = hydratedRow.series_match_id;
       let runtime;
       if(seriesId && String(hydratedRow.format||'').toUpperCase() === 'BO3'){
-        const siblings = (state.savedMatches || []).filter(m => m.series_match_id === seriesId);
+        const siblings = (state.savedMatches || []).filter(m => !m._metadataOnly && m.series_match_id === seriesId);
         if(siblings.length > 1){
           const byId = new Map([[hydratedRow.id, hydratedRow]]);
           await Promise.all(siblings.map(async sib => {
@@ -5453,6 +5505,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const rows = await listDeckProfiles();
       if(!accountBoundary.isCurrent(ticket)) return [];
       state.deckProfiles = Array.isArray(rows) ? rows : [];
+      if(!state.teamMode && state.duelinkResults?.length)state.savedMatches=mergeDuelinkResults(state.savedMatches.filter(row=>!row._metadataOnly),state.duelinkResults,state.deckProfiles);
       state.deckProfilesLoaded = true;
     }catch(err){
       if(!accountBoundary.isCurrent(ticket)) return [];
@@ -5610,6 +5663,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function qualityBadgesHtml(row){
+    if(row?._metadataOnly)return '';
     const info = rowQualityInfo(row);
     return `<span class="history-quality-badges">${info.labels.slice(0,3).map(item => `<em class="quality-badge ${escAttr(item.type)}">${esc(item.label)}</em>`).join('')}</span>`;
   }
@@ -7230,10 +7284,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!cacheShown && !options.silent && els.historyStatus) els.historyStatus.textContent = 'Chargement de vos analyses sauvegardées…';
       if(!cacheShown) renderPerformanceData();
       const listStartedAt = perfNow();
-      const rows = await listSavedMatchHistoryLight(SAVED_MATCH_HISTORY_LIMIT);
+      const [rows,results] = await Promise.all([listSavedMatchHistoryLight(SAVED_MATCH_HISTORY_LIMIT),listDuelinkResults()]);
       if(!accountBoundary.isCurrent(ticket)) return [];
       perfMark('saved matches light query', listStartedAt, { rows:Array.isArray(rows) ? rows.length : 0, limit:SAVED_MATCH_HISTORY_LIMIT });
-      state.savedMatches = Array.isArray(rows) ? rows : [];
+      state.duelinkResults=results;
+      state.savedMatches = mergeDuelinkResults(Array.isArray(rows)?rows:[],results,state.deckProfiles);
       deckArchetypeCache.clear();
       deckCardListCache.clear();
       // Pre-compute archetypes from available match data (my_decklist / your_decklist / localStorage)
@@ -7267,12 +7322,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   globalThis.INKSIGHT_refreshSavedMatches = refreshSavedMatches;
 
   function uniqueSavedMatchIds(rows=[]){
-    return [...new Set((rows || []).map(row => row?.id).filter(Boolean))].sort();
+    return [...new Set((rows || []).filter(row=>!row?._metadataOnly).map(row => row?.id).filter(id=>id && !id.startsWith('metadata:')))].sort();
   }
 
 
   const SAVED_CACHE_TTL = 1000 * 60 * 12;
-  const SAVED_CACHE_VERSION = 'v141-current-core';
+  const SAVED_CACHE_VERSION = 'v142-native-results';
   // Les détails analytiques (20k+ lignes) sont trop volumineux pour sessionStorage.
   // On les garde dans IndexedDB (grande capacité, persistant entre sessions).
   const ANALYTICS_CACHE_TTL = 1000 * 60 * 60 * 24;
@@ -7533,7 +7588,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function findDuplicateSavedMatchForData(m){
     const apiMeta = apiMetadataForSavedData(m);
     const replaySha = replaySha256ForSavedData(m);
-    const rows = state.savedMatches || [];
+    const rows = (state.savedMatches || []).filter(row=>!row._metadataOnly);
     if(apiMeta?.duelink_game_id){
       const byGame = rows.find(row => String(row.duelink_match_id || row.analysis_json?.duelink_game_id || row.api_metadata?.duelink_game_id || '') === String(apiMeta.duelink_game_id));
       if(byGame) return byGame;
@@ -8416,6 +8471,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function computePerformanceAnalytics(rows){
+    rows=(rows || []).filter(row=>!row._metadataOnly);
     const rowIds = new Set((rows || []).map(row => row.id).filter(Boolean));
     const rowsById = new Map((rows || []).map(row => [row.id, row]));
     const detailedGames = (state.savedAnalytics?.games || []).filter(row => rowIds.has(row.match_id));
@@ -10273,14 +10329,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const visibleRows = rows || [];
     const wins = visibleRows.filter(row => row.result === 'win').length;
     const losses = visibleRows.filter(row => row.result === 'loss').length;
-    const winrate = visibleRows.length ? Math.round((wins / visibleRows.length) * 100) : 0;
+    const draws=visibleRows.filter(row=>row.result==='draw').length;
+    const known=wins+losses+draws;
+    const winrate = known ? Math.round((wins / known) * 100) : 0;
     const latest = visibleRows[0];
     const latestColors = latest ? rowMineColors(latest) : [];
     const latestDeck = latestColors.length ? inkDotsHtml(latestColors) : esc(latest?.deck_name || latest?.analysis_json?.deck?.name || '—');
     return `<div class="history-summary-strip" aria-label="Résumé de l’historique filtré">
-      <div><span>Total</span><strong>${esc(total)}</strong><small>analyses sauvegardées</small></div>
+      <div><span>Total</span><strong>${esc(total)}</strong><small>manches enregistrées</small></div>
       <div><span>Vue actuelle</span><strong>${esc(visibleRows.length)}</strong><small>matchs filtrés</small></div>
-      <div><span>Winrate</span><strong>${visibleRows.length ? `${winrate}%` : '—'}</strong><small>${wins} V · ${losses} D</small></div>
+      <div><span>Winrate</span><strong>${known ? `${winrate}%` : '—'}</strong><small>${wins} V · ${losses} D${draws?' · '+draws+' N':''}</small></div>
       <div><span>Dernière bicolorité</span><strong class="history-summary-colors">${latestDeck}</strong><small>${esc(latest ? formatSavedDate(getSavedMatchPlayedAt(latest)) : '—')}</small></div>
     </div>`;
   }
@@ -10330,15 +10388,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!groups.has(seriesId)){ order.push(seriesId); groups.set(seriesId, []); }
       groups.get(seriesId).push(row);
     }
-    return order.map(seriesId => {
+    return order.flatMap(seriesId => {
       const games = groups.get(seriesId);
-      if(games.length <= 1) return games[0];
+      if(games.length <= 1) return [games[0]];
+      // Keep each pending BO3 game reachable; collapse once all replays are analyzed.
+      if(games.some(game=>game._metadataOnly))return games;
       const sortedByGame = [...games].sort((a,b)=>String(a.played_at||'').localeCompare(String(b.played_at||'')));
       const base = sortedByGame[sortedByGame.length-1];
       const gameWins = games.filter(g => g.result === 'win').length;
       const gameLosses = games.filter(g => g.result === 'loss').length;
       const seriesSummary=resultSummary(games).matches;
-      return {
+      return [{
         ...base,
         result: seriesSummary.wins===1?'win':seriesSummary.losses===1?'loss':null,
         wins: gameWins,
@@ -10346,7 +10406,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         score_label: `${gameWins}-${gameLosses}`,
         total_turns: games.reduce((sum,g)=>sum + n(g.total_turns), 0),
         __seriesGames: games.length
-      };
+      }];
     });
   }
 
@@ -10424,10 +10484,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return `<span class="history-source-badges"><em class="history-source-badge ${escAttr(sourceClass)}">${esc(sourceLabel)}</em>${modeLabel ? `<em class="history-source-badge mode">${esc(modeLabel)}</em>` : ''}${queueLabel ? `<em class="history-source-badge queue">${esc(queueLabel)}</em>` : ''}</span>`;
   }
 
+  function savedAnalysisButtonHtml(row){
+    const pending=row._metadataOnly;
+    const unavailable=pending && !gameFromResultRow(row).replayId;
+    const busy=pending && state.duelinkAnalysisPending;
+    return `<button type="button" class="ghost-button history-mini-button primary" data-load-saved="${escAttr(row.id)}" ${unavailable || busy?'disabled':''}>${unavailable?'Replay indisponible':busy?'Analyse en cours…':pending?'Analyser':'Voir l’analyse'}</button>`;
+  }
+
   function savedMatchRowHtml(row){
     const isActive = row.id === state.selectedSavedMatchId;
-    const result = row.result === 'win' ? 'Victoire' : 'Défaite';
-    const resultClass = row.result === 'win' ? 'win' : 'loss';
+    const result = ({win:'Victoire',loss:'Défaite',draw:'Nul',abandoned:'Abandonnée'})[row.result] || 'Non confirmé';
+    const resultClass = ['win','loss'].includes(row.result)?row.result:'neutral';
     const format = String(row.format || 'BO1').toUpperCase();
     const date = formatSavedDate(getSavedMatchPlayedAt(row));
     const matchup = row.matchup_label || 'Matchup non renseigné';
@@ -10446,10 +10513,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const teamShareLabel = row.team_visible ? "✓ Partagé avec l’équipe" : "Partager avec l’équipe";
     const teamShareClass = row.team_visible ? "team-visible-active" : "";
     let teamShareBtn = "";
-    if (state.team && isOwnMatch) {
+    if (state.team && isOwnMatch && !row._metadataOnly) {
       teamShareBtn = `<button type="button" class="ghost-button history-mini-button ${teamShareClass}" data-team-visible="${escAttr(row.id)}">${esc(teamShareLabel)}</button>`;
     }
-    const compactActions = `<button type="button" class="ghost-button history-mini-button primary" data-load-saved="${escAttr(row.id)}">Voir l’analyse</button>
+    const compactActions = `${savedAnalysisButtonHtml(row)}
         <button type="button" class="ghost-button history-mini-button" data-select-saved="${escAttr(row.id)}">Détails</button>
         ${teamShareBtn}
         <button type="button" class="ghost-button history-mini-button danger" data-delete-saved="${escAttr(row.id)}">Supprimer</button>`;
@@ -10457,13 +10524,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const memberTagHtml = isMemberMatch
       ? `<span class="team-member-tag${row.user_id === state.currentUser?.id ? ' team-member-tag-self' : ''}">${esc(state.teamDisplayNames[row.user_id])}</span>`
       : '';
+    const mmr=nativeMmrDelta(row);
     return `<article class="history-row ${escAttr(resultClass)} ${isActive ? 'active' : ''} ${hasGames ? 'has-games' : ''} ${actionsOpen ? 'actions-open' : ''}" data-saved-id="${escAttr(row.id)}">
       <span class="history-result-rail ${escAttr(resultClass)}" aria-hidden="true"></span>
       <button type="button" class="history-row-main" data-select-saved="${escAttr(row.id)}" aria-expanded="${expanded && hasGames ? 'true' : 'false'}">
         <span class="history-row-copy">
           <span class="history-line-top"><em>${esc(format)}</em>${colorMatchupDotsHtml(colors, opponentColors, matchup)}<b>${esc(result)} ${esc(score)}</b>${memberTagHtml}</span>
           <span class="history-opponent-line">${esc(opponent)}</span>
-          <span class="history-row-submeta"><i>${esc(turnsLabel)}</i><i>${esc(date)}</i>${deck ? `<i>${esc(deck)}</i>` : ''}</span>
+          <span class="history-row-submeta"><i>${esc(turnsLabel)}</i><i>${esc(date)}</i>${deck ? `<i>${esc(deck)}</i>` : ''}${mmr!==null?`<i title="Variation de classement">${mmr>0?'+':''}${esc(mmr)} MMR</i>`:''}</span>
           <span class="history-row-badges">${historySourceBadgesHtml(row)}${apiDecklistBadgesHtml(row)}${qualityBadgesHtml(row)}</span>
         </span>
       </button>
@@ -10535,12 +10603,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         state.expandedSavedMatchId = isExpandable ? (state.expandedSavedMatchId === id ? null : id) : null;
         renderPerformanceData();
         // Lazy-load full analysis_json so Moteur de lore / Carte encrée / Menace adverse can render.
-        if(row && !row.analysis_json){
+        if(row && !row._metadataOnly && !row.analysis_json){
           try{
             const full = await getSavedMatch(id);
             if(full){
               const idx = state.savedMatches.findIndex(item => item.id === id);
-              if(idx >= 0) state.savedMatches[idx] = { ...state.savedMatches[idx], ...full };
+              if(idx >= 0)state.savedMatches[idx]=mergeDuelinkResults([{...state.savedMatches[idx],...full}],(state.duelinkResults || []).filter(record=>record.game_id===full.duelink_match_id),state.deckProfiles)[0];
               if(state.selectedSavedMatchId === id) renderPerformanceData();
             }
           }catch(err){ console.warn('Détail match non chargé', err); }
@@ -10616,7 +10684,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(!confirm(`Supprimer ${label} ?`)) return;
         try{
           button.disabled = true;
-          await deleteSavedMatch(id);
+          await deleteSavedMatch(id,{gameId:row?.duelink_match_id});
+          state.duelinkResults=(state.duelinkResults || []).filter(item=>item.game_id!==row?.duelink_match_id);
           state.savedMatches = state.savedMatches.filter(item => item.id !== id);
           if(state.selectedSavedMatchId === id) state.selectedSavedMatchId = state.savedMatches[0]?.id || null;
           if(state.expandedSavedMatchId === id) state.expandedSavedMatchId = null;
@@ -10689,6 +10758,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!row){
       els.historyDetail.hidden = true;
       els.historyDetail.innerHTML = '';
+      return;
+    }
+    if(row._metadataOnly){
+      const label=({win:'Victoire',loss:'Défaite',draw:'Nul',abandoned:'Abandonnée'})[row.result] || 'Non confirmé';
+      els.historyDetail.hidden=false;
+      els.historyDetail.innerHTML=`<div class="history-detail-head"><div><h2>${esc(row.format)} · ${esc(label)} ${esc(row.score_label)}</h2><p>${esc(row.opponent_name || 'Adversaire inconnu')}</p><small>${esc(formatSavedDate(row.played_at))}</small></div><div class="history-detail-actions">${savedAnalysisButtonHtml(row)}</div></div>`;
+      els.historyDetail.querySelectorAll('[data-load-saved]').forEach(button=>{button.onclick=()=>loadSavedAnalysis(row);});
       return;
     }
     const analysis = row.analysis_json || {};

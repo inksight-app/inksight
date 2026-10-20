@@ -99,6 +99,9 @@
 #tab-overview .result-score small { font-size:.8rem!important;line-height:1.45!important; }
 #tab-overview .result-matchup .matchup-line { gap:8px!important;line-height:1.4!important; }
 
+.duelink-result-summary-compact .duelink-mini-stats { grid-template-columns:repeat(3,minmax(0,1fr))!important; }
+.history-row.neutral .history-result-rail { background:var(--muted,#a6a9b3); }
+
 /* One table owns the column tracks, including its header. */
 #performanceTempoSplit { min-width:0; }
 #performanceTempoSplit .tempo-table { width:100%;table-layout:fixed;border-collapse:collapse; }

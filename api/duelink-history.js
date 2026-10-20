@@ -174,7 +174,7 @@ function pickFormat(row) {
   return directText || null;
 }
 
-function summarizeGame(row) {
+export function summarizeGame(row) {
   const id = pickGameId(row);
   const explicitDate = firstValue(row, [
     'updatedAt','updated_at','playedAt','played_at','completedAt','completed_at','createdAt','created_at',

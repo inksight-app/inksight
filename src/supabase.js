@@ -322,7 +322,14 @@ export async function saveMatchAnalysis(payload, details = {}, expectedOwnerId) 
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    if(error.code==='23505' && payload.duelink_match_id){
+      const {data:existing,error:lookupError}=await supabase.from('saved_matches').select('id')
+        .eq('user_id',user.id).eq('duelink_match_id',payload.duelink_match_id).maybeSingle();
+      if(!lookupError && existing?.id)return getSavedMatch(existing.id);
+    }
+    throw error;
+  }
 
   if (analysisJson !== undefined && analysisJson !== null) {
     const { error: analysisError } = await supabase
@@ -557,8 +564,16 @@ export async function patchSavedMatchTeamVisible(matchId, visible) {
   return data;
 }
 
-export async function deleteSavedMatch(matchId) {
+export async function deleteSavedMatch(matchId, options = {}) {
   if (!matchId) throw new Error('Identifiant de match manquant.');
+  if(options.gameId || matchId.startsWith('metadata:')){
+    const {error}=await supabase.rpc('hide_duelink_result',{
+      p_game_id:options.gameId || matchId.slice('metadata:'.length),
+      p_match_id:matchId.startsWith('metadata:')?null:matchId
+    });
+    if(error)throw error;
+    return true;
+  }
 
   const { error } = await supabase
     .from('saved_matches')
@@ -568,6 +583,23 @@ export async function deleteSavedMatch(matchId) {
   if (error) throw error;
 
   return true;
+}
+
+export async function listDuelinkResults() {
+  const {data:{session},error:sessionError}=await supabase.auth.getSession();
+  if(sessionError)throw sessionError;
+  if(!session?.user?.id)return [];
+  const rows=[];
+  for(let offset=0;offset<50000;offset+=1000){
+    const {data,error}=await supabase.from('duelink_game_results')
+      .select('user_id,game_id,native,started_at,source_updated_at,created_at,ingested_at')
+      .eq('user_id',session.user.id).is('hidden_at',null)
+      .order('started_at',{ascending:false}).order('game_id',{ascending:false}).range(offset,offset+999);
+    if(error)throw error;
+    rows.push(...(data || []));
+    if((data || []).length<1000)return rows;
+  }
+  throw new Error('Historique trop volumineux pour être affiché intégralement.');
 }
 
 

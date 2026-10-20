@@ -19,6 +19,11 @@ function getSecret() {
   return crypto.createHash('sha256').update(secret).digest();
 }
 
+// Domain-separated signatures: never expose the encryption key or provider token.
+export function duelinkSyncMac(value) {
+  return crypto.createHmac('sha256', getSecret()).update('inksight-results-sync-v1\0').update(value).digest('base64url');
+}
+
 export function encryptToken(token, ownerId) {
   const clean = cleanDuelinkToken(token);
   if (!clean) throw new Error('Token Duels.ink manquant.');
@@ -83,7 +88,7 @@ export async function getSavedDuelinkToken(req, authenticated) {
   const { client, user } = authenticated || await getRequestUser(req);
   const { data, error } = await client
     .from('duelink_connections')
-    .select('encrypted_token,token_hint,expires_at,last_sync_at,updated_at')
+    .select('encrypted_token,token_hint,expires_at,last_sync_at,updated_at,duels_user_id,results_sync_version')
     .eq('user_id', user.id)
     .eq('provider', 'duelink')
     .maybeSingle();
