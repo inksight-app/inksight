@@ -1,2 +1,3 @@
 // Narrow projections: native context and the personal list, no analysis blobs or opponent lists.
 export const MATCH_CONTEXT_SELECT = ['queue_id','queue_name','ranked','mode','season_id','season_name','started_at','result','match_id','match_game_number','match_format'].map(key => 'context_'+key+':api_metadata->api_row->raw->'+(key==='ranked'?'':'>' )+key).join(',')+',context_deck_hash:api_metadata->>my_deck_hash,context_deck_list:api_metadata->api_row->raw->your_decklist';
+export const GAME_ANALYTICS_SELECT = ['metrics','lore_series','action_series','mulligan','hand_retention','handRetention'].map(key=>key+':game_json->'+key).join(',');

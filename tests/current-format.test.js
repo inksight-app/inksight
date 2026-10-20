@@ -67,10 +67,60 @@ function analyzerHarness(){
   const text=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
   const end=text.indexOf('\n})();');
   assert(end>0);
-  const context=vm.createContext({...seasons,document:{addEventListener(){},querySelectorAll(){return[];},querySelector(){return null;},getElementById(){return null;}},window:{},Chart:{},JSZip:{},pako:{},SessionBoundary,CORE_SET_NUMBERS,isCurrentCoreGame,analyzeInkDrops,combineInkDrops,replayCancellations,applyReplayPatch,structuredClone,console,setTimeout,clearTimeout,TextDecoder,URL,Map,Set,Date});
-  vm.runInContext(text.slice(0,end)+'\n globalThis.testApi={parseReplay,state,buildCardIndex,cardSetNumbers,coreLegality,scopedSavedRows,filteredSavedMatches,gamePassesImportFilters,rowSetNum,compactMetrics,savedMetrics};\n})();',context);
+  const context=vm.createContext({...seasons,document:{documentElement:{style:{setProperty(){}}},addEventListener(){},querySelectorAll(){return[];},querySelector(){return null;},getElementById(){return null;}},getComputedStyle(){return{getPropertyValue(){return'';}};},window:{},Chart:{},JSZip:{},pako:{},SessionBoundary,CORE_SET_NUMBERS,isCurrentCoreGame,analyzeInkDrops,combineInkDrops,replayCancellations,applyReplayPatch,structuredClone,console,setTimeout,clearTimeout,TextDecoder,URL,Map,Set,Date});
+  vm.runInContext(text.slice(0,end)+'\n globalThis.testApi={parseReplay,state,els,buildCardIndex,cardSetNumbers,coreLegality,scopedSavedRows,filteredSavedMatches,gamePassesImportFilters,rowSetNum,compactMetrics,savedMetrics,arrayify,savedRowToRuntimeState,isPerformanceDataScoped,computePerformanceAnalytics,computeTempoSplit,renderScopeResultSummary,generateMatchNarrative,renderSavedStats,gameJsonFromDetailRow};\n})();',context);
   return context.testApi;
 }
+test('saved history accepts sanitized null-prototype objects without coercing them to text',()=>{
+  const api=analyzerHarness();
+  const point=Object.assign(Object.create(null),{turn:1,handCount:5});
+  assert.equal(api.arrayify([point,null,'',0]).length,2);
+  const json={metrics:{mine:{handKnown:true,handByTurn:[point],inkByTurn:[{turn:1,capacity:2,spent:1,float:1}]}},charts:{lore_series:[{turn:1,mine:2,opponent:0}]},hand_retention:{mine:[{cardName:'Fixture',maxHeldTurns:1}]}};
+  const safeCopy=v=>Array.isArray(v)?v.map(safeCopy):v&&typeof v==='object'?Object.assign(Object.create(null),Object.fromEntries(Object.entries(v).map(([k,x])=>[k,safeCopy(x)]))):v;
+  json.games=[{otp:false}];
+  const runtime=api.savedRowToRuntimeState(safeCopy({id:'fixture',created_at:'2026-10-20',result:'win',total_turns:1,analysis_json:json}));
+  assert.equal(runtime.sessions[0].proMetrics.handByTurn[0].handCount,5);
+  assert.equal(runtime.sessions[0].handRetention.length,1);
+  assert.equal(runtime.sessions[0].firstTurnPlayer,2);
+});
+test('the all-formats selector does not lock a filtered identical decklist',()=>{
+  const api=analyzerHarness();
+  api.state.statScope={era:'current',queue:'all'};
+  api.state.savedMatches=[{id:'fixture',result:'win',format:'BO1',my_decklist:[{cardId:'14-1',count:4}],apiRow:{queue_id:'core-bo1',ranked:true,season_name:'Core BO1 - Set 14',started_at:'2026-10-20',result:'win'}}];
+  assert.equal(api.isPerformanceDataScoped(),true);
+  const winrate={};api.els.performanceWinrate=winrate;api.renderScopeResultSummary();
+  assert.equal(winrate.textContent,'100%');
+});
+test('missing turn metrics do not invent zero actions or a whole game in top-deck',()=>{
+  const api=analyzerHarness();
+  const analytics=api.computePerformanceAnalytics([{id:'fixture',result:'win',total_turns:5,final_mine_lore:19}]);
+  assert.equal(analytics.tempoSplit.win.avgQuests,null);
+  assert.equal(analytics.tempoSplit.win.avgTopDeck,null);
+  assert.equal(analytics.turnCurve.length,0);
+});
+test('stats load detailed tempo without selecting a deck, then render known starts and actions',()=>{
+  const api=analyzerHarness();
+  const make=(id,result)=>({id,result,format:'BO1',total_turns:5,my_decklist:[{cardId:'14-'+id,count:4}],apiRow:{queue_id:'core-bo1',ranked:true,season_name:'Core BO1 - Set 14',started_at:'2026-10-20',result}});
+  api.state.currentUser={id:'owner'};api.state.savedMatchesLoaded=true;
+  api.state.savedMatches=[make('1','win'),make('2','loss')];
+  api.state.savedAnalytics={loading:true,loadingIds:['1','2'],loadedIds:[],games:[],cardStats:[],turnStats:[]};
+  api.els.performanceOtpSplit={};api.els.performanceTempoSplit={};
+  api.renderSavedStats();
+  assert.equal(api.els.performanceOtpSplit.innerHTML,'Chargement…');
+  api.state.cards=[{id:'14-1'}];api.state.index.set('14-1',api.state.cards[0]);
+  api.state.savedAnalytics={loading:false,loadedIds:['1','2'],games:[{match_id:'1',game_number:1,is_win:true,otp:false,turn_count:5},{match_id:'2',game_number:1,is_win:false,otp:true,turn_count:5}],cardStats:[],turnStats:[{match_id:'1',game_number:1,owner:'mine',turn:1,quests:2,challenges:1,hand_count:4,ink_float:1},{match_id:'2',game_number:1,owner:'mine',turn:1,quests:1,challenges:0,hand_count:2,ink_float:0}]};
+  api.renderSavedStats();
+  assert.match(api.els.performanceOtpSplit.innerHTML,/Vous jouez second/);
+  assert.equal(api.state.lastPerformanceAnalytics.tempoSplit.win.avgQuests,2);
+  assert.equal(api.state.lastPerformanceAnalytics.tempoSplit.loss.avgTopDeck,0);
+});
+test('narrow saved-game projections retain metrics, opening hands and hand retention',()=>{
+  const api=analyzerHarness(),row={metrics:{mine:{questCount:13}},mulligan:{visible:true,initial:[{name:'Fixture'}]},handRetention:[{cardName:'Fixture',maxHeldTurns:3}]};
+  const data=api.gameJsonFromDetailRow(row);
+  assert.equal(data.metrics.mine.questCount,13);
+  assert.equal(data.mulligan.initial.length,1);
+  assert.equal(data.handRetention[0].maxHeldTurns,3);
+});
 test('the original analyzer excludes undone plays and retains new inkdrop metrics',()=>{
   const api=analyzerHarness(),replay=base();
   replay.frames=[frame(1,'PLAY_CARD',[replace('/myPlayer/inkDrops',2)]),frame(2,'FREE_UNDO:1',[replace('/myPlayer/inkDrops',0)]),frame(3,'END_TURN',[replace('/currentPlayer',2)])];
@@ -83,18 +133,26 @@ test('the original analyzer excludes undone plays and retains new inkdrop metric
   api.state.cards=catalog.cards;api.buildCardIndex();
   assert.equal(api.coreLegality({fullName:catalog.cards[0].fullName,setCode:'TFC'}),'legal');
 });
-test('the original import and statistics use the same chapter and ranked queue scope',()=>{
+test('imports and statistics accept both current Core formats, never older or unranked games',()=>{
   const api=analyzerHarness();
   const make=(id,raw)=>({id,format:'BO1',apiRow:{queue_id:'core-bo1',queue_name:'Core Set 14 BO1',ranked:true,season_name:'Core BO1 - Set 14',started_at:'2026-10-19T10:00:00Z',result:'win',...raw}});
   const current=make('current',{}),old=make('old',{season_name:'Core BO1 - Set 13',started_at:'2026-08-01T10:00:00Z'}),beta=make('beta',{ranked:false}),bo3=make('bo3',{queue_id:'core-bo3',queue_name:'Core BO3',match_format:'bo3'});
+  bo3.format='BO3';
   api.state.savedMatches=[current,old,beta,bo3];
-  assert.equal(api.scopedSavedRows().map(row=>row.id).join(','),'current');
-  assert.equal(api.filteredSavedMatches('stats').map(row=>row.id).join(','),'current');
+  assert.equal(api.scopedSavedRows().map(row=>row.id).join(','),'current,bo3');
+  assert.equal(api.filteredSavedMatches('stats').map(row=>row.id).join(','),'current,bo3');
   assert.equal(api.gamePassesImportFilters(old),false);
   api.state.statScope={era:'set-13',queue:'core-bo1'};
-  assert.equal(api.filteredSavedMatches('stats').map(row=>row.id).join(','),'old');
-  assert.equal(api.gamePassesImportFilters(old),true);
-  assert.equal(api.gamePassesImportFilters(current),false);
+  assert.equal(api.gamePassesImportFilters(old),false);
+  assert.equal(api.gamePassesImportFilters(current),true);
+  assert.equal(api.gamePassesImportFilters(bo3),true);
+  assert.equal(api.gamePassesImportFilters(beta),false);
+  api.state.filterSelections.performanceFormatFilter=['BO3'];
+  assert.equal(api.filteredSavedMatches('stats').map(row=>row.id).join(','),'bo3');
+  // A view filter must never restrict the sync to that format.
+  assert.equal(api.gamePassesImportFilters(current),true);
+  api.state.filterSelections.performanceFormatFilter=['BO1'];
+  assert.equal(api.filteredSavedMatches('stats').map(row=>row.id).join(','),'current');
 });
 test('public meta uses discovered era, stable fields, daily caching and conditional responses',async t=>{
   const original=globalThis.fetch;let calls=0;
