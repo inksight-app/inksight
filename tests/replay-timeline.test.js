@@ -82,7 +82,7 @@ test('prevents hidden opponent ink card names and untrusted art from leaking',()
  replay.frames[1].player=2;
  replay.frames[1].takenAction={cardName:'Secret Ink',cardId:'secret-ink',cardInstanceId:'private-id',source:'hand'};
  const timeline=reconstructReplayTimeline(replay);
- assert.deepEqual(timeline.steps[2].action,{hidden:true});
+ assert.deepEqual(timeline.steps[1].action,{hidden:true});
  assert.equal(timeline.steps[0].opponent.field[0].image,null);
  assert.equal(JSON.stringify(timeline).includes('Secret Ink'),false);
  assert.equal(JSON.stringify(timeline).includes('private-id'),false);
