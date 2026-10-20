@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_ERAS, DEFAULT_STAT_SCOPE, classifyGameContext, contextFields, rowMatchesScope, resultSummary, eraCatalog, coherentDeckList, deckListIdentity, scopeEraStart } from '../src/lorcana/seasons.js';
+import { DEFAULT_ERAS, DEFAULT_STAT_SCOPE, classifyGameContext, contextFields, rowMatchesScope, resultSummary, eraCatalog, coherentDeckList, deckListIdentity, scopeEraStart, observedDeckCohort } from '../src/lorcana/seasons.js';
 
 const game=(id,overrides={})=>({id,duelink_match_id:id,format:'BO1',api_metadata:{api_row:{raw:{queue_id:'core-bo1',queue_name:'Core Set 14 BO1',ranked:true,mode:'matchmaking',season_name:'Core BO1 - Set 14',started_at:'2026-10-19T10:00:00Z',result:'win',match_format:'bo1',...overrides}}}});
 
@@ -55,11 +55,22 @@ test('BO3 counts confirmed series, not rows, excludes incomplete results and ded
   const damaged=resultSummary([match('x1','x','win',1),match('x2','x','win',2),match('x3','x',null,3)]);
   assert.equal(damaged.matches.n,0);assert.equal(damaged.matches.unconfirmed,1);
 });
-test('card and mulligan cohorts require the same recorded decklist, even within one deck profile',()=>{
+test('exact-list calculations require the same recorded decklist, even within one deck profile',()=>{
   assert.equal(coherentDeckList([{deck_profile_id:'same',context_deck_hash:'a'},{deck_profile_id:'same',context_deck_hash:'b'}]),false);
   assert.equal(coherentDeckList([{context_deck_hash:'a'},{api_metadata:{my_deck_hash:'a'}}]),true);
   assert.equal(coherentDeckList([{context_deck_hash:'a'},{}]),false);
   assert.equal(coherentDeckList([]),false);
+});
+test('an explicitly selected deck permits observed card and mulligan statistics across edits, not exact copy counts',()=>{
+  const rows=[{deck_profile_id:'v3',my_decklist:[{cardId:'14-1',count:4}]},{deck_profile_id:'v3',my_decklist:[{cardId:'14-1',count:3}]}];
+  assert.equal(coherentDeckList(rows),false);
+  assert.equal(observedDeckCohort(rows,['v3']),true);
+  assert.equal(observedDeckCohort(rows,[]),false);
+  assert.equal(observedDeckCohort(rows,['v3','other']),false);
+  assert.equal(observedDeckCohort(rows,['other']),false);
+  assert.equal(observedDeckCohort(rows,['noprofile:amber|emerald']),false);
+  assert.equal(observedDeckCohort([...rows,{deck_profile_id:'other'}],['v3']),false);
+  assert.equal(observedDeckCohort([],['v3']),false);
 });
 test('legacy native lists recover exact cohorts without relying on missing historical hashes',()=>{
   const list=[{cardId:'14-1',count:4},{cardId:'13-2',count:2}];
