@@ -11,6 +11,7 @@ import { CURRENT_CORE_SCOPE, DEFAULT_ERAS, eraCatalog, classifyGameContext, cont
 import { inkDropChartModel } from './lorcana/inkdrop-chart.js';
 import { mergeDuelinkResults, gameFromResultRow, nativeMmrDelta } from './lorcana/duels-results.js';
 import { listDuelinkResults } from './supabase.js';
+import { reconstructReplayTimeline } from './lorcana/replay-timeline.js';
 import { applyReplayPatch, decodeReplayBytes, readZipEntry, MAX_REPLAY_BYTES, MAX_REPLAY_FILES } from './security/replay.js';
 import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, patchSavedMatchTeamVisible, listDeckProfiles, upsertDeckProfile, ensureDeckProfileByExternalId, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun, updateDeckProfilePoolTag } from './supabase.js';
 
@@ -55,6 +56,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', coreOnly:false, lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), team:null, teamMode:false, teamMemberIds:[], teamDisplayNames:{}, dateFilter:{ stats:{ preset:'all', from:null, to:null }, history:{ preset:'all', from:null, to:null } } };
 
 
+  state.labCache = new WeakMap();
+  state.labStep = 0;
   state.duelinkResults=[];
   state.duelinkContinuation=null;
   state.duelinkAnalysisPending=false;
@@ -105,7 +108,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','momentFortPanel','shareMatchButton','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','inkwellPanel','inkwellTimeline','inkwellSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','deckDepthMatch','deckDepthMatchPanel','performanceDeckDepth','performanceOpeningConsistency','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceStreak','performanceStreakHelp','performanceStreakCard','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceTempoSplit','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory','performanceDateFrom','performanceDateTo','performanceDateCustom','historyDateFrom','historyDateTo','historyDateCustom'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','momentFortPanel','shareMatchButton','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','inkwellPanel','inkwellTimeline','inkwellSubtitle','timelineList','timelineFilter','labContent','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','deckDepthMatch','deckDepthMatchPanel','performanceDeckDepth','performanceOpeningConsistency','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceStreak','performanceStreakHelp','performanceStreakCard','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceTempoSplit','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory','performanceDateFrom','performanceDateTo','performanceDateCustom','historyDateFrom','historyDateTo','historyDateCustom'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -177,6 +180,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
     els.analysisTabs?.addEventListener('keydown', handleTabsKeydown);
+    els.labContent?.addEventListener('click', event => {
+      const button = event.target.closest('[data-lab-step]');
+      if(!button) return;
+      const value = button.dataset.labStep;
+      const steps = currentLabTimeline()?.steps || [];
+      const next = value === 'first' ? 0 : value === 'last' ? steps.length - 1 : state.labStep + (value === 'prev' ? -1 : 1);
+      state.labStep = Math.max(0, Math.min(steps.length - 1, next));
+      renderLab();
+    });
+    els.labContent?.addEventListener('change', event => {
+      if(event.target?.id !== 'labTurnSelect') return;
+      const steps = currentLabTimeline()?.steps || [];
+      const index = steps.findIndex(step => String(step.turnNumber) === event.target.value);
+      if(index >= 0){ state.labStep = index; renderLab(); }
+    });
     document.querySelectorAll('[data-scope]').forEach(btn => btn.addEventListener('click', () => setScope(btn.dataset.scope)));
     document.querySelectorAll('[data-card-filter]').forEach(btn => btn.addEventListener('click', () => setCardFilter(btn.dataset.cardFilter)));
     document.querySelector('[data-core-only]')?.addEventListener('click', toggleCoreOnly);
@@ -1630,6 +1648,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const replays = Array.isArray(imported) ? imported : [];
     const matchMeta = options.matchMeta !== undefined ? options.matchMeta : (replays.find(entry => entry.matchMeta)?.matchMeta || state.matchMeta || null);
     state.replays = replays;
+    state.labStep = 0;
     state.sessions = state.replays.map(r => r.session).filter(Boolean);
     state.matchMeta = matchMeta;
     state.merged = mergeSessions(state.sessions);
@@ -1767,7 +1786,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function clearReplays(options={}){
-    state.replays = []; state.sessions = []; state.merged = null; state.isBO3 = false; state.viewMode = 0; state.matchMeta = null; state.mulliganResolved = false; state.lastSavedMatchId = null; state.loadedSavedMatchId = null; state.statExpandedLists = {};
+    state.replays = []; state.labStep = 0; state.sessions = []; state.merged = null; state.isBO3 = false; state.viewMode = 0; state.matchMeta = null; state.mulliganResolved = false; state.lastSavedMatchId = null; state.loadedSavedMatchId = null; state.statExpandedLists = {};
     if(!options.keepBulk){ state.bulkQueue = []; state.activeBulkIndex = null; state.bulkSaving = false; state.bulkSaveTotal = 0; state.bulkSaveDone = 0; }
     document.body.classList.add('empty-state'); document.body.classList.remove('has-results','bo3-global','bo3-game');
     if(els.fileInput) els.fileInput.value = '';
@@ -3848,7 +3867,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     syncViewModeVisibility();
     renderBo3Selector();
     document.querySelectorAll('[data-card-filter]').forEach(b=>b.classList.toggle('active', b.dataset.cardFilter === state.cardFilter));
-    renderFiles(); renderBulkQueue(); renderDetected(); renderOverview(); renderStats(); renderCards(); renderTimeline(); renderDeckOptions(); syncSaveButton();
+    renderFiles(); renderBulkQueue(); renderDetected(); renderOverview(); renderStats(); renderCards(); renderTimeline(); if(state.activeTab === 'lab') renderLab(); renderDeckOptions(); syncSaveButton();
   }
 
   function cloudErrorMessage(error){
@@ -4157,6 +4176,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function restoreReplayStateFromBulkItem(item){
     state.replays = item.replays || [];
+    state.labStep = 0;
     state.sessions = item.sessions || [];
     state.merged = item.merged || null;
     state.isBO3 = state.sessions.length > 1;
@@ -4762,6 +4782,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!runtime) runtime = savedRowToRuntimeState(hydratedRow);
       if(!accountBoundary.isCurrent(ticket)) return;
       state.replays = runtime.replays;
+      state.labStep = 0;
       state.sessions = runtime.sessions;
       state.merged = runtime.merged;
       state.isBO3 = runtime.isBO3;
@@ -10953,6 +10974,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       btn.onclick = () => {
         const view = btn.dataset.bo3View;
         state.viewMode = view === 'global' ? 'global' : Number(view);
+        state.labStep = 0;
         state.mulliganResolved = false;
         if(isGlobalView() && state.activeTab === 'timeline') setTab('overview');
         renderAll();
@@ -13006,6 +13028,67 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return normalizeTimelineRows(m);
   }
 
+
+  // Mission 1: raw replays only. Saved summaries do not contain reconstructible snapshots.
+  function currentLabTimeline(){
+    if(isGlobalView()) return null;
+    const entry = state.replays?.[Number(state.viewMode || 0)];
+    const replay = entry?.replay;
+    if(!replay || replay.format !== 'duels-replay-v1') return null;
+    let timeline = state.labCache.get(replay);
+    if(!timeline){
+      timeline = reconstructReplayTimeline(replay);
+      state.labCache.set(replay, timeline);
+    }
+    return timeline;
+  }
+
+  function renderLab(){
+    if(!els.labContent) return;
+    let timeline;
+    try{ timeline = currentLabTimeline(); }
+    catch(error){
+      els.labContent.textContent = 'Reconstruction impossible : ' + (error?.message || 'replay invalide');
+      return;
+    }
+    if(!timeline){
+      els.labContent.innerHTML = '<p class="lab-note">Ouvre une Game spécifique avec son replay brut (.replay.gz). Les analyses sauvegardées ne contiennent pas toujours les snapshots nécessaires ; dans ce cas, réimporte le replay.</p>';
+      return;
+    }
+    state.labStep = Math.min(Math.max(0, state.labStep), timeline.steps.length - 1);
+    const step = timeline.steps[state.labStep];
+    const fmt = value => value === null || value === undefined ? '—' : String(value);
+    const turnOptions = [...new Set(timeline.steps.map(item => item.turnNumber).filter(Number.isInteger))]
+      .map(turn => `<option value="${turn}" ${turn === step.turnNumber ? 'selected' : ''}>Tour ${turn}</option>`).join('');
+    const actionNames = {QUEST:'Quête',PLAY_CARD:'Carte jouée',ADD_TO_INK:'Carte encrée',ATTACK:'Défi',CHALLENGE:'Défi',END_TURN:'Fin du tour',ACTIVATE_ABILITY:'Capacité',RESPOND_TO_PROMPT:'Choix / résolution',BOOST:'Boost',MULLIGAN:'Mulligan',GAME_FINISH:'Fin de partie'};
+    const action = step.kind === 'initial' ? 'État initial' : (actionNames[step.actionType] || step.actionType || 'Événement');
+    const renderCards = list => list === null ? '<p class="lab-note">Zone non documentée</p>' : !list.length ? '<p class="lab-note">Aucune carte visible</p>' :
+      `<ul class="lab-cards">${list.map(card => `<li><strong>${esc(card.name)}</strong><span>${card.cost === null ? '' : esc(card.cost) + ' encre · '}${card.exerted ? 'Inclinée' : 'Redressée'}${card.damage ? ' · ' + esc(card.damage) + ' dégât(s)' : ''}</span></li>`).join('')}</ul>`;
+    const side = (name, data, own) => `<section class="lab-side"><h3>${name}</h3><div class="lab-metrics">
+      <span><strong>${fmt(data.lore)}</strong><small>Lore</small></span>
+      <span><strong>${fmt(data.handCount)}</strong><small>Main</small></span>
+      <span><strong>${fmt(data.inkwellCount)}</strong><small>Encre</small></span>
+      <span><strong>${fmt(data.readyInkCount)}</strong><small>Disponible</small></span>
+      <span><strong>${fmt(data.inkDrops)}</strong><small>Inkdrops</small></span>
+      <span><strong>${fmt(data.deckCount)}</strong><small>Deck</small></span>
+      </div><h4>Personnages (${fmt(data.fieldCount)})</h4>${renderCards(data.field)}
+      <h4>Objets</h4>${renderCards(data.items)}
+      ${own ? '<h4>Ma main (vue du replay)</h4>' + renderCards(data.hand) : '<p class="lab-note">Main adverse : identités masquées.</p>'}
+      </section>`;
+    els.labContent.innerHTML = `
+      <div class="lab-toolbar"><label for="labTurnSelect">Aller au tour</label><select id="labTurnSelect" class="sort-select">${turnOptions}</select>
+      <span class="lab-counter">Étape ${state.labStep + 1} / ${timeline.steps.length}</span></div>
+      <div class="lab-nav"><button type="button" class="ghost-button compact" data-lab-step="first" ${!state.labStep ? 'disabled' : ''}>Début</button>
+      <button type="button" class="ghost-button compact" data-lab-step="prev" ${!state.labStep ? 'disabled' : ''}>← Précédent</button>
+      <button type="button" class="primary-button compact" data-lab-step="next" ${state.labStep === timeline.steps.length - 1 ? 'disabled' : ''}>Suivant →</button>
+      <button type="button" class="ghost-button compact" data-lab-step="last" ${state.labStep === timeline.steps.length - 1 ? 'disabled' : ''}>Fin</button></div>
+      <div class="lab-event"><strong>${esc(action)}</strong><span>Tour ${fmt(step.turnNumber)} · ${step.actor === 'mine' ? 'Moi' : step.actor === 'opponent' ? 'Adversaire' : 'Système'} · séquence ${fmt(step.seq)}</span>
+      ${step.undone ? '<p>Action annulée ultérieurement : ne pas l’évaluer comme décision finale.</p>' : ''}
+      ${step.isUndo ? '<p>Annulation enregistrée : l’état a été restauré par le replay.</p>' : ''}
+      </div><div class="lab-sides">${side('Moi', step.mine, true)}${side('Adversaire', step.opponent, false)}</div>
+      <p class="lab-note">Données observées depuis la perspective du replay. Les effets et actions ne sont pas encore évalués par un moteur de règles.</p>`;
+  }
+
   function renderTimeline(){
     if(!els.timelineList) return;
     const section = document.getElementById('tab-timeline');
@@ -13930,13 +14013,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       btn.setAttribute('aria-selected', active ? 'true' : 'false');
       btn.tabIndex = active ? 0 : -1;
     });
-    document.querySelectorAll('#tab-overview, #tab-stats, #tab-cards, #tab-timeline').forEach(sec => {
+    document.querySelectorAll('#tab-overview, #tab-stats, #tab-cards, #tab-timeline, #tab-lab').forEach(sec => {
       const active = sec.id === `tab-${tab}`;
       sec.classList.toggle('active', active);
       sec.hidden = !active;
       sec.style.display = active ? 'block' : '';
     });
 
+    if(tab === 'lab') renderLab();
     if(tab === 'timeline'){
       renderTimeline();
       requestAnimationFrame(() => renderTimeline());
