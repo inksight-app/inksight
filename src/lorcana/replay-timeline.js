@@ -6,7 +6,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const finite = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
 const count = value => Array.isArray(value) ? value.length : null;
 const card = value => ({
-  id: typeof value?.id === 'string' ? value.id : null,
+  id: typeof value?.id === 'string' ? value.id : typeof value?.cardId === 'string' ? value.cardId : typeof value?.card?.id === 'string' ? value.card.id : null,
   instanceId: typeof value?.instanceId === 'string' ? value.instanceId : null,
   name: typeof value?.fullName === 'string' ? value.fullName : typeof value?.name === 'string' ? value.name : 'Carte non identifiée',
   cost: finite(value?.cost),
