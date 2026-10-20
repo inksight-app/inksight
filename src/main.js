@@ -1,5 +1,6 @@
 import './style.css';
 import './ui-repairs.css';
+import './replay-premium.css';
 import Chart from 'chart.js/auto';
 import * as pako from 'pako';
 import JSZip from 'jszip';
@@ -58,6 +59,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   state.labCache = new WeakMap();
   state.labStep = 0;
+  state.labImmersive = false;
+  state.labInspect = null;
+  state.labPlaybackTimer = null;
   state.duelinkResults=[];
   state.duelinkContinuation=null;
   state.duelinkAnalysisPending=false;
@@ -181,12 +185,50 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
     els.analysisTabs?.addEventListener('keydown', handleTabsKeydown);
     els.labContent?.addEventListener('click', event => {
+      const close = event.target.closest('[data-lab-close]');
+      if(close){ state.labInspect=null; renderLab(); return; }
+      const cardButton = event.target.closest('[data-lab-card]');
+      if(cardButton){
+        const steps=currentLabTimeline()?.steps||[];
+        const current=steps[state.labStep];
+        const side=cardButton.dataset.labSide;
+        const zone=cardButton.dataset.labZone;
+        const cards=current?.[side]?.[zone]||[];
+        state.labInspect=cards[Number(cardButton.dataset.labCard)];
+        renderLab(); return;
+      }
+      if(event.target.closest('[data-lab-immersive]')){
+        state.labImmersive=!state.labImmersive;
+        document.body.classList.toggle('lab-immersive-mode',state.labImmersive);
+        renderLab();return;
+      }
+      if(event.target.closest('[data-lab-play]')){
+        if(state.labPlaybackTimer){clearInterval(state.labPlaybackTimer);state.labPlaybackTimer=null;}
+        else {
+          state.labPlaybackTimer=setInterval(()=>{
+            const steps=currentLabTimeline()?.steps||[];
+            if(state.labStep>=steps.length-1){clearInterval(state.labPlaybackTimer);state.labPlaybackTimer=null;renderLab();return;}
+            state.labStep++;renderLab();
+          },1150);
+        }
+        renderLab();return;
+      }
       const button = event.target.closest('[data-lab-step]');
       if(!button) return;
+      if(state.labPlaybackTimer){clearInterval(state.labPlaybackTimer);state.labPlaybackTimer=null;}
       const value = button.dataset.labStep;
       const steps = currentLabTimeline()?.steps || [];
-      const next = value === 'first' ? 0 : value === 'last' ? steps.length - 1 : state.labStep + (value === 'prev' ? -1 : 1);
+      let next = value === 'first' ? 0 : value === 'last' ? steps.length - 1 : state.labStep + (value === 'prev' ? -1 : 1);
+      if(value==='decision-next'){
+        next=steps.findIndex((step,i)=>i>state.labStep&&step.isDecision);
+        if(next<0)next=steps.length-1;
+      }
+      if(value==='decision-prev'){
+        next=state.labStep-1;
+        while(next>0&&!steps[next].isDecision)next--;
+      }
       state.labStep = Math.max(0, Math.min(steps.length - 1, next));
+      state.labInspect=null;
       renderLab();
     });
     els.labContent?.addEventListener('input', event => { if(event.target?.id === 'labScrubber'){ state.labStep = Number(event.target.value); renderLab(); } });
@@ -13064,19 +13106,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.labStep = Math.min(Math.max(0,state.labStep),timeline.steps.length-1);
     const step=timeline.steps[state.labStep], previous=timeline.steps[Math.max(0,state.labStep-1)];
     const fmt=v=>v==null?'—':String(v);
-    const cardTile=(card,hidden=false,changed=false)=>{
+    const cardTile=(card,hidden=false,changed=false,side='mine',zone='field',index=0)=>{
       if(hidden) return '<span class="lab-card lab-card-back" aria-label="Carte adverse cachée">✦</span>';
       const src=labCardArt(card);
       const name=esc(card.name||'Carte inconnue');
       const isAttacker=step.action?.attackerInstanceId===card.instanceId && !!card.instanceId;
       const isDefender=step.action?.defenderInstanceId===card.instanceId && !!card.instanceId;
       const focus=isAttacker||isDefender||(!!card.instanceId&&step.action?.cardInstanceId===card.instanceId);
-      return `<span class="lab-card-slot ${changed?'lab-card-changed':''} ${focus?'lab-card-focus':''} ${isAttacker?'lab-card-attacker':''} ${isDefender?'lab-card-defender':''} ${card.exerted?'lab-slot-exerted':''}"><span class="lab-card ${card.exerted?'lab-card-exerted':''}" title="${name}" aria-label="${name}">
+      return `<button type="button" data-lab-card="${index}" data-lab-side="${side}" data-lab-zone="${zone}" class="lab-card-slot ${changed?'lab-card-changed':''} ${focus?'lab-card-focus':''} ${isAttacker?'lab-card-attacker':''} ${isDefender?'lab-card-defender':''} ${card.exerted?'lab-slot-exerted':''}"><span class="lab-card ${card.exerted?'lab-card-exerted':''}" title="${name}" aria-label="${name}">
         ${src?`<img loading="lazy" src="${esc(src)}" alt="${name}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="lab-card-fallback" hidden>${name}</span>`:`<span class="lab-card-fallback">${name}</span>`}
-        ${card.damage>0?`<b class="lab-damage">−${esc(card.damage)}</b>`:''}</span></span>`;
+        ${card.damage>0?`<b class="lab-damage">−${esc(card.damage)}</b>`:''}</span></button>`;
     };
-    const board=(list,empty='Aucune carte',changed=new Set())=>list?.length?list.map(card=>cardTile(card,false,changed.has(cardKey(card)))).join(''):`<span class="lab-empty">${empty}</span>`;
-    const metric=(side,own)=>`<div class="lab-playerbar"><strong>${own?'Moi':'Adversaire'}</strong><span>✦ ${fmt(side.lore)} Lore</span><small>${fmt(side.readyInkCount)}/${fmt(side.inkwellCount)} encre · ${fmt(side.handCount)} en main · ${fmt(side.deckCount)} deck</small></div>`;
+    const board=(list,empty='Aucune carte',changed=new Set(),side='mine',zone='field')=>list?.length?list.map((card,i)=>cardTile(card,false,changed.has(cardKey(card)),side,zone,i)).join(''):`<span class="lab-empty">${empty}</span>`;
+    const metric=(side,own)=>`<div class="lab-playerbar lab-premium-playerbar"><div class="lab-identity"><span class="lab-player-avatar">${own?'M':'A'}</span><span><strong>${own?'Moi':'Adversaire'}</strong><small>${fmt(side.handCount)} cartes en main</small></span></div><div class="lab-player-resources"><span class="lab-resource-ink"><span class="lab-ink-glyph" aria-hidden="true"></span>${fmt(side.readyInkCount)}<em>/${fmt(side.inkwellCount)}</em></span><span class="lab-resource-lore"><span aria-hidden="true">✦</span>${fmt(side.lore)}<small>LORE</small></span></div></div>`;
+    const resourceDock=(side,own)=>`<div class="lab-resource-dock"><span class="lab-dock-caption">ENCRE</span><span class="lab-ink-track">${Array.from({length:Math.min(side.inkwellCount||0,18)},(_,i)=>`<span class="lab-ink-token ${i<(side.readyInkCount||0)?'is-ready':'is-spent'}" aria-hidden="true"></span>`).join('')||'<span class="lab-ink-empty">—</span>'}</span><span class="lab-dock-count">${fmt(side.readyInkCount)} / ${fmt(side.inkwellCount)}</span><span class="lab-dock-separator"></span><span class="lab-dock-caption">PIOCHE</span><span class="lab-deck-pile"><span class="lab-deck-back" aria-hidden="true"></span><b>${fmt(side.deckCount)}</b></span><span class="lab-dock-caption">DÉFAUSSE</span><span class="lab-discard-count">${fmt(side.discard?.length)}</span></div>`;
+    const opposingHand=()=>`<div class="lab-opponent-hand" aria-label="${fmt(step.opponent.handCount)} cartes cachées en main adverse">${Array.from({length:Math.min(step.opponent.handCount||0,10)},()=>'<span class="lab-hand-back" aria-hidden="true"></span>').join('')}</div>`;
     const cardKey = card => String(card?.instanceId || [card?.id,card?.name].join(':'));
     const changedCards = side => {
       const before=new Map([...(previous[side]?.field||[]),...(previous[side]?.items||[])].map(card=>[cardKey(card),String(card.damage)+'/'+String(card.exerted)]));
@@ -13104,17 +13148,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return a!=null&&b!=null&&a!==b?[`${side==='mine'?'Moi':'Adversaire'} · ${{lore:'Lore',handCount:'Main',inkwellCount:'Encre',fieldCount:'Plateau'}[key]} : ${b>a?'+':''}${b-a}`]:[];
     }));
     els.labContent.innerHTML=`<div class="lab-replay-shell lab-replay-theater">
-      <header class="lab-theater-header"><div><span class="lab-theater-kicker">INKSIGHT / REPLAY LAB</span><strong>Tour ${fmt(step.turnNumber)}</strong></div><span class="lab-theater-counter">${state.labStep} / ${timeline.frameCount}</span></header>
+      <header class="lab-theater-header"><div><span class="lab-theater-kicker">INKSIGHT <span class="lab-header-slash">/</span> REPLAY STUDIO</span><strong>Tour ${fmt(step.turnNumber)}</strong></div><div class="lab-header-actions"><span class="lab-theater-counter">${state.labStep} / ${timeline.frameCount}</span><button type="button" class="lab-immersive-button" data-lab-immersive aria-label="${state.labImmersive?'Quitter le plein écran':'Mode immersif'}" title="Mode immersif">${state.labImmersive?'Réduire':'Agrandir'} <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div></header>
       <div class="lab-game-surface">
         ${metric(step.opponent,false)}
+        ${opposingHand()}
+        ${resourceDock(step.opponent,false)}
         <div class="lab-replay-zone lab-replay-opponent" aria-label="Plateau adverse"><span class="lab-zone-corner">TERRAIN ADVERSE</span>
-          <div class="lab-board-cards">${board([...(step.opponent.field||[]),...(step.opponent.items||[])],'Aucune carte',changedOpponent)}</div>
+          <div class="lab-board-cards">${board(step.opponent.field,'Aucune carte',changedOpponent,'opponent','field')}${board(step.opponent.items,'',changedOpponent,'opponent','items')}</div>
         </div>
         <div class="lab-replay-zone lab-replay-mine" aria-label="Mon plateau"><span class="lab-zone-corner">MON TERRAIN</span>
-          <div class="lab-board-cards">${board([...(step.mine.field||[]),...(step.mine.items||[])],'Aucune carte',changedMine)}</div>
+          <div class="lab-board-cards">${board(step.mine.field,'Aucune carte',changedMine,'mine','field')}${board(step.mine.items,'',changedMine,'mine','items')}</div>
         </div>
+        ${resourceDock(step.mine,true)}
         ${metric(step.mine,true)}
-        <div class="lab-hand-row"><span class="lab-zone-label">Ma main · ${fmt(step.mine.handCount)}</span><div class="lab-hand-cards">${board(step.mine.hand,'Main non visible')}</div></div>
+        <div class="lab-hand-row"><span class="lab-zone-label">Ma main · ${fmt(step.mine.handCount)}</span><div class="lab-hand-cards">${board(step.mine.hand,'Main non visible',new Set(),'mine','hand')}</div></div>
       </div>
       <div class="lab-event-strip" aria-live="polite">
         <div class="lab-event-description"><span class="lab-event-eyebrow">${step.actor==='mine'?'MON ACTION':step.actor==='opponent'?'ACTION ADVERSE':'ÉVÉNEMENT'}</span><strong>${esc(action)}</strong>${actionExplanation()?`<span class="lab-event-detail">${esc(actionExplanation())}</span>`:""}</div>
@@ -13124,13 +13171,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <div class="lab-playback-heading"><strong>${esc(action)}</strong><span>${state.labStep} / ${timeline.frameCount}</span></div>
         <input class="lab-scrubber" id="labScrubber" aria-label="Position dans le replay" type="range" min="0" max="${timeline.frameCount}" value="${state.labStep}">
         <div class="lab-playback-buttons">
+          <button type="button" data-lab-step="decision-prev" aria-label="Décision précédente" title="Décision précédente" ${state.labStep===0?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m14 5-7 7 7 7M21 5l-7 7 7 7"/></svg></button>
           <button type="button" data-lab-step="first" aria-label="Début" ${state.labStep===0?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5v14M19 5l-11 7 11 7z"/></svg></button>
           <button type="button" data-lab-step="prev" aria-label="Précédent" ${state.labStep===0?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
           <button type="button" data-lab-step="next" aria-label="Suivant" ${state.labStep===timeline.frameCount?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+          <button type="button" data-lab-play aria-label="${state.labPlaybackTimer?'Pause':'Lecture automatique'}" title="${state.labPlaybackTimer?'Pause':'Lecture'}"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">${state.labPlaybackTimer?'<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>':'<path d="M8 5v14l12-7z"/>'}</svg></button>
+          <button type="button" data-lab-step="decision-next" aria-label="Décision suivante" title="Décision suivante" ${state.labStep===timeline.frameCount?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m10 5 7 7-7 7M3 5l7 7-7 7"/></svg></button>
           <button type="button" data-lab-step="last" aria-label="Fin" ${state.labStep===timeline.frameCount?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 5v14M5 5l11 7-11 7z"/></svg></button>
         </div>
         <label class="lab-turn-picker">Aller au tour <select id="labTurnSelect">${turns.map(t=>`<option value="${t}" ${t===step.turnNumber?'selected':''}>Tour ${t}</option>`).join('')}</select></label>
       </div>
+      ${state.labInspect? `<div class="lab-inspect-backdrop" data-lab-close><section class="lab-inspect-panel" role="dialog" aria-modal="true" aria-label="Détails de la carte"><button type="button" data-lab-close class="lab-inspect-close" aria-label="Fermer">×</button><img src="${esc(labCardArt(state.labInspect))}" alt="${esc(state.labInspect.name)}"><div class="lab-inspect-meta"><span>CARTE OBSERVÉE</span><strong>${esc(state.labInspect.name)}</strong><p>${state.labInspect.cost!=null?'Coût '+fmt(state.labInspect.cost)+' · ':''}${state.labInspect.strength!=null?fmt(state.labInspect.strength)+' force · ':''}${state.labInspect.willpower!=null?fmt(state.labInspect.willpower)+' volonté · ':''}${state.labInspect.lore!=null?fmt(state.labInspect.lore)+' Lore':''}</p>${state.labInspect.damage>0?'<p>Dégâts : '+fmt(state.labInspect.damage)+'</p>':''}</div></section></div>` : ''}
       <details class="lab-analysis-drawer"><summary>Journal & détails de l'action</summary>
         <p>${step.actor==='mine'?'Moi':step.actor==='opponent'?'Adversaire':'Système'} · séquence ${fmt(step.seq)}${step.isUndo?' · retour arrière':''}</p>
         ${diffs.length?`<ul>${diffs.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>`:'<p>Aucun changement dans les compteurs principaux.</p>'}
