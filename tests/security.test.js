@@ -9,6 +9,7 @@ import { encryptToken, decryptToken, resolveDuelinkToken } from '../api/_duelink
 import { requestDuelsJson } from '../api/_duels-client.js';
 import imageHandler from '../api/img-proxy.js';
 import historyHandler from '../api/duelink-history.js';
+import downloadHandler from '../api/duelink-download.js';
 
 function response(){return {headers:{},statusCode:0,setHeader(k,v){this.headers[k.toLowerCase()]=v;},end(body){this.body=body;}};}
 function mockFetch(t,fn){const old=globalThis.fetch;globalThis.fetch=fn;t.after(()=>{globalThis.fetch=old;});}
@@ -75,6 +76,32 @@ test('401 breaks the link once, 429 exposes Retry-After without automatic retrie
   await assert.rejects(requestDuelsJson('/api/me',{token:'t',onUnauthorized:()=>{expired++;}}),e=>e.code==='DUELS_RECONNECT');assert.equal(calls,1);assert.equal(expired,1);
   globalThis.fetch=async()=>new Response('{}',{status:429,headers:{'Retry-After':'37'}});
   await assert.rejects(requestDuelsJson('/api/me',{token:'t'}),e=>e.retryAfter===37);
+});
+test('403 stops without expiring credentials, and clients identify Inksight normally',async t=>{
+  let expired=0;
+  mockFetch(t,async(_url,options)=>{assert.match(new Headers(options.headers).get('User-Agent'),/^Inksight\//);return new Response('{}',{status:403});});
+  await assert.rejects(requestDuelsJson('/api/me',{token:'fixture',onUnauthorized:()=>{expired++;}}),e=>e.code==='DUELS_FORBIDDEN' && e.status===403);
+  assert.equal(expired,0);
+});
+test('replay download uses the authorized manifest/CDN, never forwards a bearer token to the CDN',async t=>{
+  const calls=[];
+  mockFetch(t,async(url,options)=>{
+    const u=new URL(url);calls.push(u);
+    if(u.hostname.endsWith('.supabase.co'))return Response.json({id:'owner',aud:'authenticated',app_metadata:{},user_metadata:{}});
+    if(u.pathname==='/api/me/bulk-replays'){assert.equal(options.method,'POST');return Response.json({files:[{id:'pov-fixture',url:'https://cdn.duels.ink/fixture.replay.gz'}],missing:[]});}
+    assert.equal(u.hostname,'cdn.duels.ink');assert.equal(new Headers(options.headers).get('Authorization'),null);return new Response(new Uint8Array([1,2,3]));
+  });
+  const res=response();await downloadHandler({method:'POST',headers:{authorization:'Bearer fixture.jwt.token','content-type':'application/json'},body:{token:'fixture-duels',id:'pov-fixture'}},res);
+  assert.equal(res.statusCode,200);assert.deepEqual([...res.body],[1,2,3]);assert.equal(calls.some(url=>url.pathname.startsWith('/r/')),false);
+});
+test('a missing replay is not retried through a public or alternate download route',async t=>{
+  let upstreamCalls=0;
+  mockFetch(t,async(url)=>{
+    if(new URL(url).hostname.endsWith('.supabase.co'))return Response.json({id:'owner',aud:'authenticated',app_metadata:{},user_metadata:{}});
+    upstreamCalls++;assert.equal(new URL(url).pathname,'/api/me/bulk-replays');return Response.json({files:[],missing:['pov-fixture']});
+  });
+  const res=response();await downloadHandler({method:'POST',headers:{authorization:'Bearer fixture.jwt.token','content-type':'application/json'},body:{token:'fixture-duels',id:'pov-fixture'}},res);
+  assert.equal(res.statusCode,404);assert.equal(upstreamCalls,1);
 });
 test('history uses a 250-row page and preserves opaque cursors',async t=>{
   mockFetch(t,async(url,options)=>{

@@ -29,7 +29,7 @@ export default async function handler(req, res) {
       if(!Number.isFinite(remoteExpiry)||remoteExpiry<=Date.now())throw new HttpError(401,'Le jeton Duels.ink a expiré.','DUELS_RECONNECT');
       expiresAt=new Date(Math.min(remoteExpiry,expiresAt?Date.parse(expiresAt):Infinity)).toISOString();
     }
-    const {data,error}=await client.from('duelink_connections').upsert({user_id:user.id,provider:'duelink',encrypted_token:encryptToken(token,user.id),token_hint:tokenHint(token),expires_at:expiresAt,duels_user_id:duelsUserId,auth_method:profile.token?.clientId?'oauth':'personal_token',scopes:Array.isArray(scopes)?scopes:null,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'}).select('token_hint,expires_at,last_sync_at,created_at,updated_at,duels_user_id,auth_method,scopes').single();
+    const {data,error}=await client.from('duelink_connections').upsert({user_id:user.id,provider:'duelink',encrypted_token:encryptToken(token,user.id),token_hint:tokenHint(token),expires_at:expiresAt,last_sync_at:null,results_sync_version:0,duels_user_id:duelsUserId,auth_method:profile.token?.clientId?'oauth':'personal_token',scopes:Array.isArray(scopes)?scopes:null,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'}).select('token_hint,expires_at,last_sync_at,created_at,updated_at,duels_user_id,auth_method,scopes').single();
     if(error)throw error;return json(res,200,{success:true,connected:true,connection:data});
   }catch(error){return jsonError(res,error);}
 }
