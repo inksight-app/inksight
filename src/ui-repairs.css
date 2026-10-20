@@ -297,3 +297,26 @@
 .lab-change-pill{font-size:10px;padding:4px 6px}
 }
 @media(prefers-reduced-motion:reduce){.lab-card-slot{animation:none}}
+
+/* Visual audit v2: stage, readable action narrative, responsive card focus */
+.lab-game-surface .lab-replay-zone{overflow:hidden;isolation:isolate}
+.lab-game-surface .lab-replay-zone:after{content:"";position:absolute;inset:0;z-index:-1;opacity:.33;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0,transparent 63px,#ffffff09 64px,transparent 65px),radial-gradient(ellipse at center,#ffffff10,transparent 70%)}
+.lab-zone-corner{position:absolute;left:12px;top:9px;font-size:9px;letter-spacing:.14em;font-weight:750;color:#d7e5f1a3;pointer-events:none}
+.lab-game-surface .lab-board-cards{padding-top:15px;gap:11px 9px}
+.lab-card-focus .lab-card{outline:2px solid #f4d17d;outline-offset:3px;box-shadow:0 0 0 5px #edc66d24,0 0 22px #e7b95a50}
+.lab-card-attacker .lab-card{outline-color:#f7bb72}
+.lab-card-defender .lab-card{outline-color:#f08b88;box-shadow:0 0 0 5px #e766692a,0 0 22px #e66c7755}
+.lab-event-detail{font-size:12px;color:#c5d0dd;line-height:1.4;max-width:560px}
+.lab-event-description{flex:1}
+.lab-event-strip{min-height:68px}
+.lab-replay-theater .lab-playback{border:1px solid #ffffff12;border-radius:12px;background:#171d28}
+.lab-replay-theater .lab-playback-buttons{display:flex;justify-content:space-evenly}
+.lab-replay-theater .lab-playback-buttons button{width:56px;display:grid;place-items:center}
+@media(max-width:650px){
+.lab-game-surface .lab-board-cards{gap:8px 5px;padding-top:12px}
+.lab-zone-corner{font-size:8px;top:6px;left:8px}
+.lab-event-strip{align-items:flex-start;flex-direction:column;gap:6px}
+.lab-event-changes{justify-content:flex-start}
+.lab-event-detail{font-size:11px}
+.lab-replay-theater .lab-playback-buttons button{width:48px}
+}
