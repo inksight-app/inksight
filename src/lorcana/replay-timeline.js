@@ -1,19 +1,42 @@
 import { applyReplayPatch, validateReplayJson } from '../security/replay.js';
 
-// Phase 1: evidence-only replay states. No card identity inference or strategic scores.
+// Evidence-only reconstruction from Duels' perspective-limited snapshots.
+// Deliberately excludes opponent hand, private deck order and speculative identities.
 const clone = value => JSON.parse(JSON.stringify(value));
-const visible = (zone, key) => {
+const finite = value => typeof value === 'number' && Number.isFinite(value) ? value : null;
+const count = value => Array.isArray(value) ? value.length : null;
+const card = value => ({
+  id: typeof value?.id === 'string' ? value.id : null,
+  instanceId: typeof value?.instanceId === 'string' ? value.instanceId : null,
+  name: typeof value?.fullName === 'string' ? value.fullName : typeof value?.name === 'string' ? value.name : 'Carte non identifiée',
+  cost: finite(value?.cost),
+  lore: finite(value?.lore),
+  strength: finite(value?.strength),
+  willpower: finite(value?.willpower),
+  damage: finite(value?.damage),
+  exerted: value?.exerted === true,
+  type: typeof value?.type === 'string' ? value.type : null
+});
+const cards = zone => Array.isArray(zone) ? zone.map(card) : null;
+const visible = (zone, own) => {
   const p = zone || {};
-  return {
-    lore: Number.isFinite(p.lore) ? p.lore : null,
-    handCount: Array.isArray(p.hand) ? p.hand.length : Number.isInteger(p.handCount) ? p.handCount : null,
-    fieldCount: Array.isArray(p.field) ? p.field.length : null,
-    inkwellCount: Array.isArray(p.inkwell) ? p.inkwell.length : null,
-    inkDrops: Number.isFinite(p.inkDrops) ? p.inkDrops : null,
-    // Preserve only IDs actually present in the viewer's snapshot.
-    fieldInstanceIds: Array.isArray(p.field) ? p.field.map(c => c?.instanceId ?? null) : null
+  const ink = Array.isArray(p.inkwell) ? p.inkwell : null;
+  const data = {
+    lore: finite(p.lore),
+    handCount: count(p.hand) ?? (Number.isInteger(p.handCount) ? p.handCount : null),
+    fieldCount: count(p.field),
+    inkwellCount: count(ink),
+    readyInkCount: ink ? ink.filter(entry => entry?.exerted === false).length : null,
+    inkDrops: finite(p.inkDrops),
+    deckCount: finite(p.deckCount),
+    field: cards(p.field),
+    items: cards(p.items),
+    discard: cards(p.discard)
   };
+  if(own) data.hand = cards(p.hand);
+  return data;
 };
+const ACTIONS = new Set(['ADD_TO_INK','PLAY_CARD','QUEST','CHALLENGE','ATTACK','END_TURN','MOVE_TO_LOCATION','ACTIVATE_ABILITY','RESPOND_TO_PROMPT','BOOST']);
 export function reconstructReplayTimeline(replay) {
   validateReplayJson(replay);
   const snapshot = clone(replay.baseSnapshot);
@@ -21,20 +44,27 @@ export function reconstructReplayTimeline(replay) {
   if (![1, 2].includes(perspective)) throw new Error('Perspective du replay invalide.');
   const frames = replay.frames.map((frame, index) => ({ frame, index }))
     .sort((a, b) => Number(a.frame.seq ?? a.index) - Number(b.frame.seq ?? b.index) || a.index - b.index);
-  const undoneSeqs = new Set(frames.filter(({frame}) => /^FREE_UNDO:\\d+$/.test(frame.actionType || '')).map(({frame}) => Number(frame.actionType.split(':')[1])));
+  const undoneSeqs = new Set(frames
+    .filter(({frame}) => /^FREE_UNDO:\d+$/.test(frame.actionType || ''))
+    .map(({frame}) => Number(frame.actionType.split(':')[1])));
   const state = (kind, frame = null) => ({
-    kind, seq: frame?.seq ?? null, actionType: frame?.actionType ?? null,
-    undone: frame ? undoneSeqs.has(Number(frame.seq)) : false,
+    kind,
+    seq: frame?.seq ?? null,
+    actionType: frame?.actionType ?? null,
+    actor: Number(frame?.player) === perspective ? 'mine' : [1, 2].includes(Number(frame?.player)) ? 'opponent' : null,
+    isDecision: ACTIONS.has(frame?.actionType),
+    undone: frame !== null && undoneSeqs.has(Number(frame.seq)),
+    isUndo: !!frame && /^FREE_UNDO:\d+$/.test(frame.actionType || ''),
     turnNumber: Number.isInteger(snapshot.turnNumber) ? snapshot.turnNumber : null,
     currentPlayer: [1, 2].includes(Number(snapshot.currentPlayer)) ? Number(snapshot.currentPlayer) : null,
-    mine: visible(snapshot.myPlayer),
-    opponent: visible(snapshot.opponent),
-    // A snapshot is evidence from the replay POV, not a full-information game state.
+    status: typeof snapshot.status === 'string' ? snapshot.status : null,
+    mine: visible(snapshot.myPlayer, true),
+    opponent: visible(snapshot.opponent, false),
     evidence: 'replay-pov',
-    ...(frame ? { patchCount: frame.patch.length } : {})
+    ...(frame ? {patchCount: frame.patch.length} : {})
   });
   const steps = [state('initial')];
-  for (const { frame } of frames) {
+  for (const {frame} of frames) {
     for (const patch of frame.patch) applyReplayPatch(snapshot, patch);
     steps.push(state('frame', frame));
   }
