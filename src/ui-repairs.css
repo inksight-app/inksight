@@ -207,3 +207,22 @@
 .lab-analysis-drawer summary{cursor:pointer;font-weight:650;font-size:14px}
 .lab-analysis-drawer p,.lab-analysis-drawer li,.lab-analysis-drawer small{font-size:12px;line-height:1.6;color:var(--text-muted,#b0b2b8)}
 @media(max-width:650px){.lab-panel{padding:10px}.lab-replay-zone{min-height:115px}.lab-board-cards{min-height:82px}.lab-card{width:clamp(45px,12vw,67px)}.lab-card-exerted{margin-inline:10px}.lab-playerbar{padding:8px 10px}}
+
+/* Replay v0.3: reserve layout space for tapped cards and animate only the inner art */
+.lab-card-slot{position:relative;display:inline-flex;flex:0 0 auto;width:clamp(51px,11vw,91px);height:clamp(72px,15.4vw,127px);align-items:center;justify-content:center;transition:transform .18s ease}
+.lab-card-slot.lab-slot-exerted{width:clamp(76px,16vw,133px);height:clamp(72px,15.4vw,127px)}
+.lab-card-slot .lab-card{width:100%;height:100%;transition:transform .24s cubic-bezier(.2,.7,.2,1),box-shadow .2s ease}
+.lab-card-slot.lab-slot-exerted .lab-card{width:clamp(51px,11vw,91px);height:clamp(72px,15.4vw,127px);position:absolute;inset:auto;transform:rotate(90deg);margin:0}
+.lab-card-slot .lab-card img{object-fit:fill}
+.lab-board-cards{gap:10px;align-items:center}
+.lab-hand-cards .lab-card-slot{width:clamp(58px,15vw,95px);height:auto;aspect-ratio:.715}
+.lab-replay-shell .lab-replay-zone{transition:background .2s ease}
+.lab-playback-buttons button{display:inline-flex;align-items:center;justify-content:center}
+.lab-card-slot:hover .lab-card{box-shadow:0 5px 18px #0008}
+@media(max-width:650px){
+.lab-card-slot{width:clamp(45px,12vw,67px);height:clamp(63px,16.8vw,94px)}
+.lab-card-slot.lab-slot-exerted{width:clamp(67px,17.8vw,98px);height:clamp(63px,16.8vw,94px)}
+.lab-card-slot.lab-slot-exerted .lab-card{width:clamp(45px,12vw,67px);height:clamp(63px,16.8vw,94px)}
+.lab-board-cards{gap:7px}
+}
+@media(prefers-reduced-motion:reduce){.lab-card-slot,.lab-card-slot .lab-card,.lab-replay-shell .lab-replay-zone{transition:none}}
