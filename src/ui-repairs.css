@@ -226,3 +226,38 @@
 .lab-board-cards{gap:7px}
 }
 @media(prefers-reduced-motion:reduce){.lab-card-slot,.lab-card-slot .lab-card,.lab-replay-shell .lab-replay-zone{transition:none}}
+
+/* Replay theater: card-focused visual hierarchy inspired by tabletop simulators */
+.lab-replay-theater{max-width:1200px;gap:10px}
+.lab-theater-header{display:flex;align-items:end;justify-content:space-between;gap:12px;padding:4px 2px 2px}
+.lab-theater-header>div{display:flex;flex-direction:column;gap:2px}
+.lab-theater-kicker{font-size:10px;letter-spacing:.16em;color:#9aa5b5;font-weight:700}
+.lab-theater-header strong{font-size:19px;letter-spacing:-.03em}
+.lab-theater-counter{font-size:12px;font-variant-numeric:tabular-nums;color:#aeb8c6}
+.lab-game-surface{display:flex;flex-direction:column;gap:3px;border:1px solid #ffffff19;border-radius:16px;overflow:hidden;background:#101923;padding:5px}
+.lab-game-surface .lab-playerbar{border-radius:8px;background:#182434;padding:7px 10px;gap:7px}
+.lab-game-surface .lab-playerbar small{width:auto;margin-right:auto;order:2}
+.lab-game-surface .lab-playerbar span{order:3;font-size:16px}
+.lab-game-surface .lab-replay-zone{border-radius:8px;min-height:140px;display:flex;align-items:center;padding:12px;background:linear-gradient(160deg,#263e59,#1b3047)}
+.lab-game-surface .lab-replay-mine{background:linear-gradient(155deg,#45423b,#302f2d)}
+.lab-game-surface .lab-board-cards{min-height:112px;width:100%;justify-content:center;align-content:center;gap:8px}
+.lab-game-surface .lab-hand-row{padding:7px 8px 1px}
+.lab-game-surface .lab-hand-cards{justify-content:center}
+.lab-replay-theater .lab-playback{padding:9px 12px;gap:5px}
+.lab-replay-theater .lab-playback-buttons button{background:transparent;border:0;min-height:38px;border-radius:8px}
+.lab-replay-theater .lab-playback-buttons button:hover{background:#ffffff14}
+.lab-replay-theater .lab-analysis-drawer{padding:10px 12px}
+@media(min-width:850px){.lab-game-surface .lab-replay-zone{min-height:175px}.lab-game-surface .lab-board-cards{min-height:148px}}
+@media(max-width:650px){
+.lab-replay-theater{gap:7px}
+.lab-theater-header strong{font-size:16px}
+.lab-game-surface .lab-replay-zone{min-height:104px;padding:7px}
+.lab-game-surface .lab-board-cards{min-height:92px;justify-content:flex-start;gap:5px}
+.lab-game-surface .lab-playerbar{padding:6px 8px}
+.lab-game-surface .lab-playerbar strong{font-size:12px}
+.lab-game-surface .lab-playerbar span{font-size:14px}
+.lab-game-surface .lab-playerbar small{font-size:10px}
+.lab-game-surface .lab-hand-row{padding:5px 4px 0}
+.lab-game-surface .lab-hand-cards{justify-content:flex-start}
+.lab-replay-theater .lab-playback{padding:8px 10px}
+}
