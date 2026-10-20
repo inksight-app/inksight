@@ -118,7 +118,7 @@ function pickGameId(row) {
 
 function pickOpponent(row) {
   return firstValue(row, [
-    'opponentName','opponent_name','opponent.name','opponent.username','opponent.displayName','opponent.display_name',
+    'opp_display_name','opponentName','opponent_name','opponent.name','opponent.username','opponent.displayName','opponent.display_name',
     'opponentPlayer.name','opponentPlayer.username','opponentPlayer.displayName','opponent_player.name',
     'enemy.name','enemy.username','otherPlayer.name','other_player.name','game.opponent.name','game.opponentName'
   ]) || deepFind(row, (key) => /opponent|enemy|other/i.test(key) && /name|user|display/i.test(key));
@@ -138,7 +138,7 @@ function pickQueue(row) {
 function pickDecklist(row, side) {
   const prefixes = side === 'opponent'
     ? ['opponentDecklist','opponent_decklist','opponent.decklist','opponent.deck_list','opponent.cards','enemyDecklist','enemy_decklist','enemy.decklist']
-    : ['myDecklist','my_decklist','playerDecklist','player_decklist','decklist','deck_list','player.decklist','player.deck_list','me.decklist'];
+    : ['your_decklist','myDecklist','my_decklist','playerDecklist','player_decklist','decklist','deck_list','player.decklist','player.deck_list','me.decklist'];
   for (const path of prefixes) {
     const value = getByPath(row, path);
     if (Array.isArray(value)) return value;

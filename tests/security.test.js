@@ -86,6 +86,17 @@ test('history uses a 250-row page and preserves opaque cursors',async t=>{
   const res=response();await historyHandler({method:'POST',headers:{authorization:'Bearer test.jwt.token','content-type':'application/json'},body:{token:'duels-token',limit:1000,cursor:'opaque|cursor + suffix'}},res);
   assert.equal(res.statusCode,200);assert.equal(JSON.parse(res.body).next_cursor,'still-more');
 });
+test('current official history fields supply the personal decklist and opponent name without leaking an opponent list',async t=>{
+  const deck=[{cardId:'14-1',count:4},{cardId:'13-2',count:2}];
+  mockFetch(t,async(url)=>{
+    if(new URL(url).hostname.endsWith('.supabase.co'))return Response.json({id:'owner',aud:'authenticated',app_metadata:{},user_metadata:{}});
+    return Response.json({games:[{game_id:'fixture-game',replay_id:'fixture-replay',mode:'matchmaking',queue_id:'core-bo3',match_format:'bo3',match_id:'fixture-series',match_game_number:2,ranked:true,started_at:'2026-10-19T10:00:00Z',result:'draw',your_decklist:deck,opp_display_name:'Synthetic opponent',opp_decklist:[{cardId:'must-not-leak',count:4}]}]});
+  });
+  const res=response();await historyHandler({method:'POST',headers:{authorization:'Bearer fixture.jwt.token','content-type':'application/json'},body:{token:'fixture-duels-token',limit:5}},res);
+  assert.equal(res.statusCode,200);const game=JSON.parse(res.body).games[0];
+  assert.deepEqual(game.myDecklist,deck);assert.equal(game.opponent,'Synthetic opponent');assert.equal(game.result,'draw');assert.equal(game.format,'BO3');assert.equal(game.apiRow.match_id,'fixture-series');
+  assert.equal(res.body.includes('must-not-leak'),false);assert.equal(game.opponentDecklist,null);
+});
 test('stored tokens use the stable profile id, provider expiry and read-only scopes',async t=>{
   const old=process.env.DUELINK_TOKEN_SECRET;process.env.DUELINK_TOKEN_SECRET='test-only-encryption-secret-long-enough';t.after(()=>{if(old===undefined)delete process.env.DUELINK_TOKEN_SECRET;else process.env.DUELINK_TOKEN_SECRET=old;});
   const expiry=new Date(Date.now()+86400000).toISOString();let stored;

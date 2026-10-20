@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_ERAS, DEFAULT_STAT_SCOPE, classifyGameContext, contextFields, rowMatchesScope, resultSummary, eraCatalog, coherentDeckList, scopeEraStart } from '../src/lorcana/seasons.js';
+import { DEFAULT_ERAS, DEFAULT_STAT_SCOPE, classifyGameContext, contextFields, rowMatchesScope, resultSummary, eraCatalog, coherentDeckList, deckListIdentity, scopeEraStart } from '../src/lorcana/seasons.js';
 
 const game=(id,overrides={})=>({id,duelink_match_id:id,format:'BO1',api_metadata:{api_row:{raw:{queue_id:'core-bo1',queue_name:'Core Set 14 BO1',ranked:true,mode:'matchmaking',season_name:'Core BO1 - Set 14',started_at:'2026-10-19T10:00:00Z',result:'win',match_format:'bo1',...overrides}}}});
 
@@ -60,4 +60,13 @@ test('card and mulligan cohorts require the same recorded decklist, even within 
   assert.equal(coherentDeckList([{context_deck_hash:'a'},{api_metadata:{my_deck_hash:'a'}}]),true);
   assert.equal(coherentDeckList([{context_deck_hash:'a'},{}]),false);
   assert.equal(coherentDeckList([]),false);
+});
+test('legacy native lists recover exact cohorts without relying on missing historical hashes',()=>{
+  const list=[{cardId:'14-1',count:4},{cardId:'13-2',count:2}];
+  const reversed=[{cardId:'13-2',count:2},{cardId:'14-1',count:2},{cardId:'14-1',count:2}];
+  assert.equal(deckListIdentity(list),deckListIdentity(reversed));
+  assert.equal(coherentDeckList([{context_deck_list:list},{api_metadata:{my_deck_hash:null,api_row:{raw:{your_decklist:reversed}}}}]),true);
+  assert.equal(coherentDeckList([{my_decklist:list},{my_decklist:[{cardId:'14-1',count:3},{cardId:'13-2',count:2}]}]),false);
+  assert.equal(deckListIdentity([{cardId:'14-1',count:-1}]),null);
+  assert.equal(coherentDeckList([{my_decklist:[{cardId:'14-1',count:1.5}],context_deck_hash:'same'},{context_deck_hash:'same'}]),false);
 });

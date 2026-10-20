@@ -41,6 +41,8 @@ function sanitizeDuelinkStoredData(value, seen = new WeakSet()) {
 function sanitizeSavedMatchRow(row) {
   if (!row || typeof row !== 'object') return row;
   const clean = sanitizeDuelinkStoredData(row);
+  if(Array.isArray(clean.context_deck_list))clean.my_decklist=clean.context_deck_list;
+  delete clean.context_deck_list;
   delete clean.opponent_decklist;
   return clean;
 }

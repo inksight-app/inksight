@@ -123,7 +123,25 @@ export function scopeEraStart(scope=DEFAULT_STAT_SCOPE,eras=DEFAULT_ERAS){
   return eras.find(era=>era.chapter===chapter)?.startedAt || null;
 }
 
+export function deckListIdentity(list){
+  if(!Array.isArray(list) || !list.length || list.length>500)return null;
+  const counts=new Map();
+  for(const entry of list){
+    const id=String(entry?.cardId || entry?.card_id || entry?.id || '').trim();
+    const count=Number(entry?.count ?? entry?.quantity ?? entry?.qty ?? entry?.copies ?? 1);
+    if(!id || id.length>200 || !Number.isSafeInteger(count) || count<1 || count>999)return null;
+    counts.set(id,(counts.get(id)||0)+count);
+  }
+  // Exact recorded list, including counts; no collision-prone short hash.
+  return 'list-v1:'+JSON.stringify([...counts].sort(([a],[b])=>a<b?-1:a>b?1:0));
+}
+
 export function coherentDeckList(rows=[]){
-  const hashes=rows.map(row=>row.context_deck_hash || row.api_metadata?.my_deck_hash || row.analysis_json?.api_metadata?.my_deck_hash || null);
+  const hashes=rows.map(row=>{
+    const metadata=row.api_metadata || row.analysis_json?.api_metadata;
+    const list=row.context_deck_list || row.my_decklist || metadata?.my_decklist || metadata?.api_row?.raw?.your_decklist;
+    if(list!=null)return deckListIdentity(list);
+    return row.context_deck_hash || metadata?.my_deck_hash || null;
+  });
   return hashes.length>0 && hashes.every(hash=>typeof hash==='string' && hash.length>0 && hash===hashes[0]);
 }
