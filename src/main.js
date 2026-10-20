@@ -13063,16 +13063,26 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     state.labStep = Math.min(Math.max(0,state.labStep),timeline.steps.length-1);
     const step=timeline.steps[state.labStep], previous=timeline.steps[Math.max(0,state.labStep-1)];
     const fmt=v=>v==null?'—':String(v);
-    const cardTile=(card,hidden=false)=>{
+    const cardTile=(card,hidden=false,changed=false)=>{
       if(hidden) return '<span class="lab-card lab-card-back" aria-label="Carte adverse cachée">✦</span>';
       const src=labCardArt(card);
       const name=esc(card.name||'Carte inconnue');
-      return `<span class="lab-card-slot ${card.exerted?'lab-slot-exerted':''}"><span class="lab-card ${card.exerted?'lab-card-exerted':''}" title="${name}" aria-label="${name}">
+      return `<span class="lab-card-slot ${changed?'lab-card-changed':''} ${card.exerted?'lab-slot-exerted':''}"><span class="lab-card ${card.exerted?'lab-card-exerted':''}" title="${name}" aria-label="${name}">
         ${src?`<img loading="lazy" src="${esc(src)}" alt="${name}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="lab-card-fallback" hidden>${name}</span>`:`<span class="lab-card-fallback">${name}</span>`}
         ${card.damage>0?`<b class="lab-damage">−${esc(card.damage)}</b>`:''}</span></span>`;
     };
-    const board=(list,empty='Aucune carte')=>list?.length?list.map(card=>cardTile(card)).join(''):`<span class="lab-empty">${empty}</span>`;
+    const board=(list,empty='Aucune carte',changed=new Set())=>list?.length?list.map(card=>cardTile(card,false,changed.has(cardKey(card)))).join(''):`<span class="lab-empty">${empty}</span>`;
     const metric=(side,own)=>`<div class="lab-playerbar"><strong>${own?'Moi':'Adversaire'}</strong><span>✦ ${fmt(side.lore)} Lore</span><small>${fmt(side.readyInkCount)}/${fmt(side.inkwellCount)} encre · ${fmt(side.handCount)} en main · ${fmt(side.deckCount)} deck</small></div>`;
+    const cardKey = card => String(card?.instanceId || [card?.id,card?.name].join(':'));
+    const changedCards = side => {
+      const before=new Map([...(previous[side]?.field||[]),...(previous[side]?.items||[])].map(card=>[cardKey(card),String(card.damage)+'/'+String(card.exerted)]));
+      return new Set([...(step[side]?.field||[]),...(step[side]?.items||[])].filter(card=>!before.has(cardKey(card))||before.get(cardKey(card))!==String(card.damage)+'/'+String(card.exerted)).map(cardKey));
+    };
+    const changedMine=changedCards('mine'),changedOpponent=changedCards('opponent');
+    const currentChanges=['mine','opponent'].flatMap(side=>[['lore','Lore'],['inkwellCount','Encre'],['handCount','Main'],['fieldCount','Plateau']].flatMap(([key,label])=>{
+      const a=previous[side]?.[key],b=step[side]?.[key];
+      return typeof a==='number'&&typeof b==='number'&&a!==b?[{side,label,delta:b-a}]:[];
+    }));
     const turns=[...new Set(timeline.steps.map(s=>s.turnNumber).filter(Number.isInteger))];
     const actionNames={QUEST:'Quête',PLAY_CARD:'Carte jouée',ADD_TO_INK:'Encrage',ATTACK:'Défi',CHALLENGE:'Défi',END_TURN:'Fin de tour',ACTIVATE_ABILITY:'Capacité',RESPOND_TO_PROMPT:'Résolution',BOOST:'Boost',MULLIGAN:'Mulligan',GAME_FINISH:'Fin de partie'};
     const action=step.kind==='initial'?'Début de partie':(actionNames[step.actionType]||step.actionType||'Événement');
@@ -13085,13 +13095,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <div class="lab-game-surface">
         ${metric(step.opponent,false)}
         <div class="lab-replay-zone lab-replay-opponent" aria-label="Plateau adverse">
-          <div class="lab-board-cards">${board([...(step.opponent.field||[]),...(step.opponent.items||[])])}</div>
+          <div class="lab-board-cards">${board([...(step.opponent.field||[]),...(step.opponent.items||[])],'Aucune carte',changedOpponent)}</div>
         </div>
         <div class="lab-replay-zone lab-replay-mine" aria-label="Mon plateau">
-          <div class="lab-board-cards">${board([...(step.mine.field||[]),...(step.mine.items||[])])}</div>
+          <div class="lab-board-cards">${board([...(step.mine.field||[]),...(step.mine.items||[])],'Aucune carte',changedMine)}</div>
         </div>
         ${metric(step.mine,true)}
         <div class="lab-hand-row"><span class="lab-zone-label">Ma main · ${fmt(step.mine.handCount)}</span><div class="lab-hand-cards">${board(step.mine.hand,'Main non visible')}</div></div>
+      </div>
+      <div class="lab-event-strip" aria-live="polite">
+        <div class="lab-event-description"><span class="lab-event-eyebrow">${step.actor==='mine'?'MON ACTION':step.actor==='opponent'?'ACTION ADVERSE':'ÉVÉNEMENT'}</span><strong>${esc(action)}</strong></div>
+        <div class="lab-event-changes">${currentChanges.length?currentChanges.slice(0,3).map(change=>`<span class="lab-change-pill ${change.delta>0?'lab-positive':'lab-negative'}">${change.side==='mine'?'Moi':'Adv.'} ${esc(change.label)} ${change.delta>0?'+':''}${change.delta}</span>`).join(''):'<span class="lab-change-neutral">Aucun compteur modifié</span>'}</div>
       </div>
       <div class="lab-playback">
         <div class="lab-playback-heading"><strong>${esc(action)}</strong><span>${state.labStep} / ${timeline.frameCount}</span></div>
