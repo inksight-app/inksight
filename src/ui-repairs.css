@@ -261,3 +261,39 @@
 .lab-game-surface .lab-hand-cards{justify-content:flex-start}
 .lab-replay-theater .lab-playback{padding:8px 10px}
 }
+
+/* Replay v0.5: deliberate center stage and action comprehension */
+.lab-replay-theater{width:100%;max-width:1120px;margin-inline:auto}
+.lab-game-surface{position:relative;isolation:isolate;background:linear-gradient(170deg,#152336,#101925 48%,#1d1f24);box-shadow:inset 0 1px 0 #ffffff12,0 12px 38px #0002}
+.lab-game-surface:before{content:"";position:absolute;z-index:-1;left:4%;right:4%;top:50%;height:1px;background:linear-gradient(90deg,transparent,#ffffff2c,transparent)}
+.lab-game-surface .lab-replay-zone{position:relative;justify-content:center;min-height:150px}
+.lab-game-surface .lab-board-cards{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;align-items:center;gap:12px 9px;max-width:920px;margin:auto}
+.lab-game-surface .lab-replay-opponent{background:radial-gradient(ellipse at 50% 25%,#395879 0%,#263e58 62%,#1d3046 100%)}
+.lab-game-surface .lab-replay-mine{background:radial-gradient(ellipse at 50% 70%,#5b5346 0%,#403c35 65%,#34322f 100%)}
+.lab-game-surface .lab-hand-cards{justify-content:center;gap:3px}
+.lab-game-surface .lab-hand-row{background:#111925;border-radius:8px}
+.lab-game-surface .lab-playerbar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:10px}
+.lab-game-surface .lab-playerbar strong{grid-column:1;grid-row:1}
+.lab-game-surface .lab-playerbar small{grid-column:2;grid-row:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lab-game-surface .lab-playerbar span{grid-column:3;grid-row:1;margin:0}
+.lab-event-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border:1px solid #ffffff19;border-radius:12px;background:linear-gradient(110deg,#192637,#161b25)}
+.lab-event-description{display:flex;flex-direction:column;gap:3px;min-width:0}
+.lab-event-eyebrow{font-size:9px;font-weight:750;letter-spacing:.15em;color:#93a5bc}
+.lab-event-description strong{font-size:15px;line-height:1.3}
+.lab-event-changes{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}
+.lab-change-pill{font-size:11px;font-weight:750;border-radius:7px;padding:5px 7px;background:#ffffff12;white-space:nowrap}
+.lab-positive{color:#9bd6b0;background:#24463880}.lab-negative{color:#ffb0a6;background:#572c3180}
+.lab-change-neutral{font-size:11px;color:#8f9ba9}
+.lab-card-changed .lab-card{outline:2px solid #f3d27b;outline-offset:2px;box-shadow:0 0 16px #edbf5266}
+.lab-card-slot{animation:lab-arrive .22s ease-out both}
+@keyframes lab-arrive{from{opacity:.65;filter:brightness(.75)}to{opacity:1;filter:brightness(1)}}
+@media(max-width:650px){
+.lab-game-surface .lab-replay-zone{min-height:112px;padding:9px 5px}
+.lab-game-surface .lab-board-cards{justify-content:center;gap:9px 6px;min-height:92px}
+.lab-game-surface .lab-playerbar{column-gap:5px}
+.lab-game-surface .lab-playerbar small{font-size:10px}
+.lab-event-strip{padding:8px 10px;gap:8px}
+.lab-event-description strong{font-size:13px}
+.lab-change-pill{font-size:10px;padding:4px 6px}
+}
+@media(prefers-reduced-motion:reduce){.lab-card-slot{animation:none}}
