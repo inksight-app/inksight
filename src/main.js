@@ -189,6 +189,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.labStep = Math.max(0, Math.min(steps.length - 1, next));
       renderLab();
     });
+    els.labContent?.addEventListener('input', event => { if(event.target?.id === 'labScrubber'){ state.labStep = Number(event.target.value); renderLab(); } });
     els.labContent?.addEventListener('change', event => {
       if(event.target?.id !== 'labTurnSelect') return;
       const steps = currentLabTimeline()?.steps || [];
@@ -13043,50 +13044,69 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return timeline;
   }
 
+  // Reuses Inksight's existing card CDN and hydration utilities.
+  function labCardArt(card){
+    const id = String(card?.id || '').trim();
+    return /^\\d+-\\d+[a-z]?$/i.test(id) ? cardImageUrlFromId(id) : '';
+  }
   function renderLab(){
     if(!els.labContent) return;
     let timeline;
-    try{ timeline = currentLabTimeline(); }
-    catch(error){
-      els.labContent.textContent = 'Reconstruction impossible : ' + (error?.message || 'replay invalide');
-      return;
-    }
+    try { timeline = currentLabTimeline(); }
+    catch(error){ els.labContent.textContent = 'Reconstruction impossible : ' + (error?.message || 'replay invalide'); return; }
     if(!timeline){
-      els.labContent.innerHTML = '<p class="lab-note">Ouvre une Game spécifique avec son replay brut (.replay.gz). Les analyses sauvegardées ne contiennent pas toujours les snapshots nécessaires ; dans ce cas, réimporte le replay.</p>';
+      els.labContent.innerHTML = '<p class="lab-note">Sélectionne une partie et importe son replay brut pour afficher le plateau.</p>';
       return;
     }
-    state.labStep = Math.min(Math.max(0, state.labStep), timeline.steps.length - 1);
-    const step = timeline.steps[state.labStep];
-    const fmt = value => value === null || value === undefined ? '—' : String(value);
-    const turnOptions = [...new Set(timeline.steps.map(item => item.turnNumber).filter(Number.isInteger))]
-      .map(turn => `<option value="${turn}" ${turn === step.turnNumber ? 'selected' : ''}>Tour ${turn}</option>`).join('');
-    const actionNames = {QUEST:'Quête',PLAY_CARD:'Carte jouée',ADD_TO_INK:'Carte encrée',ATTACK:'Défi',CHALLENGE:'Défi',END_TURN:'Fin du tour',ACTIVATE_ABILITY:'Capacité',RESPOND_TO_PROMPT:'Choix / résolution',BOOST:'Boost',MULLIGAN:'Mulligan',GAME_FINISH:'Fin de partie'};
-    const action = step.kind === 'initial' ? 'État initial' : (actionNames[step.actionType] || step.actionType || 'Événement');
-    const renderCards = list => list === null ? '<p class="lab-note">Zone non documentée</p>' : !list.length ? '<p class="lab-note">Aucune carte visible</p>' :
-      `<ul class="lab-cards">${list.map(card => `<li><strong>${esc(card.name)}</strong><span>${card.cost === null ? '' : esc(card.cost) + ' encre · '}${card.exerted ? 'Inclinée' : 'Redressée'}${card.damage ? ' · ' + esc(card.damage) + ' dégât(s)' : ''}</span></li>`).join('')}</ul>`;
-    const side = (name, data, own) => `<section class="lab-side"><h3>${name}</h3><div class="lab-metrics">
-      <span><strong>${fmt(data.lore)}</strong><small>Lore</small></span>
-      <span><strong>${fmt(data.handCount)}</strong><small>Main</small></span>
-      <span><strong>${fmt(data.inkwellCount)}</strong><small>Encre</small></span>
-      <span><strong>${fmt(data.readyInkCount)}</strong><small>Disponible</small></span>
-      <span><strong>${fmt(data.inkDrops)}</strong><small>Inkdrops</small></span>
-      <span><strong>${fmt(data.deckCount)}</strong><small>Deck</small></span>
-      </div><h4>Personnages (${fmt(data.fieldCount)})</h4>${renderCards(data.field)}
-      <h4>Objets</h4>${renderCards(data.items)}
-      ${own ? '<h4>Ma main (vue du replay)</h4>' + renderCards(data.hand) : '<p class="lab-note">Main adverse : identités masquées.</p>'}
-      </section>`;
-    els.labContent.innerHTML = `
-      <div class="lab-toolbar"><label for="labTurnSelect">Aller au tour</label><select id="labTurnSelect" class="sort-select">${turnOptions}</select>
-      <span class="lab-counter">Étape ${state.labStep + 1} / ${timeline.steps.length}</span></div>
-      <div class="lab-nav"><button type="button" class="ghost-button compact" data-lab-step="first" ${!state.labStep ? 'disabled' : ''}>Début</button>
-      <button type="button" class="ghost-button compact" data-lab-step="prev" ${!state.labStep ? 'disabled' : ''}>← Précédent</button>
-      <button type="button" class="primary-button compact" data-lab-step="next" ${state.labStep === timeline.steps.length - 1 ? 'disabled' : ''}>Suivant →</button>
-      <button type="button" class="ghost-button compact" data-lab-step="last" ${state.labStep === timeline.steps.length - 1 ? 'disabled' : ''}>Fin</button></div>
-      <div class="lab-event"><strong>${esc(action)}</strong><span>Tour ${fmt(step.turnNumber)} · ${step.actor === 'mine' ? 'Moi' : step.actor === 'opponent' ? 'Adversaire' : 'Système'} · séquence ${fmt(step.seq)}</span>
-      ${step.undone ? '<p>Action annulée ultérieurement : ne pas l’évaluer comme décision finale.</p>' : ''}
-      ${step.isUndo ? '<p>Annulation enregistrée : l’état a été restauré par le replay.</p>' : ''}
-      </div><div class="lab-sides">${side('Moi', step.mine, true)}${side('Adversaire', step.opponent, false)}</div>
-      <p class="lab-note">Données observées depuis la perspective du replay. Les effets et actions ne sont pas encore évalués par un moteur de règles.</p>`;
+    state.labStep = Math.min(Math.max(0,state.labStep),timeline.steps.length-1);
+    const step=timeline.steps[state.labStep], previous=timeline.steps[Math.max(0,state.labStep-1)];
+    const fmt=v=>v==null?'—':String(v);
+    const cardTile=(card,hidden=false)=>{
+      if(hidden) return '<span class="lab-card lab-card-back" aria-label="Carte adverse cachée">✦</span>';
+      const src=labCardArt(card);
+      const name=esc(card.name||'Carte inconnue');
+      return `<span class="lab-card ${card.exerted?'lab-card-exerted':''}" title="${name}" aria-label="${name}">
+        ${src?`<img loading="lazy" src="${esc(src)}" alt="${name}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="lab-card-fallback" hidden>${name}</span>`:`<span class="lab-card-fallback">${name}</span>`}
+        ${card.damage>0?`<b class="lab-damage">−${esc(card.damage)}</b>`:''}</span>`;
+    };
+    const board=(list,empty='Aucune carte')=>list?.length?list.map(card=>cardTile(card)).join(''):`<span class="lab-empty">${empty}</span>`;
+    const metric=(side,own)=>`<div class="lab-playerbar"><strong>${own?'Moi':'Adversaire'}</strong><span>✦ ${fmt(side.lore)} Lore</span><small>${fmt(side.readyInkCount)}/${fmt(side.inkwellCount)} encre · ${fmt(side.handCount)} en main · ${fmt(side.deckCount)} deck</small></div>`;
+    const turns=[...new Set(timeline.steps.map(s=>s.turnNumber).filter(Number.isInteger))];
+    const actionNames={QUEST:'Quête',PLAY_CARD:'Carte jouée',ADD_TO_INK:'Encrage',ATTACK:'Défi',CHALLENGE:'Défi',END_TURN:'Fin de tour',ACTIVATE_ABILITY:'Capacité',RESPOND_TO_PROMPT:'Résolution',BOOST:'Boost',MULLIGAN:'Mulligan',GAME_FINISH:'Fin de partie'};
+    const action=step.kind==='initial'?'Début de partie':(actionNames[step.actionType]||step.actionType||'Événement');
+    const diffs=['mine','opponent'].flatMap(side=>['lore','handCount','inkwellCount','fieldCount'].flatMap(key=>{
+      const a=previous[side]?.[key],b=step[side]?.[key];
+      return a!=null&&b!=null&&a!==b?[`${side==='mine'?'Moi':'Adversaire'} · ${{lore:'Lore',handCount:'Main',inkwellCount:'Encre',fieldCount:'Plateau'}[key]} : ${b>a?'+':''}${b-a}`]:[];
+    }));
+    els.labContent.innerHTML=`<div class="lab-replay-shell">
+      ${metric(step.opponent,false)}
+      <div class="lab-replay-zone lab-replay-opponent">
+        <div class="lab-zone-label">Plateau adverse</div>
+        <div class="lab-board-cards">${board([...(step.opponent.field||[]),...(step.opponent.items||[])])}</div>
+      </div>
+      <div class="lab-replay-zone lab-replay-mine">
+        <div class="lab-zone-label">Mon plateau</div>
+        <div class="lab-board-cards">${board([...(step.mine.field||[]),...(step.mine.items||[])])}</div>
+      </div>
+      ${metric(step.mine,true)}
+      <div class="lab-hand-row"><span class="lab-zone-label">Ma main · ${fmt(step.mine.handCount)}</span><div class="lab-hand-cards">${board(step.mine.hand,'Main non visible')}</div></div>
+      <div class="lab-playback">
+        <div class="lab-playback-heading"><strong>Tour ${fmt(step.turnNumber)}</strong><span>Action ${state.labStep}/${timeline.frameCount}</span></div>
+        <input class="lab-scrubber" id="labScrubber" aria-label="Position dans le replay" type="range" min="0" max="${timeline.frameCount}" value="${state.labStep}">
+        <div class="lab-playback-buttons">
+          <button type="button" data-lab-step="first" aria-label="Début" ${state.labStep===0?'disabled':''}>⏮</button>
+          <button type="button" data-lab-step="prev" aria-label="Précédent" ${state.labStep===0?'disabled':''}>‹</button>
+          <button type="button" data-lab-step="next" aria-label="Suivant" ${state.labStep===timeline.frameCount?'disabled':''}>›</button>
+          <button type="button" data-lab-step="last" aria-label="Fin" ${state.labStep===timeline.frameCount?'disabled':''}>⏭</button>
+        </div>
+        <label class="lab-turn-picker">Aller au tour <select id="labTurnSelect">${turns.map(t=>`<option value="${t}" ${t===step.turnNumber?'selected':''}>Tour ${t}</option>`).join('')}</select></label>
+      </div>
+      <details class="lab-analysis-drawer" open><summary>Action · ${esc(action)} ${step.undone?'(annulée)':''}</summary>
+        <p>${step.actor==='mine'?'Moi':step.actor==='opponent'?'Adversaire':'Système'} · séquence ${fmt(step.seq)}${step.isUndo?' · retour arrière':''}</p>
+        ${diffs.length?`<ul>${diffs.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>`:'<p>Aucun changement dans les compteurs principaux.</p>'}
+        <small>État observé dans le replay. Aucun jugement stratégique automatique.</small>
+      </details>
+    </div>`;
   }
 
   function renderTimeline(){
