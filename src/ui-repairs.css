@@ -155,3 +155,168 @@
   .tempo-table .badge { padding:4px 5px;min-width:0; }
   .inkdrop-totals { gap:8px; }
 }
+
+/* Inksight Lab — compact, accessible replay inspector */
+.lab-panel{padding:clamp(16px,3vw,28px)}
+.lab-toolbar,.lab-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0}
+.lab-toolbar label,.lab-counter{font-size:13px;color:var(--text-muted,#aeb0ba)}
+.lab-counter{margin-left:auto;font-variant-numeric:tabular-nums}
+.lab-nav .ghost-button,.lab-nav .primary-button{min-height:40px}
+.lab-event{padding:16px;border:1px solid rgba(255,255,255,.14);border-radius:14px;display:flex;gap:7px;flex-direction:column;margin:14px 0}
+.lab-event strong{font-size:17px}.lab-event span,.lab-note{font-size:13px;line-height:1.5;color:var(--text-muted,#aeb0ba)}
+.lab-event p{margin:2px 0;color:#f3bd6b;font-size:13px}
+.lab-sides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.lab-side{border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:16px;min-width:0}
+.lab-side h3{font-size:18px;margin:0 0 14px}.lab-side h4{font-size:14px;margin:20px 0 8px}
+.lab-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.lab-metrics>span{border-radius:10px;background:rgba(125,125,140,.12);padding:10px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.lab-metrics strong{font-size:21px;line-height:1.1;font-variant-numeric:tabular-nums}
+.lab-metrics small{font-size:11px;color:var(--text-muted,#aeb0ba)}
+.lab-cards{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:6px}
+.lab-cards li{padding:10px;border-radius:9px;background:rgba(125,125,140,.1);display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px}
+.lab-cards li strong{font-size:13px;overflow-wrap:anywhere}.lab-cards li span{font-size:12px;color:var(--text-muted,#aeb0ba)}
+@media(max-width:650px){.lab-sides{grid-template-columns:1fr}.lab-toolbar{align-items:flex-start}.lab-counter{margin-left:0}.lab-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.lab-nav button{width:100%}}
+
+/* Replay viewer v0.2: card-first compact mobile board */
+.lab-replay-shell{width:100%;max-width:1050px;margin:auto;display:flex;flex-direction:column;gap:5px}
+.lab-playerbar{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:12px;background:rgba(120,130,145,.13);flex-wrap:wrap}
+.lab-playerbar strong{font-size:14px}.lab-playerbar span{font-weight:750;font-size:18px;margin-left:auto}.lab-playerbar small{width:100%;font-size:12px;color:var(--text-muted,#b0b2b8)}
+.lab-replay-zone{border-radius:12px;padding:9px 10px;min-height:140px;background:linear-gradient(150deg,#26374c,#1c2937);overflow:hidden}
+.lab-replay-mine{background:linear-gradient(145deg,#4a4740,#363733)}
+.lab-zone-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.72;display:block;margin-bottom:8px}
+.lab-board-cards{display:flex;flex-wrap:wrap;align-content:start;align-items:center;gap:9px 7px;min-height:102px}
+.lab-card{position:relative;display:inline-flex;width:clamp(51px,11vw,91px);aspect-ratio:0.715;border-radius:5px;flex:0 0 auto;background:#111820;border:1px solid rgba(255,255,255,.15);box-shadow:0 2px 8px #0005;align-items:center;justify-content:center}
+.lab-card img{display:block;width:100%;height:100%;object-fit:cover;border-radius:4px}.lab-card img[hidden]{display:none}
+.lab-card-exerted{transform:rotate(90deg);margin-inline:12px}
+.lab-card-fallback{padding:5px;font-size:9px;text-align:center;overflow-wrap:anywhere}
+.lab-card-back{background:linear-gradient(135deg,#252c47,#161624);font-size:22px}
+.lab-damage{position:absolute;right:-5px;top:-5px;border-radius:7px;padding:2px 5px;background:#b6263e;color:white;font-size:13px;z-index:2}
+.lab-empty{font-size:12px;opacity:.55}
+.lab-hand-row{padding:8px 0;overflow:hidden}.lab-hand-cards{display:flex;gap:5px;overflow-x:auto;padding:4px 3px 9px;scrollbar-width:thin}
+.lab-hand-cards .lab-card{width:clamp(58px,15vw,95px)}
+.lab-playback{padding:12px;border-radius:14px;background:rgba(125,125,140,.12);display:flex;flex-direction:column;gap:10px}
+.lab-playback-heading{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.lab-playback-heading span{font-variant-numeric:tabular-nums;color:var(--text-muted,#b0b2b8)}
+.lab-scrubber{width:100%;accent-color:#e9e9e9;min-height:24px}
+.lab-playback-buttons{display:flex;justify-content:space-around;gap:8px}
+.lab-playback-buttons button{border:1px solid rgba(255,255,255,.16);background:rgba(130,130,140,.18);border-radius:12px;color:inherit;min-width:48px;min-height:44px;font-size:25px;cursor:pointer}
+.lab-playback-buttons button:disabled{opacity:.28;cursor:default}
+.lab-turn-picker{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px}
+.lab-turn-picker select{background:#111620;color:white;border:1px solid #3a4150;border-radius:8px;padding:7px}
+.lab-analysis-drawer{padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.14)}
+.lab-analysis-drawer summary{cursor:pointer;font-weight:650;font-size:14px}
+.lab-analysis-drawer p,.lab-analysis-drawer li,.lab-analysis-drawer small{font-size:12px;line-height:1.6;color:var(--text-muted,#b0b2b8)}
+@media(max-width:650px){.lab-panel{padding:10px}.lab-replay-zone{min-height:115px}.lab-board-cards{min-height:82px}.lab-card{width:clamp(45px,12vw,67px)}.lab-card-exerted{margin-inline:10px}.lab-playerbar{padding:8px 10px}}
+
+/* Replay v0.3: reserve layout space for tapped cards and animate only the inner art */
+.lab-card-slot{position:relative;display:inline-flex;flex:0 0 auto;width:clamp(51px,11vw,91px);height:clamp(72px,15.4vw,127px);align-items:center;justify-content:center;transition:transform .18s ease}
+.lab-card-slot.lab-slot-exerted{width:clamp(76px,16vw,133px);height:clamp(72px,15.4vw,127px)}
+.lab-card-slot .lab-card{width:100%;height:100%;transition:transform .24s cubic-bezier(.2,.7,.2,1),box-shadow .2s ease}
+.lab-card-slot.lab-slot-exerted .lab-card{width:clamp(51px,11vw,91px);height:clamp(72px,15.4vw,127px);position:absolute;inset:auto;transform:rotate(90deg);margin:0}
+.lab-card-slot .lab-card img{object-fit:fill}
+.lab-board-cards{gap:10px;align-items:center}
+.lab-hand-cards .lab-card-slot{width:clamp(58px,15vw,95px);height:auto;aspect-ratio:.715}
+.lab-replay-shell .lab-replay-zone{transition:background .2s ease}
+.lab-playback-buttons button{display:inline-flex;align-items:center;justify-content:center}
+.lab-card-slot:hover .lab-card{box-shadow:0 5px 18px #0008}
+@media(max-width:650px){
+.lab-card-slot{width:clamp(45px,12vw,67px);height:clamp(63px,16.8vw,94px)}
+.lab-card-slot.lab-slot-exerted{width:clamp(67px,17.8vw,98px);height:clamp(63px,16.8vw,94px)}
+.lab-card-slot.lab-slot-exerted .lab-card{width:clamp(45px,12vw,67px);height:clamp(63px,16.8vw,94px)}
+.lab-board-cards{gap:7px}
+}
+@media(prefers-reduced-motion:reduce){.lab-card-slot,.lab-card-slot .lab-card,.lab-replay-shell .lab-replay-zone{transition:none}}
+
+/* Replay theater: card-focused visual hierarchy inspired by tabletop simulators */
+.lab-replay-theater{max-width:1200px;gap:10px}
+.lab-theater-header{display:flex;align-items:end;justify-content:space-between;gap:12px;padding:4px 2px 2px}
+.lab-theater-header>div{display:flex;flex-direction:column;gap:2px}
+.lab-theater-kicker{font-size:10px;letter-spacing:.16em;color:#9aa5b5;font-weight:700}
+.lab-theater-header strong{font-size:19px;letter-spacing:-.03em}
+.lab-theater-counter{font-size:12px;font-variant-numeric:tabular-nums;color:#aeb8c6}
+.lab-game-surface{display:flex;flex-direction:column;gap:3px;border:1px solid #ffffff19;border-radius:16px;overflow:hidden;background:#101923;padding:5px}
+.lab-game-surface .lab-playerbar{border-radius:8px;background:#182434;padding:7px 10px;gap:7px}
+.lab-game-surface .lab-playerbar small{width:auto;margin-right:auto;order:2}
+.lab-game-surface .lab-playerbar span{order:3;font-size:16px}
+.lab-game-surface .lab-replay-zone{border-radius:8px;min-height:140px;display:flex;align-items:center;padding:12px;background:linear-gradient(160deg,#263e59,#1b3047)}
+.lab-game-surface .lab-replay-mine{background:linear-gradient(155deg,#45423b,#302f2d)}
+.lab-game-surface .lab-board-cards{min-height:112px;width:100%;justify-content:center;align-content:center;gap:8px}
+.lab-game-surface .lab-hand-row{padding:7px 8px 1px}
+.lab-game-surface .lab-hand-cards{justify-content:center}
+.lab-replay-theater .lab-playback{padding:9px 12px;gap:5px}
+.lab-replay-theater .lab-playback-buttons button{background:transparent;border:0;min-height:38px;border-radius:8px}
+.lab-replay-theater .lab-playback-buttons button:hover{background:#ffffff14}
+.lab-replay-theater .lab-analysis-drawer{padding:10px 12px}
+@media(min-width:850px){.lab-game-surface .lab-replay-zone{min-height:175px}.lab-game-surface .lab-board-cards{min-height:148px}}
+@media(max-width:650px){
+.lab-replay-theater{gap:7px}
+.lab-theater-header strong{font-size:16px}
+.lab-game-surface .lab-replay-zone{min-height:104px;padding:7px}
+.lab-game-surface .lab-board-cards{min-height:92px;justify-content:flex-start;gap:5px}
+.lab-game-surface .lab-playerbar{padding:6px 8px}
+.lab-game-surface .lab-playerbar strong{font-size:12px}
+.lab-game-surface .lab-playerbar span{font-size:14px}
+.lab-game-surface .lab-playerbar small{font-size:10px}
+.lab-game-surface .lab-hand-row{padding:5px 4px 0}
+.lab-game-surface .lab-hand-cards{justify-content:flex-start}
+.lab-replay-theater .lab-playback{padding:8px 10px}
+}
+
+/* Replay v0.5: deliberate center stage and action comprehension */
+.lab-replay-theater{width:100%;max-width:1120px;margin-inline:auto}
+.lab-game-surface{position:relative;isolation:isolate;background:linear-gradient(170deg,#152336,#101925 48%,#1d1f24);box-shadow:inset 0 1px 0 #ffffff12,0 12px 38px #0002}
+.lab-game-surface:before{content:"";position:absolute;z-index:-1;left:4%;right:4%;top:50%;height:1px;background:linear-gradient(90deg,transparent,#ffffff2c,transparent)}
+.lab-game-surface .lab-replay-zone{position:relative;justify-content:center;min-height:150px}
+.lab-game-surface .lab-board-cards{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;align-items:center;gap:12px 9px;max-width:920px;margin:auto}
+.lab-game-surface .lab-replay-opponent{background:radial-gradient(ellipse at 50% 25%,#395879 0%,#263e58 62%,#1d3046 100%)}
+.lab-game-surface .lab-replay-mine{background:radial-gradient(ellipse at 50% 70%,#5b5346 0%,#403c35 65%,#34322f 100%)}
+.lab-game-surface .lab-hand-cards{justify-content:center;gap:3px}
+.lab-game-surface .lab-hand-row{background:#111925;border-radius:8px}
+.lab-game-surface .lab-playerbar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;column-gap:10px}
+.lab-game-surface .lab-playerbar strong{grid-column:1;grid-row:1}
+.lab-game-surface .lab-playerbar small{grid-column:2;grid-row:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lab-game-surface .lab-playerbar span{grid-column:3;grid-row:1;margin:0}
+.lab-event-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border:1px solid #ffffff19;border-radius:12px;background:linear-gradient(110deg,#192637,#161b25)}
+.lab-event-description{display:flex;flex-direction:column;gap:3px;min-width:0}
+.lab-event-eyebrow{font-size:9px;font-weight:750;letter-spacing:.15em;color:#93a5bc}
+.lab-event-description strong{font-size:15px;line-height:1.3}
+.lab-event-changes{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px}
+.lab-change-pill{font-size:11px;font-weight:750;border-radius:7px;padding:5px 7px;background:#ffffff12;white-space:nowrap}
+.lab-positive{color:#9bd6b0;background:#24463880}.lab-negative{color:#ffb0a6;background:#572c3180}
+.lab-change-neutral{font-size:11px;color:#8f9ba9}
+.lab-card-changed .lab-card{outline:2px solid #f3d27b;outline-offset:2px;box-shadow:0 0 16px #edbf5266}
+.lab-card-slot{animation:lab-arrive .22s ease-out both}
+@keyframes lab-arrive{from{opacity:.65;filter:brightness(.75)}to{opacity:1;filter:brightness(1)}}
+@media(max-width:650px){
+.lab-game-surface .lab-replay-zone{min-height:112px;padding:9px 5px}
+.lab-game-surface .lab-board-cards{justify-content:center;gap:9px 6px;min-height:92px}
+.lab-game-surface .lab-playerbar{column-gap:5px}
+.lab-game-surface .lab-playerbar small{font-size:10px}
+.lab-event-strip{padding:8px 10px;gap:8px}
+.lab-event-description strong{font-size:13px}
+.lab-change-pill{font-size:10px;padding:4px 6px}
+}
+@media(prefers-reduced-motion:reduce){.lab-card-slot{animation:none}}
+
+/* Visual audit v2: stage, readable action narrative, responsive card focus */
+.lab-game-surface .lab-replay-zone{overflow:hidden;isolation:isolate}
+.lab-game-surface .lab-replay-zone:after{content:"";position:absolute;inset:0;z-index:-1;opacity:.33;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0,transparent 63px,#ffffff09 64px,transparent 65px),radial-gradient(ellipse at center,#ffffff10,transparent 70%)}
+.lab-zone-corner{position:absolute;left:12px;top:9px;font-size:9px;letter-spacing:.14em;font-weight:750;color:#d7e5f1a3;pointer-events:none}
+.lab-game-surface .lab-board-cards{padding-top:15px;gap:11px 9px}
+.lab-card-focus .lab-card{outline:2px solid #f4d17d;outline-offset:3px;box-shadow:0 0 0 5px #edc66d24,0 0 22px #e7b95a50}
+.lab-card-attacker .lab-card{outline-color:#f7bb72}
+.lab-card-defender .lab-card{outline-color:#f08b88;box-shadow:0 0 0 5px #e766692a,0 0 22px #e66c7755}
+.lab-event-detail{font-size:12px;color:#c5d0dd;line-height:1.4;max-width:560px}
+.lab-event-description{flex:1}
+.lab-event-strip{min-height:68px}
+.lab-replay-theater .lab-playback{border:1px solid #ffffff12;border-radius:12px;background:#171d28}
+.lab-replay-theater .lab-playback-buttons{display:flex;justify-content:space-evenly}
+.lab-replay-theater .lab-playback-buttons button{width:56px;display:grid;place-items:center}
+@media(max-width:650px){
+.lab-game-surface .lab-board-cards{gap:8px 5px;padding-top:12px}
+.lab-zone-corner{font-size:8px;top:6px;left:8px}
+.lab-event-strip{align-items:flex-start;flex-direction:column;gap:6px}
+.lab-event-changes{justify-content:flex-start}
+.lab-event-detail{font-size:11px}
+.lab-replay-theater .lab-playback-buttons button{width:48px}
+}

@@ -1,5 +1,6 @@
 import './style.css';
 import './ui-repairs.css';
+import './replay-premium.css';
 import Chart from 'chart.js/auto';
 import * as pako from 'pako';
 import JSZip from 'jszip';
@@ -11,6 +12,7 @@ import { CURRENT_CORE_SCOPE, DEFAULT_ERAS, eraCatalog, classifyGameContext, cont
 import { inkDropChartModel } from './lorcana/inkdrop-chart.js';
 import { mergeDuelinkResults, gameFromResultRow, nativeMmrDelta } from './lorcana/duels-results.js';
 import { listDuelinkResults } from './supabase.js';
+import { reconstructReplayTimeline } from './lorcana/replay-timeline.js';
 import { applyReplayPatch, decodeReplayBytes, readZipEntry, MAX_REPLAY_BYTES, MAX_REPLAY_FILES } from './security/replay.js';
 import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, patchSavedMatchTeamVisible, listDeckProfiles, upsertDeckProfile, ensureDeckProfileByExternalId, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun, updateDeckProfilePoolTag } from './supabase.js';
 
@@ -55,6 +57,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', coreOnly:false, lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), team:null, teamMode:false, teamMemberIds:[], teamDisplayNames:{}, dateFilter:{ stats:{ preset:'all', from:null, to:null }, history:{ preset:'all', from:null, to:null } } };
 
 
+  state.labCache = new WeakMap();
+  state.labStep = 0;
+  state.labImmersive = false;
+  state.labInspect = null;
+  state.labPlaybackTimer = null;
   state.duelinkResults=[];
   state.duelinkContinuation=null;
   state.duelinkAnalysisPending=false;
@@ -105,7 +112,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function collectEls(){
-    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','momentFortPanel','shareMatchButton','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','inkwellPanel','inkwellTimeline','inkwellSubtitle','timelineList','timelineFilter','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','deckDepthMatch','deckDepthMatchPanel','performanceDeckDepth','performanceOpeningConsistency','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceStreak','performanceStreakHelp','performanceStreakCard','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceTempoSplit','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory','performanceDateFrom','performanceDateTo','performanceDateCustom','historyDateFrom','historyDateTo','historyDateCustom'].forEach(id => els[id] = $(id));
+    ['apiBadge','bo3Selector','dropzone','dropzoneStatus','fileInput','browseButton','clearButton','fileList','statusText','detectedPlayer','detectedOpponent','detectedTurns','detectedActions','analysisTabs','sessionRecord','sessionOpponent','sessionTurns','sessionPlayDraw','sessionLore','sessionMatchup','coachTitle','coachText','coachConfidence','matchPills','resultHero','keyMoments','nextAction','momentFortPanel','shareMatchButton','mulliganPanel','mulliganSubtitle','mulliganButton','mulliganCards','handTooltip','inkFloatTotal','inkFloatAverage','actionRatioKpi','actionRatioLabel','topDeckTurns','topDeckBadge','questChallengeCenter','questChallengeGauge','questChallengeInsight','questCountLabel','challengeCountLabel','statsScopeSubtitle','topQuestersTitle','topQuestersHelp','mostInkedTitle','mostInkedHelp','playTimingTitle','playTimingHelp','challengeTitle','challengeHelp','topQuestersTable','mostInkedTable','playTimingTable','challengeTable','cardsGrid','cardsSubtitle','inkwellPanel','inkwellTimeline','inkwellSubtitle','timelineList','timelineFilter','labContent','cardModal','modalBody','closeModal','topQuestersSort','mostInkedSort','playTimingSort','challengeSort','inkChartSubtitle','actionChartTitle','actionChartSubtitle','quickInsights','deadWeightTitle','deadWeightHelp','deadWeightTable','deckDepthMatch','deckDepthMatchPanel','performanceDeckDepth','performanceOpeningConsistency','saveAnalysisPanel','saveAnalysisButton','saveAnalysisStatus','saveDeckSelect','saveDeckNameInput','saveDeckHint','saveDeckPills','performanceLoginHint','performanceColorFilter','performanceColorPills','performanceOpponentColorFilter','performanceOpponentColorPills','performanceVersionBlock','performanceDeckPills','performanceFormatPills','performanceTempoFilter','performanceTempoPills','performanceResultPills','performanceResetFilters','performanceSavedCount','performanceWinrate','performanceBo3Count','performanceFavoriteMatchup','performanceStreak','performanceStreakHelp','performanceStreakCard','performanceSampleLabel','performanceSampleHelp','performanceTopLore','performanceTopLoreHelp','performanceMostInked','performanceMostInkedHelp','performanceOtpSplit','performanceOtpSplitHelp','performanceFormatSplit','performanceFormatSplitHelp','performanceAvgTurns','performanceAvgTurnsHelp','performanceTopDeckAvg','performanceTopDeckAvgHelp','performanceAvgLore','performanceAvgLoreHelp','performanceDataQuality','performanceDataQualityHelp','performanceCoachTitle','performanceCoachText','performanceActionPlan','performanceBestSignal','performanceBestSignalText','performanceWarningSignal','performanceWarningSignalText','performanceMatchupBreakdown','performanceTempoSplit','performanceCardImpactTable','performanceMulliganTable','performanceTurnCurveTable','postImportCleanupList','historyList','historyStatus','historyRefreshButton','historyColorFilter','historyColorPills','historyOpponentColorFilter','historyOpponentColorPills','historyVersionBlock','historyDeckPills','historyFormatPills','historyTempoFilter','historyTempoPills','historyResultPills','historyResetFilters','historyFormatFilter','historyTempoFilter','historyResultFilter','historyDeckFilter','performanceDeckFilter','performanceFormatFilter','performanceResultFilter','historySearchInput','historyDetail','loreChartSummary','actionChartSummary','inkChartSummary','questChartSummary','handChartSummary','boardChartSummary','deckManagerRefresh','deckManagerStatus','deckManagerList','dataQualityTitle','dataQualityText','dataQualitySummary','duelinkTokenInput','duelinkTestButton','duelinkPreviewButton','duelinkImportButton','duelinkImport50Button','duelinkImport100Button','duelinkImportAllButton','duelinkImportSaveButton','duelinkSaveTokenButton','duelinkForgetTokenButton','duelinkSavedTokenHint','duelinkTokenStatus','duelinkTestResult','duplicateAuditList','bulkImportPanel','bulkImportStatus','bulkDeckTools','bulkImportList','bulkSaveAllButton','bulkImportMoreButton','bulkClearButton','cloudStatusBanner','cloudStatusDismiss','performancePoolBlock','performancePoolPills','performanceSetBlock','performanceSetPills','historyPoolBlock','historyPoolPills','historySetBlock','historySetPills','performancePoolFilter','performanceSetFilter','historyPoolFilter','historySetFilter','performanceArchetypeBlock','performanceArchetypePills','performanceArchetypeFilter','historyArchetypeBlock','historyArchetypePills','historyArchetypeFilter','teamSection','teamContextBarStats','teamContextBarHistory','performanceDateFrom','performanceDateTo','performanceDateCustom','historyDateFrom','historyDateTo','historyDateCustom'].forEach(id => els[id] = $(id));
   }
 
   function bindUI(){
@@ -177,6 +184,74 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
     els.analysisTabs?.addEventListener('keydown', handleTabsKeydown);
+    els.labContent?.addEventListener('click', event => {
+      const close = event.target.closest('.lab-inspect-close') || (event.target.matches?.('.lab-inspect-backdrop') ? event.target : null);
+      if(close){ state.labInspect=null; renderLab(); return; }
+      const cardButton = event.target.closest('[data-lab-card]');
+      if(cardButton){
+        const steps=currentLabTimeline()?.steps||[];
+        const current=steps[state.labStep];
+        const side=cardButton.dataset.labSide;
+        const zone=cardButton.dataset.labZone;
+        const cards=current?.[side]?.[zone]||[];
+        state.labInspect=cards[Number(cardButton.dataset.labCard)];
+        renderLab(); return;
+      }
+      if(event.target.closest('[data-lab-immersive]')){
+        state.labImmersive=!state.labImmersive;
+        document.body.classList.toggle('lab-immersive-mode',state.labImmersive);
+        renderLab();return;
+      }
+      if(event.target.closest('[data-lab-play]')){
+        if(state.labPlaybackTimer){clearInterval(state.labPlaybackTimer);state.labPlaybackTimer=null;}
+        else {
+          state.labPlaybackTimer=setInterval(()=>{
+            const steps=currentLabTimeline()?.steps||[];
+            if(state.labStep>=steps.length-1){clearInterval(state.labPlaybackTimer);state.labPlaybackTimer=null;renderLab();return;}
+            state.labStep++;renderLab();
+          },1150);
+        }
+        renderLab();return;
+      }
+      const button = event.target.closest('[data-lab-step]');
+      if(!button) return;
+      if(state.labPlaybackTimer){clearInterval(state.labPlaybackTimer);state.labPlaybackTimer=null;}
+      const value = button.dataset.labStep;
+      const steps = currentLabTimeline()?.steps || [];
+      let next = value === 'first' ? 0 : value === 'last' ? steps.length - 1 : state.labStep + (value === 'prev' ? -1 : 1);
+      if(value==='decision-next'){
+        next=steps.findIndex((step,i)=>i>state.labStep&&step.isDecision);
+        if(next<0)next=steps.length-1;
+      }
+      if(value==='decision-prev'){
+        next=state.labStep-1;
+        while(next>0&&!steps[next].isDecision)next--;
+      }
+      state.labStep = Math.max(0, Math.min(steps.length - 1, next));
+      state.labInspect=null;
+      renderLab();
+    });
+    document.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){
+        if(state.labInspect){state.labInspect=null;renderLab();}
+        else if(state.labImmersive){state.labImmersive=false;document.body.classList.remove('lab-immersive-mode');renderLab();}
+      }
+      if(!state.labImmersive || state.labInspect || ['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return;
+      if(event.key==='ArrowRight'||event.key==='ArrowLeft'){
+        event.preventDefault();
+        const timeline=currentLabTimeline();
+        if(!timeline)return;
+        state.labStep=Math.max(0,Math.min(timeline.frameCount,state.labStep+(event.key==='ArrowRight'?1:-1)));
+        renderLab();
+      }
+    });
+    els.labContent?.addEventListener('input', event => { if(event.target?.id === 'labScrubber'){ state.labStep = Number(event.target.value); renderLab(); } });
+    els.labContent?.addEventListener('change', event => {
+      if(event.target?.id !== 'labTurnSelect') return;
+      const steps = currentLabTimeline()?.steps || [];
+      const index = steps.findIndex(step => String(step.turnNumber) === event.target.value);
+      if(index >= 0){ state.labStep = index; renderLab(); }
+    });
     document.querySelectorAll('[data-scope]').forEach(btn => btn.addEventListener('click', () => setScope(btn.dataset.scope)));
     document.querySelectorAll('[data-card-filter]').forEach(btn => btn.addEventListener('click', () => setCardFilter(btn.dataset.cardFilter)));
     document.querySelector('[data-core-only]')?.addEventListener('click', toggleCoreOnly);
@@ -1630,6 +1705,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const replays = Array.isArray(imported) ? imported : [];
     const matchMeta = options.matchMeta !== undefined ? options.matchMeta : (replays.find(entry => entry.matchMeta)?.matchMeta || state.matchMeta || null);
     state.replays = replays;
+    state.labStep = 0;
     state.sessions = state.replays.map(r => r.session).filter(Boolean);
     state.matchMeta = matchMeta;
     state.merged = mergeSessions(state.sessions);
@@ -1767,7 +1843,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function clearReplays(options={}){
-    state.replays = []; state.sessions = []; state.merged = null; state.isBO3 = false; state.viewMode = 0; state.matchMeta = null; state.mulliganResolved = false; state.lastSavedMatchId = null; state.loadedSavedMatchId = null; state.statExpandedLists = {};
+    state.replays = []; state.labStep = 0; state.sessions = []; state.merged = null; state.isBO3 = false; state.viewMode = 0; state.matchMeta = null; state.mulliganResolved = false; state.lastSavedMatchId = null; state.loadedSavedMatchId = null; state.statExpandedLists = {};
     if(!options.keepBulk){ state.bulkQueue = []; state.activeBulkIndex = null; state.bulkSaving = false; state.bulkSaveTotal = 0; state.bulkSaveDone = 0; }
     document.body.classList.add('empty-state'); document.body.classList.remove('has-results','bo3-global','bo3-game');
     if(els.fileInput) els.fileInput.value = '';
@@ -3848,7 +3924,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     syncViewModeVisibility();
     renderBo3Selector();
     document.querySelectorAll('[data-card-filter]').forEach(b=>b.classList.toggle('active', b.dataset.cardFilter === state.cardFilter));
-    renderFiles(); renderBulkQueue(); renderDetected(); renderOverview(); renderStats(); renderCards(); renderTimeline(); renderDeckOptions(); syncSaveButton();
+    renderFiles(); renderBulkQueue(); renderDetected(); renderOverview(); renderStats(); renderCards(); renderTimeline(); if(state.activeTab === 'lab') renderLab(); renderDeckOptions(); syncSaveButton();
   }
 
   function cloudErrorMessage(error){
@@ -4157,6 +4233,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function restoreReplayStateFromBulkItem(item){
     state.replays = item.replays || [];
+    state.labStep = 0;
     state.sessions = item.sessions || [];
     state.merged = item.merged || null;
     state.isBO3 = state.sessions.length > 1;
@@ -4762,6 +4839,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!runtime) runtime = savedRowToRuntimeState(hydratedRow);
       if(!accountBoundary.isCurrent(ticket)) return;
       state.replays = runtime.replays;
+      state.labStep = 0;
       state.sessions = runtime.sessions;
       state.merged = runtime.merged;
       state.isBO3 = runtime.isBO3;
@@ -10953,6 +11031,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       btn.onclick = () => {
         const view = btn.dataset.bo3View;
         state.viewMode = view === 'global' ? 'global' : Number(view);
+        state.labStep = 0;
         state.mulliganResolved = false;
         if(isGlobalView() && state.activeTab === 'timeline') setTab('overview');
         renderAll();
@@ -13006,6 +13085,124 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return normalizeTimelineRows(m);
   }
 
+
+  // Mission 1: raw replays only. Saved summaries do not contain reconstructible snapshots.
+  function currentLabTimeline(){
+    if(isGlobalView()) return null;
+    const entry = state.replays?.[Number(state.viewMode || 0)];
+    const replay = entry?.replay;
+    if(!replay || replay.format !== 'duels-replay-v1') return null;
+    let timeline = state.labCache.get(replay);
+    if(!timeline){
+      timeline = reconstructReplayTimeline(replay);
+      state.labCache.set(replay, timeline);
+    }
+    return timeline;
+  }
+
+  // Reuses Inksight's existing card CDN and hydration utilities.
+  function labCardArt(card){
+    if(card?.imageSmall || card?.image) return card.imageSmall || card.image;
+    const id=String(card?.id||'').trim();
+    if(/^\d+-\d+[a-z]?$/i.test(id)) return cardImageUrlFromId(id);
+    const lookup=hydrateCard({name:String(card?.name||'').split(' - ')[0],fullName:card?.name||'',id:id||''});
+    return lookup.imageSmall||lookup.image||duelinkImageUrl(lookup)||'';
+  }
+  function renderLab(){
+    if(!els.labContent) return;
+    let timeline;
+    try { timeline = currentLabTimeline(); }
+    catch(error){ els.labContent.textContent = 'Reconstruction impossible : ' + (error?.message || 'replay invalide'); return; }
+    if(!timeline){
+      els.labContent.innerHTML = '<p class="lab-note">Sélectionne une partie et importe son replay brut pour afficher le plateau.</p>';
+      return;
+    }
+    state.labStep = Math.min(Math.max(0,state.labStep),timeline.steps.length-1);
+    const step=timeline.steps[state.labStep], previous=timeline.steps[Math.max(0,state.labStep-1)];
+    const fmt=v=>v==null?'—':String(v);
+    const cardTile=(card,hidden=false,changed=false,side='mine',zone='field',index=0)=>{
+      if(hidden) return '<span class="lab-card lab-card-back" aria-label="Carte adverse cachée">✦</span>';
+      const src=labCardArt(card);
+      const name=esc(card.name||'Carte inconnue');
+      const isAttacker=step.action?.attackerInstanceId===card.instanceId && !!card.instanceId;
+      const isDefender=step.action?.defenderInstanceId===card.instanceId && !!card.instanceId;
+      const focus=isAttacker||isDefender||(!!card.instanceId&&step.action?.cardInstanceId===card.instanceId);
+      return `<button type="button" data-lab-card="${index}" data-lab-side="${side}" data-lab-zone="${zone}" class="lab-card-slot ${changed?'lab-card-changed':''} ${focus?'lab-card-focus':''} ${isAttacker?'lab-card-attacker':''} ${isDefender?'lab-card-defender':''} ${card.exerted?'lab-slot-exerted':''}"><span class="lab-card ${card.exerted?'lab-card-exerted':''}" title="${name}" aria-label="${name}">
+        ${src?`<img loading="lazy" src="${esc(src)}" alt="${name}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="lab-card-fallback" hidden>${name}</span>`:`<span class="lab-card-fallback">${name}</span>`}
+        ${card.damage>0?`<b class="lab-damage">−${esc(card.damage)}</b>`:''}</span></button>`;
+    };
+    const board=(list,empty='Aucune carte',changed=new Set(),side='mine',zone='field')=>list?.length?list.map((card,i)=>cardTile(card,false,changed.has(cardKey(card)),side,zone,i)).join(''):`<span class="lab-empty">${empty}</span>`;
+    const metric=(side,own)=>`<div class="lab-playerbar lab-premium-playerbar"><div class="lab-identity"><span class="lab-player-avatar">${own?'M':'A'}</span><span><strong>${own?'Moi':'Adversaire'}</strong><small>${fmt(side.handCount)} cartes en main</small></span></div><div class="lab-player-resources"><span class="lab-resource-ink"><span class="lab-ink-glyph" aria-hidden="true"></span>${fmt(side.readyInkCount)}<em>/${fmt(side.inkwellCount)}</em></span><span class="lab-resource-lore"><span aria-hidden="true">✦</span>${fmt(side.lore)}<small>LORE</small></span></div></div>`;
+    const resourceDock=(side,own)=>`<div class="lab-resource-dock"><span class="lab-dock-caption">ENCRE</span><span class="lab-ink-track">${Array.from({length:Math.min(side.inkwellCount||0,18)},(_,i)=>`<span class="lab-ink-token ${i<(side.readyInkCount||0)?'is-ready':'is-spent'}" aria-hidden="true"></span>`).join('')||'<span class="lab-ink-empty">—</span>'}</span><span class="lab-dock-count">${fmt(side.readyInkCount)} / ${fmt(side.inkwellCount)}</span><span class="lab-dock-separator"></span><span class="lab-dock-caption">PIOCHE</span><span class="lab-deck-pile"><span class="lab-deck-back" aria-hidden="true"></span><b>${fmt(side.deckCount)}</b></span><span class="lab-dock-caption">DÉFAUSSE</span><span class="lab-discard-count">${fmt(side.discard?.length)}</span></div>`;
+    const opposingHand=()=>`<div class="lab-opponent-hand" aria-label="${fmt(step.opponent.handCount)} cartes cachées en main adverse">${Array.from({length:Math.min(step.opponent.handCount||0,10)},()=>'<span class="lab-hand-back" aria-hidden="true"></span>').join('')}</div>`;
+    const cardKey = card => String(card?.instanceId || [card?.id,card?.name].join(':'));
+    const changedCards = side => {
+      const before=new Map([...(previous[side]?.field||[]),...(previous[side]?.items||[])].map(card=>[cardKey(card),String(card.damage)+'/'+String(card.exerted)]));
+      return new Set([...(step[side]?.field||[]),...(step[side]?.items||[])].filter(card=>!before.has(cardKey(card))||before.get(cardKey(card))!==String(card.damage)+'/'+String(card.exerted)).map(cardKey));
+    };
+    const changedMine=changedCards('mine'),changedOpponent=changedCards('opponent');
+    const currentChanges=['mine','opponent'].flatMap(side=>[['lore','Lore'],['inkwellCount','Encre'],['handCount','Main'],['fieldCount','Plateau']].flatMap(([key,label])=>{
+      const a=previous[side]?.[key],b=step[side]?.[key];
+      return typeof a==='number'&&typeof b==='number'&&a!==b?[{side,label,delta:b-a}]:[];
+    }));
+    const actionDetail=step.action;
+    const actionExplanation=()=>{
+      if(step.actionType==='QUEST'&&actionDetail?.cardName) return actionDetail.cardName+' part en quête'+(actionDetail.loreGained!=null?' · +'+actionDetail.loreGained+' Lore':'');
+      if(['ATTACK','CHALLENGE'].includes(step.actionType)&&actionDetail?.attackerName) return actionDetail.attackerName+' défie '+(actionDetail.defenderName||'une carte')+(actionDetail.damageToDefender!=null?' · '+actionDetail.damageToDefender+' dégâts infligés':'')+(actionDetail.defenderBanished?' · bannissement':'');
+      if(step.actionType==='PLAY_CARD'&&actionDetail?.cardName) return actionDetail.cardName+' est jouée';
+      if(step.actionType==='ADD_TO_INK') return actionDetail?.hidden?'Une carte est encrée (identité cachée)':actionDetail?.cardName?actionDetail.cardName+' est encrée':'Une carte est encrée';
+      if(step.actionType==='ACTIVATE_ABILITY'&&actionDetail?.cardName) return 'Capacité de '+actionDetail.cardName;
+      return '';
+    };
+    const turns=[...new Set(timeline.steps.map(s=>s.turnNumber).filter(Number.isInteger))];
+    const actionNames={QUEST:'Quête',PLAY_CARD:'Carte jouée',ADD_TO_INK:'Encrage',ATTACK:'Défi',CHALLENGE:'Défi',END_TURN:'Fin de tour',ACTIVATE_ABILITY:'Capacité',RESPOND_TO_PROMPT:'Résolution',BOOST:'Boost',MULLIGAN:'Mulligan',GAME_FINISH:'Fin de partie'};
+    const action=step.kind==='initial'?'Début de partie':(actionNames[step.actionType]||step.actionType||'Événement');
+    const diffs=['mine','opponent'].flatMap(side=>['lore','handCount','inkwellCount','fieldCount'].flatMap(key=>{
+      const a=previous[side]?.[key],b=step[side]?.[key];
+      return a!=null&&b!=null&&a!==b?[`${side==='mine'?'Moi':'Adversaire'} · ${{lore:'Lore',handCount:'Main',inkwellCount:'Encre',fieldCount:'Plateau'}[key]} : ${b>a?'+':''}${b-a}`]:[];
+    }));
+    els.labContent.innerHTML=`<div class="lab-replay-shell lab-replay-theater">
+      <header class="lab-theater-header"><div><span class="lab-theater-kicker">INKSIGHT <span class="lab-header-slash">/</span> REPLAY STUDIO</span><strong>Tour ${fmt(step.turnNumber)}</strong></div><div class="lab-header-actions"><span class="lab-theater-counter">${state.labStep} / ${timeline.frameCount}</span><button type="button" class="lab-immersive-button" data-lab-immersive aria-label="${state.labImmersive?'Quitter le plein écran':'Mode immersif'}" title="Mode immersif">${state.labImmersive?'Réduire':'Agrandir'} <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div></header>
+      <div class="lab-game-surface">
+        ${metric(step.opponent,false)}
+        ${opposingHand()}
+        ${resourceDock(step.opponent,false)}
+        <div class="lab-replay-zone lab-replay-opponent" aria-label="Plateau adverse"><span class="lab-zone-corner">TERRAIN ADVERSE</span>
+          <div class="lab-board-cards">${board(step.opponent.field,'Aucune carte',changedOpponent,'opponent','field')}${board(step.opponent.items,'',changedOpponent,'opponent','items')}</div>
+        </div>
+        <div class="lab-replay-zone lab-replay-mine" aria-label="Mon plateau"><span class="lab-zone-corner">MON TERRAIN</span>
+          <div class="lab-board-cards">${board(step.mine.field,'Aucune carte',changedMine,'mine','field')}${board(step.mine.items,'',changedMine,'mine','items')}</div>
+        </div>
+        ${resourceDock(step.mine,true)}
+        ${metric(step.mine,true)}
+        <div class="lab-hand-row"><span class="lab-zone-label">Ma main · ${fmt(step.mine.handCount)}</span><div class="lab-hand-cards">${board(step.mine.hand,'Main non visible',new Set(),'mine','hand')}</div></div>
+      </div>
+      <div class="lab-event-strip" aria-live="polite">
+        <div class="lab-event-description"><span class="lab-event-eyebrow">${step.actor==='mine'?'MON ACTION':step.actor==='opponent'?'ACTION ADVERSE':'ÉVÉNEMENT'}</span><strong>${esc(action)}</strong>${actionExplanation()?`<span class="lab-event-detail">${esc(actionExplanation())}</span>`:""}</div>
+        <div class="lab-event-changes">${currentChanges.length?currentChanges.slice(0,3).map(change=>`<span class="lab-change-pill ${change.delta>0?'lab-positive':'lab-negative'}">${change.side==='mine'?'Moi':'Adv.'} ${esc(change.label)} ${change.delta>0?'+':''}${change.delta}</span>`).join(''):'<span class="lab-change-neutral">Aucun compteur modifié</span>'}</div>
+      </div>
+      <div class="lab-playback">
+        <div class="lab-playback-heading"><strong>${esc(action)}</strong><span>${state.labStep} / ${timeline.frameCount}</span></div>
+        <input class="lab-scrubber" id="labScrubber" aria-label="Position dans le replay" type="range" min="0" max="${timeline.frameCount}" value="${state.labStep}">
+        <div class="lab-playback-buttons">
+          <button type="button" data-lab-step="decision-prev" aria-label="Décision précédente" title="Décision précédente" ${state.labStep===0?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m14 5-7 7 7 7M21 5l-7 7 7 7"/></svg></button>
+          <button type="button" data-lab-step="first" aria-label="Début" ${state.labStep===0?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5v14M19 5l-11 7 11 7z"/></svg></button>
+          <button type="button" data-lab-step="prev" aria-label="Précédent" ${state.labStep===0?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+          <button type="button" data-lab-step="next" aria-label="Suivant" ${state.labStep===timeline.frameCount?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+          <button type="button" data-lab-play aria-label="${state.labPlaybackTimer?'Pause':'Lecture automatique'}" title="${state.labPlaybackTimer?'Pause':'Lecture'}"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">${state.labPlaybackTimer?'<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>':'<path d="M8 5v14l12-7z"/>'}</svg></button>
+          <button type="button" data-lab-step="decision-next" aria-label="Décision suivante" title="Décision suivante" ${state.labStep===timeline.frameCount?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m10 5 7 7-7 7M3 5l7 7-7 7"/></svg></button>
+          <button type="button" data-lab-step="last" aria-label="Fin" ${state.labStep===timeline.frameCount?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 5v14M5 5l11 7-11 7z"/></svg></button>
+        </div>
+        <label class="lab-turn-picker">Aller au tour <select id="labTurnSelect">${turns.map(t=>`<option value="${t}" ${t===step.turnNumber?'selected':''}>Tour ${t}</option>`).join('')}</select></label>
+      </div>
+      ${state.labInspect? `<div class="lab-inspect-backdrop" data-lab-close><section class="lab-inspect-panel" role="dialog" aria-modal="true" aria-label="Détails de la carte"><button type="button" data-lab-close class="lab-inspect-close" aria-label="Fermer">×</button><img src="${esc(labCardArt(state.labInspect))}" alt="${esc(state.labInspect.name)}"><div class="lab-inspect-meta"><span>CARTE OBSERVÉE</span><strong>${esc(state.labInspect.name)}</strong><p>${state.labInspect.cost!=null?'Coût '+fmt(state.labInspect.cost)+' · ':''}${state.labInspect.strength!=null?fmt(state.labInspect.strength)+' force · ':''}${state.labInspect.willpower!=null?fmt(state.labInspect.willpower)+' volonté · ':''}${state.labInspect.lore!=null?fmt(state.labInspect.lore)+' Lore':''}</p>${state.labInspect.damage>0?'<p>Dégâts : '+fmt(state.labInspect.damage)+'</p>':''}</div></section></div>` : ''}
+      <details class="lab-analysis-drawer"><summary>Journal & détails de l'action</summary>
+        <p>${step.actor==='mine'?'Moi':step.actor==='opponent'?'Adversaire':'Système'} · séquence ${fmt(step.seq)}${step.isUndo?' · retour arrière':''}</p>
+        ${diffs.length?`<ul>${diffs.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>`:'<p>Aucun changement dans les compteurs principaux.</p>'}
+        <small>État observé dans le replay. Aucun jugement stratégique automatique.</small>
+      </details>
+    </div>`;  }
+
   function renderTimeline(){
     if(!els.timelineList) return;
     const section = document.getElementById('tab-timeline');
@@ -13930,13 +14127,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       btn.setAttribute('aria-selected', active ? 'true' : 'false');
       btn.tabIndex = active ? 0 : -1;
     });
-    document.querySelectorAll('#tab-overview, #tab-stats, #tab-cards, #tab-timeline').forEach(sec => {
+    document.querySelectorAll('#tab-overview, #tab-stats, #tab-cards, #tab-timeline, #tab-lab').forEach(sec => {
       const active = sec.id === `tab-${tab}`;
       sec.classList.toggle('active', active);
       sec.hidden = !active;
       sec.style.display = active ? 'block' : '';
     });
 
+    if(tab === 'lab') renderLab();
     if(tab === 'timeline'){
       renderTimeline();
       requestAnimationFrame(() => renderTimeline());
