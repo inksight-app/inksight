@@ -13046,6 +13046,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   // Reuses Inksight's existing card CDN and hydration utilities.
   function labCardArt(card){
+    if(card?.imageSmall || card?.image) return card.imageSmall || card.image;
     const id=String(card?.id||'').trim();
     if(/^\d+-\d+[a-z]?$/i.test(id)) return cardImageUrlFromId(id);
     const lookup=hydrateCard({name:String(card?.name||'').split(' - ')[0],fullName:card?.name||'',id:id||''});
@@ -13067,7 +13068,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(hidden) return '<span class="lab-card lab-card-back" aria-label="Carte adverse cachée">✦</span>';
       const src=labCardArt(card);
       const name=esc(card.name||'Carte inconnue');
-      return `<span class="lab-card-slot ${changed?'lab-card-changed':''} ${card.exerted?'lab-slot-exerted':''}"><span class="lab-card ${card.exerted?'lab-card-exerted':''}" title="${name}" aria-label="${name}">
+      const isAttacker=step.action?.attackerInstanceId===card.instanceId && !!card.instanceId;
+      const isDefender=step.action?.defenderInstanceId===card.instanceId && !!card.instanceId;
+      const focus=isAttacker||isDefender||(!!card.instanceId&&step.action?.cardInstanceId===card.instanceId);
+      return `<span class="lab-card-slot ${changed?'lab-card-changed':''} ${focus?'lab-card-focus':''} ${isAttacker?'lab-card-attacker':''} ${isDefender?'lab-card-defender':''} ${card.exerted?'lab-slot-exerted':''}"><span class="lab-card ${card.exerted?'lab-card-exerted':''}" title="${name}" aria-label="${name}">
         ${src?`<img loading="lazy" src="${esc(src)}" alt="${name}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="lab-card-fallback" hidden>${name}</span>`:`<span class="lab-card-fallback">${name}</span>`}
         ${card.damage>0?`<b class="lab-damage">−${esc(card.damage)}</b>`:''}</span></span>`;
     };
@@ -13083,6 +13087,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const a=previous[side]?.[key],b=step[side]?.[key];
       return typeof a==='number'&&typeof b==='number'&&a!==b?[{side,label,delta:b-a}]:[];
     }));
+    const actionDetail=step.action;
+    const actionExplanation=()=>{
+      if(step.actionType==='QUEST'&&actionDetail?.cardName) return actionDetail.cardName+' part en quête'+(actionDetail.loreGained!=null?' · +'+actionDetail.loreGained+' Lore':'');
+      if(['ATTACK','CHALLENGE'].includes(step.actionType)&&actionDetail?.attackerName) return actionDetail.attackerName+' défie '+(actionDetail.defenderName||'une carte')+(actionDetail.damageToDefender!=null?' · '+actionDetail.damageToDefender+' dégâts infligés':'')+(actionDetail.defenderBanished?' · bannissement':'');
+      if(step.actionType==='PLAY_CARD'&&actionDetail?.cardName) return actionDetail.cardName+' est jouée';
+      if(step.actionType==='ADD_TO_INK') return actionDetail?.hidden?'Une carte est encrée (identité cachée)':actionDetail?.cardName?actionDetail.cardName+' est encrée':'Une carte est encrée';
+      if(step.actionType==='ACTIVATE_ABILITY'&&actionDetail?.cardName) return 'Capacité de '+actionDetail.cardName;
+      return '';
+    };
     const turns=[...new Set(timeline.steps.map(s=>s.turnNumber).filter(Number.isInteger))];
     const actionNames={QUEST:'Quête',PLAY_CARD:'Carte jouée',ADD_TO_INK:'Encrage',ATTACK:'Défi',CHALLENGE:'Défi',END_TURN:'Fin de tour',ACTIVATE_ABILITY:'Capacité',RESPOND_TO_PROMPT:'Résolution',BOOST:'Boost',MULLIGAN:'Mulligan',GAME_FINISH:'Fin de partie'};
     const action=step.kind==='initial'?'Début de partie':(actionNames[step.actionType]||step.actionType||'Événement');
@@ -13094,17 +13107,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <header class="lab-theater-header"><div><span class="lab-theater-kicker">INKSIGHT / REPLAY LAB</span><strong>Tour ${fmt(step.turnNumber)}</strong></div><span class="lab-theater-counter">${state.labStep} / ${timeline.frameCount}</span></header>
       <div class="lab-game-surface">
         ${metric(step.opponent,false)}
-        <div class="lab-replay-zone lab-replay-opponent" aria-label="Plateau adverse">
+        <div class="lab-replay-zone lab-replay-opponent" aria-label="Plateau adverse"><span class="lab-zone-corner">TERRAIN ADVERSE</span>
           <div class="lab-board-cards">${board([...(step.opponent.field||[]),...(step.opponent.items||[])],'Aucune carte',changedOpponent)}</div>
         </div>
-        <div class="lab-replay-zone lab-replay-mine" aria-label="Mon plateau">
+        <div class="lab-replay-zone lab-replay-mine" aria-label="Mon plateau"><span class="lab-zone-corner">MON TERRAIN</span>
           <div class="lab-board-cards">${board([...(step.mine.field||[]),...(step.mine.items||[])],'Aucune carte',changedMine)}</div>
         </div>
         ${metric(step.mine,true)}
         <div class="lab-hand-row"><span class="lab-zone-label">Ma main · ${fmt(step.mine.handCount)}</span><div class="lab-hand-cards">${board(step.mine.hand,'Main non visible')}</div></div>
       </div>
       <div class="lab-event-strip" aria-live="polite">
-        <div class="lab-event-description"><span class="lab-event-eyebrow">${step.actor==='mine'?'MON ACTION':step.actor==='opponent'?'ACTION ADVERSE':'ÉVÉNEMENT'}</span><strong>${esc(action)}</strong></div>
+        <div class="lab-event-description"><span class="lab-event-eyebrow">${step.actor==='mine'?'MON ACTION':step.actor==='opponent'?'ACTION ADVERSE':'ÉVÉNEMENT'}</span><strong>${esc(action)}</strong>${actionExplanation()?`<span class="lab-event-detail">${esc(actionExplanation())}</span>`:""}</div>
         <div class="lab-event-changes">${currentChanges.length?currentChanges.slice(0,3).map(change=>`<span class="lab-change-pill ${change.delta>0?'lab-positive':'lab-negative'}">${change.side==='mine'?'Moi':'Adv.'} ${esc(change.label)} ${change.delta>0?'+':''}${change.delta}</span>`).join(''):'<span class="lab-change-neutral">Aucun compteur modifié</span>'}</div>
       </div>
       <div class="lab-playback">
