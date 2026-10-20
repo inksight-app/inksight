@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Inksight",
+    "slug": "inksight-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.inksight.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0E13",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "Inksight · Studio mobile",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-router", "expo-sharing", "expo-font"],
+    "scheme": "inksight",
+    "platforms": ["ios", "android", "web"]
+  }
+}

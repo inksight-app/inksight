@@ -1,0 +1,130 @@
+export type Side = "mine" | "opponent";
+export type Card = {
+  id: string;
+  instanceId: string;
+  name: string;
+  cost: number | null;
+  type: string;
+  inkable: boolean | null;
+  colors: string[];
+  lore: number;
+  strength: number;
+  willpower: number;
+  damage: number;
+  exerted: boolean;
+  justPlayed: boolean;
+  rulesText: string;
+  image?: string;
+};
+export type Resources = { permanent: number; ready: number; drops: number };
+export type Position = {
+  frameIndex: number;
+  seq: number;
+  player: number | null;
+  round: number;
+  mine: Resources & {
+    lore: number;
+    handCount: number;
+    hand: Card[];
+    field: Card[];
+  };
+  opponent: Resources & { lore: number; handCount: number; field: Card[] };
+};
+export type Action = {
+  seq: number;
+  frameIndex: number;
+  player: number | null;
+  side: Side | null;
+  type: string;
+  label: string;
+  cardId: string | null;
+  cardName: string | null;
+  permanentExerted: number;
+  dropsGained: number;
+  dropsRemoved: number;
+  dropsPaid: number | null;
+  cancelled: boolean;
+  position: Position;
+};
+export type Turn = {
+  index: number;
+  ownTurn: number;
+  player: number;
+  side: Side;
+  round: number;
+  start: Position;
+  end: Position;
+  actions: Action[];
+  inked: number;
+  played: number;
+  quests: number;
+  challenges: number;
+  permanentExerted: number;
+  dropsGained: number;
+  dropsRemoved: number;
+  dropsPaid: number | null;
+};
+export type Opening = {
+  initial: Card[];
+  kept: Card[];
+  returned: Card[];
+  resolved: Card[];
+  known: boolean;
+};
+export type CardUse = {
+  id: string;
+  name: string;
+  played: number;
+  inked: number;
+  openingKept: number;
+  openingReturned: number;
+};
+export type Evaluation = {
+  source: "duels.ink";
+  version: number | null;
+  perspective: number;
+  values: (number | null)[];
+  fetchedAt: string;
+};
+export type Analysis = {
+  schema: 1;
+  startsMidGame: boolean;
+  id: string;
+  replayId: string | null;
+  fileName: string;
+  createdAt: string | null;
+  perspective: number;
+  myName: string;
+  opponentName: string;
+  firstPlayer: number | null;
+  wentFirst: boolean | null;
+  winner: number | null;
+  result: "win" | "loss" | "draw" | "unfinished";
+  reason: string;
+  deck: string[];
+  colors: string[];
+  opening: Opening;
+  turns: Turn[];
+  actions: Action[];
+  positions: Position[];
+  cardUse: CardUse[];
+  cancelledActions: number;
+  issues: string[];
+  evaluation?: Evaluation;
+  demo?: boolean;
+};
+export type StoredGame = {
+  analysis: Analysis;
+  replayGzip: string;
+  note: string;
+};
+export type Finding = {
+  id: string;
+  kind: "fact" | "review" | "coverage";
+  title: string;
+  text: string;
+  turnIndex?: number;
+  source: string;
+};
+export type Json =
+  null | boolean | number | string | Json[] | { [key: string]: Json };
