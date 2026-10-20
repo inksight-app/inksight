@@ -13080,36 +13080,36 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const a=previous[side]?.[key],b=step[side]?.[key];
       return a!=null&&b!=null&&a!==b?[`${side==='mine'?'Moi':'Adversaire'} · ${{lore:'Lore',handCount:'Main',inkwellCount:'Encre',fieldCount:'Plateau'}[key]} : ${b>a?'+':''}${b-a}`]:[];
     }));
-    els.labContent.innerHTML=`<div class="lab-replay-shell">
-      ${metric(step.opponent,false)}
-      <div class="lab-replay-zone lab-replay-opponent">
-        <div class="lab-zone-label">Plateau adverse</div>
-        <div class="lab-board-cards">${board([...(step.opponent.field||[]),...(step.opponent.items||[])])}</div>
+    els.labContent.innerHTML=`<div class="lab-replay-shell lab-replay-theater">
+      <header class="lab-theater-header"><div><span class="lab-theater-kicker">INKSIGHT / REPLAY LAB</span><strong>Tour ${fmt(step.turnNumber)}</strong></div><span class="lab-theater-counter">${state.labStep} / ${timeline.frameCount}</span></header>
+      <div class="lab-game-surface">
+        ${metric(step.opponent,false)}
+        <div class="lab-replay-zone lab-replay-opponent" aria-label="Plateau adverse">
+          <div class="lab-board-cards">${board([...(step.opponent.field||[]),...(step.opponent.items||[])])}</div>
+        </div>
+        <div class="lab-replay-zone lab-replay-mine" aria-label="Mon plateau">
+          <div class="lab-board-cards">${board([...(step.mine.field||[]),...(step.mine.items||[])])}</div>
+        </div>
+        ${metric(step.mine,true)}
+        <div class="lab-hand-row"><span class="lab-zone-label">Ma main · ${fmt(step.mine.handCount)}</span><div class="lab-hand-cards">${board(step.mine.hand,'Main non visible')}</div></div>
       </div>
-      <div class="lab-replay-zone lab-replay-mine">
-        <div class="lab-zone-label">Mon plateau</div>
-        <div class="lab-board-cards">${board([...(step.mine.field||[]),...(step.mine.items||[])])}</div>
-      </div>
-      ${metric(step.mine,true)}
-      <div class="lab-hand-row"><span class="lab-zone-label">Ma main · ${fmt(step.mine.handCount)}</span><div class="lab-hand-cards">${board(step.mine.hand,'Main non visible')}</div></div>
       <div class="lab-playback">
-        <div class="lab-playback-heading"><strong>Tour ${fmt(step.turnNumber)}</strong><span>Action ${state.labStep}/${timeline.frameCount}</span></div>
+        <div class="lab-playback-heading"><strong>${esc(action)}</strong><span>${state.labStep} / ${timeline.frameCount}</span></div>
         <input class="lab-scrubber" id="labScrubber" aria-label="Position dans le replay" type="range" min="0" max="${timeline.frameCount}" value="${state.labStep}">
         <div class="lab-playback-buttons">
           <button type="button" data-lab-step="first" aria-label="Début" ${state.labStep===0?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5v14M19 5l-11 7 11 7z"/></svg></button>
-          <button type="button" data-lab-step="prev" aria-label="Précédent" ${state.labStep===0?'disabled':''}>‹</button>
-          <button type="button" data-lab-step="next" aria-label="Suivant" ${state.labStep===timeline.frameCount?'disabled':''}>›</button>
+          <button type="button" data-lab-step="prev" aria-label="Précédent" ${state.labStep===0?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+          <button type="button" data-lab-step="next" aria-label="Suivant" ${state.labStep===timeline.frameCount?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
           <button type="button" data-lab-step="last" aria-label="Fin" ${state.labStep===timeline.frameCount?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 5v14M5 5l11 7-11 7z"/></svg></button>
         </div>
         <label class="lab-turn-picker">Aller au tour <select id="labTurnSelect">${turns.map(t=>`<option value="${t}" ${t===step.turnNumber?'selected':''}>Tour ${t}</option>`).join('')}</select></label>
       </div>
-      <details class="lab-analysis-drawer" open><summary>Action · ${esc(action)} ${step.undone?'(annulée)':''}</summary>
+      <details class="lab-analysis-drawer"><summary>Journal & détails de l'action</summary>
         <p>${step.actor==='mine'?'Moi':step.actor==='opponent'?'Adversaire':'Système'} · séquence ${fmt(step.seq)}${step.isUndo?' · retour arrière':''}</p>
         ${diffs.length?`<ul>${diffs.map(d=>`<li>${esc(d)}</li>`).join('')}</ul>`:'<p>Aucun changement dans les compteurs principaux.</p>'}
         <small>État observé dans le replay. Aucun jugement stratégique automatique.</small>
       </details>
-    </div>`;
-  }
+    </div>`;  }
 
   function renderTimeline(){
     if(!els.timelineList) return;
