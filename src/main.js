@@ -13046,8 +13046,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   // Reuses Inksight's existing card CDN and hydration utilities.
   function labCardArt(card){
-    const id = String(card?.id || '').trim();
-    return /^\\d+-\\d+[a-z]?$/i.test(id) ? cardImageUrlFromId(id) : '';
+    const id=String(card?.id||'').trim();
+    if(/^\d+-\d+[a-z]?$/i.test(id)) return cardImageUrlFromId(id);
+    const lookup=hydrateCard({name:String(card?.name||'').split(' - ')[0],fullName:card?.name||'',id:id||''});
+    return lookup.imageSmall||lookup.image||duelinkImageUrl(lookup)||'';
   }
   function renderLab(){
     if(!els.labContent) return;
@@ -13065,9 +13067,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(hidden) return '<span class="lab-card lab-card-back" aria-label="Carte adverse cachée">✦</span>';
       const src=labCardArt(card);
       const name=esc(card.name||'Carte inconnue');
-      return `<span class="lab-card ${card.exerted?'lab-card-exerted':''}" title="${name}" aria-label="${name}">
+      return `<span class="lab-card-slot ${card.exerted?'lab-slot-exerted':''}"><span class="lab-card ${card.exerted?'lab-card-exerted':''}" title="${name}" aria-label="${name}">
         ${src?`<img loading="lazy" src="${esc(src)}" alt="${name}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="lab-card-fallback" hidden>${name}</span>`:`<span class="lab-card-fallback">${name}</span>`}
-        ${card.damage>0?`<b class="lab-damage">−${esc(card.damage)}</b>`:''}</span>`;
+        ${card.damage>0?`<b class="lab-damage">−${esc(card.damage)}</b>`:''}</span></span>`;
     };
     const board=(list,empty='Aucune carte')=>list?.length?list.map(card=>cardTile(card)).join(''):`<span class="lab-empty">${empty}</span>`;
     const metric=(side,own)=>`<div class="lab-playerbar"><strong>${own?'Moi':'Adversaire'}</strong><span>✦ ${fmt(side.lore)} Lore</span><small>${fmt(side.readyInkCount)}/${fmt(side.inkwellCount)} encre · ${fmt(side.handCount)} en main · ${fmt(side.deckCount)} deck</small></div>`;
@@ -13094,10 +13096,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <div class="lab-playback-heading"><strong>Tour ${fmt(step.turnNumber)}</strong><span>Action ${state.labStep}/${timeline.frameCount}</span></div>
         <input class="lab-scrubber" id="labScrubber" aria-label="Position dans le replay" type="range" min="0" max="${timeline.frameCount}" value="${state.labStep}">
         <div class="lab-playback-buttons">
-          <button type="button" data-lab-step="first" aria-label="Début" ${state.labStep===0?'disabled':''}>⏮</button>
+          <button type="button" data-lab-step="first" aria-label="Début" ${state.labStep===0?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5v14M19 5l-11 7 11 7z"/></svg></button>
           <button type="button" data-lab-step="prev" aria-label="Précédent" ${state.labStep===0?'disabled':''}>‹</button>
           <button type="button" data-lab-step="next" aria-label="Suivant" ${state.labStep===timeline.frameCount?'disabled':''}>›</button>
-          <button type="button" data-lab-step="last" aria-label="Fin" ${state.labStep===timeline.frameCount?'disabled':''}>⏭</button>
+          <button type="button" data-lab-step="last" aria-label="Fin" ${state.labStep===timeline.frameCount?'disabled':''}><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 5v14M5 5l11 7-11 7z"/></svg></button>
         </div>
         <label class="lab-turn-picker">Aller au tour <select id="labTurnSelect">${turns.map(t=>`<option value="${t}" ${t===step.turnNumber?'selected':''}>Tour ${t}</option>`).join('')}</select></label>
       </div>
