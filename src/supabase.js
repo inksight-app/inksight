@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { MATCH_CONTEXT_SELECT } from './lorcana/context-select.js';
 
 // Clé publique Supabase : OK côté frontend.
 // Ne jamais mettre ici une clé "service_role".
@@ -12,6 +13,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    flowType: 'pkce',
   },
 });
 
@@ -28,7 +30,7 @@ function sanitizeDuelinkStoredData(value, seen = new WeakSet()) {
   if (seen.has(value)) return null;
   seen.add(value);
   if (Array.isArray(value)) return value.map(item => sanitizeDuelinkStoredData(item, seen));
-  const clean = {};
+  const clean = Object.create(null);
   for (const [key, nested] of Object.entries(value)) {
     if (sensitiveKeys.has(key) || /^opp(?:onent)?_?deck(?:list|_hash|_copies|_unique_cards)?$/i.test(key) || /^enemy_?deck(list)?$/i.test(key)) continue;
     clean[key] = sanitizeDuelinkStoredData(nested, seen);
@@ -39,6 +41,8 @@ function sanitizeDuelinkStoredData(value, seen = new WeakSet()) {
 function sanitizeSavedMatchRow(row) {
   if (!row || typeof row !== 'object') return row;
   const clean = sanitizeDuelinkStoredData(row);
+  if(Array.isArray(clean.context_deck_list))clean.my_decklist=clean.context_deck_list;
+  delete clean.context_deck_list;
   delete clean.opponent_decklist;
   return clean;
 }
@@ -48,6 +52,14 @@ function sanitizeSavedMatchRow(row) {
 // =========================================================
 
 export async function signInWithDiscord() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(`${supabaseUrl}/auth/v1/settings`, { headers: { apikey: supabaseKey }, signal: controller.signal, cache: 'no-store' });
+    if (!response.ok || !(await response.json()).external?.discord) throw new Error('Auth service unavailable');
+  } catch {
+    throw new Error('La connexion Discord est momentanément indisponible. Réessayez plus tard ; l’analyse locale reste accessible.');
+  } finally { clearTimeout(timeout); }
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'discord',
     options: {
@@ -110,7 +122,8 @@ export async function listDeckProfiles() {
   let query = supabase
     .from('deck_profiles')
     .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id,format_pool,set_tag');
-  if (userId) query = query.eq('user_id', userId);
+  if (!userId) return [];
+  query = query.eq('user_id', userId);
   const { data, error } = await query.order('name', { ascending: true });
 
   if (error) throw error;
@@ -122,11 +135,14 @@ export async function listDeckProfiles() {
 // Réutilise le profil existant si déjà mappé, sinon le crée. Idempotent.
 export async function ensureDeckProfileByExternalId(externalId, name, colors) {
   if (!externalId) return null;
+  const { data: { user: owner }, error: ownerError } = await supabase.auth.getUser();
+  if (ownerError || !owner) throw new Error('Vous devez être connecté pour associer un deck.');
 
   const { data: existing } = await supabase
     .from('deck_profiles')
     .select('id,name,colors,archetype,notes,archived_at,created_at,updated_at,external_deck_id,format_pool,set_tag')
     .eq('external_deck_id', externalId)
+    .eq('user_id', owner.id)
     .limit(1)
     .maybeSingle();
 
@@ -283,13 +299,13 @@ export async function mergeDeckProfiles(sourceDeckId, targetDeckId) {
   return data;
 }
 
-export async function saveMatchAnalysis(payload, details = {}) {
+export async function saveMatchAnalysis(payload, details = {}, expectedOwnerId) {
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
+  if (userError || !user || (expectedOwnerId && user.id !== expectedOwnerId)) {
     throw new Error('Vous devez être connecté pour sauvegarder une analyse.');
   }
 
@@ -420,8 +436,10 @@ export async function listSavedMatchHistoryLight(limit = 1000) {
       'final_opp_lore',
       'team_visible',
       'user_id',
+      MATCH_CONTEXT_SELECT,
     ].join(','));
-  if (userId) query = query.eq('user_id', userId);
+  if (!userId) return [];
+  query = query.eq('user_id', userId);
   const { data, error } = await query
     .order('played_at', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })

@@ -1,6 +1,16 @@
 {
   "headers": [
     {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://cards.duels.ink https://cards.lorcast.io https://cdn.discordapp.com https://media.discordapp.net https://htmsgnnqnmaqxuzlcsld.supabase.co; connect-src 'self' https://htmsgnnqnmaqxuzlcsld.supabase.co wss://htmsgnnqnmaqxuzlcsld.supabase.co https://duels.ink https://api.lorcast.com https://cards.duels.ink https://cards.lorcast.io https://fonts.googleapis.com https://fonts.gstatic.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=()" }
+      ]
+    },
+    {
       "source": "/",
       "headers": [
         { "key": "Cache-Control", "value": "no-store, must-revalidate" }

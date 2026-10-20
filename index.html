@@ -5,14 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>InkSight — Replay Intelligence for Lorcana</title>
   <meta name="description" content="Analyseur de replays Lorcana : mulligan, économie d’encre, moteurs de victoire et statistiques de deck.">
-  <script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
-  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script type="module" src="/src/main.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap"></noscript>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@400;500;600&display=swap">
   <meta name="theme-color" content="#050506">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -219,15 +215,20 @@
       </article>
 
       <section class="pro-grid">
-        <article class="pro-card warn"><span>Économie d’Encre</span><strong id="inkFloatTotal">—</strong><small id="inkFloatAverage">Encre non convertie en pression.</small></article>
+        <article class="pro-card warn"><span>Encre permanente disponible</span><strong id="inkFloatTotal">—</strong><small id="inkFloatAverage">Encre restée disponible, distincte des inkdrops.</small></article>
         <article class="pro-card good"><span>Pression (Lore vs Trade)</span><strong id="actionRatioKpi">—</strong><small id="actionRatioLabel">Ratio quête / défi.</small></article>
         <article class="pro-card"><span>Cartes en main</span><strong id="topDeckTurns">—</strong><small id="topDeckBadge">Mesuré en fin de tour.</small></article>
       </section>
 
       <section class="chart-grid stats-charts">
         <article class="glass chart-panel">
-          <div class="section-head"><div><h2>Économie d’Encre</h2><p id="inkChartSubtitle">Encre investie, conservée ou perdue dans le tempo.</p></div></div>
-          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="inkFloatChart"><span>Lecture du tour</span><strong>Survolez une barre</strong><small>Encre dépensée et inutilisée s’affichent ici.</small></div><div class="chart-wrap"><canvas id="inkFloatChart" role="img" aria-label="Économie d’encre tour par tour" aria-describedby="inkChartSummary"></canvas></div><p id="inkChartSummary" class="sr-only">Résumé du graphique économie d’encre disponible après import.</p>
+          <div class="section-head"><div><h2>Économie d’Encre</h2><p id="inkChartSubtitle">Encre permanente : inclinaisons observées et réserve disponible.</p></div></div>
+          <p id="inkDropSummary" class="chart-subtitle">Inkdrops : mesurées séparément après import d’un replay.</p>
+          <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="inkFloatChart"><span>Lecture du tour</span><strong>Survolez une barre</strong><small>Inclinaisons observées et réserve permanente disponible.</small></div><div class="chart-wrap"><canvas id="inkFloatChart" role="img" aria-label="Encre permanente tour par tour" aria-describedby="inkChartSummary"></canvas></div><p id="inkChartSummary" class="sr-only">Résumé du graphique d’encre permanente disponible après import.</p>
+        </article>
+        <article class="glass chart-panel">
+          <div class="section-head"><div><h2>Inkdrops</h2><p id="inkDropChartNote">Stock et flux mesurés séparément après import.</p></div></div>
+          <div class="chart-wrap"><canvas id="inkDropChart" role="img" aria-label="Inkdrops obtenues, retirées et stock observé par tour" aria-describedby="inkDropChartNote"></canvas></div>
         </article>
         <article class="glass chart-panel action-stats-panel">
           <div class="section-head"><div><h2 id="actionChartTitle">Actions par tour</h2><p id="actionChartSubtitle">Vos cartes encrées, jouées, quêtes et défis par tour.</p></div></div>
@@ -261,7 +262,7 @@
       <article class="glass cards-panel">
         <div class="section-head cards-head">
           <div><h2>Cartes vues pendant la partie</h2><p id="cardsSubtitle">Importez un replay pour afficher les cartes détectées.</p></div>
-          <div class="card-tabs"><button type="button" data-card-filter="all" class="card-filter active">Toutes</button><button type="button" data-card-filter="mine" class="card-filter">Moi</button><button type="button" data-card-filter="opponent" class="card-filter">Adversaire</button><button type="button" data-core-only class="card-filter core-only-toggle" aria-pressed="false" title="Masquer les cartes sorties du format Core (rotation de juillet 2026)">Core-legal</button></div>
+          <div class="card-tabs"><button type="button" data-card-filter="all" class="card-filter active">Toutes</button><button type="button" data-card-filter="mine" class="card-filter">Moi</button><button type="button" data-card-filter="opponent" class="card-filter">Adversaire</button><button type="button" data-core-only class="card-filter core-only-toggle" aria-pressed="false" title="Filtrer le pool Core actuel (sets 9–14 et réimpressions). Ne vérifie pas les cartes bannies.">Pool Core</button></div>
         </div>
         <div id="cardsGrid" class="cards-grid"><div class="empty-line">Aucune carte détectée pour le moment.</div></div>
       </article>
@@ -300,6 +301,15 @@
         <span>Vos matchs sauvegardés sont liés à votre compte Discord.</span>
       </div>
 
+      <article class="glass scope-controls" aria-label="Chapitre et format des statistiques">
+        <div class="scope-selects">
+          <label>Chapitre<select data-scope-era aria-label="Chapitre des statistiques"><option value="current">Set 14 — Actuel</option></select></label>
+          <label>File<select data-scope-queue aria-label="File des statistiques"><option value="core-bo1">Core BO1 classé</option><option value="core-bo3">Core BO3 classé</option><option value="all">Tous les formats (exploration)</option></select></label>
+          <button type="button" class="ghost-button compact" data-scope-archives>Archives</button>
+        </div>
+        <p data-scope-status role="status">Le chapitre actuel est affiché par défaut. Les anciennes analyses sont conservées.</p>
+      </article>
+
       <nav class="performance-tabs glass" aria-label="Sections performances">
         <button type="button" class="performance-tab active" data-performance-view="stats">Mes statistiques</button>
         <button type="button" class="performance-tab" data-performance-view="history">Historique des matchs</button>
@@ -307,6 +317,12 @@
       </nav>
 
       <section id="performance-stats" class="performance-panel active" data-performance-panel="stats">
+        <article class="glass community-meta-panel" id="communityMetaPanel" aria-labelledby="communityMetaTitle">
+          <div class="section-head"><div><h2 id="communityMetaTitle">Repères de la communauté</h2><p>Agrégats publics duels.ink · contexte choisi · date et effectif disponibles</p></div></div>
+          <p data-meta-comparison>Même chapitre et même format requis pour comparer.</p>
+          <div data-meta-body aria-live="polite">Chargement des agrégats publics…</div>
+          <a href="https://duels.ink/stats/core-bo1" target="_blank" rel="noopener noreferrer">Source : statistiques duels.ink</a>
+        </article>
         <div class="team-context-bar" id="teamContextBarStats" hidden>
           <button type="button" class="team-ctx-btn active" data-team-ctx="solo">Mes stats</button>
           <button type="button" class="team-ctx-btn" data-team-ctx="team">Équipe</button>
@@ -443,12 +459,12 @@
         </section>
 
         <section id="perf-detail-draw" class="performance-detail-panel" data-performance-detail-panel="draw" hidden>
-          <p class="perf-detail-intro">Tes chances de piocher tes cartes au fil de la partie, calculées sur ton rythme réel de tirage (toutes pioches et effets compris). Réponds à « est-ce que je verrai ma carte clé à temps&nbsp;? » et « à quelle vitesse je creuse mon deck&nbsp;? ».</p>
+          <p class="perf-detail-intro">Observe ton volume de pioche et calcule séparément une probabilité théorique de tirage aléatoire. Les effets sélectifs et les décisions de mulligan nécessitent un modèle spécifique.</p>
 
           <article class="glass stat-panel draw-calc-panel">
             <div class="section-head"><div>
-              <h2>Calculateur de pioche <button class="info-dot" type="button" data-info="Probabilité hypergéométrique — 100% théorique, indépendante de tes matchs. Le mulligan de Lorcana (remettre des cartes sous le deck et repiocher) est modélisé comme +7 cartes vues au départ.">i</button></h2>
-              <p>« Vais-je avoir mon ouverture&nbsp;? » Probabilité théorique d’avoir tes copies à temps.</p>
+              <h2>Calculateur de pioche <button class="info-dot" type="button" data-info="Probabilité hypergéométrique pour un tirage aléatoire sans remise. Ne modélise ni le mulligan, ni les tuteurs, ni les effets de sélection ou de mélange.">i</button></h2>
+              <p>Probabilité théorique selon le nombre de cartes tirées, sans mulligan ni effet sélectif.</p>
             </div></div>
             <div class="draw-calc">
               <div class="draw-calc-inputs">
@@ -458,14 +474,13 @@
                 <label>Quand&nbsp;?
                   <select id="drawWhen">
                     <option value="7">Main de départ (7 vues)</option>
-                    <option value="9">Tour 3 (≈9 vues)</option>
-                    <option value="11">Tour 5 (≈11 vues)</option>
-                    <option value="13">Tour 7 (≈13 vues)</option>
+                    <option value="9">9 cartes tirées</option>
+                    <option value="11">11 cartes tirées</option>
+                    <option value="13">13 cartes tirées</option>
                     <option value="custom">Cartes vues…</option>
                   </select>
                 </label>
                 <label id="drawSeenWrap" hidden>Cartes vues<input type="number" id="drawSeen" value="7" min="1" max="300" inputmode="numeric"></label>
-                <label class="draw-check"><input type="checkbox" id="drawMulligan" checked> Mulligan (fond de deck)</label>
               </div>
               <div class="draw-calc-result">
                 <div class="draw-gauge"><div class="draw-gauge-fill" id="drawGaugeFill"></div></div>
@@ -475,7 +490,7 @@
             </div>
           </article>
 
-          <article class="glass stat-panel deck-depth-panel"><div class="section-head"><div><h2>Profondeur de deck moyenne <button class="info-dot" type="button" data-info="Quelle part de ton deck (60 cartes) tu as vue en moyenne par partie, et la probabilité d’avoir déjà tiré ≥1 exemplaire d’une carte selon son nombre de copies et le tour. Plus c’est vert, plus c’est probable.">i</button></h2><p>Quelle part de ton deck tu parcours, et tes chances d’avoir déjà vu chaque carte selon ses copies.</p></div></div><div id="performanceDeckDepth" class="deck-depth-body"></div></article>
+          <article class="glass stat-panel deck-depth-panel"><div class="section-head"><div><h2>Volume de cartes observées <button class="info-dot" type="button" data-info="Volume moyen relevé ou estimé dans les replays. Une carte revue après un mélange peut être comptée de nouveau : ce volume ne mesure pas les cartes distinctes du deck.">i</button></h2><p>Nombre d’observations et rythme moyen par tour, avec la couverture des données.</p></div></div><div id="performanceDeckDepth" class="deck-depth-body"></div></article>
           <article class="glass stat-panel deck-depth-panel"><div class="section-head"><div><h2>Tes cartes en main de départ <button class="info-dot" type="button" data-info="Tes cartes classées par fréquence d’apparition dans ta main de départ (mulligans compris). Plus tu joues d’exemplaires d’une carte, plus tu la vois tôt. Utile pour vérifier que tes ouvreurs arrivent quand il faut.">i</button></h2><p>Tes cartes les plus souvent en main au début de la partie, classées par fréquence.</p></div></div><div id="performanceOpeningConsistency" class="deck-depth-body"></div></article>
         </section>
 
@@ -495,7 +510,7 @@
           <article class="glass stat-panel performance-matchup-panel">
             <div class="section-head">
               <div>
-                <h2>Matchups rencontrés <button class="info-dot" type="button" data-info="Cette section résume vos résultats contre chaque bicolorité adverse : volume rencontré, winrate en match et winrate en game.">i</button></h2>
+                <h2>Matchups rencontrés <button class="info-dot" type="button" data-info="Résultats contre chaque bicolorité adverse. Le BO1 utilise les manches ; le BO3 utilise les matchs dont deux victoires ou deux défaites sont présentes. Les séries incomplètes sont signalées.">i</button></h2>
                 
               </div>
             </div>
@@ -693,6 +708,14 @@
         </div>
       </section>
 
+      <article class="glass scope-controls" aria-label="Chapitre et format de l’import">
+        <div class="scope-selects">
+          <label>Chapitre<select data-scope-era aria-label="Chapitre de l’import"><option value="current">Set 14 — Actuel</option></select></label>
+          <label>File<select data-scope-queue aria-label="File de l’import"><option value="core-bo1">Core BO1 classé</option><option value="core-bo3">Core BO3 classé</option><option value="all">Tous les formats (exploration)</option></select></label>
+          <button type="button" class="ghost-button compact" data-scope-archives>Archives</button>
+        </div>
+        <p data-scope-status role="status">Le chapitre actuel est affiché par défaut. Les anciennes analyses sont conservées.</p>
+      </article>
       <section class="glass duelink-connect-section duelink-sync-card" data-auth-required aria-labelledby="duelinkConnectTitle">
         <div class="duelink-connect-head">
           <div class="duelink-title-block">

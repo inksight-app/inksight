@@ -573,9 +573,19 @@ p,
   background:var(--neutral-bg);border-radius:999px;padding:.26rem .55rem}
 .otp-tag small{color:var(--faint);font-weight:600}
 
-/* Filtre d'import « Core · Set 13 uniquement » */
-.filter-pill-set13{border-color:rgba(52,211,153,.35)}
-.filter-pill-set13[aria-pressed="true"]{
+/* Current-set Core import filter */
+.community-meta-panel{padding:20px;margin-bottom:20px}
+.scope-controls{padding:18px 20px;margin:18px 0}
+.scope-selects{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+.scope-selects label{display:grid;gap:7px;font-size:12px;color:#b6bac6;flex:1 1 190px}
+.scope-selects select{width:100%;min-height:44px;padding:10px 12px;background:#15171e;color:#f4f5f8;border:1px solid #333743;border-radius:12px;font:inherit;font-size:14px}
+.scope-controls [data-scope-status]{margin:12px 0 0;font-size:13px;line-height:1.5;color:#b6bac6}
+.scope-controls [data-scope-archives]{min-height:44px}
+.community-meta-panel [data-meta-body]{margin:16px 0;color:var(--text-muted,#b6bac6);line-height:1.6}
+.community-meta-panel ul{padding-left:20px}
+#inkDropSummary{font-size:13px;line-height:1.5;color:#b6bac6;margin:8px 0 16px}
+.filter-pill-set14{border-color:rgba(52,211,153,.35)}
+.filter-pill-set14[aria-pressed="true"]{
   background:var(--good-bg);color:#6ee7b7;border-color:rgba(52,211,153,.55);font-weight:750
 }
 

@@ -11,6 +11,12 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
+.vercel/
+# Detailed security reports are kept out of public releases.
+docs/security-audit-2026-10-20.md
 
 .claude/
 

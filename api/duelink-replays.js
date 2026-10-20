@@ -1,94 +1,16 @@
 import { resolveDuelinkToken } from './_duelink-token-store.js';
-
-const DUELINK_BASE_URL = 'https://duels.ink';
-
-function json(res, status, payload) {
-  res.statusCode = status;
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(JSON.stringify(payload));
-}
-
-function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    let raw = '';
-    req.on('data', chunk => {
-      raw += chunk;
-      if (raw.length > 1024 * 1024) {
-        reject(new Error('Requête trop volumineuse.'));
-        req.destroy();
-      }
-    });
-    req.on('end', () => {
-      if (!raw.trim()) return resolve({});
-      try { resolve(JSON.parse(raw)); }
-      catch { reject(new Error('JSON invalide.')); }
-    });
-    req.on('error', reject);
-  });
-}
-
-function cleanToken(value) {
-  return String(value || '').trim().replace(/^Bearer\s+/i, '');
-}
-
-function cleanIds(ids) {
-  return [...new Set((Array.isArray(ids) ? ids : [])
-    .map(id => String(id || '').trim())
-    .filter(Boolean))].slice(0, 1000);
-}
-
+import { json, readJsonBody, jsonError, HttpError, validateRemoteUrl } from './_http.js';
+import { requestDuelsJson, expireSavedConnection } from './_duels-client.js';
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return json(res, 405, { success: false, error: 'Méthode non autorisée.' });
-  }
-
   try {
-    const body = await readJsonBody(req);
-    const resolved = await resolveDuelinkToken(req, body);
-    const token = resolved.token;
-    const ids = cleanIds(body.ids);
-
-    if (!ids.length) return json(res, 400, { success: false, error: 'Aucun replay id à importer.' });
-
-    const response = await fetch(`${DUELINK_BASE_URL}/api/me/bulk-replays`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ ids }),
-    });
-
-    const text = await response.text();
-    let payload = null;
-    try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
-
-    if (!response.ok) {
-      const message = payload?.error || payload?.message || `Duels.ink a répondu ${response.status}.`;
-      const mappedStatus = response.status === 401 || response.status === 403 ? 401 : (response.status === 429 ? 429 : 502);
-      const retryAfter = response.headers.get('retry-after');
-      return json(res, mappedStatus, {
-        success: false,
-        status: response.status,
-        retryAfter: retryAfter ? Number(retryAfter) || retryAfter : null,
-        error: response.status === 429 ? 'Limite Duels.ink atteinte. Réessayez dans quelques secondes.' : message,
-      });
-    }
-
-    const files = Array.isArray(payload?.files) ? payload.files : [];
-    const missing = Array.isArray(payload?.missing) ? payload.missing : [];
-    return json(res, 200, {
-      success: true,
-      files: files.map(file => ({
-        id: file.id || file.replay_id || file.replayId || '',
-        filename: file.filename || file.name || `${file.id || 'duelink'}.replay.gz`,
-        url: file.url || '',
-      })).filter(file => file.id && file.url),
-      missing,
-    });
-  } catch (error) {
-    return json(res, 500, { success: false, error: error?.message || 'Erreur inconnue pendant la récupération des replays Duels.ink.' });
-  }
+    if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); throw new HttpError(405, 'Méthode non autorisée.'); }
+    const body = await readJsonBody(req), resolved = await resolveDuelinkToken(req, body);
+    if (!Array.isArray(body.ids) || body.ids.length > 1000 || body.ids.some(id => typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id))) throw new HttpError(400, 'Liste de replays invalide (1 000 IDs maximum).');
+    const ids = [...new Set(body.ids)];
+    if (!ids.length) throw new HttpError(400, 'Aucun replay à importer.');
+    const payload = await requestDuelsJson('/api/me/bulk-replays', { token: resolved.token, method: 'POST', body: { ids }, onUnauthorized: () => expireSavedConnection(resolved) });
+    if (!Array.isArray(payload.files) || !Array.isArray(payload.missing)) throw new HttpError(502, 'Manifeste Duels.ink invalide.');
+    const files = payload.files.map(file => ({ id: file.id, filename: file.filename, url: validateRemoteUrl(file.url, ['duels.ink','cdn.duels.ink']).href })).filter(file => ids.includes(file.id));
+    return json(res, 200, { success: true, files, missing: payload.missing });
+  } catch (error) { return jsonError(res, error); }
 }

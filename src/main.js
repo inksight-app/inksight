@@ -1,8 +1,19 @@
 import './style.css';
+import Chart from 'chart.js/auto';
+import * as pako from 'pako';
+import JSZip from 'jszip';
+import { SessionBoundary } from './security/session.js';
+import { descriptionHtml } from './security/render.js';
+import { CORE_SET_NUMBERS, isCurrentCoreGame } from './lorcana/format.js';
+import { analyzeInkDrops, combineInkDrops, replayCancellations } from './lorcana/resources.js';
+import { DEFAULT_STAT_SCOPE, DEFAULT_ERAS, eraCatalog, classifyGameContext, contextFields, rowMatchesScope, normalizedScope, resultSummary, scopeEraStart, coherentDeckList } from './lorcana/seasons.js';
+import { applyReplayPatch, decodeReplayBytes, readZipEntry, MAX_REPLAY_BYTES, MAX_REPLAY_FILES } from './security/replay.js';
 import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, patchSavedMatchTeamVisible, listDeckProfiles, upsertDeckProfile, ensureDeckProfileByExternalId, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun, updateDeckProfilePoolTag } from './supabase.js';
 
 (() => {
   'use strict';
+  // Bundled, versioned dependencies replace executable code loaded from third-party CDNs.
+  Object.assign(window, { Chart, pako, JSZip });
 
   const LOCAL_CARD_DATA_URL = '/lorcana-cards-import-ready.json';
   const MAX_FILES = 20;
@@ -14,11 +25,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const SET_CODE_TO_NUM = Object.fromEntries(Object.entries(SET_NUM_TO_CODE).map(([n,c]) => [c,n]));
   // Aliases so legacy data using the older codes still resolves.
   Object.assign(SET_CODE_TO_NUM, { FC:'1', TFC:'1', SHS:'5', SSK:'5', WITW:'10', WHW:'10', WIS:'11', WIN:'11', WUN:'12', WIL:'12' });
-  // Rotation Core (juillet 2026, sortie du chapitre 13) : le format Core ne garde
-  // que les cinq derniers chapitres. Core-legal = sets 9 à 13 (Fabuleux, Lueurs dans
-  // les Profondeurs, Givresort, Contrées Inconnues, Invasion Épineuse !). Les sets 1
-  // à 8 sont sortis du Core (toujours jouables en Infinity).
-  const CORE_LEGAL_SET_NUMS = new Set(['9', '10', '11', '12', '13']);
+  // Annual rotation, not a rolling five-set window. Hyperia adds Set 14 without rotation.
+  const CORE_LEGAL_SET_NUMS = CORE_SET_NUMBERS;
   // Chrome des graphes (D3) — source unique pour la couleur des axes, grilles et
   // repères (les séries, elles, prennent la couleur d'encre réelle du deck). Les
   // valeurs sont identiques à l'existant : centralisation, pas de changement visuel.
@@ -35,11 +43,68 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const GAME_ACTIONS = new Set(['ADD_TO_INK','PLAY_CARD','QUEST','CHALLENGE','ATTACK','END_TURN','MOVE_TO_LOCATION','ACTIVATE_ABILITY','RESPOND_TO_PROMPT']);
   const $ = id => document.getElementById(id);
   const els = {};
-  const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null };
+  const accountBoundary = new SessionBoundary();
+  const printingSetsByName = new Map();
+  const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null, inkDrops:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
   const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', coreOnly:false, lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), team:null, teamMode:false, teamMemberIds:[], teamDisplayNames:{}, dateFilter:{ stats:{ preset:'all', from:null, to:null }, history:{ preset:'all', from:null, to:null } } };
 
+
+  function statisticsScope(){ return normalizedScope(state.statScope || DEFAULT_STAT_SCOPE); }
+  function currentEras(){return state.erasByQueue?.[statisticsScope().queue] || DEFAULT_ERAS;}
+  function scopedSavedRows(){return (state.savedMatches || []).filter(row=>rowMatchesScope(row,statisticsScope(),currentEras())).map(row=>({...row,result:contextFields(row).result}));}
+
+  function scopeLabel(){
+    const scope=statisticsScope(),chapter=currentEras()[0]?.chapter || 14;
+    const era=scope.era==='current'?'Set '+chapter+' · actuel':scope.era==='all'?'Tous les chapitres':scope.era==='unknown'?'À vérifier':'Set '+scope.era.slice(4)+' · archives';
+    return era+' — '+({'core-bo1':'Core BO1 classé','core-bo3':'Core BO3 classé',all:'Tous les formats (exploration)'}[scope.queue]);
+  }
+  function renderScopeControls(){
+    const scope=statisticsScope(),eras=currentEras(),chapter=eras[0]?.chapter || 14;
+    const counts=new Map();
+    for(const row of state.savedMatches || []){
+      const context=classifyGameContext(row,eras);
+      if(scope.queue!=='all' && context.queue!==scope.queue) continue;
+      counts.set(context.era,(counts.get(context.era)||0)+1);
+    }
+    const chapters=[...new Set([...eras.map(e=>e.chapter),...[...counts.keys()].filter(k=>k.startsWith('set-')).map(k=>Number(k.slice(4)))])].filter(n=>n!==chapter).sort((a,b)=>b-a);
+    const choices=[{value:'current',label:'Set '+chapter+' — Actuel ('+(counts.get('set-'+chapter)||0)+')'},...chapters.map(n=>({value:'set-'+n,label:'Set '+n+' — Archives ('+(counts.get('set-'+n)||0)+')'})),{value:'unknown',label:'À vérifier ('+(counts.get('unknown')||0)+')'},{value:'all',label:'Tous les chapitres (exploration)'}];
+    for(const select of document.querySelectorAll('[data-scope-era]')){
+      select.innerHTML=choices.map(option=>'<option value="'+escAttr(option.value)+'">'+esc(option.label)+'</option>').join('');
+      select.value=scope.era;
+      select.disabled=!!(state.duelinkScanning || state.duelinkImporting || state.duelinkAutoSaving || state.bulkSaving);
+    }
+    document.querySelectorAll('[data-scope-queue]').forEach(select=>{select.value=scope.queue;select.disabled=!!(state.duelinkScanning || state.duelinkImporting || state.duelinkAutoSaving || state.bulkSaving);});
+    const visible=scopedSavedRows().length,total=state.savedMatches?.length || 0;
+    const text=scopeLabel()+'. '+(state.savedMatchesLoaded?visible+' analyse(s) dans cette vue ; '+(total-visible)+' autre(s) conservée(s).':'Chargement de l’historique…')+(scope.era==='all'||scope.queue==='all'?' Exploration : ne pas interpréter un taux agrégé comme un résultat du format actuel.':' Les autres chapitres et files ne sont pas inclus.');
+    document.querySelectorAll('[data-scope-status]').forEach(node=>{node.textContent=text;});
+    document.querySelectorAll('[data-scope-archives]').forEach(node=>{node.textContent='Archives';node.disabled=!chapters.length || !!(state.duelinkScanning || state.duelinkImporting || state.duelinkAutoSaving || state.bulkSaving);});
+  }
+  function setStatisticsScope(change){
+    if(state.duelinkScanning || state.duelinkImporting || state.duelinkAutoSaving || state.bulkSaving){renderScopeControls();return;}
+    state.statScope=normalizedScope({...statisticsScope(),...change});
+    for(const id of multiFilterIds()) clearSelectedFilterValues(id);
+    resetDateFilter('stats');resetDateFilter('history');
+    state._perfAnalyticsMemo=null;state.opponentsUi=null;
+    renderScopeControls();renderPerformanceData();
+    if(state.duelinkPreviewRows?.length) renderDuelinkPreviewResult({games:state.duelinkPreviewRows.map(r=>r.game),classified:state.duelinkPreviewRows});
+    loadCommunityMeta();
+  }
+  function renderScopeResultSummary(){
+    const scope=statisticsScope(),rows=filteredSavedMatches('stats'),summary=resultSummary(rows),bo3=scope.queue==='core-bo3';
+    const primary=bo3?summary.matches:summary.games;
+    const label=document.getElementById('performanceWinrate')?.closest('.metric-card')?.querySelector('span');
+    if(label) label.textContent=bo3?'Victoires par match BO3':'Victoires par manche';
+    if(els.performanceWinrate) els.performanceWinrate.textContent=scope.queue==='all'?'—':primary.rate===null?'—':round1(primary.rate)+'%';
+    if(els.performanceSavedCount) els.performanceSavedCount.textContent=String(summary.games.n);
+    if(els.performanceBo3Count) els.performanceBo3Count.textContent=bo3?String(summary.matches.n):'—';
+    if(els.performanceSampleHelp) els.performanceSampleHelp.textContent=bo3?summary.games.n+' manches · '+summary.matches.n+' matchs confirmés · '+summary.matches.unconfirmed+' séries ou manches sans conclusion.':summary.games.n+' manches terminées · '+summary.games.draws+' nul(s) · '+summary.games.unknown+' résultat(s) non exploitable(s).';
+    const benchmark=document.querySelector('[data-meta-comparison]');
+    const note=' Les statistiques détaillées de cartes et de courbes utilisent uniquement les manches avec victoire ou défaite connue.';
+    if(els.performanceSampleHelp)els.performanceSampleHelp.textContent+=note;
+    if(benchmark) benchmark.textContent=bo3?'Comparaison BO3 : seuls les matchs dont le résultat est confirmé peuvent être comparés aux agrégats communautaires, pas le taux de victoire par manche.':'Comparaison BO1 : même chapitre, même file, mêmes encres. Une différence observée ne prouve pas une différence de niveau.';
+  }
 
   function perfMark(label, startedAt, extra={}){
     if(!PERF_DEBUG || !startedAt) return;
@@ -59,6 +124,18 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     bindUI();
     initSaveIntegration();
     scheduleLocalCardLoad();
+    loadCommunityMeta();
+    document.addEventListener('change',event=>{
+      if(event.target.matches('[data-scope-era]')) setStatisticsScope({era:event.target.value});
+      if(event.target.matches('[data-scope-queue]')) setStatisticsScope({queue:event.target.value});
+    });
+    document.addEventListener('click',event=>{
+      if(event.target.closest('[data-scope-archives]'))setStatisticsScope({era:'set-'+(currentEras().find(era=>era.chapter<currentEras()[0].chapter)?.chapter || 13)});
+    });
+    document.getElementById('communityMetaPanel')?.addEventListener('click',event=>{
+      const button=event.target.closest('[data-meta-queue]');
+      if(button) loadCommunityMeta(button.dataset.metaQueue);
+    });
   }
 
   function collectEls(){
@@ -402,23 +479,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return [game?.queue, game?.format, game?.source, game?.queue_id, game?.apiRow?.queue, game?.apiRow?.format]
       .map(value => String(value || '')).filter(Boolean).join(' ').toLowerCase();
   }
-  // Files « Core + Set 13 » (Quick Play Core+Set 13 BETA BO1/BO3, et les futures
-  // Core BO1/BO3 - Set 13) : toutes contiennent « core » et « set 13 ».
-  function isCoreSet13Game(game){
-    const q = gameFullQueueString(game);
-    if(!q || !q.includes('core')) return false;
-    return /set\s*_?-?\s*13\b/.test(q) || q.includes('set13') || q.includes('chapitre 13') || q.includes('chapter 13');
+  function isCoreSet14Game(game){
+    return isCurrentCoreGame(game);
   }
   function duelinkImportFilters(){
     const f = state.duelinkImportFilters || {};
-    return { format:f.format || 'all', pool:f.pool || 'all', set13:!!f.set13 };
+    return { format:f.format || 'all', pool:f.pool || 'all', set14:!!f.set14 };
   }
   function gamePassesImportFilters(game){
-    const f = duelinkImportFilters();
-    if(f.set13 && !isCoreSet13Game(game)) return false;
-    if(f.format !== 'all' && gameFormatKey(game) !== f.format) return false;
-    if(f.pool !== 'all' && gamePool(game) !== f.pool) return false;
-    return true;
+    return rowMatchesScope(game,statisticsScope(),currentEras());
   }
 
   function getDuelinkImportableRows(){
@@ -439,8 +508,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function syncDuelinkActionButtons(newCount=null){
+    renderScopeControls();
     const count = newCount === null ? getDuelinkImportableRows().length : n(newCount);
-    const busy = !!(state.duelinkImporting || state.duelinkAutoSaving);
+    const busy = !!(state.duelinkScanning || state.duelinkImporting || state.duelinkAutoSaving);
     setDuelinkBatchButton(els.duelinkImportButton, count, 25, busy);
     setDuelinkBatchButton(els.duelinkImport50Button, count, 50, busy);
     setDuelinkBatchButton(els.duelinkImport100Button, count, 100, busy);
@@ -490,7 +560,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <div class="duelink-progressbar"><i style="width:${percent}%"></i></div>
       <div class="duelink-import-summary-card ${error ? 'error' : ''}">
         <strong>${esc(text)}</strong>
-        <span>${cursor && !done ? 'Duels.ink a encore des pages à lire. Le scan continue automatiquement.' : 'Aucun filtre n’est appliqué à l’import : InkSight récupère tout, les filtres viendront ensuite dans Historique et Performance.'}</span>
+        <span>${cursor && !done ? 'Duels.ink a encore des pages à lire. Le scan continue automatiquement.' : esc('Contexte : '+scopeLabel()+'. Seules les parties compatibles seront proposées à l’import.')}</span>
       </div>
     </div>`;
   }
@@ -657,24 +727,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function duelinkImportFiltersHtml(games=[]){
-    const f = duelinkImportFilters();
-    const pill = (group, value, label, active) =>
-      `<button type="button" class="filter-pill" data-duelink-import-filter="${escAttr(group)}" data-value="${escAttr(value)}" aria-pressed="${active ? 'true' : 'false'}">${esc(label)}</button>`;
-    const formats = new Set(games.map(gameFormatKey).filter(Boolean));
-    const pools = new Set(games.map(gamePool).filter(Boolean));
-    const poolLabels = { core:'Core', infinity:'Infinity', limited:'Limité' };
-    const set13Count = games.filter(isCoreSet13Game).length;
-    const set13Row = games.length ? `<div class="duelink-filter-row"><span class="duelink-filter-label">Chapitre</span>
-        <button type="button" class="filter-pill filter-pill-set13" data-duelink-import-filter="set13" data-value="${f.set13 ? 'off' : 'on'}" aria-pressed="${f.set13 ? 'true' : 'false'}">Core · Set 13 uniquement (${set13Count})</button>
-      </div>` : '';
-    const formatRow = formats.size > 1 ? `<div class="duelink-filter-row"><span class="duelink-filter-label">Format</span>
-        ${pill('format','all','Tous', f.format === 'all')}${[...formats].sort().map(v => pill('format', v, v, f.format === v)).join('')}
-      </div>` : '';
-    const poolRow = pools.size > 1 ? `<div class="duelink-filter-row"><span class="duelink-filter-label">Pool</span>
-        ${pill('pool','all','Tous', f.pool === 'all')}${[...pools].sort().map(v => pill('pool', v, poolLabels[v] || v, f.pool === v)).join('')}
-      </div>` : '';
-    if(!set13Row && !formatRow && !poolRow) return '';
-    return `<div class="duelink-import-filters">${set13Row}${formatRow}${poolRow}</div>`;
+    const count=games.filter(gamePassesImportFilters).length;
+    return '<p class="duelink-filter-row">'+esc(scopeLabel())+' : '+count+' partie(s) dans le contexte choisi. Les autres ne seront pas importées.</p>';
   }
 
   function duelinkQueueReadoutHtml(games=[]){
@@ -696,8 +750,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(!btn) return;
     const group = btn.dataset.duelinkImportFilter;
     const value = btn.dataset.value || 'all';
-    if(group !== 'format' && group !== 'pool' && group !== 'set13') return;
-    const next = group === 'set13' ? { set13: value === 'on' } : { [group]: value };
+    if(group !== 'format' && group !== 'pool' && group !== 'set14') return;
+    const next = group === 'set14' ? { set14: value === 'on' } : { [group]: value };
     state.duelinkImportFilters = { ...duelinkImportFilters(), ...next };
     syncDuelinkActionButtons();
     renderDuelinkPreviewResult({ games:(state.duelinkPreviewRows || []).map(row => row.game), classified:state.duelinkPreviewRows });
@@ -754,14 +808,30 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
-  async function duelinkAuthHeaders(extra={}){
+  async function duelinkAuthHeaders(extra={}, ticket=accountBoundary.capture()){
+    accountBoundary.assertCurrent(ticket);
     const headers = { ...extra };
-    try{
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data?.session?.access_token;
-      if(accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    }catch(err){ console.warn('Session Supabase indisponible pour Duels.ink', err); }
+    const { data } = await supabase.auth.getSession();
+    accountBoundary.assertCurrent(ticket);
+    if(!ticket.userId || data?.session?.user?.id !== ticket.userId || !data.session.access_token) throw new Error('Connectez-vous à Inksight avant d’utiliser Duels.ink.');
+    headers.Authorization = `Bearer ${data.session.access_token}`;
     return headers;
+  }
+
+  async function requestDuelinkJson(path, body, ticket, method='POST'){
+    for(let attempt=0; attempt<3; attempt++){
+      const response = await fetch(path, { method, headers:await duelinkAuthHeaders(body === undefined ? {} : {'Content-Type':'application/json'},ticket), ...(body === undefined ? {} : {body:JSON.stringify(body)}), signal:AbortSignal.timeout(30000) });
+      const payload = await response.json().catch(() => ({}));
+      accountBoundary.assertCurrent(ticket);
+      if(response.ok && payload.success) return payload;
+      if(response.status === 429 && attempt < 2 && ['duelink-history','duelink-replays'].some(route=>path.endsWith(route))){
+        const delay=duelinkRetryDelayMs(payload);
+        if(delay>60000) throw new Error(`Limite Duels.ink : réessayez dans ${Math.ceil(delay/1000)} secondes.`);
+        await wait(delay); accountBoundary.assertCurrent(ticket); continue;
+      }
+      if(payload.code === 'DUELS_RECONNECT'){ state.duelinkConnection = null; updateDuelinkStoredTokenUi(); }
+      throw new Error(payload.error || `Erreur HTTP ${response.status}`);
+    }
   }
 
   async function duelinkTokenPayload(){
@@ -799,6 +869,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function refreshDuelinkConnectionStatus({ silent=false }={}){
+    const ticket = accountBoundary.capture();
     if(!state.currentUser){
       state.duelinkConnection = null;
       state.duelinkConnectionLoaded = true;
@@ -808,15 +879,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       const response = await fetch('/api/duelink-token', {
         method:'GET',
-        headers: await duelinkAuthHeaders(),
+        headers: await duelinkAuthHeaders({},ticket),
       });
       const payload = await response.json().catch(() => ({}));
+      if(!accountBoundary.isCurrent(ticket)) return null;
       if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
       state.duelinkConnection = payload;
       state.duelinkConnectionLoaded = true;
       updateDuelinkStoredTokenUi();
       return payload;
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return null;
       state.duelinkConnection = null;
       state.duelinkConnectionLoaded = true;
       updateDuelinkStoredTokenUi();
@@ -826,6 +899,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function saveDuelinkTokenForAccount(){
+    const ticket = accountBoundary.capture();
     const token = normalizeDuelinkTokenInput(els.duelinkTokenInput?.value || '');
     if(!state.currentUser){
       if(els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = 'Connectez-vous à InkSight avant de mémoriser une clé.';
@@ -837,42 +911,36 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
     if(els.duelinkSaveTokenButton) els.duelinkSaveTokenButton.disabled = true;
     try{
-      const response = await fetch('/api/duelink-token', {
-        method:'POST',
-        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
-        body: JSON.stringify({ token })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
+      const payload = await requestDuelinkJson('/api/duelink-token', {token}, ticket);
       state.duelinkConnection = payload;
       if(els.duelinkTokenInput) els.duelinkTokenInput.value = '';
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Connexion mémorisée'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
       updateDuelinkStoredTokenUi();
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return;
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Mémoire indisponible'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       if(els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = err.message || String(err);
     }finally{
+      if(!accountBoundary.isCurrent(ticket)) return;
       if(els.duelinkSaveTokenButton) els.duelinkSaveTokenButton.disabled = false;
     }
   }
 
   async function forgetDuelinkTokenForAccount(){
+    const ticket = accountBoundary.capture();
     if(!state.currentUser) return;
     if(!confirm('Supprimer la clé Duels.ink mémorisée pour ce compte ?')) return;
     if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.disabled = true;
     try{
-      const response = await fetch('/api/duelink-token', {
-        method:'DELETE',
-        headers: await duelinkAuthHeaders(),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if(!response.ok || !payload.success) throw new Error(payload.error || `Erreur HTTP ${response.status}`);
+      const payload = await requestDuelinkJson('/api/duelink-token', undefined, ticket, 'DELETE');
       state.duelinkConnection = payload;
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Clé supprimée'; els.duelinkTokenStatus.className = 'duelink-status-chip'; }
       updateDuelinkStoredTokenUi();
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return;
       if(els.duelinkSavedTokenHint) els.duelinkSavedTokenHint.textContent = err.message || String(err);
     }finally{
+      if(!accountBoundary.isCurrent(ticket)) return;
       if(els.duelinkForgetTokenButton) els.duelinkForgetTokenButton.disabled = false;
     }
   }
@@ -883,19 +951,21 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function duelinkRetryDelayMs(payload={}){
     const retryAfter = Number(payload?.retryAfter);
-    if(Number.isFinite(retryAfter) && retryAfter > 0) return Math.min(60000, retryAfter * 1000);
+    if(Number.isFinite(retryAfter) && retryAfter > 0) return retryAfter * 1000;
     return 3000;
   }
 
-  async function downloadDuelinkReplayBuffer(tokenPayload, replayId){
+  async function downloadDuelinkReplayBuffer(tokenPayload, replayId, ticket){
     let lastError = null;
     for(let attempt = 0; attempt < 3; attempt += 1){
       const response = await fetch('/api/duelink-download', {
         method:'POST',
-        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
-        body:JSON.stringify({ ...(tokenPayload || {}), id:replayId })
+        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' },ticket),
+        body:JSON.stringify({ ...(tokenPayload || {}), id:replayId }),
+        signal:AbortSignal.timeout(30000)
       });
-      if(response.ok) return response.arrayBuffer();
+      accountBoundary.assertCurrent(ticket);
+      if(response.ok){ const bytes=await response.arrayBuffer(); accountBoundary.assertCurrent(ticket); return bytes; }
       const payload = await response.json().catch(() => ({}));
       lastError = new Error(payload.error || `Téléchargement impossible pour ${replayId}`);
       if(response.status !== 429 || attempt >= 2) break;
@@ -903,7 +973,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         els.duelinkTokenStatus.textContent = 'Pause Duels.ink…';
         els.duelinkTokenStatus.className = 'duelink-status-chip pending';
       }
-      await wait(duelinkRetryDelayMs(payload));
+      const delay=duelinkRetryDelayMs(payload);
+      if(delay>60000) throw lastError;
+      await wait(delay);
     }
     throw lastError || new Error(`Téléchargement impossible pour ${replayId}`);
   }
@@ -966,7 +1038,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function importDuelinkPreviewToBulkQueue(options={}){
+    const ticket = accountBoundary.capture(),scopeKey=JSON.stringify(statisticsScope());
     const tokenPayload = await duelinkTokenPayload();
+    accountBoundary.assertCurrent(ticket);
     if(!tokenPayload.token && !state.duelinkConnection?.connected){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duels.ink ou mémorisez une clé chiffrée.</strong><span>Le token sert à récupérer les replays depuis Duels.ink.</span></div>';
@@ -982,13 +1056,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     syncDuelinkActionButtons();
     const availableRows = getDuelinkImportableRows();
     const requestedLimit = options.limit === 'all' ? availableRows.length : Math.max(1, n(options.limit, 25));
-    const rows = availableRows.slice(0, requestedLimit);
+    const rows = availableRows.sort((a,b)=>Date.parse(contextFields(b.game).startedAt || b.game.updatedAt || 0)-Date.parse(contextFields(a.game).startedAt || a.game.updatedAt || 0)).slice(0, requestedLimit);
     if(!rows.length){
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucun nouveau replay à importer.</strong><span>Lancez d’abord une prévisualisation ou ajustez la fenêtre de matchs.</span></div>');
       return { imported:0, duplicates:0, errors:0, ready:0 };
     }
     await ensureLocalCardsLoaded();
+    accountBoundary.assertCurrent(ticket);
+    if(scopeKey!==JSON.stringify(statisticsScope()))return {imported:0,duplicates:0,errors:0,ready:0};
     state.duelinkImporting = true;
+    renderScopeControls();
     [els.duelinkImportButton, els.duelinkImport50Button, els.duelinkImport100Button, els.duelinkImportAllButton].forEach(button => {
       if(button){ button.disabled = true; }
     });
@@ -1003,15 +1080,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const chunkSize = 1000;
       for(let offset = 0; offset < ids.length; offset += chunkSize){
         const chunkIds = ids.slice(offset, offset + chunkSize);
-        const manifestResponse = await fetch('/api/duelink-replays', {
-          method:'POST',
-          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
-          body:JSON.stringify({ ...tokenPayload, ids:chunkIds })
-        });
-        const manifest = await manifestResponse.json().catch(() => ({}));
-        if(!manifestResponse.ok || !manifest.success){
-          throw new Error(manifest.error || `Erreur HTTP ${manifestResponse.status}`);
-        }
+        const manifest = await requestDuelinkJson('/api/duelink-replays', {...tokenPayload,ids:chunkIds}, ticket);
         const files = Array.isArray(manifest.files) ? manifest.files : [];
         files.forEach(file => fileById.set(String(file.id), file));
         (Array.isArray(manifest.missing) ? manifest.missing : []).forEach(id => missingIds.add(String(id)));
@@ -1025,6 +1094,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       let importedCount = 0;
       let failedCount = 0;
       for(let rowIndex = 0; rowIndex < rows.length; rowIndex += 1){
+        accountBoundary.assertCurrent(ticket);
         const row = rows[rowIndex];
         renderDuelinkImportProgress(rows, rowIndex, importedCount, failedCount);
         const game = row.game;
@@ -1056,10 +1126,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           // Duels.ink limite les appels à environ 30 requêtes/minute.
           // On cadence les téléchargements pour éviter les 429 pendant les imports 50/100/tout importer.
           if(rowIndex > 0) await wait(2100);
-          const buffer = await downloadDuelinkReplayBuffer(tokenPayload, replayId);
+          const buffer = await downloadDuelinkReplayBuffer(tokenPayload, replayId, ticket);
           item.fileSize = buffer.byteLength || 0;
           const replaySha256 = await replaySha256FromBuffer(buffer);
           const replay = await readReplayBuffer(buffer, file?.filename || `${replayId}.replay.gz`);
+          accountBoundary.assertCurrent(ticket);
           const pseudoFile = {
             name:file?.filename || `${replayId}.replay.gz`,
             size:item.fileSize,
@@ -1089,6 +1160,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           importedCount += 1;
           renderDuelinkImportProgress(rows, rowIndex + 1, importedCount, failedCount);
         }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return;
+          if(!accountBoundary.isCurrent(ticket)) return {imported:0,duplicates:0,errors:0,ready:0};
           console.error(err);
           item.status = 'error';
           item.error = err;
@@ -1117,17 +1190,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }
       return { imported:importedCount, duplicates, errors, ready, batchSize:rows.length }; 
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return;
       console.error(err);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec import'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty error"><strong>Impossible d’importer les replays Duels.ink.</strong><span>${esc(err.message || err)}.</span></div>`);
       return { imported:0, duplicates:0, errors:1, ready:0, error:err };
     }finally{
+      if(!accountBoundary.isCurrent(ticket)) return;
       state.duelinkImporting = false;
       refreshDuelinkPreviewStatuses();
     }
   }
 
   async function importDuelinkPreviewAndSave(options={}){
+    const ticket = accountBoundary.capture();
     if(state.duelinkAutoSaving || state.duelinkImporting) return;
     if(!state.currentUser){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Connexion requise'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
@@ -1135,7 +1211,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       syncDuelinkActionButtons();
       return;
     }
-    const rows = (state.duelinkPreviewRows || []).filter(row => row?.status?.key === 'new' && row?.game?.replayId);
+    const rows = getDuelinkImportableRows();
     if(!rows.length){
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucun nouveau replay à sauvegarder.</strong><span>Lancez une prévisualisation ou vérifiez que les matchs ne sont pas déjà présents.</span></div>');
       return;
@@ -1149,6 +1225,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     let importSummary = { imported:0, duplicates:0, errors:0, ready:0 };
     try{
       importSummary = await importDuelinkPreviewToBulkQueue({ limit:options.limit || 25, autoSave:true, silentSuccess:true }) || importSummary;
+      accountBoundary.assertCurrent(ticket);
       const readyBeforeSave = (state.bulkQueue || []).filter(item => item?.merged && ['ready','warning'].includes(item.status)).length;
       if(!readyBeforeSave){
         if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', '<div class="duelink-result-empty"><strong>Aucune analyse à sauvegarder.</strong><span>Les replays étaient déjà présents ou en erreur. Rien n’a été ajouté à l’historique.</span></div>');
@@ -1156,6 +1233,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty pending"><strong>Sauvegarde en cours.</strong><span>${readyBeforeSave} analyse(s) vont être ajoutées à l’historique après dédoublonnage.</span></div>`);
       const saveSummary = await saveBulkQueue() || {};
+      accountBoundary.assertCurrent(ticket);
       refreshDuelinkPreviewStatuses();
       const saved = n(saveSummary.saved);
       const duplicates = n(saveSummary.duplicates);
@@ -1178,6 +1256,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         details:{ mode:'duelink_batch_import_save', limit:options.limit || 25, imported:importSummary.imported, ready:importSummary.ready }
       }).catch(err => console.warn('Duels.ink sync log unavailable:', err));
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return;
       console.error(err);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Sync échouée'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       if(els.duelinkTestResult) els.duelinkTestResult.insertAdjacentHTML('afterbegin', `<div class="duelink-result-empty error"><strong>Synchronisation interrompue.</strong><span>${esc(err.message || err)}.</span></div>`);
@@ -1193,19 +1272,24 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         details:{ mode:'duelink_batch_import_save', limit:options.limit || 25 }
       }).catch(logErr => console.warn('Duels.ink sync log unavailable:', logErr));
     }finally{
+      if(!accountBoundary.isCurrent(ticket)) return;
       state.duelinkAutoSaving = false;
       syncDuelinkActionButtons();
     }
   }
 
   async function previewDuelinkMatches(){
+    const ticket = accountBoundary.capture();
     const tokenPayload = await duelinkTokenPayload();
+    accountBoundary.assertCurrent(ticket);
     if(!tokenPayload.token && !state.duelinkConnection?.connected){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
-      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duels.ink ou mémorisez une clé chiffrée.</strong><span>La synchronisation lit tout l’historique disponible sans appliquer de filtres.</span></div>';
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duels.ink ou mémorisez une clé chiffrée.</strong><span>La synchronisation utilisera le chapitre et la file sélectionnés.</span></div>';
       return;
     }
-    if(state.duelinkImporting || state.duelinkAutoSaving) return;
+    if(state.duelinkScanning || state.duelinkImporting || state.duelinkAutoSaving) return;
+    state.duelinkScanning=true;
+    const scanScope=statisticsScope(),scanEras=currentEras();
     if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Scan en cours…'; els.duelinkTokenStatus.className = 'duelink-status-chip pending'; }
     state.duelinkPreviewRows = [];
     state.duelinkSkippedGameIds = new Set();
@@ -1226,16 +1310,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       let page = 0;
       const seenCursors = new Set();
       do{
+        if(page) await wait(3100); // Official history quota: 20 requests/minute, sequential pages.
         page += 1;
-        const response = await fetch('/api/duelink-history', {
-          method:'POST',
-          headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
-          body:JSON.stringify({ ...tokenPayload, limit:1000, cursor })
-        });
-        const payload = await response.json().catch(() => ({}));
-        if(!response.ok || !payload.success){
-          throw new Error(payload.error || `Erreur HTTP ${response.status}`);
-        }
+        if(page > 1000) throw new Error('Historique trop volumineux : affinez la période avant de reprendre.');
+        const from=scopeEraStart(scanScope,scanEras);
+        const payload = await requestDuelinkJson('/api/duelink-history', {...tokenPayload,limit:250,cursor,...(from?{from}:{}),...(scanScope.queue!=='all'?{source:'matchmaking',queue:scanScope.queue}:{})}, ticket);
         const games = Array.isArray(payload.games) ? payload.games : [];
         allGames.push(...games);
         cursor = payload.next_cursor || payload.nextCursor || '';
@@ -1273,6 +1352,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         details:{ mode:'full_history_scan', pages:page, ready_to_import:stats.newWithReplay.length, missing_replay:stats.missingReplay.length }
       }).catch(err => console.warn('Duels.ink scan log unavailable:', err));
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return;
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec scan'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       renderDuelinkScanProgress({ error:`Impossible de synchroniser Duels.ink : ${err.message || err}` });
       await logDuelinkSyncRun({
@@ -1287,14 +1367,18 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         details:{ mode:'full_history_scan' }
       }).catch(logErr => console.warn('Duels.ink scan log unavailable:', logErr));
     }finally{
+      if(!accountBoundary.isCurrent(ticket)) return;
       if(els.duelinkPreviewButton){ els.duelinkPreviewButton.disabled = false; els.duelinkPreviewButton.textContent = state.duelinkSyncSummary?.total ? 'Actualiser' : 'Synchroniser'; }
       if(els.duelinkTestButton) els.duelinkTestButton.disabled = false;
+      state.duelinkScanning=false;
       syncDuelinkActionButtons();
     }
   }
 
   async function testDuelinkToken(){
+    const ticket = accountBoundary.capture();
     const tokenPayload = await duelinkTokenPayload();
+    accountBoundary.assertCurrent(ticket);
     if(!tokenPayload.token && !state.duelinkConnection?.connected){
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token manquant'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty error"><strong>Collez un token Duels.ink ou mémorisez une clé chiffrée.</strong><span>Dans Duels.ink : Mon compte → API Tokens → créer un token avec expiration.</span></div>';
@@ -1306,21 +1390,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(els.duelinkTestButton) els.duelinkTestButton.disabled = true;
     if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '<div class="duelink-result-empty"><strong>Connexion à Duels.ink…</strong><span>Test rapide sur les 5 dernières lignes accessibles. Rien n’est importé.</span></div>';
     try{
-      const response = await fetch('/api/duelink-history', {
-        method:'POST',
-        headers: await duelinkAuthHeaders({ 'Content-Type':'application/json' }),
-        body:JSON.stringify({ ...tokenPayload, limit:5 })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if(!response.ok || !payload.success){
-        throw new Error(payload.error || `Erreur HTTP ${response.status}`);
-      }
+      const payload = await requestDuelinkJson('/api/duelink-history', {...tokenPayload,limit:5}, ticket);
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Token valide'; els.duelinkTokenStatus.className = 'duelink-status-chip ok'; }
       renderDuelinkTestResult(payload);
     } catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return;
       if(els.duelinkTokenStatus){ els.duelinkTokenStatus.textContent = 'Échec du test'; els.duelinkTokenStatus.className = 'duelink-status-chip error'; }
       if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = `<div class="duelink-result-empty error"><strong>Impossible de lire l’historique Duels.ink.</strong><span>${esc(err.message || err)}. Vérifiez que le token est actif et copié en entier.</span></div>`;
     } finally {
+      if(!accountBoundary.isCurrent(ticket)) return;
       if(els.duelinkTestButton) els.duelinkTestButton.disabled = false;
     }
   }
@@ -1371,6 +1449,35 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     document.addEventListener('focusin', showNav, { passive:true });
   }
 
+  let metaRequestId=0;
+  async function loadCommunityMeta(){
+    const panel=document.getElementById('communityMetaPanel');
+    if(!panel) return;
+    const scope=statisticsScope(),queue=scope.queue,requestId=++metaRequestId,body=panel.querySelector('[data-meta-body]');
+    if(queue==='all' || scope.era==='unknown' || scope.era==='all'){
+      body.textContent='Choisis un chapitre et une file Core BO1 ou Core BO3 pour consulter un repère comparable. Aucun chiffre de l’ère courante n’est mélangé aux archives.';
+      return;
+    }
+    body.textContent='Chargement des agrégats publics du contexte choisi…';
+    try{
+      const response=await fetch('/api/duelink-meta?queue='+encodeURIComponent(queue)+'&era='+encodeURIComponent(scope.era),{signal:AbortSignal.timeout(30000)});
+      const data=await response.json();
+      if(!response.ok || !data.success) throw new Error('Agrégats indisponibles');
+      if(requestId!==metaRequestId) return;
+      state.erasByQueue={...(state.erasByQueue || {}),[queue]:eraCatalog(data.meta?.eras)};
+      state.communityMeta=data;
+      const date=data.updatedAt ? new Date(data.updatedAt).toLocaleString('fr-FR') : 'date non fournie';
+      const pairs=[...(data.colorPairs || [])].sort((a,b)=>b.games-a.games).slice(0,3);
+      const pairRows=pairs.map(row=>'<li>'+esc(row.colors.map(inkLabel).join(' / '))+' : '+(queue==='core-bo1'?esc(row.winRate)+' % de victoires · ':'')+esc(Number(row.games).toLocaleString('fr-FR'))+' apparitions de decks</li>').join('');
+      body.innerHTML='<p>'+esc(data.meta?.selectedEraKey || 'Ère courante')+' · '+esc(queue.toUpperCase())+' · échantillon : '+esc(Number(data.activity?.totalGames || 0).toLocaleString('fr-FR'))+' · données du '+esc(date)+'. Tous rangs.</p><ul>'+pairRows+'</ul><small>Les apparitions de decks ne sont pas des parties uniques. '+(queue==='core-bo3'?'Les matchups BO3 comptent des matchs terminés ; les taux par couleur ne sont pas utilisés comme référence de match. ':'')+'Les associations observées ne prouvent pas une différence de niveau.</small>';
+      const link=panel.querySelector('a');
+      if(link)link.href='https://duels.ink/stats/'+queue;
+      renderScopeControls();renderPerformanceData();
+    }catch{
+      if(requestId===metaRequestId) body.textContent='Les statistiques communautaires de ce contexte sont temporairement indisponibles. Tes analyses personnelles restent indépendantes.';
+    }
+  }
+
   function setApiStatus(text, mode='loading'){
     if(!els.apiBadge) return;
     els.apiBadge.classList.toggle('ready', mode === 'ready');
@@ -1385,6 +1492,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
       const payload = await res.json();
       state.cards = Array.isArray(payload) ? payload : (payload.cards || []);
+      const latestResponse = await fetch('/lorcana-set14.json', {cache:'no-cache'});
+      if(!latestResponse.ok) throw new Error('Catalogue Set 14 indisponible.');
+      const latest = await latestResponse.json();
+      state.cards.push(...latest.cards);
       buildCardIndex();
       setApiStatus(`Base locale prête · ${state.cards.length} cartes`, 'ready');
     }catch(err){
@@ -1410,8 +1521,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function buildCardIndex(){
     state.index.clear();
+    printingSetsByName.clear();
     for(const raw of state.cards){
       const card = normalizeLocalCard(raw);
+      const canonical=slug(fullName(card));
+      const sets=printingSetsByName.get(canonical) || new Set();
+      card.setCodes.forEach(code=>sets.add(code));
+      printingSetsByName.set(canonical,sets);
       const keys = new Set(cardReferenceKeys(card));
       keys.add(slug(`${card.name} ${card.version}`));
 
@@ -1591,6 +1707,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function readReplayInputFile(file){
+    if (file.size > MAX_REPLAY_BYTES) throw new Error('Fichier trop volumineux (48 Mo maximum).');
     const fileName = String(file.name || 'replay');
     if(/\.zip$/i.test(fileName)) return readMatchReplayZip(file);
     const imported = await readReplayFileWithMeta(file);
@@ -1606,7 +1723,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const matchEntry = zip.file(/^match\.json$/i)?.[0] || null;
     let matchMeta = null;
     if(matchEntry){
-      try{ matchMeta = JSON.parse(await matchEntry.async('string')); }
+      try{ matchMeta = JSON.parse(new TextDecoder().decode(await readZipEntry(matchEntry, 512 * 1024))); }
       catch(err){ console.warn('match.json illisible', err); }
     }
     if(matchMeta) state.matchMeta = matchMeta;
@@ -1616,13 +1733,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       .sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric:true, sensitivity:'base' }));
 
     if(!replayEntries.length) throw new Error('Aucun fichier .replay trouvé dans cette archive.');
+    if(replayEntries.length > MAX_REPLAY_FILES) throw new Error('Maximum 20 replays par archive.');
 
     const imported = [];
+    let archiveBytes = 0;
+    const decodedBudget = { remaining: MAX_REPLAY_BYTES };
     for(let index = 0; index < replayEntries.length; index += 1){
       const entry = replayEntries[index];
-      const buffer = await entry.async('arraybuffer');
+      const buffer = await readZipEntry(entry, MAX_REPLAY_BYTES - archiveBytes);
+      archiveBytes += buffer.byteLength;
       const replaySha256 = await replaySha256FromBuffer(buffer);
-      const replay = await readReplayBuffer(buffer, entry.name);
+      const replay = await readReplayBuffer(buffer, entry.name, decodedBudget);
       const pseudoFile = {
         name: entry.name,
         size: buffer.byteLength || entry._data?.uncompressedSize || 0,
@@ -1669,6 +1790,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function readReplayFileWithMeta(file){
+    if (file.size > MAX_REPLAY_BYTES) throw new Error('Fichier trop volumineux (48 Mo maximum).');
     const buf = await file.arrayBuffer();
     const replaySha256 = await replaySha256FromBuffer(buf);
     const replay = await readReplayBuffer(buf, file.name || 'replay');
@@ -1680,19 +1802,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return replay;
   }
 
-  async function readReplayBuffer(buf, fileName='replay'){
-    let text;
-    if(/\.gz$/i.test(fileName)){
-      if(window.pako) text = window.pako.ungzip(new Uint8Array(buf), { to:'string' });
-      else {
-        const ds = new DecompressionStream('gzip');
-        const stream = new Blob([buf]).stream().pipeThrough(ds);
-        text = await new Response(stream).text();
-      }
-    }else{
-      text = new TextDecoder().decode(buf);
-    }
-    return JSON.parse(text);
+  async function readReplayBuffer(buf, fileName='replay', budget){
+    return decodeReplayBytes(buf, budget);
   }
 
   function clearReplays(options={}){
@@ -1763,6 +1874,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const handLifecycle = { mine:null, opponent:null };
 
     const frames = [...(data.frames || [])].sort((a,b) => n(a.seq) - n(b.seq));
+    const cancelledSequences = replayCancellations(frames);
 
     const ownerFromPlayer = player => {
       const value = Number(player);
@@ -1847,6 +1959,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     handLifecycle.opponent.sync(working, null);
 
     for(const frame of frames){
+      if(cancelledSequences.has(frame.seq) || String(frame.actionType).startsWith('FREE_UNDO:')){
+        for(const patch of frame.patch || []) applyPatch(working, patch);
+        continue;
+      }
       const actionType = frame.actionType;
       const actorOwner = inferFrameOwner(frame, working);
       const beforeCurrent = Number(working.currentPlayer);
@@ -1892,6 +2008,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     const proMetrics = computeMetrics(rows.mine, actions.filter(a => a.owner === 'mine'));
     const opponentProMetrics = computeMetrics(rows.opponent, actions.filter(a => a.owner === 'opponent'));
+    const dropFlow = analyzeInkDrops(data);
+    proMetrics.inkDrops = dropFlow.mine; opponentProMetrics.inkDrops = dropFlow.opponent;
+    proMetrics.inkDropTimeline = dropFlow.timeline.mine; opponentProMetrics.inkDropTimeline = dropFlow.timeline.opponent;
     const inkProfiles = buildInkProfiles({ cards });
     const matchupLabel = formatMatchupLabel(inkProfiles);
     const opponentDeckEstimate = finalizeOpponentDeckEstimate(opponentDeckTracker);
@@ -1907,7 +2026,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         mineHandRetention = mergeHandRetention([...mineHandRetention, ...fallbackRetention]);
       }
     }
-    return { fileName:file.name, fileSize:file.size, replaySha256:file.replaySha256 || '', data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate, cardsSeen:computeCardsSeenFromLogs(data, perspective), handRetention:mineHandRetention, opponentHandRetention:finalizeHandRetention(handLifecycle.opponent) };
+    return { fileName:file.name, fileSize:file.size, replaySha256:file.replaySha256 || '', data, playedAt:detectReplayPlayedAt(data, file), perspective, myPlayerNumber, opponentNumber, myName, opponentName, firstTurnPlayer, winner, isWin, victoryReason:data.victoryReason || '', turnCount:data.turnCount || Math.max(rows.mine.length, rows.opponent.length), mulligan, finalMineLore, finalOppLore, actions, cards, timeline, loreSeries:[...loreByTurn.values()].sort((a,b)=>a.turn-b.turn), actionSeries:buildActionSeries(actionByTurn), proMetrics, opponentProMetrics, inkProfiles, matchupLabel, opponentDeckEstimate, cardsSeen:cancelledSequences.size ? 0 : computeCardsSeenFromLogs(data, perspective), handRetention:mineHandRetention, opponentHandRetention:finalizeHandRetention(handLifecycle.opponent) };
   }
 
   function fallbackHandRetentionFromMulligan(mulligan, timeline=[], turnRows=[], cards=[]){
@@ -3760,7 +3879,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function mergeMetrics(list){
     if(list.length === 1) return list[0];
-    return { totalInkFloat:sum(list,'totalInkFloat'), totalInkSpent:sum(list,'totalInkSpent'), questCount:sum(list,'questCount'), challengeCount:sum(list,'challengeCount'), topDeckTurns:sum(list,'topDeckTurns'), handKnown:list.some(x=>x.handKnown), inkByTurn:list.flatMap(x=>x.inkByTurn || []), handByTurn:list.flatMap(x=>x.handByTurn || []), boardByTurn:list.flatMap(x=>x.boardByTurn || []) };
+    return { inkDrops:combineInkDrops(list), totalInkFloat:sum(list,'totalInkFloat'), totalInkSpent:sum(list,'totalInkSpent'), questCount:sum(list,'questCount'), challengeCount:sum(list,'challengeCount'), topDeckTurns:sum(list,'topDeckTurns'), handKnown:list.some(x=>x.handKnown), inkByTurn:list.flatMap(x=>x.inkByTurn || []), handByTurn:list.flatMap(x=>x.handByTurn || []), boardByTurn:list.flatMap(x=>x.boardByTurn || []) };
   }
 
   function renderAll(){
@@ -3806,60 +3925,60 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
   }
 
-  function initSaveIntegration(){
-    getCurrentUser()
-      .then(user => {
-        setCloudOnline();
-        state.currentUser = user;
-        syncSaveButton();
-        renderBulkQueue();
-        refreshDeckProfiles({ silent:true }).catch(setCloudOffline);
-        refreshSavedMatches({ silent:true }).catch(setCloudOffline);
-        if(user) {
-          getOrCreateUserProfile().catch(() => {});
-          loadMyTeam().then(team => { state.team = team; updateTeamContextBars(); renderAccountPage(); }).catch(() => {});
-        }
-      })
-      .catch(error => { setCloudOffline(error); });
+  function applyAccountIdentity(user){
+    const previousId = state.currentUser?.id;
+    const changed = accountBoundary.change(user?.id);
+    state.currentUser = user || null;
+    if(changed){
+      state.statScope={...DEFAULT_STAT_SCOPE};
+      if(previousId) clearSessionCacheForCurrentUser(previousId);
+      state.savedMatches = []; state.savedMatchesLoaded = false; state.savedMatchesLoading = false;
+      state.selectedSavedMatchId = null; state.expandedSavedMatchId = null;
+      state.deckProfiles = []; state.deckProfilesLoaded = false; state.deckProfilesLoading = false;
+      state.savedAnalytics = { games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' };
+      state.team = null; state.teamMode = false; state.teamMemberIds = []; state.teamDisplayNames = {};
+      state.duelinkConnection = null; state.duelinkConnectionLoaded = !user;
+      state.duelinkPreviewRows = []; state.duelinkSyncSummary = null;
+      state.duelinkImporting = false; state.duelinkAutoSaving = false; state.duelinkScanning=false;
+      for(const key of ['duelinkPreparedGameIds','duelinkPreparedReplayIds','duelinkSkippedGameIds','duelinkSkippedReplayIds']) state[key] = new Set();
+      if(els.duelinkTokenInput) els.duelinkTokenInput.value = '';
+      if(els.duelinkTestResult) els.duelinkTestResult.innerHTML = '';
+      state.coachCommentaryCache.clear(); state.coachCommentarySeq += 1;
+      deckArchetypeCache.clear(); deckCardListCache.clear();
+      if(previousId) clearReplays();
+    }
+    state.currentUser = user || null;
+    syncSaveButton(); renderBulkQueue(); renderDeckOptions(); updateTeamContextBars(); renderPerformanceData();
+    return changed;
+  }
 
+  function loadAccountData(){
+    if(!state.currentUser) { renderAccountPage(); return; }
+    const ticket = accountBoundary.capture();
+    refreshDeckProfiles({ silent:true }).catch(error => { if(accountBoundary.isCurrent(ticket)) setCloudOffline(error); });
+    refreshSavedMatches({ silent:true }).catch(error => { if(accountBoundary.isCurrent(ticket)) setCloudOffline(error); });
+    getOrCreateUserProfile().catch(() => {});
+    loadMyTeam().then(team => {
+      if(!accountBoundary.isCurrent(ticket)) return;
+      state.team = team; updateTeamContextBars(); renderAccountPage();
+    }).catch(() => {});
+  }
+
+  function initSaveIntegration(){
+    const initial = accountBoundary.capture();
+    getCurrentUser().then(user => {
+      if(!accountBoundary.isCurrent(initial)) return;
+      setCloudOnline(); applyAccountIdentity(user); loadAccountData();
+    }).catch(error => { if(accountBoundary.isCurrent(initial)) setCloudOffline(error); });
     try{
       supabase.auth.onAuthStateChange((_event, session) => {
         setCloudOnline();
-        const nextUser = session?.user || null;
-        const sameUser = !!(state.currentUser?.id && nextUser?.id && state.currentUser.id === nextUser.id);
-        state.currentUser = nextUser;
-        syncSaveButton();
-        renderBulkQueue();
-        if(state.currentUser){
-          refreshDeckProfiles({ force:!sameUser && !state.deckProfilesLoaded, silent:true }).catch(setCloudOffline);
-          refreshSavedMatches({ force:!sameUser && !state.savedMatchesLoaded, silent:true }).catch(setCloudOffline);
-          if(!sameUser) {
-            getOrCreateUserProfile().catch(() => {});
-            loadMyTeam().then(team => { state.team = team; updateTeamContextBars(); renderAccountPage(); }).catch(() => {});
-          }
-        }
-        else {
-          clearSessionCacheForCurrentUser();
-          state.savedMatches = [];
-          state.savedMatchesLoaded = false;
-          state.selectedSavedMatchId = null;
-          state.deckProfiles = [];
-          state.deckProfilesLoaded = false;
-          state.team = null;
-          state.teamMode = false;
-          state.teamMemberIds = [];
-          state.teamDisplayNames = {};
-          renderDeckOptions();
-          renderBulkQueue();
-          updateTeamContextBars();
-          renderPerformanceData();
-        }
+        const changed = applyAccountIdentity(session?.user || null);
+        // Defer API calls until Supabase releases the auth callback lock.
+        if(changed) queueMicrotask(loadAccountData);
       });
-    }catch(error){
-      setCloudOffline(error);
-    }
+    }catch(error){ setCloudOffline(error); }
   }
-
   function syncSaveButton(message=''){
     if(!els.saveAnalysisPanel || !els.saveAnalysisButton || !els.saveAnalysisStatus) return;
     const hasAnalysis = !!getWorkingData() && state.sessions.length > 0;
@@ -3909,6 +4028,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function saveCurrentAnalysis(){
+    const ticket = accountBoundary.capture();
     if(state.savePending) return;
     if(state.lastSavedMatchId || state.loadedSavedMatchId){
       syncSaveButton('Ce match est déjà dans votre historique. Aucun doublon créé.');
@@ -3930,6 +4050,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       state.savePending = true;
       syncSaveButton();
       await globalThis.INKSIGHT_refreshSavedMatches?.({ silent:true });
+      accountBoundary.assertCurrent(ticket);
       const duplicate = findDuplicateSavedMatch(m);
       if(duplicate){
         state.loadedSavedMatchId = duplicate.id;
@@ -3938,25 +4059,30 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         return;
       }
       const deckProfile = await resolveDeckProfileForSave(m);
+      accountBoundary.assertCurrent(ticket);
       const details = buildSavedAnalysisDetails(m);
       const payload = buildSavedMatchPayload(m, deckProfile, details);
-      const saved = await saveMatchAnalysis(payload, details);
+      const saved = await saveMatchAnalysis(payload, details, ticket.userId);
+      accountBoundary.assertCurrent(ticket);
       state.lastSavedMatchId = saved?.id || null;
       await refreshSavedMatches({ force:true, silent:true });
       state.selectedSavedMatchId = state.lastSavedMatchId;
       renderPerformanceData();
       finalMessage = 'Analyse sauvegardée. Elle pourra alimenter l’historique et les statistiques globales.';
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return;
       console.error(err);
       state.lastSavedMatchId = null;
       finalMessage = `Erreur de sauvegarde : ${err.message}`;
     }finally{
+      if(!accountBoundary.isCurrent(ticket)) return;
       state.savePending = false;
       syncSaveButton(finalMessage);
     }
   }
 
   async function saveBulkQueue(){
+    const ticket = accountBoundary.capture();
     if(state.bulkSaving) return { saved:0, duplicates:0, errors:0 };
     if(!state.currentUser){
       if(els.bulkImportStatus) els.bulkImportStatus.textContent = 'Connectez-vous avec Discord avant de sauvegarder un lot.';
@@ -3978,6 +4104,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       let savedCount = 0;
       let duplicateCount = 0;
       for(const item of candidates){
+        accountBoundary.assertCurrent(ticket);
         item.status = 'saving';
         item.message = 'Sauvegarde en cours…';
         renderBulkQueue();
@@ -3996,24 +4123,28 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           restoreReplayStateFromBulkItem(item);
           const details = buildSavedAnalysisDetails(item.merged);
           const deckProfile = await resolveBulkDeckForItem(item);
+          accountBoundary.assertCurrent(ticket);
           const payload = buildSavedMatchPayload(item.merged, deckProfile, details);
-          const saved = await saveMatchAnalysis(payload, details);
+          const saved = await saveMatchAnalysis(payload, details, ticket.userId);
+          accountBoundary.assertCurrent(ticket);
           item.savedId = saved?.id || null;
           item.status = 'saved';
           item.message = 'Analyse sauvegardée.';
           savedCount += 1;
         }catch(err){
+          if(!accountBoundary.isCurrent(ticket)) return;
           console.error(err);
           item.status = 'error';
           item.error = err;
           item.message = `Erreur de sauvegarde : ${err.message}`;
         }finally{
-          restoreReplayStateSnapshot(previous);
+          if(accountBoundary.isCurrent(ticket)) restoreReplayStateSnapshot(previous);
         }
         state.bulkSaveDone += 1;
         renderBulkQueue();
       }
       await refreshSavedMatches({ force:true, silent:true });
+      accountBoundary.assertCurrent(ticket);
       const errorCountBeforeCleanup = queue.filter(item => item.status === 'error').length;
       const shouldCleanQueue = queue.length > 1 || queue.some(item => item?.duelinkGame || item?.merged?.sourceType === 'duelink_api');
       if(shouldCleanQueue){
@@ -4035,6 +4166,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       }
       return { saved:savedCount, duplicates:duplicateCount, errors:errorCountBeforeCleanup, message:finalMessage };
     }finally{
+      if(!accountBoundary.isCurrent(ticket)) return;
       state.bulkSaving = false;
       state.bulkSaveTotal = 0;
       state.bulkSaveDone = 0;
@@ -4391,7 +4523,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function buildSavedAnalysisJson(m, meta){
     const narrative = generateMatchNarrative(m);
     return {
-      schema_version:'v78',
+      schema_version:'v139-security-set14',
       saved_at:new Date().toISOString(),
       played_at:detectPlayedAt(m) || null,
       duplicate_signature:savedMatchSignatureFromM(m),
@@ -4435,6 +4567,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function compactMetrics(metrics={}){
     return {
+      inkDrops:metrics.inkDrops || null,
+      inkDropTimeline:Array.isArray(metrics.inkDropTimeline) ? metrics.inkDropTimeline.map(row=>({turn:n(row.turn),activeOwner:row.activeOwner==='mine'?'mine':'opponent',gained:n(row.gained),removed:n(row.removed),paid:n(row.paid),unattributed:n(row.unattributed),stock:n(row.stock)})) : null,
       totalInkFloat:round1(metrics.totalInkFloat),
       totalInkSpent:round1(metrics.totalInkSpent),
       questCount:n(metrics.questCount),
@@ -4569,6 +4703,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function loadSavedAnalysis(row){
+    const ticket = accountBoundary.capture();
     if(!row){
       if(els.historyStatus) els.historyStatus.textContent = 'Analyse sauvegardée introuvable.';
       return;
@@ -4578,6 +4713,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!hydratedRow.analysis_json && hydratedRow.id){
         if(els.historyStatus) els.historyStatus.textContent = 'Chargement de l’analyse sauvegardée…';
         hydratedRow = await getSavedMatch(hydratedRow.id);
+        if(!accountBoundary.isCurrent(ticket)) return;
         const index = state.savedMatches.findIndex(item => item.id === hydratedRow.id);
         if(index >= 0) state.savedMatches[index] = { ...state.savedMatches[index], ...hydratedRow };
       }
@@ -4611,6 +4747,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         }
       }
       if(!runtime) runtime = savedRowToRuntimeState(hydratedRow);
+      if(!accountBoundary.isCurrent(ticket)) return;
       state.replays = runtime.replays;
       state.sessions = runtime.sessions;
       state.merged = runtime.merged;
@@ -4631,7 +4768,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(els.historyStatus) els.historyStatus.textContent = 'Analyse ouverte dans l’onglet Analyse.';
     }catch(err){
       console.error(err);
-      if(els.historyStatus) els.historyStatus.textContent = `Erreur de chargement : ${err.message}`;
+      if(els.historyStatus && accountBoundary.isCurrent(ticket)) els.historyStatus.textContent = `Erreur de chargement : ${err.message}`;
     }
   }
 
@@ -4820,6 +4957,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function savedMetrics(metrics={}){
     return {
+      inkDrops:metrics.inkDrops || null,
+      inkDropTimeline:Array.isArray(metrics.inkDropTimeline) ? metrics.inkDropTimeline.map(row=>({turn:n(row.turn),activeOwner:row.activeOwner==='mine'?'mine':'opponent',gained:n(row.gained),removed:n(row.removed),paid:n(row.paid),unattributed:n(row.unattributed),stock:n(row.stock)})) : null,
       totalInkFloat:round1(metrics?.totalInkFloat),
       totalInkSpent:round1(metrics?.totalInkSpent),
       questCount:n(metrics?.questCount),
@@ -4951,13 +5090,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const userId = state.currentUser?.id;
     if (!userId) return null;
     const profile = await getOrCreateUserProfile();
-    const { data: team, error } = await supabase.from('teams').insert({ name }).select().single();
+    const { data, error } = await supabase.rpc('create_team', { p_name: name, p_display_name: profile?.display_name || 'Joueur' });
+    const team = Array.isArray(data) ? data[0] : data;
     if (error || !team) throw error || new Error('Impossible de créer l\'équipe');
-    await supabase.from('team_members').insert({
-      team_id: team.id, user_id: userId,
-      display_name: profile?.display_name || 'Joueur',
-      role: 'owner'
-    });
     return team;
   }
 
@@ -5024,7 +5159,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function refreshTeamInviteCode(teamId) {
-    const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    const newCode = [...bytes].map(byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase();
     const { data } = await supabase.from('teams')
       .update({ invite_code: newCode }).eq('id', teamId).select('invite_code').single();
     return data?.invite_code;
@@ -5050,12 +5186,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   // ============================================================
 
   async function activateTeamMode() {
+    const ticket = accountBoundary.capture();
     if (!state.team) return;
     const activeMembers = state.team.members.filter(m => !m.left_at && m.user_id);
     state.teamMemberIds = activeMembers.map(m => m.user_id);
     state.teamDisplayNames = {};
     activeMembers.forEach(m => { state.teamDisplayNames[m.user_id] = m.display_name; });
     const selfProfile = await getOrCreateUserProfile();
+    if(!accountBoundary.isCurrent(ticket)) return;
     if (selfProfile && state.currentUser?.id) {
       state.teamDisplayNames[state.currentUser.id] = selfProfile.display_name;
     }
@@ -5063,6 +5201,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       loadTeamMatches(state.teamMemberIds),
       loadTeamDeckProfiles(state.teamMemberIds)
     ]);
+    if(!accountBoundary.isCurrent(ticket)) return;
     state.savedMatches = matches;
     state.deckProfiles = profiles;
     state.teamMode = true;
@@ -5101,7 +5240,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <div id="teamJoinConfirm"></div>
           <div class="team-field">
             <label class="team-field-label" for="teamCodeInput">Code d'invitation</label>
-            <input type="text" id="teamCodeInput" placeholder="Ex: HELVETNK" maxlength="16" autocomplete="off" value="${esc(pendingCode)}">
+            <input type="text" id="teamCodeInput" placeholder="Code d’invitation" maxlength="128" autocomplete="off" value="${esc(pendingCode)}">
           </div>
           <button type="button" id="teamJoinBtn" class="ghost-button">Rejoindre</button>
           <p id="teamActionStatus" class="team-status"></p>
@@ -5174,11 +5313,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       </div>`;
 
     // Description: split on newlines, render as paragraphs
-    const descHtml = (team.description || '').split('\n').filter(Boolean).map(line => {
-      // Detect URLs
-      const urlified = line.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener" class="team-link">$1</a>');
-      return `<p class="team-desc-para">${urlified}</p>`;
-    }).join('');
+    const descHtml = descriptionHtml(team.description);
 
     els.teamSection.innerHTML = `
       <div class="team-section">
@@ -5338,6 +5473,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function refreshDeckProfiles(options={}){
+    const ticket = accountBoundary.capture();
     if(!state.currentUser){
       state.deckProfiles = [];
       state.deckProfilesLoaded = false;
@@ -5353,14 +5489,17 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       state.deckProfilesLoading = true;
       const rows = await listDeckProfiles();
+      if(!accountBoundary.isCurrent(ticket)) return [];
       state.deckProfiles = Array.isArray(rows) ? rows : [];
       state.deckProfilesLoaded = true;
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return [];
       console.error(err);
       state.deckProfiles = [];
       state.deckProfilesLoaded = false;
-      if(els.saveDeckHint) els.saveDeckHint.textContent = `Deck profiles indisponibles : ${err.message}`;
+      if(els.saveDeckHint && accountBoundary.isCurrent(ticket)) els.saveDeckHint.textContent = `Deck profiles indisponibles : ${err.message}`;
     }finally{
+      if(!accountBoundary.isCurrent(ticket)) return [];
       state.deckProfilesLoading = false;
       renderDeckOptions();
       renderAccountPage();
@@ -5425,7 +5564,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           <label class="deck-manager-field"><span>Renommer</span><input type="text" value="${escAttr(profile.name)}" data-deck-rename-input="${escAttr(profile.id)}"></label>
           <button type="button" class="ghost-button compact" data-deck-rename="${escAttr(profile.id)}">Renommer</button>
           <label class="deck-manager-field"><span>Format</span><select data-deck-pool-select="${escAttr(profile.id)}"><option value="">—</option><option value="core" ${profile.format_pool==='core'?'selected':''}>Core</option><option value="infinity" ${profile.format_pool==='infinity'?'selected':''}>Infinity</option></select></label>
-          <label class="deck-manager-field"><span>Set</span><select data-deck-set-select="${escAttr(profile.id)}"><option value="">—</option>${[['set_1','Set 1'],['set_2','Set 2'],['set_3','Set 3'],['set_4','Set 4'],['set_5','Set 5'],['set_6','Set 6'],['set_7','Set 7'],['set_8','Set 8'],['set_9','Set 9'],['set_10','Set 10'],['set_11','Set 11'],['set_12','Set 12']].map(([v,l])=>`<option value="${escAttr(v)}" ${profile.set_tag===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
+          <label class="deck-manager-field"><span>Set</span><select data-deck-set-select="${escAttr(profile.id)}"><option value="">—</option>${[['set_1','Set 1'],['set_2','Set 2'],['set_3','Set 3'],['set_4','Set 4'],['set_5','Set 5'],['set_6','Set 6'],['set_7','Set 7'],['set_8','Set 8'],['set_9','Set 9'],['set_10','Set 10'],['set_11','Set 11'],['set_12','Set 12'],['set_13','Set 13'],['set_14','Set 14']].map(([v,l])=>`<option value="${escAttr(v)}" ${profile.set_tag===v?'selected':''}>${esc(l)}</option>`).join('')}</select></label>
           <button type="button" class="ghost-button compact" data-deck-pooltag="${escAttr(profile.id)}">Enregistrer</button>
           <label class="deck-manager-field deck-merge-field"><span>Fusionner vers</span><select data-deck-merge-select="${escAttr(profile.id)}"><option value="">Choisir une version compatible</option>${mergeOptions}</select></label>
           <button type="button" class="ghost-button compact" data-deck-merge="${escAttr(profile.id)}" ${mergeOptions ? '' : 'disabled'}>Fusionner</button>
@@ -5972,7 +6111,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const requiresDeck = ['cards','mulligan','matchups','curves'].includes(button.dataset.performanceDetail);
       button.classList.toggle('active', active);
       button.classList.toggle('requires-deck', requiresDeck && !deckScoped);
-      button.title = requiresDeck && !deckScoped ? 'Sélectionnez une bicolorité pour lire cette section correctement.' : '';
+      button.title = requiresDeck && !deckScoped ? 'Choisissez une version de deck ou des listes identiques.' : '';
       if(active) button.setAttribute('aria-current','page');
       else button.removeAttribute('aria-current');
     });
@@ -6061,8 +6200,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     const poolOptions = lorcanaPoolOptions();
     const setOptions = lorcanaSetOptions();
-    const showPool = poolOptions.length > 1;
-    const showSet = setOptions.length > 1;
+    const showPool = statisticsScope().queue==='all' && poolOptions.length > 1;
+    const showSet = false; // The global chapter selector uses game context, never a deck label.
+    for(const id of ['performanceFormatPills','historyFormatPills']) if(els[id]?.parentElement) els[id].parentElement.hidden=statisticsScope().queue!=='all';
     if(els.performancePoolBlock) els.performancePoolBlock.hidden = !showPool;
     if(els.performanceSetBlock) els.performanceSetBlock.hidden = !showSet;
     renderPillGroup(els.performancePoolPills, 'performancePoolFilter', poolOptions);
@@ -6139,7 +6279,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function opponentColorOptionsForPills(mode='history'){
-    const sourceRows = mode === 'stats' ? filteredSavedMatchesWithout(['performanceOpponentColorFilter']) : state.savedMatches || [];
+    const sourceRows = mode === 'stats' ? filteredSavedMatchesWithout(['performanceOpponentColorFilter']) : scopedSavedRows();
     const map = new Map();
     (sourceRows || []).forEach(row => {
       const colors = rowOpponentColors(row);
@@ -6216,7 +6356,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const selectedPools = selectedFilterValues(`${prefix}PoolFilter`);
     const selectedSets = selectedFilterValues(`${prefix}SetFilter`);
     const selectedFormats = selectedFilterValues(`${prefix}FormatFilter`);
-    const rows = (state.savedMatches || []).filter(row => {
+    const rows = (scopedSavedRows()).filter(row => {
       if(selectedColors.length && !selectedColors.includes(colorFilterKey(rowMineColors(row)))) return false;
       if(selectedArchetypes.length && row.deck_profile_id){
         const a = getProfileArchetype(row.deck_profile_id);
@@ -6339,6 +6479,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function rowQueueString(row){
     return [
+      row?.context_queue_name,
+      row?.context_queue_id,
       row?.queue_id,
       row?.duelink_queue,
       row?.analysis_json?.api_metadata?.queue,
@@ -6348,13 +6490,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function rowSetNum(row){
-    const q = rowQueueString(row);
-    // Duels.ink se trompe parfois de tag : « Core Set 12 BO3 · Core BO3 - Set 11 ».
-    // Le set réel est celui mentionné EN DERNIER (le « Set 11 » de fin), même si
-    // le début indique un autre set. On scanne donc tout le tag (séparateurs
-    // espace/tiret/underscore tolérés) et on retient la dernière occurrence.
-    const matches = [...q.matchAll(/set[\s_-]*0*(\d+)/g)];
-    return matches.length ? matches[matches.length - 1][1] : '';
+    const context=classifyGameContext(row,currentEras());
+    return context.chapter ? String(context.chapter) : '';
   }
 
   function lorcanaPoolOptions(){
@@ -6513,6 +6650,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const _archPrecomputed = new Set();
   let _archPrecomputeBusy = false;
   async function precomputeArchetypesForProfiles(profileIds=[]){
+    const ticket = accountBoundary.capture();
     if(!state.currentUser || _archPrecomputeBusy) return;
     const todo = [...new Set(profileIds.map(String))]
       .filter(pid => pid && !_archPrecomputed.has(pid) && !loadStoredArchetype(pid) && !deckArchetypeCache.get(pid))
@@ -6523,6 +6661,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     try{
       await ensureLocalCardsLoaded();
       for(const pid of todo){
+        if(!accountBoundary.isCurrent(ticket)) return;
         _archPrecomputed.add(pid);
         const matchRow = (state.savedMatches || []).find(r => String(r.deck_profile_id) === pid);
         if(!matchRow) continue;
@@ -6531,6 +6670,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           try{ const full = await getSavedMatch(matchRow.id); cards = apiDecklistStatus(full, 'mine').cards; }
           catch(_e){ continue; }
         }
+        if(!accountBoundary.isCurrent(ticket)) return;
         if(cards.length >= 5){
           const arch = computeDeckArchetype(cards);
           if(arch){ saveStoredArchetype(pid, arch); deckArchetypeCache.set(pid, arch); changed = true; }
@@ -6658,6 +6798,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function openDecklistModal(profileIdOrGroup){
+    const ticket = accountBoundary.capture();
     // profileIdOrGroup may be "|"-joined when coming from a merged deck pill
     const profileId = String(profileIdOrGroup || '').split('|')[0];
     const profile = state.deckProfiles.find(p => String(p.id) === profileId);
@@ -6678,6 +6819,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     try{
       const primary = await getSavedMatch(matchRow.id);
+      if(!accountBoundary.isCurrent(ticket)) return;
       const decklist = primary?.api_metadata?.api_row?.raw?.your_decklist || [];
       if(!decklist.length){ sheet.querySelector('.decklist-sheet-body').innerHTML = '<p class="decklist-sheet-empty">Décklist non disponible (import manuel).</p>'; return; }
 
@@ -6733,6 +6875,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         Promise.all(tasks).then(results => { if(results.some(Boolean)) render(); });
       }
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return;
       sheet.querySelector('.decklist-sheet-body').innerHTML = `<p class="decklist-sheet-empty">Erreur : ${esc(err.message)}</p>`;
     }
   }
@@ -7100,6 +7243,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function refreshSavedMatches(options={}){
+    const ticket = accountBoundary.capture();
     if(!state.currentUser){
       state.savedMatches = [];
       state.savedMatchesLoaded = false;
@@ -7123,6 +7267,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(!cacheShown) renderPerformanceData();
       const listStartedAt = perfNow();
       const rows = await listSavedMatchHistoryLight(SAVED_MATCH_HISTORY_LIMIT);
+      if(!accountBoundary.isCurrent(ticket)) return [];
       perfMark('saved matches light query', listStartedAt, { rows:Array.isArray(rows) ? rows.length : 0, limit:SAVED_MATCH_HISTORY_LIMIT });
       state.savedMatches = Array.isArray(rows) ? rows : [];
       deckArchetypeCache.clear();
@@ -7138,6 +7283,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         await refreshSavedAnalytics(state.savedMatches, { force:!!options.force });
       }
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return [];
       console.error(err);
       state.savedMatches = [];
       state.savedMatchesLoaded = true;
@@ -7146,6 +7292,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       if(els.historyList) els.historyList.innerHTML = `<div class="history-empty-state"><strong>Impossible de charger l’historique.</strong><span>${esc(err.message || err)}. Vérifiez la connexion puis réessayez.</span><button type="button" class="ghost-button compact" id="historyRetryInline">Réessayer</button></div>`;
       document.getElementById('historyRetryInline')?.addEventListener('click', () => refreshSavedMatches({ force:true }));
     }finally{
+      if(!accountBoundary.isCurrent(ticket)) return [];
       state.savedMatchesLoading = false;
       renderPerformanceData();
     }
@@ -7161,7 +7308,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
 
   const SAVED_CACHE_TTL = 1000 * 60 * 12;
-  const SAVED_CACHE_VERSION = 'v136-0al';
+  const SAVED_CACHE_VERSION = 'v140-season-context';
   // Les détails analytiques (20k+ lignes) sont trop volumineux pour sessionStorage.
   // On les garde dans IndexedDB (grande capacité, persistant entre sessions).
   const ANALYTICS_CACHE_TTL = 1000 * 60 * 60 * 24;
@@ -7209,8 +7356,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     });
   }
 
-  function currentUserCacheKey(kind){
-    const userId = state.currentUser?.id || 'anonymous';
+  function currentUserCacheKey(kind, userId=state.currentUser?.id || 'anonymous'){
     return `inksight:${SAVED_CACHE_VERSION}:${userId}:${kind}`;
   }
 
@@ -7233,11 +7379,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }catch(_err){ /* Cache opportuniste uniquement. */ }
   }
 
-  function clearSessionCacheForCurrentUser(){
+  function clearSessionCacheForCurrentUser(userId=state.currentUser?.id || 'anonymous'){
     try{
-      ['saved-match-summaries','saved-analytics-details'].forEach(kind => sessionStorage.removeItem(currentUserCacheKey(kind)));
+      ['saved-match-summaries','saved-analytics-details'].forEach(kind => sessionStorage.removeItem(currentUserCacheKey(kind, userId)));
     }catch(_err){ /* no-op */ }
-    idbDel(currentUserCacheKey('saved-analytics-details'));
+    idbDel(currentUserCacheKey('saved-analytics-details', userId));
   }
 
   function hydrateSavedMatchesFromCache(){
@@ -7317,6 +7463,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function refreshSavedAnalytics(rows=[], options={}){
+    const ticket = accountBoundary.capture();
+    if(!ticket.userId) return { games:[], cardStats:[], turnStats:[] };
     const ids = uniqueSavedMatchIds(rows);
     const key = ids.join('|');
     if(!ids.length){
@@ -7340,6 +7488,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
     if(!options.force){
       const cached = await readCachedAnalyticsForIds(ids);
+      if(!accountBoundary.isCurrent(ticket)) return { games:[], cardStats:[], turnStats:[] };
       if(cached){
         state.savedAnalytics = {
           ...cached,
@@ -7384,6 +7533,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       };
       const detailsStartedAt = perfNow();
       const details = await listSavedAnalyticsDetails(fetchIds);
+      if(!accountBoundary.isCurrent(ticket)) return { games:[], cardStats:[], turnStats:[] };
       perfMark('saved analytics details query', detailsStartedAt, { requestedIds:fetchIds.length, games:details?.games?.length || 0, cardStats:details?.cardStats?.length || 0, turnStats:details?.turnStats?.length || 0 });
       const nextLoadedIds = new Set(options.force ? [] : [...loadedIds]);
       fetchIds.forEach(id => nextLoadedIds.add(id));
@@ -7399,13 +7549,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       };
       writeCachedAnalytics(state.savedAnalytics);
     }catch(err){
+      if(!accountBoundary.isCurrent(ticket)) return { games:[], cardStats:[], turnStats:[] };
       console.error(err);
       state.savedAnalytics = {
         ...(state.savedAnalytics || {}),
         key,
         loading:false,
         loadingIds:[],
-        error:err.message || 'Données analytiques indisponibles.'
+        error:accountBoundary.isCurrent(ticket) ? err.message || 'Données analytiques indisponibles.' : ''
       };
     }
     return state.savedAnalytics;
@@ -7488,6 +7639,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function renderPerformanceData(){
+    renderScopeControls();
     const safe = (label, fn) => {
       const startedAt = perfNow();
       try{ fn(); perfMark(`render ${label}`, startedAt); }
@@ -7504,7 +7656,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(appView === 'performances'){
       safe('filtres', renderPerformanceFilterPills);
       safe('team-ctx', updateTeamContextBars);
-      if(isStatsPerformanceViewActive()) safe('statistiques', renderSavedStats);
+      if(isStatsPerformanceViewActive()) safe('statistiques', ()=>{renderSavedStats();renderScopeResultSummary();});
       if(isHistoryPerformanceViewActive()) safe('historique', renderSavedHistory);
       if(isOpponentsPerformanceViewActive()) safe('adversaires', renderOpponentsView);
       return;
@@ -7538,7 +7690,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
   function buildOpponentProfiles(){
     const map = new Map();
-    for(const r of arrayify(state.savedMatches)){
+    for(const r of scopedSavedRows()){
       const rawName = String(r.opponent_name || '').trim();
       const key = normalizeOpponentKey(rawName);
       if(!key || OPP_GENERIC.has(key)) continue;
@@ -7799,11 +7951,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function filteredSavedMatches(mode='history'){
-    let rows = [...(state.savedMatches || [])].sort((a,b) => savedMatchPlayedTime(b) - savedMatchPlayedTime(a));
+    let rows = [...scopedSavedRows()].sort((a,b) => savedMatchPlayedTime(b) - savedMatchPlayedTime(a));
     // Stats : on écarte les formats limités (Sealed/Pack Rush/Draft), toutes encres
     // mélangées, qui n'ont pas de bicolorité construite et polluent les statistiques.
     // L'historique les conserve (mode 'history') pour rester exhaustif.
-    if(mode === 'stats') rows = rows.filter(row => !isLimitedFormatRow(row));
+    if(mode === 'stats') rows = rows.filter(row => !isLimitedFormatRow(row) && ['win','loss','draw'].includes(row.result));
     // Team history: only show matches explicitly shared with the team
     if(mode === 'history' && state.teamMode) rows = rows.filter(row => row.team_visible === true);
     const decks = selectedValuesForMode(mode, 'deck');
@@ -8079,7 +8231,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return;
     }
 
-    const analytics = buildPerformanceAnalytics(rows);
+    // Legacy detailed metrics use a boolean outcome; draws must not become losses.
+    const analytics = buildPerformanceAnalytics(rows.filter(row=>['win','loss'].includes(row.result)));
     renderDeckDepthGlobal(analytics.games);
     const cardSignals = analytics.cardSignals;
     const playDraw = analytics.playDraw;
@@ -8144,13 +8297,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function isPerformanceDataScoped(){
-    // Choix produit : on affiche toutes les stats par défaut. Dès que l'utilisateur
-    // est connecté et possède des matchs sauvegardés, les sections détaillées
-    // (cartes, mulligan, matchups, courbes, signaux) sont déverrouillées et agrègent
-    // l'ensemble de l'échantillon. Les filtres viennent ensuite restreindre la vue.
-    // Plus de verrouillage « Choisissez un deck » à l'arrivée sur les statistiques.
-    if(state.currentUser && (state.savedMatches?.length || 0) > 0) return true;
-    return selectedFilterValues('performanceColorFilter').length > 0 || selectedFilterValues('performanceDeckFilter').length > 0;
+    const scope=statisticsScope();
+    if(scope.era==='all'||scope.queue==='all')return false;
+    return coherentDeckList(filteredSavedMatches('stats'));
   }
 
   function selectedPerformanceColors(){
@@ -8263,7 +8412,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     // betterLow = une valeur plus basse est meilleure (encre gaspillée, top-deck).
     const metrics = [
       { label:'Tours par partie', key:'avgTurns', betterLow:null, unit:'' },
-      { label:'Encre gaspillée / partie', key:'avgInkWasted', betterLow:true, unit:'', detailed:true },
+      { label:'Réserve permanente / partie', key:'avgInkWasted', betterLow:true, unit:'', detailed:true },
       { label:'Quêtes par partie', key:'avgQuests', betterLow:false, unit:'', detailed:true },
       { label:'Défis par partie', key:'avgChallenges', betterLow:null, unit:'', detailed:true },
       { label:'Tours en top-deck', key:'avgTopDeck', betterLow:true, unit:'', detailed:true },
@@ -8290,7 +8439,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <span class="tempo-delta">${deltaChip}</span>
       </div>`;
     }).join('');
-    const hint = split.hasMetrics ? '' : '<p class="tempo-hint">Encre gaspillée, quêtes, défis et top-deck s’activent en sélectionnant une bicolorité (analytics détaillées).</p>';
+    const hint = split.hasMetrics ? '' : '<p class="tempo-hint">Réserve permanente, quêtes, défis et taille de main nécessitent une liste cohérente (analytics détaillées).</p>';
     return `<div class="tempo-split">
       <div class="tempo-row tempo-head">
         <span class="tempo-label">Métrique</span>
@@ -9472,229 +9621,20 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
 
   function renderPerformanceCoach(analytics, meta={}){
-    const deckScoped = !!meta.deckScoped;
-    const root = document.getElementById('performanceDeckCoach');
-    if(root){
-      if(!deckScoped){
-        root.innerHTML = `<section class="deck-health-dashboard neutral" aria-label="Santé du deck">
-          <article class="glass deck-health-main neutral">
-            <span>Santé du deck</span>
-            <strong>—</strong>
-            <small>Choisissez une bicolorité</small>
-            <div class="deck-health-status">À filtrer</div>
-          </article>
-          <article class="glass deck-health-details">
-            <div class="deck-health-tags"><span class="deck-health-tag neutral">Stats verrouillées</span><span class="deck-health-tag neutral">Éviter les faux signaux</span></div>
-            <div class="deck-health-empty">Les lectures cartes, mulligan et matchups deviennent utiles quand les matchs appartiennent au même plan de jeu.</div>
-          </article>
-        </section>`;
-      }else{
-        root.innerHTML = deckHealthDashboardHtml(analytics, meta);
-      }
-    }
-
-    if(!deckScoped){
-      if(els.performanceCoachTitle) els.performanceCoachTitle.textContent = 'Choisissez un deck';
-      if(els.performanceCoachText) els.performanceCoachText.textContent = 'Le diagnostic devient utile quand les matchs appartiennent à une même bicolorité.';
-      if(els.performanceBestSignal) els.performanceBestSignal.textContent = '—';
-      if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = 'Sélectionnez une bicolorité.';
-      if(els.performanceWarningSignal) els.performanceWarningSignal.textContent = '—';
-      if(els.performanceWarningSignalText) els.performanceWarningSignalText.textContent = 'Aucun signal exploitable pour l’instant.';
-      return;
-    }
-
-    const cards = analytics.cards || [];
-    const bestPlayed = cards
-      .filter(card => n(card.gamesPlayed) >= 2)
-      .sort((a,b) => n(b.playedWr)-n(a.playedWr) || n(b.gamesPlayed)-n(a.gamesPlayed) || n(b.lore)-n(a.lore))[0];
-    const topLore = analytics.cardSignals?.topLore;
-    const topInked = analytics.cardSignals?.topInked;
-    const negativeImpact = cards
-      .filter(card => card.iih !== null && Number.isFinite(Number(card.iih)) && n(card.gamesSeen) >= 2 && n(card.gamesNotSeen) >= 2)
-      .sort((a,b) => n(a.iih)-n(b.iih) || n(b.seen)-n(a.seen))[0];
-    const highInkRate = cards
-      .filter(card => n(card.inked) >= 3 && n(card.seen) > 0)
-      .map(card => ({ ...card, inkRate:Math.round((n(card.inked) / Math.max(1,n(card.seen))) * 100) }))
-      .filter(card => card.inkRate >= 45)
-      .sort((a,b) => b.inkRate-a.inkRate || n(b.inked)-n(a.inked))[0];
-
-    if(els.performanceCoachTitle) els.performanceCoachTitle.textContent = performanceToneLabel(statusToneFromWinrate(pct(n(meta.wins), n(meta.total)), n(meta.total)));
-    if(els.performanceCoachText) els.performanceCoachText.textContent = `${pct(n(meta.wins), n(meta.total))}% de winrate · ${n(meta.total)} analyse${n(meta.total) > 1 ? 's' : ''}.`;
-
-    if(bestPlayed){
-      if(els.performanceBestSignal) els.performanceBestSignal.textContent = bestPlayed.name;
-      if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = `Top performer · ${bestPlayed.playedWr}% WR quand jouée.`;
-    }else if(topLore){
-      if(els.performanceBestSignal) els.performanceBestSignal.textContent = topLore.name;
-      if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = `Moteur de lore · ${topLore.lore} lore.`;
-    }else{
-      if(els.performanceBestSignal) els.performanceBestSignal.textContent = 'Volume à construire';
-      if(els.performanceBestSignalText) els.performanceBestSignalText.textContent = 'Ajoutez quelques games pour faire ressortir les cartes clés.';
-    }
-
-    if(highInkRate){
-      if(els.performanceWarningSignal) els.performanceWarningSignal.textContent = highInkRate.name;
-      if(els.performanceWarningSignalText) els.performanceWarningSignalText.textContent = `Encrage fréquent · ${highInkRate.inkRate}%.`;
-    }else if(negativeImpact && n(negativeImpact.iih) <= -10){
-      if(els.performanceWarningSignal) els.performanceWarningSignal.textContent = negativeImpact.name;
-      if(els.performanceWarningSignalText) els.performanceWarningSignalText.textContent = `Signal à surveiller · plus de volume nécessaire.`;
-    }else{
-      if(els.performanceWarningSignal) els.performanceWarningSignal.textContent = topInked?.name || 'Aucun gros signal négatif';
-      if(els.performanceWarningSignalText) els.performanceWarningSignalText.textContent = topInked ? `${topInked.inked} encrage(s) observé(s).` : 'Rien d’anormal sur l’échantillon actuel.';
-    }
+    const root=document.getElementById('performanceDeckCoach');
+    if(root)root.hidden=true;
+    if(els.performanceCoachTitle)els.performanceCoachTitle.textContent='Lecture de l’échantillon';
+    if(els.performanceCoachText)els.performanceCoachText.textContent=scopeLabel()+'. Les statistiques décrivent les parties enregistrées ; elles ne mesurent pas la qualité de vos décisions.';
+    const top=meta.deckScoped?analytics.cardSignals?.topLore:null;
+    if(els.performanceBestSignal)els.performanceBestSignal.textContent=top?.name || 'Sélectionnez une version de deck';
+    if(els.performanceBestSignalText)els.performanceBestSignalText.textContent=top?n(top.lore)+' lore observé(s). La fréquence de jeu et la durée des parties influencent ce total.':'Les cartes et mains de départ nécessitent une liste cohérente.';
+    if(els.performanceWarningSignal)els.performanceWarningSignal.textContent='Interpréter avec contexte';
+    if(els.performanceWarningSignalText)els.performanceWarningSignalText.textContent='Un taux de victoire quand une carte est jouée reste une association, pas son effet causal.';
   }
 
   function renderPerformanceActionPlan(analytics, meta={}){
-    if(!els.performanceActionPlan) return;
-    const loggedIn = !!state.currentUser;
-    const deckScoped = !!meta.deckScoped;
-    const rows = meta.rows || [];
-    if(!loggedIn){
-      els.performanceActionPlan.innerHTML = `<article class="glass action-plan-card primary">
-        <span>Plan d’action</span>
-        <strong>Connectez-vous pour activer le suivi</strong>
-        <p>Les priorités de progression se basent sur vos analyses sauvegardées.</p>
-      </article>`;
-      return;
-    }
-    if(!deckScoped){
-      const missingDeck = typeof deckMissingRows === 'function' ? deckMissingRows().length : 0;
-      const total = n(meta.total);
-      const profiles = namedDeckProfiles().filter(profile => !isArchivedDeckProfile(profile)).length;
-      const actions = [
-        {
-          tone:'primary',
-          label:'Priorité',
-          title: missingDeck ? `${missingDeck} analyse${missingDeck > 1 ? 's' : ''} à ranger` : 'Choisissez une bicolorité',
-          text: missingDeck ? 'Attribuez les decks manquants depuis l’historique pour éviter de mélanger plusieurs plans de jeu.' : 'Les signaux cartes, mulligan et matchups deviennent fiables dès que l’échantillon est cohérent.',
-          meta: missingDeck ? 'Nettoyage post-import' : `${total} analyse${total > 1 ? 's' : ''} disponibles`
-        },
-        {
-          label:'Base',
-          title:`${profiles} deck${profiles > 1 ? 's' : ''} actif${profiles > 1 ? 's' : ''}`,
-          text:'Utilisez les versions de decks pour séparer contrôle, midrange, aggro ou variantes de tournoi.',
-          meta:'Organisation'
-        },
-        {
-          label:'Lecture',
-          title:'Éviter les faux signaux',
-          text:'Les statistiques cartes et mulligan sont volontairement verrouillées quand toutes les bicolorités sont mélangées.',
-          meta:'Fiabilité'
-        }
-      ];
-      els.performanceActionPlan.innerHTML = actions.slice(0, 1).map(actionPlanCardHtml).join('');
-      return;
-    }
-
-    const total = n(meta.total);
-    const wins = n(meta.wins);
-    const wr = pct(wins, total);
-    const cards = analytics.cards || [];
-    const topDeck = analytics.avgTopDeck;
-    const playDraw = analytics.playDraw || {};
-    const topInked = cards
-      .filter(card => n(card.inked) >= 2 && n(card.seen) > 0)
-      .map(card => ({ ...card, inkRate:Math.round((n(card.inked)/Math.max(1,n(card.seen))) * 100) }))
-      .sort((a,b)=>b.inkRate-a.inkRate || n(b.inked)-n(a.inked))[0];
-    const weakCard = cards
-      .filter(card => card.iih !== null && Number.isFinite(Number(card.iih)) && n(card.gamesSeen) >= 3 && n(card.gamesNotSeen) >= 3)
-      .sort((a,b)=>n(a.iih)-n(b.iih))[0];
-    const mulliganCards = cards.filter(card => n(card.opening) >= 2);
-    const oftenThrown = [...mulliganCards].sort((a,b)=>n(b.replaced)-n(a.replaced) || n(b.opening)-n(a.opening))[0];
-
-    const actions = [];
-    if(total < 8){
-      actions.push({
-        tone:'primary',
-        label:'Priorité',
-        title:'Renforcer l’échantillon',
-        text:`${total} analyse${total > 1 ? 's' : ''} seulement : les tendances sont utiles, mais pas encore assez solides pour conclure.`,
-        meta:'Objectif : 10 à 15 games'
-      });
-    }else if(wr < 45){
-      actions.push({
-        tone:'danger',
-        label:'Priorité',
-        title:'Identifier la cause des défaites',
-        text:`${wr}% de winrate sur l’échantillon filtré. Commencez par les matchups faibles et les tours où la main s’épuise.`,
-        meta:`${wins}/${total} victoires`
-      });
-    }else if(wr >= 60){
-      actions.push({
-        tone:'success',
-        label:'Priorité',
-        title:'Conserver le plan actuel',
-        text:`${wr}% de winrate : le deck performe. Cherchez plutôt les ajustements matchup par matchup que les gros changements.`,
-        meta:`${wins}/${total} victoires`
-      });
-    }else{
-      actions.push({
-        tone:'primary',
-        label:'Priorité',
-        title:'Stabiliser les matchups',
-        text:`${wr}% de winrate : le deck est jouable, mais les écarts par matchup et OTP/OTD doivent guider les prochains tests.`,
-        meta:`${wins}/${total} victoires`
-      });
-    }
-
-    if(topDeck !== null && topDeck >= 2.5){
-      actions.push({
-        label:'Ressource',
-        title:'Main qui s’essouffle',
-        text:`Vous terminez en moyenne ${topDeck} tour(s) avec 0 ou 1 carte. Surveillez pioche, curve et cartes mortes.`,
-        meta:'Main critique'
-      });
-    }else if(playDraw.total && Math.abs(n(playDraw.otpRate)-n(playDraw.otdRate)) >= 20){
-      const weaker = n(playDraw.otpRate) < n(playDraw.otdRate) ? 'quand vous commencez' : 'quand vous jouez second';
-      actions.push({
-        label:'Départ',
-        title:'Écart OTP / OTD',
-        text:`Le deck semble moins stable ${weaker}. Testez des lignes de mulligan différentes selon le départ.`,
-        meta:`OTP ${n(playDraw.otpRate)}% · OTD ${n(playDraw.otdRate)}%`
-      });
-    }else{
-      actions.push({
-        label:'Départ',
-        title:'Comparer OTP / OTD',
-        text:'Gardez cette lecture active : un écart de départ révèle souvent une curve trop fragile ou trop réactive.',
-        meta:'Tempo'
-      });
-    }
-
-    if(topInked && topInked.inkRate >= 45){
-      actions.push({
-        label:'Deckbuilding',
-        title:`${topInked.name} souvent encrée`,
-        text:`Elle finit en encre dans ${topInked.inkRate}% des apparitions vues. Signal utile pour repérer un slot flexible, pas une preuve définitive.`,
-        meta:`${n(topInked.inked)} encrage(s)`,
-        card:topInked
-      });
-    }else if(weakCard && n(weakCard.iih) <= -10){
-      actions.push({
-        label:'Carte',
-        title:`${weakCard.name} à surveiller`,
-        text:`Les parties où elle apparaît semblent moins favorables. À confirmer avec plus de volume avant de conclure.`,
-        meta:'Impact carte',
-        card:weakCard
-      });
-    }else if(oftenThrown){
-      actions.push({
-        label:'Mulligan',
-        title:`${oftenThrown.name} souvent renvoyée`,
-        text:`Elle revient souvent dans les mains de départ puis repart au mulligan. Vérifiez si elle arrive trop tôt pour le plan de jeu.`,
-        meta:'Main de départ',
-        card:oftenThrown
-      });
-    }else{
-      actions.push({
-        label:'Mulligan',
-        title:'Créer du volume',
-        text:'Le Mulligan Lab devient vraiment utile quand les mêmes cartes apparaissent plusieurs fois dans les mains de départ.',
-        meta:'À confirmer'
-      });
-    }
-
-    els.performanceActionPlan.innerHTML = actions.slice(0,1).map(actionPlanCardHtml).join('');
+    if(!els.performanceActionPlan)return;
+    els.performanceActionPlan.innerHTML=state.currentUser?'<article class="glass action-plan-card primary"><span>Pour lire ces statistiques</span><strong>'+esc(meta.deckScoped?'Revoir les parties derrière les chiffres':'Choisir une version de deck')+'</strong><p>'+esc(meta.deckScoped?'Comparez les effectifs, le matchup et le départ premier/second avant de modifier une liste. Aucun score automatique ne prouve une erreur.':'Les statistiques par carte et de mulligan sont accessibles lorsque l’échantillon utilise une seule liste, ou des listes identiques.')+'</p></article>':'';
   }
 
   function actionPlanCardHtml(item={}){
@@ -9732,67 +9672,15 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function renderPerformanceMatchups(rows, analytics, meta={}){
-    if(!els.performanceMatchupBreakdown) return;
-    if(!meta.deckScoped){
-      els.performanceMatchupBreakdown.innerHTML = '<div class="deck-required compact"><strong>Sélectionnez une bicolorité</strong><span>Les matchups deviennent lisibles quand l’échantillon représente une stratégie cohérente.</span></div>';
-      return;
-    }
-    const gamesByMatch = new Map();
-    const otpByOpp = new Map();
-    (analytics.games || []).forEach(game => {
-      const key = game.matchId || game.match_id || '';
-      if(key){
-        const item = gamesByMatch.get(key) || { total:0, wins:0 };
-        item.total += 1;
-        if(game.isWin) item.wins += 1;
-        gamesByMatch.set(key,item);
-      }
-      // Split premier/second (OTP/OTD) par bicolorité adverse.
-      const oppKey = game.opponentKey || 'unknown';
-      const e = otpByOpp.get(oppKey) || { otpG:0, otpW:0, otdG:0, otdW:0 };
-      if(game.otp === true){ e.otpG += 1; if(game.isWin) e.otpW += 1; }
-      else if(game.otp === false){ e.otdG += 1; if(game.isWin) e.otdW += 1; }
-      otpByOpp.set(oppKey, e);
-    });
-    const buckets = new Map();
-    (rows || []).forEach(row => {
-      const colors = rowOpponentColors(row);
-      const key = colorFilterKey(colors) || 'unknown';
-      const label = colors.length ? colors.map(inkLabel).join(' / ') : 'Adversaire inconnu';
-      const bucket = buckets.get(key) || { key, label, colors, matches:0, wins:0, games:0, gameWins:0 };
-      bucket.matches += 1;
-      if(row.result === 'win') bucket.wins += 1;
-      const g = gamesByMatch.get(row.id);
-      bucket.games += g?.total || (String(row.format || '').toUpperCase() === 'BO3' ? n(row.wins)+n(row.losses) : 1);
-      bucket.gameWins += g?.wins || n(row.wins || (row.result === 'win' ? 1 : 0));
-      buckets.set(key,bucket);
-    });
-    const items = [...buckets.values()]
-      .filter(item => item.matches > 0)
-      .sort((a,b) => b.matches-a.matches || pct(b.wins,b.matches)-pct(a.wins,a.matches) || a.label.localeCompare(b.label))
-      .slice(0,6);
-    if(!items.length){
-      els.performanceMatchupBreakdown.innerHTML = '<div class="empty-line">Aucun matchup exploitable sur cet échantillon.</div>';
-      return;
-    }
-    els.performanceMatchupBreakdown.innerHTML = items.map(item => {
-      const wr = pct(item.wins,item.matches);
-      const gameWr = pct(item.gameWins,item.games);
-      const ci = wilsonBounds(item.wins, item.matches);
-      const ciBand = ci ? `<span class="matchup-ci-band" style="left:${ci.low}%;right:${100 - ci.high}%"></span>` : '';
-      const ciText = ci ? `<span class="matchup-ci" title="Intervalle de confiance de Wilson à 95% : la vraie valeur est probablement dans cette fourchette. Plus l'échantillon est petit, plus elle est large.">IC 95% ${ci.low}–${ci.high}%</span>` : '';
-      const otp = otpByOpp.get(item.key) || {};
-      const otpParts = [];
-      if(otp.otpG) otpParts.push(`<span class="otp-tag">Premier ${pct(otp.otpW, otp.otpG)}% <small>${otp.otpW}/${otp.otpG}</small></span>`);
-      if(otp.otdG) otpParts.push(`<span class="otp-tag">Second ${pct(otp.otdW, otp.otdG)}% <small>${otp.otdW}/${otp.otdG}</small></span>`);
-      const otpLine = otpParts.length ? `<div class="matchup-breakdown-otp">${otpParts.join('')}</div>` : '';
-      return `<article class="matchup-breakdown-card">
-        <div class="matchup-breakdown-title">${inkDotsHtml(item.colors)}<strong>${esc(item.label)}</strong></div>
-        <div class="matchup-breakdown-meter">${ciBand}<span style="width:${Math.max(0, Math.min(100, wr))}%"></span></div>
-        <div class="matchup-breakdown-meta"><span>${wr}% WR match</span>${ciText}<span>${item.wins}V / ${item.matches}</span><span>${gameWr}% WR game</span></div>
-        ${otpLine}
-      </article>`;
-    }).join('');
+    if(!els.performanceMatchupBreakdown)return;
+    if(statisticsScope().queue==='all'){els.performanceMatchupBreakdown.innerHTML='<p class="empty-line">Choisissez Core BO1 ou Core BO3 pour lire les résultats par matchup.</p>';return;}
+    const buckets=new Map(),bo3=statisticsScope().queue==='core-bo3';
+    for(const row of rows){const colors=rowOpponentColors(row),key=colorFilterKey(colors)||'unknown';if(!buckets.has(key))buckets.set(key,{colors,rows:[]});buckets.get(key).rows.push(row);}
+    const items=[...buckets.values()].sort((a,b)=>b.rows.length-a.rows.length);
+    els.performanceMatchupBreakdown.innerHTML=items.length?items.map(item=>{
+      const all=resultSummary(item.rows),primary=bo3?all.matches:all.games,rate=primary.rate==null?'—':round1(primary.rate)+'%',ci=wilsonBounds(primary.wins,primary.n);
+      return '<article class="matchup-breakdown-card"><div class="matchup-breakdown-title">'+inkDotsHtml(item.colors)+'<strong>'+esc(item.colors.length?item.colors.map(inkLabel).join(' / '):'Encres inconnues')+'</strong></div><div class="matchup-breakdown-meta"><span>'+rate+' par '+(bo3?'match confirmé':'manche')+'</span><span>'+primary.wins+' victoire(s) / '+primary.n+'</span>'+(ci?'<span>Intervalle Wilson 95% : '+ci.low+'–'+ci.high+'%</span>':'')+'<span>'+all.games.n+' manches'+(bo3?' · '+all.matches.unconfirmed+' série(s) incomplète(s)':'')+'</span></div></article>';
+    }).join(''):'<p class="empty-line">Aucun résultat exploitable dans ce contexte.</p>';
   }
 
   function performanceMiniCardSignalHtml(card, meta=''){
@@ -9805,7 +9693,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function performanceCardImpactHtml(analytics, options={}){
     if(!isPerformanceDeckScoped()){
-      return '<div class="deck-required"><strong>Sélectionnez une bicolorité</strong><span>Les cartes clés ne sont pas affichées sur “Toutes les bicolorités”, pour éviter de mélanger des listes trop différentes.</span></div>';
+      return '<div class="deck-required"><strong>Choisissez une version de deck</strong><span>Les statistiques par carte nécessitent une liste identique dans toutes les manches de l’échantillon.</span></div>';
     }
     const sort = state.performanceCardSort || 'lore';
     const expanded = !!state.performanceExpandedLists?.cards || !!options.full;
@@ -9903,18 +9791,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function performanceCardStatusBadges(card){
-    const badges = [];
-    const playedWr = n(card.playedWr);
-    const gamesPlayed = n(card.gamesPlayed);
-    const seen = Math.max(1,n(card.seen));
-    const inkRate = Math.round((n(card.inked) / seen) * 100);
-    if(gamesPlayed >= 5 && playedWr >= 60) badges.push({ label:'Top performer', tone:'success' });
-    if(n(card.lore) >= 8) badges.push({ label:'Moteur de lore', tone:'gold' });
-    if(n(card.inked) >= 3 && inkRate >= 45) badges.push({ label:`Encrage fréquent ${inkRate}%`, tone:'blue' });
-    if(n(card.played) <= 2 && n(card.inked) >= 3) badges.push({ label:'Slot flexible ?', tone:'neutral' });
-    if(gamesPlayed > 0 && gamesPlayed < 5) badges.push({ label:'À confirmer', tone:'neutral' });
-    if(!badges.length) badges.push({ label:'Carte suivie', tone:'neutral' });
-    return badges.slice(0,3);
+    return [{label:n(card.gamesPlayed)+' manches où jouée',tone:'neutral'},{label:n(card.lore)+' lore observé(s)',tone:'gold'}];
   }
 
   function statTokenHtml(label, value, tone='neutral'){
@@ -10167,7 +10044,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function performanceMulliganHtml(analytics, options={}){
     if(!isPerformanceDeckScoped()){
-      return '<div class="deck-required"><strong>Sélectionnez une bicolorité</strong><span>Le Mulligan Lab doit être lu par contexte cohérent. Sur plusieurs bicolorités, les tendances deviennent trompeuses.</span></div>';
+      return '<div class="deck-required"><strong>Choisissez une version de deck</strong><span>Choisissez une seule liste. Une même bicolorité peut contenir plusieurs stratégies et ne suffit pas pour comparer les ouvertures.</span></div>';
     }
     const filters = {
       // Matchup and OTP/OTD now come from the global performance filters above.
@@ -10175,7 +10052,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       play:'all',
       recommendation:'all'
     };
-    const sort = state.performanceMulliganSort || 'smart';
+    const sort = ['kept','thrown','seen'].includes(state.performanceMulliganSort)?state.performanceMulliganSort:'seen';
     const expanded = !!state.performanceExpandedLists?.mulligan || !!options.full;
     let rows = applyMulliganLabFilters(analytics.cards || [], filters);
     // Seuil minimum d'occurrences : on masque les cartes vues une ou deux fois en
@@ -10189,7 +10066,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const limit = expanded ? 80 : 10;
     const visible = rows.slice(0, limit);
     const toolbarHtml = `<div class="performance-block-toolbar mulligan-lab-toolbar">
-      ${performanceSortSelect('mulligan', [['smart','Priorité'],['kept','Plus gardées'],['thrown','Plus renvoyées'],['seen','Plus vues'],['kept_wr','WR gardée']], sort)}
+      ${performanceSortSelect('mulligan', [['seen','Présences initiales'],['kept','Plus gardées'],['thrown','Plus renvoyées']], sort)}
       ${rows.length > (expanded ? 10 : limit) ? `<button type="button" class="perf-list-link" data-performance-full-list="mulligan">${expanded ? 'Réduire' : `Voir ${rows.length} cartes`}</button>` : ''}
     </div>`;
     const listHtml = visible.length ? `<div class="mulligan-visual-list mulligan-lab-list ${expanded ? 'expanded' : ''}">${visible.map(card => performanceMulliganCardHtml(card)).join('')}</div>` : '<div class="empty-line">Aucune carte ne correspond à ces filtres. Essayez “Toutes” ou un autre matchup.</div>';
@@ -10208,34 +10085,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function performanceMulliganCardHtml(card){
-    const view = performanceCardView(card);
-    const displayName = fullName(view) || card.name || 'Carte';
-    const kept = n(card.kept);
-    const replaced = n(card.replaced);
-    const total = Math.max(1, kept + replaced);
-    const keep = Math.round((kept / total) * 100);
-    const throwPct = 100 - keep;
-    const recommendation = card.recommendation || mulliganRecommendation(card, arrayify(card._raw?.samples));
-    const traits = mulliganCardTraits(card);
-    const copyPattern = mulliganCopyPattern(card.samples);
-    const curveLabel = traits.cost !== null ? `Coût ${traits.cost}` : 'Coût —';
-    const inkLabelText = traits.inkable ? 'Encrable' : traits.uninkable ? 'Non-encrable' : 'Encrable —';
-    const deadWeight = mulliganDeadWeightView(card);
-    const decisionTag = deadWeight.hasSignal && deadWeight.tone === 'danger' && keep >= 45 ? deadWeight.label : mulliganShortTag(recommendation, keep, throwPct, copyPattern);
-    const wrBadge = card.keptGames >= 8 ? `${card.keptWr}% WR gardée` : `${n(card.opening)} mains`;
-    const deadWeightTag = deadWeight.hasSignal ? `<span class="mulligan-dead-weight-tag ${escAttr(deadWeight.tone)}">${esc(deadWeight.detail)}</span>` : '';
-    return `<article class="mulligan-visual-card mulligan-lab-card mulligan-lab-card-v2 is-clickable ${escAttr(deadWeight.hasSignal && deadWeight.tone === 'danger' ? 'danger' : (recommendation.tone || 'neutral'))}" role="button" tabindex="0" data-performance-card-key="${escAttr(card.key || '')}" data-performance-card-name="${escAttr(displayName)}">
-      <div class="mulligan-visual-art">${cardThumbHtml(view, 'mulligan-visual-thumb')}</div>
-      <div class="mulligan-visual-body">
-        <div class="mulligan-card-head"><h3>${esc(displayName)}</h3><span class="mulligan-rec ${escAttr(recommendation.tone || 'neutral')}">${esc(decisionTag)}</span></div>
-        <div class="mulligan-card-stats compact">
-          <span>${n(card.opening)} mains</span><span>${kept} gardées</span><span>${replaced} renvoyées</span><span>${esc(curveLabel)}</span><span>${esc(inkLabelText)}</span>
-        </div>
-        <div class="mulligan-bar"><i style="width:${keep}%"></i><b style="width:${throwPct}%"></b></div>
-        <div class="mulligan-bar-labels"><span>Garder ${keep}%</span><span>Renvoyer ${throwPct}%</span></div>
-        <div class="mulligan-bottom-tags"><span>${esc(wrBadge)}</span>${deadWeightTag}</div>
-      </div>
-    </article>`;
+    const view=performanceCardView(card),name=fullName(view)||card.name||'Carte';
+    const kept=n(card.kept),replaced=n(card.replaced),total=kept+replaced,keep=total?Math.round(kept/total*100):0;
+    return '<article class="mulligan-visual-card mulligan-lab-card is-clickable neutral" role="button" tabindex="0" data-performance-card-key="'+escAttr(card.key||'')+'" data-performance-card-name="'+escAttr(name)+'"><div class="mulligan-visual-art">'+cardThumbHtml(view,'mulligan-visual-thumb')+'</div><div class="mulligan-visual-body"><h3>'+esc(name)+'</h3><div class="mulligan-card-stats compact"><span>'+n(card.opening)+' présence(s) en main initiale</span><span>'+kept+' exemplaires gardés</span><span>'+replaced+' renvoyés</span></div><div class="mulligan-bar"><i style="width:'+keep+'%"></i><b style="width:'+(100-keep)+'%"></b></div><p>Conservées '+keep+'% des exemplaires observés. Cette fréquence ne constitue pas une recommandation.</p></div></article>';
   }
 
   function performanceTurnCurveHtml(analytics){
@@ -10608,9 +10460,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const base = sortedByGame[sortedByGame.length-1];
       const gameWins = games.filter(g => g.result === 'win').length;
       const gameLosses = games.filter(g => g.result === 'loss').length;
+      const seriesSummary=resultSummary(games).matches;
       return {
         ...base,
-        result: gameWins > gameLosses ? 'win' : 'loss',
+        result: seriesSummary.wins===1?'win':seriesSummary.losses===1?'loss':null,
         wins: gameWins,
         losses: gameLosses,
         score_label: `${gameWins}-${gameLosses}`,
@@ -11632,55 +11485,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   async function requestCoachCommentary(m, fallbackNarrative){
-    const key = matchReadRequestKey(m);
-    if(state.coachCommentaryCache?.has(key)){
-      setMatchReadDom(state.coachCommentaryCache.get(key));
-      return;
-    }
-    if(state.coachCommentaryPendingKey === key) return;
-
-    const seq = (state.coachCommentarySeq || 0) + 1;
-    state.coachCommentarySeq = seq;
-    state.coachCommentaryPendingKey = key;
-
-    setMatchReadDom({
-      title:'Le Coach analyse votre niveau...',
-      description:'Veuillez patienter, l’IA calcule votre Card Advantage...',
-      badge:'IA en cours'
-    });
-
-    try{
-      const response = await fetch('/api/getCoachCommentary', {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body:JSON.stringify(buildCoachCommentaryPayload(m))
-      });
-      if(!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      if(state.coachCommentarySeq !== seq || state.coachCommentaryPendingKey !== key) return;
-      const sourceLabel = String(data?.source || '').trim();
-      const commentary = {
-        title:String(data?.title || '').trim() || fallbackNarrative?.title || 'Lecture du match',
-        description:String(data?.description || data?.text || '').trim() || fallbackNarrative?.description || fallbackNarrative?.text || 'Analyse indisponible pour ce match.',
-        sourceLine:String(data?.sourceLine || '').trim(),
-        badge:String(data?.badge || '').trim() || (sourceLabel ? (sourceLabel.includes('Coach DB') ? 'Coach DB' : sourceLabel) : 'Coach')
-      };
-      state.coachCommentaryCache?.set(key, commentary);
-      setMatchReadDom(commentary);
-    }catch(error){
-      console.warn('Coach commentary unavailable:', error);
-      if(state.coachCommentarySeq !== seq || state.coachCommentaryPendingKey !== key) return;
-      const fallback = {
-        title:fallbackNarrative?.title || 'Diagnostic local.',
-        description:fallbackNarrative?.description || fallbackNarrative?.text || 'Le coach est indisponible, mais le diagnostic local reste actif pour ce match.',
-        sourceLine:fallbackNarrative?.sourceLine || '',
-        badge:fallbackNarrative?.badge || 'Coach local'
-      };
-      state.coachCommentaryCache?.set(key, fallback);
-      setMatchReadDom(fallback);
-    }finally{
-      if(state.coachCommentarySeq === seq && state.coachCommentaryPendingKey === key) state.coachCommentaryPendingKey = '';
-    }
+    // Fully local: no model call, no API cost and no asynchronous account data.
+    setMatchReadDom(fallbackNarrative || generateMatchNarrative(m));
   }
 
   function generateMatchRead(sessionData){
@@ -11943,10 +11749,12 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function generateMatchNarrative(m){
-    if(m?.isBO3 || (Array.isArray(m?.sessions) && m.sessions.length > 1)){
-      return generateBo3Narrative(m);
-    }
-    return generateMatchRead(m);
+    const series=m?.isBO3 || (m?.sessions?.length || 0)>1;
+    const metrics=m?.proMetrics || {},turns=round1(m?.avgTurns || m?.turnCount || 0);
+    const score=series?n(m?.wins)+'–'+n(m?.losses):n(m?.finalMineLore)+'–'+n(m?.finalOppLore);
+    const drops=metrics.inkDrops;
+    const description='Score observé '+score+' · '+turns+' tours'+(series?' en moyenne':'')+'. '+n(metrics.questCount)+' quêtes et '+n(metrics.challengeCount)+' défis relevés.'+(drops?' Inkdrops : '+drops.gained+' obtenues, '+drops.removed+' retirées.':' Inkdrops non mesurées dans cette analyse.');
+    return {title:series?'Résumé des manches analysées':'Résumé de la partie',description,summary:description,text:description,badge:'Observations',sourceLine:'Calcul local gratuit. Aucune évaluation du meilleur coup ni de la probabilité de gagner.'};
   }
 
   function countLeadChanges(rows){
@@ -12064,11 +11872,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const global = isGlobalView();
     const metrics = state.scope === 'mine' ? m.proMetrics : m.opponentProMetrics;
     els.statsScopeSubtitle.textContent = global ? 'Résumé macro du BO3 : moteurs de lore, cartes mortes et tendances cumulées.' : (state.scope === 'mine' ? 'Lecture de votre tempo, de votre main et de vos décisions.' : 'Lecture du rythme adverse, de sa pression et de ses fenêtres de tempo.');
-    els.inkChartSubtitle.textContent = global ? 'Masqué dans le résumé BO3 : ouvrez une Game pour lire l’économie tour par tour.' : (state.scope === 'mine' ? 'Encre dépensée vs inutilisée pour vous.' : 'Encre dépensée vs inutilisée côté adversaire.');
+    els.inkChartSubtitle.textContent = global ? 'Masqué dans le résumé BO3 : ouvrez une Game pour lire l’économie tour par tour.' : (state.scope === 'mine' ? 'Votre encre permanente : inclinaisons et réserve disponible.' : 'Encre permanente adverse : inclinaisons et réserve disponible.');
     if(els.actionChartTitle) els.actionChartTitle.textContent = state.scope === 'mine' ? 'Actions par tour' : 'Actions adverses par tour';
     if(els.actionChartSubtitle) els.actionChartSubtitle.textContent = global ? 'Masqué dans le résumé BO3 : ouvrez une Game pour lire le rythme tour par tour.' : (state.scope === 'mine' ? 'Vos cartes encrées, jouées, quêtes et défis par tour.' : 'Actions adverses détectées pendant ses tours.');
     els.inkFloatTotal.textContent = round1(metrics.totalInkFloat);
-    els.inkFloatAverage.textContent = `${round1(metrics.totalInkFloat)} encre non convertie en pression.`;
+    els.inkFloatAverage.textContent = 'Encre permanente restée disponible — pas une preuve d’erreur.';
+    const drops=document.getElementById('inkDropSummary');
+    if(drops){
+      const flow=metrics.inkDrops;
+      drops.textContent=flow ? `Inkdrops : +${flow.gained} obtenues · ${flow.removed} retirées · ${flow.end} conservées en fin de partie${global ? ' (cumul des manches)' : ''}. ${flow.paid} paiement(s) d’encre explicitement attribué(s) ; ${flow.unattributed} retrait(s) non attribué(s) à un paiement. Le stock se conserve : ce n’est pas du gaspillage.` : 'Ancienne analyse : inkdrops non mesurées. Réimportez le replay pour les analyser.';
+    }
     const totalActions = metrics.questCount + metrics.challengeCount;
     const questPct = pct(metrics.questCount, totalActions);
     els.actionRatioKpi.textContent = totalActions ? `${questPct}%` : '—';
@@ -12076,7 +11889,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     els.topDeckTurns.textContent = metrics.handKnown ? metrics.topDeckTurns : '—';
     els.topDeckBadge.textContent = metrics.handKnown ? (metrics.topDeckTurns >= 3 ? 'Main critique : 0 ou 1 carte en fin de tour.' : 'Mesuré après actions et effets du tour.') : 'Main non visible.';
     document.querySelector('#topDeckTurns')?.closest('.pro-card')?.classList.toggle('risk', metrics.topDeckTurns >= 3);
-    if(els.topQuestersTitle) setPanelInfo(els.topQuestersTitle, global ? 'Moteurs de Victoire du BO3' : 'Moteurs de Victoire', global ? 'Cartes qui ont fait avancer le score sur l’ensemble de la série.' : 'Classe les cartes qui ont généré ou accéléré votre lore. Le but est d’identifier ce qui vous rapproche réellement des 20 lore.');
+    if(els.topQuestersTitle) setPanelInfo(els.topQuestersTitle, global ? 'Lore observé sur les manches' : 'Lore observé par carte', 'Comptages de lore attribués aux cartes par le lecteur. La fréquence de jeu et la durée influencent ces totaux ; ils ne prouvent pas une contribution causale à la victoire.');
     if(els.topQuestersHelp) els.topQuestersHelp.textContent = global ? 'Top cartes sur la série.' : 'Cartes qui font avancer le score.';
     if(els.mostInkedTitle) setPanelInfo(els.mostInkedTitle, global ? 'Cartes souvent encrées' : 'Cartes les plus encrées', global ? 'Repère les cartes souvent transformées en encre sur ce matchup. Une carte souvent encrée peut être utile, situationnelle ou trop lourde selon le contexte.' : 'Depuis main = carte encrée depuis votre main. Défausse/board = ajout à l’encrier par effet. Les cartes encrées depuis la main sont prioritaires, car elles n’ont pas été jouées.');
     if(els.mostInkedHelp) els.mostInkedHelp.textContent = global ? 'Cartes souvent transformées en encre.' : 'Main / effet distingués.';
@@ -12086,7 +11899,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderMomentFort(m);
     const comparisonMetrics = state.scope === 'mine' ? m.opponentProMetrics : m.proMetrics;
     const scopedActionSeries = global ? [] : actionSeriesForScope(m, state.scope);
-    renderInkChart(metrics.inkByTurn); renderActionChart(scopedActionSeries); renderQuestChart(metrics.questCount, metrics.challengeCount); renderHandChart(metrics.handByTurn, comparisonMetrics?.handByTurn || []); renderBoardChart(metrics.boardByTurn || [], comparisonMetrics?.boardByTurn || []);
+    renderInkChart(global?[]:metrics.inkByTurn); renderInkDropChart(global?null:metrics.inkDropTimeline,global); renderActionChart(scopedActionSeries); renderQuestChart(metrics.questCount, metrics.challengeCount); renderHandChart(metrics.handByTurn, comparisonMetrics?.handByTurn || []); renderBoardChart(metrics.boardByTurn || [], comparisonMetrics?.boardByTurn || []);
     syncChartsWithTheme(state.scope);
     updateChartSummary('inkChartSummary', summarizeInk(metrics.inkByTurn));
     updateChartSummary('actionChartSummary', global ? 'Les actions par tour sont disponibles au niveau d’une Game.' : summarizeActions(scopedActionSeries));
@@ -12104,7 +11917,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     ['inkFloatTotal','actionRatioKpi','topDeckTurns','questChallengeCenter'].forEach(id => { if(els[id]) els[id].textContent='—'; });
     ['topQuestersTable','mostInkedTable','playTimingTable','challengeTable','deadWeightTable'].forEach(id => { if(els[id]) els[id].innerHTML='<div class="empty-line">Importez un replay.</div>'; });
     if(els.quickInsights) els.quickInsights.innerHTML='';
-    renderInkChart([]); renderActionChart([]); renderQuestChart(0,0); renderHandChart([], []); renderBoardChart([], []);
+    renderInkChart([]); renderInkDropChart(null); renderActionChart([]); renderQuestChart(0,0); renderHandChart([], []); renderBoardChart([], []);
     updateChartSummary('inkChartSummary','Résumé du graphique économie d’encre disponible après import.');
     updateChartSummary('actionChartSummary','Résumé du graphique actions disponible après import.');
     updateChartSummary('questChartSummary','Résumé du graphique quête défi disponible après import.');
@@ -12497,7 +12310,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       const scopedCards = cardsForScope(m, state.scope);
       const topQuester = loreEngineCards(scopedCards).sort(compareLoreEngines)[0];
       const mostInked = [...scopedCards].sort((a,b)=>(b.inked||0)-(a.inked||0) || fullName(a).localeCompare(fullName(b)))[0];
-      const scopedNarrative = generateBo3ScopedNarrative(m, state.scope);
+      const scopedNarrative = generateMatchNarrative(m);
       const items = [
         {
           label:isOpponent ? 'Résumé adverse' : 'Votre résumé de série',
@@ -12512,7 +12325,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
           card:topQuester ? cardKey(topQuester) : ''
         },
         {
-          label:isOpponent ? 'Carte adverse la plus encrée' : 'Dead weight possible',
+          label:isOpponent ? 'Carte adverse la plus encrée' : 'Carte la plus encrée',
           value:mostInked ? `${fullName(mostInked)} · ${n(mostInked.inked)}x` : 'Non détecté',
           helper:isOpponent ? 'Carte adverse le plus souvent transformée en encre.' : 'Carte de votre deck souvent transformée en encre dans ce matchup.',
           card:mostInked ? cardKey(mostInked) : ''
@@ -12532,13 +12345,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const topDeckTurn = [...(metrics.handByTurn || [])].filter(r => r.handCount <= 1)[0];
     const items = [
       {
-        label:isOpponent ? 'Fenêtre de tempo adverse' : 'Top erreur de tempo',
-        value:maxFloat?.turn ? `T${maxFloat.turn} · ${round1(maxFloat.float)} encre non convertie` : 'Non détecté',
-        helper:isOpponent ? 'Moment où l’adversaire a le moins converti son encre.' : 'Le tour où votre encre a été le moins bien convertie.',
+        label:isOpponent ? 'Réserve adverse maximale' : 'Réserve permanente maximale',
+        value:maxFloat?.turn ? `T${maxFloat.turn} · ${round1(maxFloat.float)} encre disponible` : 'Non détecté',
+        helper:isOpponent ? 'Relevé d’encre permanente, distinct des inkdrops.' : 'Une réserve disponible peut être intentionnelle.',
         target:'#inkFloatChart'
       },
       {
-        label:isOpponent ? 'Win condition adverse' : 'Win condition principale',
+        label:isOpponent ? 'Lore adverse observé' : 'Lore observé',
         value:topQuester ? fullName(topQuester) : 'Non détectée',
         helper:isOpponent ? 'La carte qui a le plus accéléré son score.' : 'La carte qui a le plus fait avancer votre lore.',
         card:topQuester ? cardKey(topQuester) : ''
@@ -12624,44 +12437,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   // Profil de pioche : vitesse (cartes/tour), tour de deck estimé, et grille de
   // probabilité « avoir vu ≥1 exemplaire » par palier de tour, calée sur le rythme
   // réel de pioche (cardsSeen/turns). Répond à « verrai-je ma carte clé à temps ? ».
-  function deckProfileHtml(cardsSeen, turns, deck = 60){
-    const seen = Math.min(deck, Math.round(n(cardsSeen)));
-    const t = Math.max(1, Math.round(n(turns)));
-    const pctDeck = Math.min(100, Math.round((seen / deck) * 100));
-    const cardsPerTurn = seen / t;
-    const drawsPerTurn = Math.max(0, seen - 7) / t;
-    const fullDeckTurn = drawsPerTurn > 0 ? Math.ceil((deck - 7) / drawsPerTurn) : null;
-    const byTurn = nn => Math.min(deck, Math.round(7 + drawsPerTurn * nn));
-    const cols = [
-      { label: 'Main', seen: 7 },
-      { label: 'T3', seen: byTurn(3) },
-      { label: 'T5', seen: byTurn(5) },
-      { label: 'T8', seen: byTurn(8) }
-    ];
-    const head = `<div class="ddh-cell ddh-corner"></div>` + cols.map(c => `<div class="ddh-cell ddh-col">${c.label}</div>`).join('');
-    const body = [1, 2, 3, 4].map(c => {
-      const rowHead = `<div class="ddh-cell ddh-rowhead">${c}×</div>`;
-      const cells = cols.map(col => {
-        const pct = Math.round(hyperSeeAtLeastOne(c, col.seen, deck) * 100);
-        return `<div class="ddh-cell ddh-val" style="--p:${pct}">${pct}<span>%</span></div>`;
-      }).join('');
-      return rowHead + cells;
-    }).join('');
-    const cycleChip = fullDeckTurn
-      ? `<span class="ddh-chip"><b>T${fullDeckTurn}</b> tour de deck</span>`
-      : `<span class="ddh-chip ddh-chip-soft">tour de deck lent</span>`;
-    return `<div class="ddh">
-      <div class="ddh-hero">
-        <div class="ddh-hero-num">${pctDeck}<span>%</span></div>
-        <div class="ddh-hero-lab">du deck vu<br><b>${seen}/${deck}</b> cartes</div>
-        <div class="ddh-chips">
-          <span class="ddh-chip"><b>${cardsPerTurn.toFixed(1)}</b> cartes/tour</span>
-          ${cycleChip}
-        </div>
-      </div>
-      <div class="ddh-grid">${head}${body}</div>
-      <p class="deck-depth-note">Chaque case = probabilité d’avoir <b>déjà vu ≥1 exemplaire</b> d’une carte, selon ses copies (lignes) et le palier de tour (colonnes). Plus c’est vert, plus c’est probable. Calé sur ton rythme réel (${cardsPerTurn.toFixed(1)} cartes/tour).</p>
-    </div>`;
+  function deckProfileHtml(cardsSeen, turns, deck=60){
+    const observations=Math.max(0,Math.round(n(cardsSeen))),t=Math.max(1,n(turns));
+    return '<div class="ddh"><div class="ddh-hero"><div class="ddh-hero-num">'+observations+'</div><div class="ddh-hero-lab">observations de cartes<br><b>'+round1(observations/t)+'/tour</b></div></div><p class="deck-depth-note">Une même carte peut être revue après un mélange ou un effet. Ce volume ne mesure pas la proportion de cartes distinctes du deck. Les probabilités théoriques sont disponibles dans le calculateur séparé.</p></div>';
   }
 
   function sessionWentFirst(s){
@@ -12711,6 +12489,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
   const _deckDecklistFetching = new Set();
   async function ensureDeckDecklistCached(profileId){
+    const ticket = accountBoundary.capture();
     const key = String(profileId || '');
     if(!key || deckCardListCache.has(key) || _deckDecklistFetching.has(key)) return;
     const match = (state.savedMatches || []).find(r => String(r.deck_profile_id) === key);
@@ -12718,6 +12497,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     _deckDecklistFetching.add(key);
     try{
       const full = await getSavedMatch(match.id);
+      if(!accountBoundary.isCurrent(ticket)) return;
       const cards = apiDecklistStatus(full, 'mine').cards;
       const map = new Map(arrayify(cards).map(c => [String(c.id || c.cardId || ''), n(c.count) || 1]).filter(([id]) => id));
       if(map.size >= 5){ deckCardListCache.set(key, map); globalThis.INKSIGHT_renderPerformanceData?.(); }
@@ -13684,14 +13464,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function summarizeDefaultInkReadout(rows){
-    if(!Array.isArray(rows) || !rows.length){
-      return '<span>Économie d’encre</span><strong>Replay en attente</strong><small>La conversion de l’encre apparaîtra après import.</small>';
-    }
-    const spent = rows.reduce((acc, r)=>acc+n(r.spent),0);
-    const floating = rows.reduce((acc, r)=>acc+n(r.float),0);
-    const avgFloat = rows.length ? round1(floating / rows.length) : 0;
-    const label = avgFloat <= 1 ? 'Curve propre' : avgFloat <= 2.5 ? 'Tempo correct' : 'Fuite d’encre';
-    return `<span>Économie d’encre</span><strong>${esc(label)}</strong><small>${esc(`${round1(spent)} dépensées · ${round1(floating)} flottées · ${avgFloat}/tour`)}</small>`;
+    if(!rows?.length)return '<span>Encre permanente</span><strong>Replay en attente</strong><small>Données disponibles après import.</small>';
+    const available=round1(sum(rows,'float')),average=round1(available/rows.length);
+    return '<span>Encre permanente</span><strong>'+esc(average)+'/tour disponible</strong><small>'+esc(available)+' cumulée sur les relevés. Cela ne permet pas de conclure à une erreur de jeu.</small>';
   }
 
   function summarizeDefaultHandReadout(rows, comparisonRows=[]){
@@ -13883,12 +13658,25 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const labels = rows.map(r=>`T${r.turn}`);
     const theme = getThemeColors(state.scope);
     const datasets = [
-      { label:'Encre dépensée', data:rows.map(r=>r.spent), backgroundColor:theme[0], borderColor:theme[0], borderWidth:1, maxBarThickness:24, borderWidth:0, borderRadius:0 },
-      { label:'Encre inutilisée', data:rows.map(r=>r.float), backgroundColor:theme[1], borderColor:theme[1], borderWidth:1, maxBarThickness:24, borderWidth:0, borderRadius:0 }
+      { label:'Maximum incliné observé', data:rows.map(r=>r.spent), backgroundColor:theme[0], borderColor:theme[0], borderWidth:1, maxBarThickness:24, borderWidth:0, borderRadius:0 },
+      { label:'Réserve permanente disponible', data:rows.map(r=>r.float), backgroundColor:theme[1], borderColor:theme[1], borderWidth:1, maxBarThickness:24, borderWidth:0, borderRadius:0 }
     ];
     charts.ink = chart(charts.ink, 'inkFloatChart', 'bar', { labels, datasets }, { scales:{ x:{ stacked:true }, y:{ stacked:true, beginAtZero:true, ticks:{ precision:0 } } } });
     updateChartDataTable('inkFloatChart', labels, datasets, 'Données du graphique d’économie d’encre');
   }
+  function renderInkDropChart(timeline,global=false){
+    const available=Array.isArray(timeline),rows=available?timeline:[],labels=rows.map(r=>'T'+r.turn+' · '+(r.activeOwner==='mine'?'Vous':'Adv.'));
+    const note=document.getElementById('inkDropChartNote');
+    if(note)note.textContent=global?'Ouvrez une manche pour voir la chronologie des inkdrops.':available?'Flux observés pendant les tours des deux joueurs. Les retraits comprennent les paiements et les autres effets.':'Chronologie indisponible dans cette ancienne analyse. Réimportez le replay.';
+    const datasets=[
+      {type:'line',label:'Stock observé',data:rows.map(r=>r.stock),borderColor:'#b49bff',backgroundColor:'#b49bff',pointRadius:2,tension:0,order:0},
+      {type:'bar',label:'Obtenues',data:rows.map(r=>r.gained),backgroundColor:'#34d399',order:1},
+      {type:'bar',label:'Retirées',data:rows.map(r=>-r.removed),backgroundColor:'#fb923c',order:1}
+    ];
+    charts.inkDrops=chart(charts.inkDrops,'inkDropChart','bar',{labels,datasets},{scales:{y:{ticks:{precision:0}}}});
+    updateChartDataTable('inkDropChart',labels,datasets,'Inkdrops : stock et flux par tour');
+  }
+
   function renderQuestChart(quest, challenge){
     const total = n(quest) + n(challenge);
     if(els.questChallengeCenter) els.questChallengeCenter.textContent = total ? `${pct(quest,total)}%` : '—';
@@ -14228,7 +14016,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return Math.min(1, Math.max(0, p));
   }
   function bindDrawCalculator(){
-    ['drawDeckSize', 'drawCopies', 'drawWanted', 'drawSeen', 'drawMulligan'].forEach(id => {
+    ['drawDeckSize', 'drawCopies', 'drawWanted', 'drawSeen'].forEach(id => {
       document.getElementById(id)?.addEventListener('input', updateDrawCalculator);
     });
     document.getElementById('drawWhen')?.addEventListener('change', updateDrawCalculator);
@@ -14245,8 +14033,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const seenWrap = document.getElementById('drawSeenWrap');
     if(seenWrap) seenWrap.hidden = !custom;
     const baseSeen = custom ? (n(document.getElementById('drawSeen')?.value) || 7) : (n(whenSel?.value) || 7);
-    const mulligan = !!document.getElementById('drawMulligan')?.checked;
-    const sample = Math.min(deck, baseSeen + (mulligan ? 7 : 0));
+    const sample = Math.min(deck, Math.max(0, Math.floor(baseSeen)));
     const p = hypergeomAtLeast(deck, copies, sample, wanted);
     const pct = Math.round(p * 1000) / 10;
     const pctEl = document.getElementById('drawResultPct');
@@ -14259,7 +14046,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
     if(textEl){
       const copyWord = wanted > 1 ? `${wanted} exemplaires` : '1 exemplaire';
-      textEl.textContent = `${pct}% de voir au moins ${copyWord} sur ${sample} carte(s) vue(s)${mulligan ? ' · mulligan inclus' : ''}.`;
+      textEl.textContent = `${pct}% de voir au moins ${copyWord} sur ${sample} carte(s) vue(s) · tirage aléatoire sans mulligan ni effet sélectif.`;
     }
   }
 
@@ -14433,10 +14220,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return `Résumé du graphique : ${sum(rows,'ink')} carte(s) encrée(s), ${sum(rows,'play')} carte(s) jouée(s), ${sum(rows,'quest')} quête(s) et ${sum(rows,'challenge')} défi(s).${suffix}`;
   }
   function summarizeInk(rows){
-    if(!rows?.length) return 'Aucune donnée d’économie d’encre à afficher.';
-    const peak = [...rows].sort((a,b)=>b.float-a.float)[0];
-    return peak ? `Résumé du graphique : ${round1(sum(rows,'float'))} encre inutilisée au total, pic au tour ${peak.turn} avec ${round1(peak.float)}.` : 'Aucune encre inutilisée détectée.';
+    if(!rows?.length)return 'Aucune donnée d’encre permanente à afficher.';
+    const peak=[...rows].sort((a,b)=>b.float-a.float)[0];
+    return 'Réserve permanente disponible cumulée : '+round1(sum(rows,'float'))+' ; maximum relevé au tour '+peak.turn+'. Les inclinaisons ne sont pas un compteur exact des paiements.';
   }
+
   function summarizeQuest(quest, challenge){ const total = n(quest)+n(challenge); return total ? `Résumé du graphique : ${pct(quest,total)}% quête, avec ${quest} quête(s) et ${challenge} défi(s).` : 'Aucune quête ou défi détecté.'; }
   function summarizeHand(rows, comparisonRows=[]){
     if(!rows?.length) return 'Aucune donnée de main à afficher.';
@@ -14449,19 +14237,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function applyPatch(obj, patch){
-    const parts = pointerParts(patch.path); if(!parts.length) return;
-    let parent = obj;
-    for(let i=0;i<parts.length-1;i++){ const k=parts[i]; if(parent[k] === undefined) parent[k] = /^\d+$/.test(parts[i+1]) ? [] : {}; parent = parent[k]; if(parent == null) return; }
-    const key = parts[parts.length-1];
-    if(Array.isArray(parent)){
-      const idx = key === '-' ? parent.length : Number(key);
-      if(patch.op === 'add') parent.splice(idx, 0, patch.value);
-      else if(patch.op === 'remove') parent.splice(idx, 1);
-      else if(patch.op === 'replace') parent[idx] = patch.value;
-    }else{
-      if(patch.op === 'remove') delete parent[key];
-      else parent[key] = patch.value;
-    }
+    applyReplayPatch(obj, patch);
   }
   function pointerParts(path){ return String(path||'').split('/').slice(1).map(p => p.replace(/~1/g,'/').replace(/~0/g,'~')); }
   function zoneStats(snapshot, zoneKey){
@@ -14510,7 +14286,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return source.split(/\n+/).map(line => {
       let html = esc(line.trim());
       html = html.replace(/^([A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆ0-9'’\- ]{3,})(?=\s+(?:[A-ZÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆ][a-zà-ÿ]|[a-zà-ÿ]))/u, '<span class="ability-name">$1</span>');
-      html = html.replace(/\b(Shift|Evasive|Challenger|Resist|Rush|Ward|Support|Bodyguard|Singer|Vanish|Reckless|Sing Together)\b/gi, '<span class="keyword-badge">$1</span>');
+      html = html.replace(/\b(Duo Shift|Shift|Evasive|Challenger|Resist|Rush|Ward|Support|Bodyguard|Singer|Vanish|Reckless|Adventurous|Sing Together)\b/gi, '<span class="keyword-badge">$1</span>');
       return `<p>${html}</p>`;
     }).join('');
   }
@@ -14544,9 +14320,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     };
     collect(c);
     collect(metadataFallbackCard(c));
+    collect({setCodes:[...(printingSetsByName.get(slug(fullName(c))) || [])]});
     return [...nums];
   }
-  // 'legal' = jouable en Core (une réimpression au moins dans les chapitres 9–13),
+  // 'legal' = in the current Core set pool (9–14), including exact-name reprints.
   // 'rotated' = sortie du Core après la rotation de juillet 2026, 'unknown' = set non
   // résolu (on n'affiche alors aucun badge). Une carte du chapitre 1 réimprimée dans
   // Fabuleux (set 9) est donc bien « legal ».
@@ -14560,7 +14337,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     if(status === 'legal'){
       const via = cardSetNumbers(c).filter(num => CORE_LEGAL_SET_NUMS.has(num)).sort((a, b) => Number(a) - Number(b));
       const label = via.length ? ` (chapitre${via.length > 1 ? 's' : ''} ${via.join(', ')})` : '';
-      return `<span class="badge badge--core" title="Légale en format Core${esc(label)}">Core</span>`;
+      return `<span class="badge badge--core" title="Présente dans le pool Core${esc(label)}. Ne vérifie pas la liste des cartes bannies.">Pool Core</span>`;
     }
     if(status === 'rotated') return '<span class="badge badge--rotated" title="Sortie du format Core après la rotation de juillet 2026 — jouable en Infinity">Hors&nbsp;Core</span>';
     return '';
