@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { MATCH_CONTEXT_SELECT } from './lorcana/context-select.js';
 
 // Clé publique Supabase : OK côté frontend.
 // Ne jamais mettre ici une clé "service_role".
@@ -433,6 +434,7 @@ export async function listSavedMatchHistoryLight(limit = 1000) {
       'final_opp_lore',
       'team_visible',
       'user_id',
+      MATCH_CONTEXT_SELECT,
     ].join(','));
   if (!userId) return [];
   query = query.eq('user_id', userId);

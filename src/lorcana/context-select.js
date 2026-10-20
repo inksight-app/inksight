@@ -1,0 +1,2 @@
+// Narrow JSON projections: metadata only, no decklists or large analysis blobs.
+export const MATCH_CONTEXT_SELECT = ['queue_id','queue_name','ranked','mode','season_id','season_name','started_at','result','match_id','match_game_number','match_format'].map(key => 'context_'+key+':api_metadata->api_row->raw->'+(key==='ranked'?'':'>' )+key).join(',')+',context_deck_hash:api_metadata->>my_deck_hash';

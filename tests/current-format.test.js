@@ -6,6 +6,7 @@ import { SessionBoundary } from '../src/security/session.js';
 import { CORE_SET_NUMBERS, isCurrentCoreGame } from '../src/lorcana/format.js';
 import { replayCancellations, analyzeInkDrops, combineInkDrops } from '../src/lorcana/resources.js';
 import { applyReplayPatch } from '../src/security/replay.js';
+import * as seasons from '../src/lorcana/seasons.js';
 import metaHandler from '../api/duelink-meta.js';
 
 const base=()=>({format:'duels-replay-v1',perspective:1,baseSnapshot:{viewingAs:1,status:'playing',currentPlayer:1,turnNumber:1,myPlayer:{lore:0,hand:[],inkwell:[],field:[],inkDrops:0},opponent:{lore:0,handCount:7,inkwell:[],field:[],inkDrops:0}},frames:[],logs:[]});
@@ -38,6 +39,10 @@ test('inkdrops: both-turn gains, explicit payment, alternate removal and final s
   const result=analyzeInkDrops(replay);
   assert.deepEqual(result.mine,{start:0,gained:7,removed:4,paid:2,unattributed:2,end:3});
   assert.equal(result.opponent.gained,1);assert.equal(result.opponent.end,1);
+  assert.equal(result.timeline.mine.reduce((sum,row)=>sum+row.gained,0),7);
+  assert.equal(result.timeline.mine.reduce((sum,row)=>sum+row.removed,0),4);
+  assert.equal(result.timeline.mine.at(-1).stock,3);
+  assert(result.timeline.mine.some(row=>row.activeOwner==='opponent' && row.gained===3));
   assert.equal(combineInkDrops([{inkDrops:result.mine},{}]),null);
   assert.equal(combineInkDrops([{inkDrops:result.mine},{inkDrops:result.mine}]).gained,14);
 });
@@ -62,8 +67,8 @@ function analyzerHarness(){
   const text=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');
   const end=text.indexOf('\n})();');
   assert(end>0);
-  const context=vm.createContext({document:{addEventListener(){},querySelectorAll(){return[];},querySelector(){return null;},getElementById(){return null;}},window:{},Chart:{},JSZip:{},pako:{},SessionBoundary,CORE_SET_NUMBERS,isCurrentCoreGame,analyzeInkDrops,combineInkDrops,replayCancellations,applyReplayPatch,structuredClone,console,setTimeout,clearTimeout,TextDecoder,URL,Map,Set,Date});
-  vm.runInContext(text.slice(0,end)+'\n globalThis.testApi={parseReplay,state,buildCardIndex,cardSetNumbers,coreLegality};\n})();',context);
+  const context=vm.createContext({...seasons,document:{addEventListener(){},querySelectorAll(){return[];},querySelector(){return null;},getElementById(){return null;}},window:{},Chart:{},JSZip:{},pako:{},SessionBoundary,CORE_SET_NUMBERS,isCurrentCoreGame,analyzeInkDrops,combineInkDrops,replayCancellations,applyReplayPatch,structuredClone,console,setTimeout,clearTimeout,TextDecoder,URL,Map,Set,Date});
+  vm.runInContext(text.slice(0,end)+'\n globalThis.testApi={parseReplay,state,buildCardIndex,cardSetNumbers,coreLegality,scopedSavedRows,filteredSavedMatches,gamePassesImportFilters,rowSetNum,compactMetrics,savedMetrics};\n})();',context);
   return context.testApi;
 }
 test('the original analyzer excludes undone plays and retains new inkdrop metrics',()=>{
@@ -72,9 +77,24 @@ test('the original analyzer excludes undone plays and retains new inkdrop metric
   const parsed=api.parseReplay(replay,{name:'synthetic.replay',size:1});
   assert.equal(parsed.actions.filter(a=>a.type==='play').length,0);
   assert.equal(parsed.proMetrics.inkDrops.gained,0);
+  assert.equal(parsed.proMetrics.inkDropTimeline.reduce((sum,row)=>sum+row.gained,0),0);
+  assert.equal(JSON.stringify(api.savedMetrics(api.compactMetrics(parsed.proMetrics)).inkDropTimeline),JSON.stringify(parsed.proMetrics.inkDropTimeline));
   const catalog=JSON.parse(fs.readFileSync(new URL('../public/lorcana-set14.json',import.meta.url)));
   api.state.cards=catalog.cards;api.buildCardIndex();
   assert.equal(api.coreLegality({fullName:catalog.cards[0].fullName,setCode:'TFC'}),'legal');
+});
+test('the original import and statistics use the same chapter and ranked queue scope',()=>{
+  const api=analyzerHarness();
+  const make=(id,raw)=>({id,format:'BO1',apiRow:{queue_id:'core-bo1',queue_name:'Core Set 14 BO1',ranked:true,season_name:'Core BO1 - Set 14',started_at:'2026-10-19T10:00:00Z',result:'win',...raw}});
+  const current=make('current',{}),old=make('old',{season_name:'Core BO1 - Set 13',started_at:'2026-08-01T10:00:00Z'}),beta=make('beta',{ranked:false}),bo3=make('bo3',{queue_id:'core-bo3',queue_name:'Core BO3',match_format:'bo3'});
+  api.state.savedMatches=[current,old,beta,bo3];
+  assert.equal(api.scopedSavedRows().map(row=>row.id).join(','),'current');
+  assert.equal(api.filteredSavedMatches('stats').map(row=>row.id).join(','),'current');
+  assert.equal(api.gamePassesImportFilters(old),false);
+  api.state.statScope={era:'set-13',queue:'core-bo1'};
+  assert.equal(api.filteredSavedMatches('stats').map(row=>row.id).join(','),'old');
+  assert.equal(api.gamePassesImportFilters(old),true);
+  assert.equal(api.gamePassesImportFilters(current),false);
 });
 test('public meta uses discovered era, stable fields, daily caching and conditional responses',async t=>{
   const original=globalThis.fetch;let calls=0;
@@ -90,4 +110,17 @@ test('public meta uses discovered era, stable fields, daily caching and conditio
   const second=res();await metaHandler({method:'GET',query:{queue:'core-bo1'},headers:{'if-none-match':first.headers.etag}},second);
   assert.equal(second.statusCode,304);assert.equal(calls,2);assert(first.headers['cache-control'].includes('s-maxage=86400'));
   const invalid=res();await metaHandler({method:'GET',query:{queue:'https://evil.example'},headers:{}},invalid);assert.equal(invalid.statusCode,400);assert.equal(calls,2);
+});
+test('community archives cannot reuse another queue or current-era cache entry',async t=>{
+  const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});let calls=0;
+  globalThis.fetch=async(url)=>{
+    calls++;const params=new URL(url).searchParams,queue=params.get('queue'),era=params.get('era')||'set-14-core';
+    return Response.json({meta:{queueId:queue,selectedEraKey:era,eras:{currentEra:{key:'set-14-core'},pastEras:[{key:'set-13-core'}]}},activity:{totalGames:10},colorPairs:[],matchups:[]});
+  };
+  const res=()=>({setHeader(){},end(body){this.body=body;}});
+  const archive=res();await metaHandler({method:'GET',query:{queue:'core-bo3',era:'set-13'},headers:{}},archive);
+  assert.equal(archive.statusCode,200);assert.equal(JSON.parse(archive.body).meta.selectedEraKey,'set-13-core');
+  const current=res();await metaHandler({method:'GET',query:{queue:'core-bo3'},headers:{}},current);
+  assert.equal(JSON.parse(current.body).meta.selectedEraKey,'set-14-core');assert.equal(calls,4);
+  const missing=res();await metaHandler({method:'GET',query:{queue:'core-bo3',era:'set-99'},headers:{}},missing);assert.equal(missing.statusCode,404);
 });

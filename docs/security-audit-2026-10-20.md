@@ -21,6 +21,7 @@ Supabase était suspendu et son Auth indisponible. Après restauration autorisé
 | Moyen | Anciennes requêtes/caches pouvant repeupler l’interface après changement de compte. | Génération de session, rejet des réponses périmées, purge de l’ancien propriétaire et garde de sauvegarde. Tests A → B → déconnexion → A. |
 | Moyen | API réutilisable sans session Inksight pour un jeton collé ; erreurs internes et redirections trop permissives. | Session vérifiée côté serveur, origines explicites, corps/temps/tailles bornés, erreurs génériques, hôtes de téléchargement limités, Bearer retiré au changement d’origine. |
 | Moyen | Proxy image pouvant servir du contenu actif. | Images raster seulement ; SVG/HTML refusés ; nosniff et CSP. Test de contenu actif refusé. |
+| Moyen | Description d’équipe insérée dans innerHTML sans échappement, y compris lors de la création de liens. | Texte échappé, liens HTTP(S) validés et attributs échappés, pas de HTML utilisateur. Test de charge HTML et d’attributs malveillants. |
 | Durcissement | Scripts CDN exécutables non verrouillés, en-têtes manquants, dépendances vulnérables. | Bibliothèques empaquetées et versions figées ; CSP, anti-iframe, referrer, permissions ; npm audit : 0 vulnérabilité signalée, y compris développement. |
 
 Les jetons duels.ink restent chiffrés AES-256-GCM. La nouvelle version lie le chiffré au propriétaire ; les anciens chiffrés restent lisibles. Ne pas remplacer la clé de chiffrement existante sans procédure de migration.
@@ -31,7 +32,7 @@ Les fonctions SECURITY DEFINER nécessaires aux invitations sont confinées dans
 
 `npm ci --ignore-scripts`, `npm test`, `npm run build`, `npm audit`, `git diff --check`.
 
-22 tests Node passent au moment de la livraison. Un replay public de 119 étapes a été lu par le parseur original durci, avec 5 séquences annulées exclues. Les tests synthétiques couvrent les inkdrops et leurs coûts alternatifs ; ce replay historique ne contient pas d’inkdrops.
+32 tests Node passent au moment de la livraison, dont séparation de chapitres/files, contexte commun du parseur original et de l’import, regroupement BO3, absence de résultat, archives communautaires et chronologie d’inkdrops. Un replay public de 119 étapes a été lu par le parseur original durci, avec 5 séquences annulées exclues. Les tests synthétiques couvrent les inkdrops et leurs coûts alternatifs ; ce replay historique ne contient pas d’inkdrops.
 
 `tests/security-rls.sql` s’exécute après le durcissement dans une transaction finissant toujours par ROLLBACK. Deux identités synthétiques uniquement : propriétaire, membre, puis ex-membre. Aucun match réel n’est lu ni supprimé. Résultat obtenu : PASS sur accès propriétaire, invitation, parent/enfant privé/partagé, interdiction d’inscription directe, d’élévation de rôle, de réaffectation, d’insertion interpropriétaires, de lecture d’adhésions étrangères, révocation et isolation anonyme.
 

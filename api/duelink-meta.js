@@ -25,20 +25,26 @@ export default async function handler(req,res){
     if(req.method!=='GET'){res.setHeader('Allow','GET');throw new HttpError(405,'Méthode non autorisée.');}
     const queue=req.query?.queue || 'core-bo1';
     if(typeof queue!=='string' || !QUEUES.has(queue)) throw new HttpError(400,'File de jeu non reconnue.');
-    let cached=cache.get(queue);
+    const requestedEra=req.query?.era || 'current';
+    if(typeof requestedEra!=='string' || !/^(current|set-[a-z0-9-]{1,40})$/.test(requestedEra))throw new HttpError(400,'Chapitre non reconnu.');
+    const cacheKey=queue+':'+requestedEra;
+    let cached=cache.get(cacheKey);
     if(!cached || Date.now()-cached.at>DAY){
       // Current era is discovered, never guessed from a mutable queue display name.
       const discovery=await upstream('/api/stats/meta?queue='+encodeURIComponent(queue)+'&period=all_time');
-      const era=discovery.data.meta?.eras?.currentEra?.key;
-      if(typeof era!=='string' || !era) throw new HttpError(502,'Ère courante non disponible.');
+      const eras=discovery.data.meta?.eras;
+      const options=[eras?.currentEra,...(eras?.pastEras || [])].filter(Boolean);
+      const era=requestedEra==='current'?eras?.currentEra?.key:options.find(item=>item.key===requestedEra || item.key?.startsWith(requestedEra+'-'))?.key;
+      if(typeof era!=='string' || !era) throw new HttpError(requestedEra==='current'?502:404,'Chapitre indisponible pour cette file.');
       const sameEra=cached?.era===era;
       const result=await upstream('/api/stats/meta?queue='+encodeURIComponent(queue)+'&era='+encodeURIComponent(era)+'&period=all_time',sameEra&&cached.upstreamEtag?{'If-None-Match':cached.upstreamEtag}:{});
       if(result.notModified){cached={...cached,at:Date.now()};}
       else{
+        if(result.data.meta.queueId!==queue || result.data.meta.selectedEraKey!==era)throw new HttpError(502,'Les statistiques reçues ne correspondent pas au contexte demandé.');
         const body=JSON.stringify({success:true,...stablePayload(result.data)});
         cached={at:Date.now(),era,upstreamEtag:result.etag,body,etag:'"'+createHash('sha256').update(body).digest('hex')+'"'};
       }
-      cache.set(queue,cached);
+      cache.set(cacheKey,cached);
     }
     res.setHeader('Content-Type','application/json; charset=utf-8');
     res.setHeader('X-Content-Type-Options','nosniff');
