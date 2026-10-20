@@ -97,6 +97,20 @@ test('current official history fields supply the personal decklist and opponent 
   assert.deepEqual(game.myDecklist,deck);assert.equal(game.opponent,'Synthetic opponent');assert.equal(game.result,'draw');assert.equal(game.format,'BO3');assert.equal(game.apiRow.match_id,'fixture-series');
   assert.equal(res.body.includes('must-not-leak'),false);assert.equal(game.opponentDecklist,null);
 });
+test('history blocks pre-Set-14 games even with a renamed queue or a stale browser',async t=>{
+  const current={game_id:'current',replay_id:'current-replay',queue_id:'core-bo1',queue_name:'Core BO1 - Set 14',match_format:'bo1',ranked:true,started_at:'2026-10-19T10:00:00Z',result:'win'};
+  mockFetch(t,async(url)=>{
+    const target=new URL(url);
+    if(target.hostname.endsWith('.supabase.co'))return Response.json({id:'owner',aud:'authenticated',app_metadata:{},user_metadata:{}});
+    assert.equal(target.searchParams.get('from'),'2026-10-08T22:37:09.766Z');
+    return Response.json({games:[current,{...current,game_id:'old',started_at:'2026-08-01T10:00:00Z'}, {...current,game_id:'beta',ranked:false}],next_cursor:'opaque-next'});
+  });
+  const res=response();await historyHandler({method:'POST',headers:{authorization:'Bearer fixture.jwt.token','content-type':'application/json'},body:{token:'fixture-duels-token',from:'2020-01-01T00:00:00Z'}},res);
+  assert.equal(res.statusCode,200);
+  const payload=JSON.parse(res.body);
+  assert.deepEqual(payload.games.map(g=>g.id),['current']);
+  assert.equal(payload.next_cursor,'opaque-next');
+});
 test('stored tokens use the stable profile id, provider expiry and read-only scopes',async t=>{
   const old=process.env.DUELINK_TOKEN_SECRET;process.env.DUELINK_TOKEN_SECRET='test-only-encryption-secret-long-enough';t.after(()=>{if(old===undefined)delete process.env.DUELINK_TOKEN_SECRET;else process.env.DUELINK_TOKEN_SECRET=old;});
   const expiry=new Date(Date.now()+86400000).toISOString();let stored;

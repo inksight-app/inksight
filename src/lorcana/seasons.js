@@ -1,6 +1,7 @@
 import { CURRENT_SET, CURRENT_ERA_START } from './format.js';
 
 export const DEFAULT_STAT_SCOPE = Object.freeze({ era:'current', queue:'core-bo1' });
+export const CURRENT_CORE_SCOPE = Object.freeze({ era:'current', queue:'all' });
 export const DEFAULT_ERAS = [
   {key:'set-14-core',chapter:14,name:'Set 14',startedAt:CURRENT_ERA_START,endedAt:null},
   {key:'set-13',chapter:13,name:'Set 13',startedAt:'2026-07-16T01:42:00.000Z',endedAt:CURRENT_ERA_START},
@@ -74,6 +75,10 @@ export function rowMatchesScope(row,scope=DEFAULT_STAT_SCOPE,eras=DEFAULT_ERAS){
   if(selected.era==='unknown') return context.era==='unknown';
   const wanted=selected.era==='current'?'set-'+(eras[0]?.chapter || CURRENT_SET):selected.era;
   return context.era===wanted;
+}
+export function isCurrentCoreRow(row,eras=DEFAULT_ERAS){
+  const context=classifyGameContext(row,eras);
+  return ['core-bo1','core-bo3'].includes(context.queue) && rowMatchesScope(row,CURRENT_CORE_SCOPE,eras);
 }
 export function resultSummary(rows=[]){
   const games={wins:0,losses:0,draws:0,unknown:0,n:0,rate:null},series=new Map(),ids=new Set();

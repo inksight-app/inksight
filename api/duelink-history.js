@@ -1,6 +1,8 @@
 import { resolveDuelinkToken } from './_duelink-token-store.js';
 import { json, readJsonBody, jsonError } from './_http.js';
 import { requestDuelsJson, expireSavedConnection } from './_duels-client.js';
+import { CURRENT_ERA_START } from '../src/lorcana/format.js';
+import { isCurrentCoreRow } from '../src/lorcana/seasons.js';
 
 const DUELINK_BASE_URL = 'https://duels.ink';
 
@@ -212,7 +214,8 @@ export default async function handler(req, res) {
     const cursor = body.cursor ? String(body.cursor) : '';
     const source = body.source ? String(body.source) : '';
     const queue = body.queue ? String(body.queue) : '';
-    const from = body.from ? String(body.from) : '';
+    const requestedFrom=Date.parse(body.from || '');
+    const from=Number.isFinite(requestedFrom) && requestedFrom>Date.parse(CURRENT_ERA_START)?new Date(requestedFrom).toISOString():CURRENT_ERA_START;
     const to = body.to ? String(body.to) : '';
     const resolved = await resolveDuelinkToken(req, { token: cleanToken(body.token) });
     const token = resolved.token;
@@ -234,12 +237,12 @@ export default async function handler(req, res) {
       : Array.isArray(payload?.matches) ? payload.matches
       : Array.isArray(payload?.data) ? payload.data
       : (Array.isArray(payload) ? payload : []);
-    const summaries = games.slice(0, limit).map(summarizeGame);
+    const summaries = games.slice(0, limit).map(summarizeGame).filter(game=>isCurrentCoreRow(game));
 
     return json(res, 200, {
       success: true,
       tokenSource,
-      count: games.length,
+      count: summaries.length,
       next_cursor: payload?.next_cursor || payload?.nextCursor || null,
       games: summaries,
       sample: summaries.slice(0, 3).map(({ apiRow, ...summary }) => summary),

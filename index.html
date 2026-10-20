@@ -301,15 +301,6 @@
         <span>Vos matchs sauvegardés sont liés à votre compte Discord.</span>
       </div>
 
-      <article class="glass scope-controls" aria-label="Chapitre et format des statistiques">
-        <div class="scope-selects">
-          <label>Chapitre<select data-scope-era aria-label="Chapitre des statistiques"><option value="current">Set 14 — Actuel</option></select></label>
-          <label>File<select data-scope-queue aria-label="File des statistiques"><option value="core-bo1">Core BO1 classé</option><option value="core-bo3">Core BO3 classé</option><option value="all">Tous les formats (exploration)</option></select></label>
-          <button type="button" class="ghost-button compact" data-scope-archives>Archives</button>
-        </div>
-        <p data-scope-status role="status">Le chapitre actuel est affiché par défaut. Les anciennes analyses sont conservées.</p>
-      </article>
-
       <nav class="performance-tabs glass" aria-label="Sections performances">
         <button type="button" class="performance-tab active" data-performance-view="stats">Mes statistiques</button>
         <button type="button" class="performance-tab" data-performance-view="history">Historique des matchs</button>
@@ -317,12 +308,11 @@
       </nav>
 
       <section id="performance-stats" class="performance-panel active" data-performance-panel="stats">
-        <article class="glass community-meta-panel" id="communityMetaPanel" aria-labelledby="communityMetaTitle">
-          <div class="section-head"><div><h2 id="communityMetaTitle">Repères de la communauté</h2><p>Agrégats publics duels.ink · contexte choisi · date et effectif disponibles</p></div></div>
-          <p data-meta-comparison>Même chapitre et même format requis pour comparer.</p>
+        <details class="glass community-meta-panel" id="communityMetaPanel">
+          <summary>Méta Duels.ink <span data-meta-caption></span></summary>
           <div data-meta-body aria-live="polite">Chargement des agrégats publics…</div>
-          <a href="https://duels.ink/stats/core-bo1" target="_blank" rel="noopener noreferrer">Source : statistiques duels.ink</a>
-        </article>
+          <a href="https://duels.ink/stats/core-bo1" target="_blank" rel="noopener noreferrer">Voir sur Duels.ink ↗</a>
+        </details>
         <div class="team-context-bar" id="teamContextBarStats" hidden>
           <button type="button" class="team-ctx-btn active" data-team-ctx="solo">Mes stats</button>
           <button type="button" class="team-ctx-btn" data-team-ctx="team">Équipe</button>
@@ -333,6 +323,7 @@
 
           </div>
           <button type="button" class="filter-toggle" data-filter-toggle="performance" aria-expanded="false">Filtrer</button>
+          <div class="filter-pill-block compact" id="performanceVersionBlock" hidden><span>Deck</span><div id="performanceDeckPills" class="filter-pill-row" aria-label="Choisir un deck"></div></div>
           <div class="performance-filter-controls performance-filter-controls-viz">
             <select id="performanceColorFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par bicolorité">
               <option value="all">Toutes les bicolorités</option>
@@ -367,7 +358,6 @@
             <div class="history-filter-pills">
               <div class="filter-pill-block compact"><span>Bicolorité</span><div id="performanceColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
               <div class="filter-pill-block compact" id="performanceArchetypeBlock" hidden><span>Archétype</span><div id="performanceArchetypePills" class="filter-pill-row" aria-label="Choisir un archétype"></div></div>
-              <div class="filter-pill-block compact" id="performanceVersionBlock" hidden><span>Deck</span><div id="performanceDeckPills" class="filter-pill-row" aria-label="Choisir un deck"></div></div>
               <div class="filter-pill-block compact"><span>Adversaire</span><div id="performanceOpponentColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité adverse"></div></div>
               <div class="filter-pill-block compact"><span>Résultat</span><div id="performanceResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div></div>
               <div class="filter-pill-block compact"><span>Format</span><div id="performanceFormatPills" class="filter-pill-row" aria-label="Choisir un format"></div></div>
@@ -708,20 +698,12 @@
         </div>
       </section>
 
-      <article class="glass scope-controls" aria-label="Chapitre et format de l’import">
-        <div class="scope-selects">
-          <label>Chapitre<select data-scope-era aria-label="Chapitre de l’import"><option value="current">Set 14 — Actuel</option></select></label>
-          <label>File<select data-scope-queue aria-label="File de l’import"><option value="core-bo1">Core BO1 classé</option><option value="core-bo3">Core BO3 classé</option><option value="all">Tous les formats (exploration)</option></select></label>
-          <button type="button" class="ghost-button compact" data-scope-archives>Archives</button>
-        </div>
-        <p data-scope-status role="status">Le chapitre actuel est affiché par défaut. Les anciennes analyses sont conservées.</p>
-      </article>
       <section class="glass duelink-connect-section duelink-sync-card" data-auth-required aria-labelledby="duelinkConnectTitle">
         <div class="duelink-connect-head">
           <div class="duelink-title-block">
             <div class="kicker">Duels.ink API · synchronisation</div>
             <h2 id="duelinkConnectTitle">Connecter Duels.ink</h2>
-            <p>Synchronisez vos parties Duels.ink. L’import ajoute directement les analyses à votre historique InkSight.</p>
+            <p>Synchronisez vos parties Core du Set 14.</p>
           </div>
           <span class="duelink-status-chip" id="duelinkTokenStatus">Non testé</span>
         </div>
