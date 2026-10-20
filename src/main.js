@@ -7,7 +7,8 @@ import { SessionBoundary } from './security/session.js';
 import { descriptionHtml } from './security/render.js';
 import { CORE_SET_NUMBERS, isCurrentCoreGame } from './lorcana/format.js';
 import { analyzeInkDrops, combineInkDrops, replayCancellations } from './lorcana/resources.js';
-import { CURRENT_CORE_SCOPE, DEFAULT_ERAS, eraCatalog, classifyGameContext, contextFields, isCurrentCoreRow, resultSummary, scopeEraStart, coherentDeckList } from './lorcana/seasons.js';
+import { CURRENT_CORE_SCOPE, DEFAULT_ERAS, eraCatalog, classifyGameContext, contextFields, isCurrentCoreRow, resultSummary, scopeEraStart, coherentDeckList, observedDeckCohort, recordedDeckList } from './lorcana/seasons.js';
+import { inkDropChartModel } from './lorcana/inkdrop-chart.js';
 import { applyReplayPatch, decodeReplayBytes, readZipEntry, MAX_REPLAY_BYTES, MAX_REPLAY_FILES } from './security/replay.js';
 import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWithDiscord, saveMatchAnalysis, listSavedMatchHistoryLight, getSavedMatch, deleteSavedMatch, patchSavedMatchTeamVisible, listDeckProfiles, upsertDeckProfile, ensureDeckProfileByExternalId, listSavedAnalyticsDetails, updateSavedMatchDeck, renameDeckProfile, archiveDeckProfile, mergeDeckProfiles, logDuelinkSyncRun, updateDeckProfilePoolTag } from './supabase.js';
 
@@ -46,7 +47,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   const els = {};
   const accountBoundary = new SessionBoundary();
   const printingSetsByName = new Map();
-  const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null, inkDrops:null };
+  const charts = { lore:null, action:null, ink:null, matrix:null, hand:null, board:null, performanceLore:null, performanceAction:null, inkDrops:null, inkDropFlows:null };
   const INKWELL_SOURCE_KEYS = ['inkedFromHand','inkedFromDiscard','inkedFromBoard','inkedFromDeck','inkedFromUnknown'];
   const INKWELL_SOURCE_LABELS = { hand:'Main', discard:'Défausse', board:'Board', deck:'Deck', unknown:'Source inconnue' };
   const state = { cards:[], index:new Map(), cardLoadPromise:null, replays:[], sessions:[], merged:null, isBO3:false, viewMode:0, matchMeta:null, activeTab:'overview', scope:'mine', cardFilter:'all', coreOnly:false, lastFocused:null, themes:{ mine:[INK_COLORS.sapphire, INK_COLORS.amber], opponent:[INK_COLORS.ruby, INK_COLORS.amethyst] }, mulliganResolved:false, currentUser:null, savePending:false, lastSavedMatchId:null, loadedSavedMatchId:null, savedMatches:[], savedMatchesLoaded:false, savedMatchesLoading:false, selectedSavedMatchId:null, expandedSavedMatchId:null, activeHistoryActionsId:null, deckProfiles:[], deckProfilesLoaded:false, deckProfilesLoading:false, savedAnalytics:{ games:[], cardStats:[], turnStats:[], key:'', loading:false, error:'' }, editingSavedMatchId:null, performanceCardSort:'lore', performanceMulliganSort:'smart', performanceMulliganMatchupFilter:'all', performanceMulliganPlayFilter:'all', performanceMulliganRecommendationFilter:'all', performanceExpandedLists:{ cards:false, mulligan:false }, performanceDetailTab:'overview', filterSelections:{}, pendingDeckSelection:{}, statExpandedLists:{}, bulkQueue:[], activeBulkIndex:null, bulkSaving:false, bulkSaveTotal:0, bulkSaveDone:0, lastBulkSaveMessage:'', cloudOffline:false, cloudBannerDismissed:false, historyVisibleCount:5, historyLastFilterKey:'', coachCommentaryCache:new Map(), coachCommentaryPendingKey:'', coachCommentarySeq:0, duelinkPreviewRows:[], duelinkImporting:false, duelinkAutoSaving:false, duelinkConnection:null, duelinkConnectionLoaded:false, duelinkSyncSummary:null, duelinkPreparedGameIds:new Set(), duelinkPreparedReplayIds:new Set(), duelinkSkippedGameIds:new Set(), duelinkSkippedReplayIds:new Set(), team:null, teamMode:false, teamMemberIds:[], teamDisplayNames:{}, dateFilter:{ stats:{ preset:'all', from:null, to:null }, history:{ preset:'all', from:null, to:null } } };
@@ -5912,7 +5913,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const open = !panel.classList.contains('filters-open');
     panel.classList.toggle('filters-open', open);
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    btn.textContent = open ? 'Masquer les filtres' : (target === 'history' ? 'Filtres avancés' : 'Filtrer');
+    btn.textContent = open ? 'Masquer les filtres' : (target === 'history' ? 'Filtres avancés' : 'Autres filtres');
   }
 
   function multiFilterIds(){
@@ -6127,7 +6128,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function renderPerformanceFilterPills(){
     const colorOptions = performanceColorOptionsForPills();
     syncSelectOptions(els.performanceColorFilter, colorOptions, 'all');
-    renderPillGroup(els.performanceColorPills, 'performanceColorFilter', colorOptions, els.performanceColorFilter?.value || 'all');
+    renderPillGroup(els.performanceColorPills, 'performanceColorFilter', colorOptions, 'all', true);
 
     const perfArchetypeOptions = archetypeFilterOptions('performance');
     const showPerfArchetype = shouldShowArchetypeFilter('performance');
@@ -6169,8 +6170,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     renderPillGroup(els.performancePoolPills, 'performancePoolFilter', poolOptions);
     renderPillGroup(els.performanceSetPills, 'performanceSetFilter', setOptions);
 
-    syncSelectOptions(els.historyColorFilter, colorOptions, 'all');
-    renderPillGroup(els.historyColorPills, 'historyColorFilter', colorOptions, els.historyColorFilter?.value || 'all');
+    const historyColorOptions=performanceColorOptionsForPills('history');
+    syncSelectOptions(els.historyColorFilter, historyColorOptions, 'all');
+    renderPillGroup(els.historyColorPills, 'historyColorFilter', historyColorOptions, 'all', true);
     const opponentColorOptions = opponentColorOptionsForPills('history');
     syncSelectOptions(els.historyOpponentColorFilter, opponentColorOptions, 'all');
     renderPillGroup(els.historyOpponentColorPills, 'historyOpponentColorFilter', opponentColorOptions, els.historyOpponentColorFilter?.value || 'all');
@@ -6214,10 +6216,11 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     }
   }
 
-  function performanceColorOptionsForPills(){
+  function performanceColorOptionsForPills(mode='stats'){
     // Cross-filtre comme les pills adverses : les comptes par bicolorité
     // reflètent les autres filtres sélectionnés (BO1/BO3, OTP/OTD, etc.).
-    const sourceRows = filteredSavedMatchesWithout(['performanceColorFilter','performanceDeckFilter','performanceArchetypeFilter']);
+    const prefix=mode==='history'?'history':'performance';
+    const sourceRows = filteredSavedMatchesWithout([prefix+'ColorFilter',prefix+'DeckFilter',prefix+'ArchetypeFilter'],mode);
     const map = new Map();
     (sourceRows || []).forEach(row => {
       const colors = rowMineColors(row);
@@ -6228,13 +6231,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       map.set(key, item);
     });
     return [
-      { value:'all', label:'Toutes les bicolorités' },
+      { value:'all', label:'Toutes' },
       ...[...map.values()].sort((a,b)=>b.count-a.count || a.label.localeCompare(b.label)).map(item => ({
         ...item,
-        label:`${item.count}`,
-        shortLabel:`${item.count}`,
+        label:`${item.label} · ${item.count}`,
+        shortLabel:`${item.label} · ${item.count}`,
         ariaLabel:`${item.label} · ${item.count} match${item.count > 1 ? 's' : ''}`,
-        compact:true
+        compact:false
       }))
     ];
   }
@@ -6264,6 +6267,10 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function getDeckCardList(profileId){
     const key = String(profileId);
+    const rows=(state.savedMatches || []).filter(row=>String(row.deck_profile_id)===key);
+    // A profile may have been edited in Duels.ink. Never merge it with another
+    // version based on an arbitrary first snapshot or a stale card-list cache.
+    if(!coherentDeckList(rows))return null;
     if(deckCardListCache.has(key)) return deckCardListCache.get(key);
     const match = (state.savedMatches || []).find(r =>
       String(r.deck_profile_id) === key && apiDecklistStatus(r, 'mine').cards.length >= 5
@@ -6359,7 +6366,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         if(da !== db) return da < db ? 1 : -1;
         return (sb?.games || 0) - (sa?.games || 0);
       });
-    // Regrouper les versions similaires (Jaccard ≥ 75% sur les IDs de cartes)
+    // Regrouper uniquement les versions dont toutes les listes sont identiques.
     const groups = groupIdenticalProfiles(profiles.map(p => String(p.id)));
     const pills = groups.map(group => {
       const primaryProfile = state.deckProfiles.find(p => String(p.id) === group[0]);
@@ -6402,20 +6409,16 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         return { value:`noprofile:${key}`, label, ariaLabel:label, colors:e.colors, noDecklist:true };
       });
     return [
-      { value:'all', label:'Tous les decks' },
+      { value:'all', label:'Toutes les versions', noDecklist:true },
       ...pills,
       ...noProfilePills
     ];
   }
 
   function shouldShowDeckVersionFilter(options, selectedColorValue, mode='performance'){
-    // Les versions restent visibles dès qu'il en existe au moins une. L'archétype
-    // (et la bicolorité) ne font que FILTRER la liste — via deckFilterOptionsForPills —
-    // ils ne la masquent plus. Sans archétype sélectionné, toutes les versions
-    // s'affichent ; en sélectionnant un archétype, seules les versions de cet
-    // archétype subsistent. (Auparavant on exigeait couleur + archétype, ce qui
-    // pouvait tout masquer quand aucun archétype n'était défini sur les decks.)
-    return (options || []).filter(option => option.value !== 'all').length >= 1;
+    const prefix=mode==='history'?'history':'performance';
+    return selectedFilterValues(prefix+'ColorFilter').length===1
+      && (options || []).some(option=>option.value!=='all' && !option.noDecklist);
   }
 
   function rowFormatPool(row){
@@ -6482,13 +6485,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
 
-  function renderPillGroup(target, selectId, options, activeValue){
+  function renderPillGroup(target, selectId, options, activeValue, showAll=false){
     if(!target) return;
     const isMulti = isMultiFilterId(selectId);
     const activeValues = isMulti ? selectedFilterValues(selectId) : [String(activeValue || '')];
-    const visibleOptions = isMulti ? (options || []).filter(option => String(option.value) !== 'all') : (options || []);
+    const visibleOptions = isMulti && !showAll ? (options || []).filter(option => String(option.value) !== 'all') : (options || []);
     target.innerHTML = visibleOptions.map(option => {
-      const active = activeValues.includes(String(option.value));
+      const active = isMulti && String(option.value)==='all' ? activeValues.length===0 : activeValues.includes(String(option.value));
       const dots = inkDotsHtml(option.colors || []);
       const label = option.shortLabel || option.label;
       const aria = option.ariaLabel || option.label || label;
@@ -6501,9 +6504,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function renderDeckPillGroup(target, selectId, options){
     if(!target) return;
     const activeValues = selectedFilterValues(selectId);
-    const visible = (options || []).filter(o => o.value !== 'all');
+    const visible = options || [];
     target.innerHTML = visible.map(option => {
-      const active = activeValues.includes(String(option.value));
+      const active = option.value==='all' ? activeValues.length===0 : activeValues.includes(String(option.value));
       const dots = inkDotsHtml(option.colors || []);
       const label = option.shortLabel || option.label;
       const aria = option.ariaLabel || option.label || label;
@@ -7899,13 +7902,13 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     return selectedFilterValues(map[key]);
   }
 
-  function filteredSavedMatchesWithout(excludedIds=[]){
+  function filteredSavedMatchesWithout(excludedIds=[],mode='stats'){
     const backup = {};
     excludedIds.forEach(id => {
       backup[id] = selectedFilterValues(id);
       clearSelectedFilterValues(id);
     });
-    const rows = filteredSavedMatches('stats');
+    const rows = filteredSavedMatches(mode);
     Object.entries(backup).forEach(([id, values]) => setSelectedFilterValues(id, values));
     return rows;
   }
@@ -8258,7 +8261,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   }
 
   function isPerformanceDataScoped(){
-    return coherentDeckList(filteredSavedMatches('stats'));
+    return observedDeckCohort(filteredSavedMatches('stats'),selectedFilterValues('performanceDeckFilter'));
   }
 
   function selectedPerformanceColors(){
@@ -8368,7 +8371,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       return '<div class="empty-line">Aucune partie dans l’échantillon filtré. Sauvegardez des matchs pour comparer vos victoires et vos défaites.</div>';
     }
     const { win:w, loss:l } = split;
-    // betterLow = une valeur plus basse est meilleure (encre gaspillée, top-deck).
+    // Descriptive averages; resource reserves are not a measure of misplays.
     const metrics = [
       { label:'Tours par partie', key:'avgTurns', betterLow:null, unit:'' },
       { label:'Encre disponible cumulée', key:'avgInkWasted', betterLow:null, unit:'', detailed:true },
@@ -8376,38 +8379,40 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       { label:'Défis par partie', key:'avgChallenges', betterLow:null, unit:'', detailed:true },
       { label:'Tours en top-deck', key:'avgTopDeck', betterLow:true, unit:'', detailed:true },
       { label:'Lore final', key:'avgFinalLore', betterLow:false, unit:'' },
-      { label:'Sur la table (OTP)', key:'otpRate', betterLow:null, unit:'%' }
+      { label:'Départ en premier', key:'otpRate', betterLow:null, unit:'%' }
     ];
     const fmt = (v, unit) => (v === null || v === undefined) ? '—' : `${v}${unit}`;
     const rows = metrics.map(m => {
       const wv = w[m.key], lv = l[m.key];
-      const has = wv !== null && lv !== null;
+      const has = Number.isFinite(wv) && Number.isFinite(lv);
       let deltaChip = '<span class="badge badge--neutral">—</span>';
       if(has){
         const diff = round1(wv - lv);
         const winIsBetter = m.betterLow === null ? null : (m.betterLow ? wv < lv : wv > lv);
         const cls = winIsBetter === null ? 'badge--neutral' : (winIsBetter ? 'badge--good' : 'badge--warn');
         const sign = diff > 0 ? '+' : '';
-        deltaChip = `<span class="badge ${cls}">${sign}${diff}${m.unit}</span>`;
+        deltaChip = `<span class="badge ${cls}">${sign}${diff}${m.unit==='%'?' pts':m.unit}</span>`;
       }
-      const note = '';
-      return `<div class="tempo-row">
-        <span class="tempo-label">${esc(m.label)}${note}</span>
-        <span class="tempo-val win">${fmt(wv, m.unit)}</span>
-        <span class="tempo-val loss">${fmt(lv, m.unit)}</span>
-        <span class="tempo-delta">${deltaChip}</span>
-      </div>`;
+      return `<tr>
+        <th scope="row">${esc(m.label)}</th>
+        <td class="tempo-val win">${fmt(wv, m.unit)}</td>
+        <td class="tempo-val loss">${fmt(lv, m.unit)}</td>
+        <td class="tempo-delta">${deltaChip}</td>
+      </tr>`;
     }).join('');
-    const hint = '';
     return `<div class="tempo-split">
-      <div class="tempo-row tempo-head">
-        <span class="tempo-label">Métrique</span>
-        <span class="tempo-val win">Victoires<small>${w.n}</small></span>
-        <span class="tempo-val loss">Défaites<small>${l.n}</small></span>
-        <span class="tempo-delta">Écart</span>
-      </div>
-      ${rows}
-    </div>${hint}`;
+      <table class="tempo-table">
+        <caption class="sr-only">Moyennes des parties gagnées et perdues</caption>
+        <colgroup><col><col class="tempo-number-col"><col class="tempo-number-col"><col class="tempo-delta-col"></colgroup>
+        <thead><tr>
+          <th scope="col">Métrique</th>
+          <th scope="col">Victoires<small>${w.n} partie${w.n===1?'':'s'}</small></th>
+          <th scope="col">Défaites<small>${l.n} partie${l.n===1?'':'s'}</small></th>
+          <th scope="col" title="Moyenne en victoire moins moyenne en défaite">Écart</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
   }
 
   function computePerformanceAnalytics(rows){
@@ -9565,7 +9570,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function performanceCardImpactHtml(analytics, options={}){
     if(!isPerformanceDeckScoped()){
-      return '<div class="deck-required"><strong>Choisissez un deck</strong><span>Sélectionnez une version dans les filtres.</span></div>';
+      return '<div class="deck-required"><strong>Choisissez un deck</strong><span>Choisissez une bicolorité, puis une version.</span></div>';
     }
     const sort = state.performanceCardSort || 'lore';
     const expanded = !!state.performanceExpandedLists?.cards || !!options.full;
@@ -9916,7 +9921,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
 
   function performanceMulliganHtml(analytics, options={}){
     if(!isPerformanceDeckScoped()){
-      return '<div class="deck-required"><strong>Choisissez un deck</strong><span>Sélectionnez une version dans les filtres.</span></div>';
+      return '<div class="deck-required"><strong>Choisissez un deck</strong><span>Choisissez une bicolorité, puis une version.</span></div>';
     }
     const filters = {
       // Matchup and OTP/OTD now come from the global performance filters above.
@@ -11675,7 +11680,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         <div class="result-score result-format"><span>Format</span><strong>BO3</strong><small>${esc(games)} manche(s) analysée(s)</small></div>
         <div class="result-score"><span>Score du match</span><strong>${esc(score)}</strong><small>${esc(resultLabel)} ${esc(score.replace(' – ', '-'))}</small></div>
         <div class="result-score result-playdraw"><span>Départ G1</span><strong>${esc(opening.code)}</strong><small>${esc(opening.helper)}</small></div>
-        <div class="result-score result-opponent"><span>Adversaire</span><strong>${esc(opponentName)}</strong><small>Joueur opposé détecté</small></div>
+        <div class="result-score result-opponent"><span>Adversaire</span><strong>${esc(opponentName)}</strong></div>
         <div class="result-matchup"><span>Match-up</span><div class="matchup-line">${inkPairHtml(profiles.mine)}<em>vs</em>${inkPairHtml(profiles.opponent)}</div></div>`;
       return;
     }
@@ -11688,7 +11693,7 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
       <div class="result-stamp ${cls}" title="${escAttr(narrative.badge || label)}"><span>Résultat</span><strong>${esc(label)}</strong></div>
       <div class="result-score"><span>Score final</span><strong>${esc(score)}</strong><small>${esc(winner)} gagne la partie</small></div>
       <div class="result-score result-playdraw"><span>Départ</span><strong>${esc(opening.code)}</strong><small>${esc(opening.helper)}</small></div>
-      <div class="result-score result-opponent"><span>Adversaire</span><strong>${esc(opponentName)}</strong><small>${esc(opening.label)}</small></div>
+      <div class="result-score result-opponent"><span>Adversaire</span><strong>${esc(opponentName)}</strong></div>
       <div class="result-matchup"><span>Match-up</span><div class="matchup-line">${inkPairHtml(profiles.mine)}<em>vs</em>${inkPairHtml(profiles.opponent)}</div></div>`;
   }
 
@@ -11757,7 +11762,9 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const drops=document.getElementById('inkDropSummary');
     if(drops){
       const flow=metrics.inkDrops;
-      drops.textContent=flow ? `Inkdrops : +${flow.gained} obtenues · ${flow.removed} retirées · ${flow.end} conservées en fin de partie${global ? ' (cumul des manches)' : ''}. ${flow.paid} paiement(s) d’encre explicitement attribué(s) ; ${flow.unattributed} retrait(s) non attribué(s) à un paiement. Le stock se conserve : ce n’est pas du gaspillage.` : 'Ancienne analyse : inkdrops non mesurées. Réimportez le replay pour les analyser.';
+      drops.hidden=!flow;
+      drops.innerHTML=flow ? `<div class="inkdrop-total gained"><span>Gagnées</span><strong>${n(flow.gained)}</strong></div><div class="inkdrop-total removed"><span>Retirées</span><strong>${n(flow.removed)}</strong></div><div class="inkdrop-total stock"><span>${global?'Restantes (total)':'Restantes'}</span><strong>${n(flow.end)}</strong></div>` : '';
+      drops.title=flow ? `${n(flow.paid)} retraits attribués à un paiement d’encre ; ${n(flow.unattributed)} autres retraits. Le stock restant est conservé.` : '';
     }
     const totalActions = metrics.questCount + metrics.challengeCount;
     const questPct = pct(metrics.questCount, totalActions);
@@ -12352,12 +12359,14 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function selectedDeckCopiesByKey(){
     const sel = selectedFilterValues('performanceDeckFilter');
     if(sel.length !== 1) return null;
-    const ids = String(sel[0]).split('|').filter(Boolean);
-    let cardList = null;
-    for(const id of ids){ const m = getDeckCardList(id); if(m && m.size){ cardList = m; break; } }
-    if(!cardList) return null;
+    const rows=filteredSavedMatches('stats');
+    if(!coherentDeckList(rows))return null;
+    const list=recordedDeckList(rows[0]);
+    if(!Array.isArray(list) || !list.length)return null;
     const byKey = new Map();
-    for(const [cardId, count] of cardList.entries()){
+    for(const entry of list){
+      const cardId=String(entry.cardId || entry.card_id || entry.id || '');
+      const count=Number(entry.count ?? entry.quantity ?? entry.qty ?? entry.copies ?? 1);
       const h = hydrateCard({ id:cardId, cardId });
       const key = statCardKey(h && fullName(h) !== 'Carte inconnue' ? h : { name:cardId });
       if(key) byKey.set(key, (byKey.get(key) || 0) + n(count));
@@ -12410,7 +12419,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     const sel = selectedFilterValues('performanceDeckFilter');
     // Réservé à UNE version de deck précise : on connaît alors exactement la liste et
     // le nombre de copies. Sinon (bicolorité multi-versions / pas de deck) → masqué.
-    if(sel.length !== 1 || totalGames < 3){
+    const cohort=filteredSavedMatches('stats');
+    if(sel.length !== 1 || totalGames < 3 || !coherentDeckList(cohort) || !Array.isArray(recordedDeckList(cohort[0]))){
       if(panel) panel.hidden = true;
       host.innerHTML = '';
       return;
@@ -13263,7 +13273,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
   function normalizeChartDatasets(type, data){
     if(!data || !Array.isArray(data.datasets)) return data;
     data.datasets.forEach(dataset => {
-      if(type === 'line'){
+      const datasetType=dataset.type || type;
+      if(datasetType === 'line'){
         const len = Array.isArray(dataset.data) ? dataset.data.length : 0;
         dataset.pointRadius = len ? Array.from({ length:len }, () => 0) : 0;
         dataset.radius = 0;
@@ -13274,8 +13285,8 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
         dataset.pointStyle = 'circle';
         dataset.spanGaps = dataset.spanGaps ?? true;
       }
-      if(type === 'bar'){
-        dataset.borderRadius = 0;
+      if(datasetType === 'bar'){
+        dataset.borderRadius = dataset.borderRadius ?? 0;
         dataset.borderSkipped = false;
         dataset.borderWidth = 0;
         dataset.maxBarThickness = dataset.maxBarThickness || 24;
@@ -13542,16 +13553,28 @@ import { supabase, signUpUser, signInUser, signOutUser, getCurrentUser, signInWi
     updateChartDataTable('inkFloatChart', labels, datasets, 'Données du graphique d’économie d’encre');
   }
   function renderInkDropChart(timeline,global=false){
-    const available=Array.isArray(timeline),rows=available?timeline:[],labels=rows.map(r=>'T'+r.turn+' · '+(r.activeOwner==='mine'?'Vous':'Adv.'));
+    const model=inkDropChartModel(global?null:timeline);
+    const {available,labels}=model;
     const note=document.getElementById('inkDropChartNote');
-    if(note){note.textContent=global?'Choisissez une manche.':available?'':'Réimportez le replay pour afficher les inkdrops.';note.hidden=available&&!global;}
-    const datasets=[
-      {type:'line',label:'Stock observé',data:rows.map(r=>r.stock),borderColor:'#b49bff',backgroundColor:'#b49bff',pointRadius:2,tension:0,order:0},
-      {type:'bar',label:'Obtenues',data:rows.map(r=>r.gained),backgroundColor:'#34d399',order:1},
-      {type:'bar',label:'Retirées',data:rows.map(r=>-r.removed),backgroundColor:'#fb923c',order:1}
-    ];
-    charts.inkDrops=chart(charts.inkDrops,'inkDropChart','bar',{labels,datasets},{scales:{y:{ticks:{precision:0}}}});
-    updateChartDataTable('inkDropChart',labels,datasets,'Inkdrops : stock et flux par tour');
+    if(note){note.textContent=global?'Choisissez une manche.':available?'Stock et variations pendant les deux tours.':(state.sessions.length||state.merged)?'Réimportez le replay pour afficher les inkdrops.':'Importez un replay.';note.hidden=false;}
+    const plots=document.getElementById('inkDropPlots');
+    if(plots)plots.hidden=!available;
+    if(!available&&!global){
+      const summary=document.getElementById('inkDropSummary');
+      if(summary){summary.hidden=true;summary.innerHTML='';summary.removeAttribute('title');}
+    }
+    const common={
+      layout:{padding:{top:8,right:8,bottom:0,left:0}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{title(items){const label=labels[items[0]?.dataIndex];return label?label.join(' · '):'';}}}},
+      scales:{
+        x:{ticks:{maxRotation:0,minRotation:0,maxTicksLimit:6,font:{size:11,weight:'500'}}},
+        y:{beginAtZero:true,min:0,suggestedMax:1,grace:0,ticks:{precision:0,stepSize:1,maxTicksLimit:4},afterFit(axis){axis.width=32;}}
+      }
+    };
+    charts.inkDrops=chart(charts.inkDrops,'inkDropChart','line',{labels,datasets:model.stock},deepMerge(common,{scales:{x:{ticks:{display:false}}}}));
+    charts.inkDropFlows=chart(charts.inkDropFlows,'inkDropFlowChart','bar',{labels,datasets:model.flows},common);
+    updateChartDataTable('inkDropChart',labels,model.stock,'Stock d’inkdrops observé par demi-tour');
+    updateChartDataTable('inkDropFlowChart',labels,model.flows,'Inkdrops gagnées et retirées par demi-tour');
   }
 
   function renderQuestChart(quest, challenge){

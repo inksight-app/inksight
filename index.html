@@ -223,12 +223,17 @@
       <section class="chart-grid stats-charts">
         <article class="glass chart-panel">
           <div class="section-head"><div><h2>Économie d’Encre</h2><p id="inkChartSubtitle">Encre permanente : inclinaisons observées et réserve disponible.</p></div></div>
-          <p id="inkDropSummary" class="chart-subtitle">Inkdrops : mesurées séparément après import d’un replay.</p>
           <div class="chart-fixed-readout generic-chart-readout" data-chart-readout-for="inkFloatChart"><span>Lecture du tour</span><strong>Survolez une barre</strong><small>Inclinaisons observées et réserve permanente disponible.</small></div><div class="chart-wrap"><canvas id="inkFloatChart" role="img" aria-label="Encre permanente tour par tour" aria-describedby="inkChartSummary"></canvas></div><p id="inkChartSummary" class="sr-only">Résumé du graphique d’encre permanente disponible après import.</p>
         </article>
-        <article class="glass chart-panel">
+        <article class="glass chart-panel inkdrop-panel">
           <div class="section-head"><div><h2>Inkdrops</h2><p id="inkDropChartNote">Stock et flux mesurés séparément après import.</p></div></div>
-          <div class="chart-wrap"><canvas id="inkDropChart" role="img" aria-label="Inkdrops obtenues, retirées et stock observé par tour" aria-describedby="inkDropChartNote"></canvas></div>
+          <div id="inkDropSummary" class="inkdrop-totals" hidden></div>
+          <div id="inkDropPlots" hidden>
+            <p class="inkdrop-plot-label">Stock</p>
+            <div class="chart-wrap inkdrop-stock-chart"><canvas id="inkDropChart" role="img" aria-label="Stock d’inkdrops par demi-tour" aria-describedby="inkDropChartNote"></canvas></div>
+            <p class="inkdrop-plot-label">Gains et retraits</p>
+            <div class="chart-wrap inkdrop-flow-chart"><canvas id="inkDropFlowChart" role="img" aria-label="Inkdrops gagnées en vert et retirées en orange par demi-tour" aria-describedby="inkDropChartNote"></canvas></div>
+          </div>
         </article>
         <article class="glass chart-panel action-stats-panel">
           <div class="section-head"><div><h2 id="actionChartTitle">Actions par tour</h2><p id="actionChartSubtitle">Vos cartes encrées, jouées, quêtes et défis par tour.</p></div></div>
@@ -289,9 +294,7 @@
     <section id="view-performances" class="app-view app-view-page" data-app-panel="performances" hidden>
       <article class="glass app-page-hero performance-hero">
         <div>
-          <div class="kicker">Vos analyses</div>
-          <h1>Statistiques & historique</h1>
-          <p>Retrouvez vos analyses sauvegardées, suivez votre progression et préparez les futurs filtres par bicolorité et matchup.</p>
+          <h1>Statistiques</h1>
         </div>
         <button type="button" class="ghost-button app-page-cta" data-app-view="analysis">Analyser un replay</button>
       </article>
@@ -322,8 +325,9 @@
             <div class="kicker">Filtres</div>
 
           </div>
-          <button type="button" class="filter-toggle" data-filter-toggle="performance" aria-expanded="false">Filtrer</button>
-          <div class="filter-pill-block compact" id="performanceVersionBlock" hidden><span>Deck</span><div id="performanceDeckPills" class="filter-pill-row" aria-label="Choisir un deck"></div></div>
+          <button type="button" class="filter-toggle" data-filter-toggle="performance" aria-expanded="false">Autres filtres</button>
+          <div class="filter-pill-block compact primary-color-filter"><span>Bicolorité</span><div id="performanceColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
+          <div class="filter-pill-block compact" id="performanceVersionBlock" hidden><span>Version</span><div id="performanceDeckPills" class="filter-pill-row" aria-label="Affiner par version de deck"></div></div>
           <div class="performance-filter-controls performance-filter-controls-viz">
             <select id="performanceColorFilter" class="sort-select technical-select" aria-label="Filtrer les statistiques par bicolorité">
               <option value="all">Toutes les bicolorités</option>
@@ -356,7 +360,6 @@
               <option value="loss">Défaites</option>
             </select>
             <div class="history-filter-pills">
-              <div class="filter-pill-block compact"><span>Bicolorité</span><div id="performanceColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
               <div class="filter-pill-block compact" id="performanceArchetypeBlock" hidden><span>Archétype</span><div id="performanceArchetypePills" class="filter-pill-row" aria-label="Choisir un archétype"></div></div>
               <div class="filter-pill-block compact"><span>Adversaire</span><div id="performanceOpponentColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité adverse"></div></div>
               <div class="filter-pill-block compact"><span>Résultat</span><div id="performanceResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div></div>
@@ -428,8 +431,8 @@
           <article class="glass stat-panel performance-analytics-panel">
             <div class="section-head">
               <div>
-                <h2>Tempo — victoires vs défaites <button class="info-dot" type="button" data-info="Compare le déroulé moyen de vos parties gagnées et perdues : durée, encre gaspillée, quêtes, défis, top-deck et lore final. Révèle ce qui change réellement quand vous gagnez.">i</button></h2>
-                <p>Ce qui distingue vos parties gagnées de vos parties perdues, sur l’échantillon filtré.</p>
+                <h2>Victoires et défaites <button class="info-dot" type="button" data-info="Moyennes par partie sur les résultats filtrés : durée, encre permanente disponible, quêtes, défis, main et lore. L’écart est la moyenne en victoire moins celle en défaite, pas une relation de cause à effet.">i</button></h2>
+                <p>Moyennes par partie.</p>
               </div>
             </div>
             <div id="performanceTempoSplit"></div>
@@ -568,6 +571,8 @@
             <input id="historySearchInput" class="history-search" type="search" placeholder="Rechercher adversaire, matchup…" aria-label="Rechercher dans l’historique">
             <button type="button" class="filter-toggle" data-filter-toggle="history" aria-expanded="false">Filtres avancés</button>
           </div>
+          <div class="filter-pill-block compact primary-color-filter"><span>Bicolorité</span><div id="historyColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
+          <div class="filter-pill-block compact" id="historyVersionBlock" hidden><span>Version</span><div id="historyDeckPills" class="filter-pill-row" aria-label="Affiner par version de deck"></div></div>
           <div class="history-controls history-controls-viz">
             <select id="historyColorFilter" class="sort-select technical-select" aria-label="Filtrer l’historique par bicolorité">
               <option value="all">Toutes les bicolorités</option>
@@ -600,9 +605,7 @@
               <option value="otd">OTD</option>
             </select>
             <div class="history-filter-pills">
-              <div class="filter-pill-block compact"><span>Bicolorité</span><div id="historyColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité"></div></div>
               <div class="filter-pill-block compact" id="historyArchetypeBlock" hidden><span>Archétype</span><div id="historyArchetypePills" class="filter-pill-row" aria-label="Choisir un archétype"></div></div>
-              <div class="filter-pill-block compact" id="historyVersionBlock" hidden><span>Deck</span><div id="historyDeckPills" class="filter-pill-row" aria-label="Choisir un deck"></div></div>
               <div class="filter-pill-block compact"><span>Adversaire</span><div id="historyOpponentColorPills" class="filter-pill-row" aria-label="Choisir une bicolorité adverse"></div></div>
               <div class="filter-pill-block compact"><span>Résultat</span><div id="historyResultPills" class="filter-pill-row" aria-label="Choisir un résultat"></div></div>
               <div class="filter-pill-block compact"><span>Format</span><div id="historyFormatPills" class="filter-pill-row" aria-label="Choisir un format"></div></div>

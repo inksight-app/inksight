@@ -141,12 +141,27 @@ export function deckListIdentity(list){
   return 'list-v1:'+JSON.stringify([...counts].sort(([a],[b])=>a<b?-1:a>b?1:0));
 }
 
+export function recordedDeckList(row={}){
+  const metadata=row.api_metadata || row.analysis_json?.api_metadata;
+  return row.context_deck_list || row.my_decklist || metadata?.my_decklist || metadata?.api_row?.raw?.your_decklist;
+}
+
 export function coherentDeckList(rows=[]){
   const hashes=rows.map(row=>{
     const metadata=row.api_metadata || row.analysis_json?.api_metadata;
-    const list=row.context_deck_list || row.my_decklist || metadata?.my_decklist || metadata?.api_row?.raw?.your_decklist;
+    const list=recordedDeckList(row);
     if(list!=null)return deckListIdentity(list);
     return row.context_deck_hash || metadata?.my_deck_hash || null;
   });
   return hashes.length>0 && hashes.every(hash=>typeof hash==='string' && hash.length>0 && hash===hashes[0]);
+}
+
+// Observed card actions and mulligans can be read across edits to an explicitly
+// selected deck. Exact-list calculations (copy counts, draw odds) remain separate.
+export function observedDeckCohort(rows=[],selection=[]){
+  if(coherentDeckList(rows))return true;
+  if(!rows.length || selection.length!==1)return false;
+  const ids=String(selection[0]).split('|').filter(Boolean);
+  if(!ids.length || ids.some(id=>id==='all' || id.startsWith('noprofile:')))return false;
+  return rows.every(row=>ids.includes(String(row.deck_profile_id || '')));
 }
